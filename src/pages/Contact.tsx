@@ -39,7 +39,8 @@ const Contact = () => {
       email: formData.email,
       "N°tel": formData.phone || null,
       message: formData.message,
-      mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone"
+      mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
+      created_at: new Date().toISOString().split('T')[0]
     }]);
     
     if (error) {
