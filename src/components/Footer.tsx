@@ -65,7 +65,7 @@ const Footer = () => {
               </a>
             </div>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>📍 Région Parisienne</p>
+              <p>📍 Caen</p>
               <p>📧 contact@cdocoaching.com</p>
             </div>
           </div>
