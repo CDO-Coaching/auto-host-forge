@@ -33,7 +33,7 @@ const Contact = () => {
     }
 
     const { error } = await supabase.from("prise_de_contact").insert([{
-      prenom: formData.firstName, 
+      "prénom": formData.firstName, 
       nom: formData.lastName, 
       email: formData.email,
       "N°tel": formData.phone || null,
