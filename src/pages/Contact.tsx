@@ -6,24 +6,47 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", phone: "", message: "" });
+  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.contactMethod) {
+      toast({ title: "Attention", description: "Veuillez sélectionner un mode de contact", variant: "destructive" });
+      return;
+    }
+
+    if (formData.contactMethod === "phone" && !formData.phone) {
+      toast({ title: "Attention", description: "Veuillez renseigner votre numéro de téléphone", variant: "destructive" });
+      return;
+    }
+
+    if (formData.contactMethod === "email" && !formData.email) {
+      toast({ title: "Attention", description: "Veuillez renseigner votre email", variant: "destructive" });
+      return;
+    }
+
     const { error } = await supabase.from("Prise_de_contact_page_web").insert({
-      Prenom: formData.firstName, Nom: formData.lastName, email: formData.email,
-      message: formData.message, created_at: new Date().toISOString(), "N°": formData.phone || undefined
+      Prenom: formData.firstName, 
+      Nom: formData.lastName, 
+      email: formData.email,
+      message: formData.message, 
+      created_at: new Date().toISOString(), 
+      "N°": formData.phone || undefined,
+      mode_de_contact: formData.contactMethod
     });
+    
     if (error) {
       toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
     } else {
       toast({ title: "Message envoyé !", description: "Je te répondrai rapidement." });
-      setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "" });
+      setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
     }
   };
 
@@ -38,8 +61,21 @@ const Contact = () => {
               <div><Label>Prénom</Label><Input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} required /></div>
               <div><Label>Nom</Label><Input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} required /></div>
             </div>
-            <div><Label>Email</Label><Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required /></div>
-            <div><Label>Téléphone</Label><Input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
+            <div><Label>Email</Label><Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required={formData.contactMethod === "email"} /></div>
+            <div><Label>Téléphone</Label><Input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required={formData.contactMethod === "phone"} /></div>
+            <div>
+              <Label>Mode de contact préféré *</Label>
+              <RadioGroup value={formData.contactMethod} onValueChange={(value) => setFormData({...formData, contactMethod: value})} className="mt-2">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="email" id="email" />
+                  <Label htmlFor="email" className="cursor-pointer font-normal">Par email</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="phone" id="phone" />
+                  <Label htmlFor="phone" className="cursor-pointer font-normal">Par téléphone</Label>
+                </div>
+              </RadioGroup>
+            </div>
             <div><Label>Message</Label><Textarea value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} required /></div>
             <Button type="submit" variant="hero" className="w-full">Envoyer</Button>
           </form>
