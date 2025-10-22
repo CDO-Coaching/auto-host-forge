@@ -53,9 +53,9 @@ const Index = () => {
             Coaching sportif professionnel pour transformer ton corps et ton mental
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/appointment">
+            <Link to="/auth">
               <Button variant="hero" size="lg" className="shadow-intense">
-                Réserve ton Appel Gratuit
+                Me connecter
               </Button>
             </Link>
             <Link to="/coaching">
@@ -104,12 +104,12 @@ const Index = () => {
               <span className="text-primary">Ta Vie</span> ?
             </h2>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Réserve ton appel découverte gratuit de 20 minutes et
-              découvrons ensemble comment atteindre tes objectifs.
+              Connecte-toi pour accéder à ton espace personnel et
+              découvrir tous mes services de coaching.
             </p>
-            <Link to="/appointment">
+            <Link to="/auth">
               <Button variant="hero" size="lg" className="shadow-intense">
-                Réserver Mon Appel Gratuit
+                Me connecter
               </Button>
             </Link>
           </Card>
