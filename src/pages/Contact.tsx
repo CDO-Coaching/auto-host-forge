@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Contact = () => {
   const { toast } = useToast();
   const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,14 +45,25 @@ const Contact = () => {
     if (error) {
       toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
     } else {
-      toast({ title: "Message envoyé !", description: "Je te répondrai rapidement." });
+      setShowSuccess(true);
       setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
+      setTimeout(() => setShowSuccess(false), 4000);
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
+      
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-fade-in">
+          <div className="text-center animate-scale-in space-y-6 p-8">
+            <div className="text-8xl mb-4">✅</div>
+            <h2 className="text-6xl font-black text-primary mb-4">Message envoyé !</h2>
+            <p className="text-2xl text-muted-foreground">Je te répondrai très rapidement</p>
+          </div>
+        </div>
+      )}
       <section className="pt-32 pb-20 container mx-auto px-4 max-w-2xl">
         <h1 className="text-5xl font-black text-center mb-12">Restons en <span className="text-primary">Contact</span></h1>
         <Card className="p-8">
