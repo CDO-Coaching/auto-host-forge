@@ -32,13 +32,13 @@ const Contact = () => {
       return;
     }
 
-    const { error } = await supabase.from("Prise_de_contact_page_web").insert({
-      Prenom: formData.firstName, 
-      Nom: formData.lastName, 
+    const { error } = await supabase.from("prise_de_contact").insert({
+      prenom: formData.firstName, 
+      nom: formData.lastName, 
       email: formData.email,
       message: formData.message, 
       created_at: new Date().toISOString(), 
-      "N°": formData.phone || undefined,
+      "N°tel": formData.phone || undefined,
       mode_de_contact: formData.contactMethod
     });
     
