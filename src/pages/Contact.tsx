@@ -32,15 +32,14 @@ const Contact = () => {
       return;
     }
 
-    const { error } = await supabase.from("prise_de_contact").insert({
+    const { error } = await supabase.from("prise_de_contact").insert([{
       prenom: formData.firstName, 
       nom: formData.lastName, 
       email: formData.email,
-      message: formData.message, 
-      created_at: new Date().toISOString(), 
-      "N°tel": formData.phone || undefined,
+      "N°tel": formData.phone || null,
+      message: formData.message,
       mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone"
-    });
+    }]);
     
     if (error) {
       toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
