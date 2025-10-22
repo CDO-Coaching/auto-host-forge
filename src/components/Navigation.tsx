@@ -43,9 +43,9 @@ const Navigation = () => {
                 {item.name}
               </Link>
             ))}
-            <Link to="/appointment">
+            <Link to="/auth">
               <Button className="ml-4 bg-gradient-cta hover:shadow-glow transition-all">
-                Réserver un Appel
+                Se connecter
               </Button>
             </Link>
           </div>
@@ -77,9 +77,9 @@ const Navigation = () => {
                   {item.name}
                 </Link>
               ))}
-              <Link to="/appointment" onClick={() => setIsOpen(false)}>
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
                 <Button className="w-full mt-2 bg-gradient-cta hover:shadow-glow transition-all">
-                  Réserver un Appel
+                  Se connecter
                 </Button>
               </Link>
             </div>
