@@ -33,6 +33,13 @@ const Contact = () => {
       return;
     }
 
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day} ${hour}:00`;
+
     const { error } = await supabase.from("prise_de_contact").insert([{
       "prénom": formData.firstName, 
       nom: formData.lastName, 
@@ -40,7 +47,7 @@ const Contact = () => {
       "N°tel": formData.phone || null,
       message: formData.message,
       mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
-      created_at: new Date().toISOString()
+      created_at: formattedDate
     }]);
     
     if (error) {
