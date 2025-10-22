@@ -97,6 +97,11 @@ const Contact = () => {
             </div>
             <div><Label>Message</Label><Textarea value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} required /></div>
             <Button type="submit" variant="hero" className="w-full">Envoyer</Button>
+            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+              🔒 Les informations recueillies via ce formulaire sont enregistrées par CDO Coaching pour permettre de vous recontacter et répondre à votre demande.
+              Vos données ne sont pas partagées avec des tiers.
+              Conformément à la loi Informatique et Libertés, vous pouvez exercer vos droits d'accès, de rectification ou de suppression en écrivant à corentin@cdocoaching.com.
+            </p>
           </form>
         </Card>
       </section>
