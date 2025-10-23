@@ -23,11 +23,25 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { error } = isLogin 
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
-      if (error) throw error;
-      toast({ title: isLogin ? "Connexion réussie" : "Inscription réussie" });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        toast({ title: "Connexion réussie" });
+      } else {
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: { 
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: { email }
+          }
+        });
+        if (error) throw error;
+        toast({ 
+          title: "Inscription réussie", 
+          description: "Votre compte a été créé. En attente d'approbation par l'administrateur."
+        });
+      }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
     }

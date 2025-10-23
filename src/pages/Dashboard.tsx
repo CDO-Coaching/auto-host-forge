@@ -3,19 +3,52 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [isApproved, setIsApproved] = useState<boolean | null>(null);
+  const [userEmail, setUserEmail] = useState<string>("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { 
-      if (!session) navigate("/auth"); 
-      setLoading(false); 
-    });
+    const checkUserApproval = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      setUserEmail(session.user.email || "");
+
+      // Check if user is approved
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('approved')
+        .eq('id', session.user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        setIsApproved(false);
+      } else {
+        setIsApproved(profile?.approved || false);
+      }
+      
+      setLoading(false);
+    };
+
+    checkUserApproval();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => { 
-      if (!session) navigate("/auth"); 
+      if (!session) {
+        navigate("/auth");
+      } else {
+        checkUserApproval();
+      }
     });
+    
     return () => subscription.unsubscribe();
   }, [navigate]);
 
@@ -31,8 +64,35 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <p className="text-white text-xl">Chargement...</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-foreground text-xl">Chargement...</p>
+      </div>
+    );
+  }
+
+  if (isApproved === false) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle>Compte en attente d'approbation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground text-center">
+              Votre compte ({userEmail}) a été créé avec succès mais est en attente d'approbation par l'administrateur.
+            </p>
+            <p className="text-muted-foreground text-center text-sm">
+              Vous recevrez une notification une fois votre compte approuvé.
+            </p>
+            <Button 
+              onClick={handleLogout} 
+              variant="outline" 
+              className="w-full"
+            >
+              Se déconnecter
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
