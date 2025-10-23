@@ -39,7 +39,7 @@ const Auth = () => {
         if (error) throw error;
         toast({ 
           title: "Inscription réussie", 
-          description: "Votre compte a été créé. En attente d'approbation par l'administrateur."
+          description: "Veuillez confirmer votre email avant de vous connecter. En attente d'approbation par l'administrateur."
         });
       }
     } catch (error: any) {
