@@ -1,39 +1,60 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 const AuthCallback = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) throw error;
-        
-        if (session) {
+        const token = searchParams.get('token');
+        const type = searchParams.get('type');
+
+        // Si on a un token, on confirme l'email avec verifyOtp
+        if (token && type === 'signup') {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'signup'
+          });
+
+          if (error) throw error;
+
           toast({ 
             title: "Email confirmé", 
             description: "Votre compte est en attente d'approbation par l'administrateur." 
           });
           navigate("/dashboard");
         } else {
-          navigate("/auth");
+          // Sinon, on vérifie la session normale
+          const { data: { session }, error } = await supabase.auth.getSession();
+          
+          if (error) throw error;
+          
+          if (session) {
+            toast({ 
+              title: "Email confirmé", 
+              description: "Votre compte est en attente d'approbation par l'administrateur." 
+            });
+            navigate("/dashboard");
+          } else {
+            navigate("/auth");
+          }
         }
       } catch (error: any) {
         toast({ 
           variant: "destructive", 
-          title: "Erreur", 
+          title: "Erreur de confirmation", 
           description: error.message 
         });
-        navigate("/auth");
+        navigate("/auth?error=confirmation_failed");
       }
     };
 
     handleCallback();
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
