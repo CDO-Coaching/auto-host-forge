@@ -242,31 +242,6 @@ export default function Profil() {
           </Form>
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Code SQL pour Supabase</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-3">
-            Exécutez ce code SQL dans l'éditeur SQL de Supabase pour ajouter les colonnes manquantes :
-          </p>
-          <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs">
-{`-- Ajouter les colonnes manquantes à la table user_profiles
-ALTER TABLE user_profiles
-ADD COLUMN IF NOT EXISTS first_name TEXT,
-ADD COLUMN IF NOT EXISTS last_name TEXT,
-ADD COLUMN IF NOT EXISTS date_of_birth DATE,
-ADD COLUMN IF NOT EXISTS gender TEXT CHECK (gender IN ('male', 'female', 'other'));
-
--- Ajouter un commentaire pour documenter les colonnes
-COMMENT ON COLUMN user_profiles.first_name IS 'Prénom de l''utilisateur';
-COMMENT ON COLUMN user_profiles.last_name IS 'Nom de famille de l''utilisateur';
-COMMENT ON COLUMN user_profiles.date_of_birth IS 'Date de naissance de l''utilisateur';
-COMMENT ON COLUMN user_profiles.gender IS 'Sexe de l''utilisateur (male, female, other)';`}
-          </pre>
-        </CardContent>
-      </Card>
     </div>
   );
 }
