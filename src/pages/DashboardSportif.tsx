@@ -70,7 +70,7 @@ export default function DashboardSportif() {
           </header>
           <main className="flex-1 p-6">
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard-sportif/seances" replace />} />
+              <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/questions" element={<Questions />} />

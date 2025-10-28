@@ -40,7 +40,7 @@ const AuthCallback = () => {
             } else if (profile.role === "coach") {
               navigate("/dashboard-coach");
             } else {
-              navigate("/dashboard-sportif");
+              navigate("/sportif/seances");
             }
           }
         } else {
@@ -66,7 +66,7 @@ const AuthCallback = () => {
             } else if (profile.role === "coach") {
               navigate("/dashboard-coach");
             } else {
-              navigate("/dashboard-sportif");
+              navigate("/sportif/seances");
             }
           } else {
             navigate("/auth");
