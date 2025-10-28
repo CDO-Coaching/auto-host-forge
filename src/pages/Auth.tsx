@@ -37,22 +37,24 @@ const Auth = () => {
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (session) {
-        // Récupérer le profil pour rediriger vers le bon dashboard
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("approved, role")
-          .eq("id", session.user.id)
-          .single();
+        // Différer l'appel Supabase pour éviter les deadlocks
+        setTimeout(async () => {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("approved, role")
+            .eq("id", session.user.id)
+            .single();
 
-        if (!profile?.approved) {
-          navigate("/en-attente");
-        } else if (profile.role === "coach") {
-          navigate("/dashboard-coach");
-        } else {
-          navigate("/dashboard-sportif");
-        }
+          if (!profile?.approved) {
+            navigate("/en-attente");
+          } else if (profile.role === "coach") {
+            navigate("/dashboard-coach");
+          } else {
+            navigate("/dashboard-sportif");
+          }
+        }, 0);
       }
     });
 
