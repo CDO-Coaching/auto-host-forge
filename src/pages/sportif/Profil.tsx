@@ -6,12 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,7 +15,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
   last_name: z.string().trim().min(1, "Le nom est requis").max(100),
-  date_of_birth: z.date().optional(),
+  date_of_birth: z.string().optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
 });
 
@@ -39,7 +33,7 @@ export default function Profil() {
     defaultValues: {
       first_name: "",
       last_name: "",
-      date_of_birth: undefined,
+      date_of_birth: "",
       gender: undefined,
     },
   });
@@ -66,7 +60,7 @@ export default function Profil() {
         form.reset({
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
-          date_of_birth: profile.date_of_birth ? new Date(profile.date_of_birth) : undefined,
+          date_of_birth: profile.date_of_birth || "",
           gender: profile.gender || undefined,
         });
       }
@@ -84,7 +78,7 @@ export default function Profil() {
         .update({
           first_name: data.first_name,
           last_name: data.last_name,
-          date_of_birth: data.date_of_birth?.toISOString().split('T')[0],
+          date_of_birth: data.date_of_birth || null,
           gender: data.gender,
           updated_at: new Date().toISOString(),
         })
@@ -163,40 +157,16 @@ export default function Profil() {
                 control={form.control}
                 name="date_of_birth"
                 render={({ field }) => (
-                  <FormItem className="flex flex-col">
+                  <FormItem>
                     <FormLabel>Date de naissance</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP", { locale: fr })
-                            ) : (
-                              <span>Sélectionner une date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date > new Date() || date < new Date("1900-01-01")
-                          }
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input 
+                        type="date" 
+                        {...field} 
+                        max={new Date().toISOString().split('T')[0]}
+                        min="1900-01-01"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
