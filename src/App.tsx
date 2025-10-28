@@ -16,6 +16,9 @@ const Contact = lazy(() => import("./pages/Contact"));
 const Auth = lazy(() => import("./pages/Auth"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const EnAttente = lazy(() => import("./pages/EnAttente"));
+const DashboardCoach = lazy(() => import("./pages/DashboardCoach"));
+const DashboardSportif = lazy(() => import("./pages/DashboardSportif"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const App = () => (
@@ -34,8 +37,10 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/en-attente" element={<EnAttente />} />
+            <Route path="/dashboard-coach" element={<DashboardCoach />} />
+            <Route path="/dashboard-sportif" element={<DashboardSportif />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

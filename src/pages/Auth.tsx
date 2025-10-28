@@ -15,8 +15,47 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { if (session) navigate("/dashboard"); });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => { if (session) navigate("/dashboard"); });
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // Récupérer le profil pour rediriger vers le bon dashboard
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("approved, role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (!profile?.approved) {
+          navigate("/en-attente");
+        } else if (profile.role === "coach") {
+          navigate("/dashboard-coach");
+        } else {
+          navigate("/dashboard-sportif");
+        }
+      }
+    };
+
+    checkSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+      if (session) {
+        // Récupérer le profil pour rediriger vers le bon dashboard
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("approved, role")
+          .eq("id", session.user.id)
+          .single();
+
+        if (!profile?.approved) {
+          navigate("/en-attente");
+        } else if (profile.role === "coach") {
+          navigate("/dashboard-coach");
+        } else {
+          navigate("/dashboard-sportif");
+        }
+      }
+    });
+
     return () => subscription.unsubscribe();
   }, [navigate]);
 

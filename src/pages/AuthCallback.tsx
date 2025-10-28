@@ -22,11 +22,27 @@ const AuthCallback = () => {
 
           if (error) throw error;
 
-          toast({ 
-            title: "Email confirmé", 
-            description: "Votre compte est en attente d'approbation par l'administrateur." 
-          });
-          navigate("/dashboard");
+          // Récupérer le profil pour rediriger selon le rôle
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("approved, role")
+              .eq("id", session.user.id)
+              .single();
+
+            if (!profile?.approved) {
+              toast({ 
+                title: "Email confirmé", 
+                description: "Votre compte est en attente d'approbation par l'administrateur." 
+              });
+              navigate("/en-attente");
+            } else if (profile.role === "coach") {
+              navigate("/dashboard-coach");
+            } else {
+              navigate("/dashboard-sportif");
+            }
+          }
         } else {
           // Sinon, on vérifie la session normale
           const { data: { session }, error } = await supabase.auth.getSession();
@@ -34,11 +50,24 @@ const AuthCallback = () => {
           if (error) throw error;
           
           if (session) {
-            toast({ 
-              title: "Email confirmé", 
-              description: "Votre compte est en attente d'approbation par l'administrateur." 
-            });
-            navigate("/dashboard");
+            // Récupérer le profil pour rediriger selon le rôle
+            const { data: profile } = await supabase
+              .from("user_profiles")
+              .select("approved, role")
+              .eq("id", session.user.id)
+              .single();
+
+            if (!profile?.approved) {
+              toast({ 
+                title: "Connexion réussie", 
+                description: "Votre compte est en attente d'approbation par l'administrateur." 
+              });
+              navigate("/en-attente");
+            } else if (profile.role === "coach") {
+              navigate("/dashboard-coach");
+            } else {
+              navigate("/dashboard-sportif");
+            }
           } else {
             navigate("/auth");
           }
