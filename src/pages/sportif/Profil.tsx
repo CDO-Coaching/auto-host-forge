@@ -96,18 +96,25 @@ export default function Profil() {
   const loadCoachRelationship = async (athleteId: string) => {
     const { data } = await supabase
       .from("coach_athlete_relationships")
-      .select(`
-        id,
-        coach_id,
-        status,
-        coach:user_profiles!coach_athlete_relationships_coach_id_fkey(id, first_name, last_name, email)
-      `)
+      .select("id, coach_id, status")
       .eq("athlete_id", athleteId)
       .in("status", ["pending", "approved"])
       .maybeSingle();
 
     if (data) {
-      setCurrentRelationship(data as any);
+      // Charger les infos du coach séparément
+      const { data: coachData } = await supabase
+        .from("user_profiles")
+        .select("id, first_name, last_name, email")
+        .eq("id", data.coach_id)
+        .single();
+
+      if (coachData) {
+        setCurrentRelationship({
+          ...data,
+          coach: coachData
+        } as any);
+      }
     }
   };
 
