@@ -28,7 +28,7 @@ const Auth = () => {
         if (!profile?.approved) {
           navigate("/en-attente");
         } else if (profile.role === "coach") {
-          navigate("/dashboard-coach");
+          navigate("/coach/programmation");
         } else {
           navigate("/sportif/seances");
         }
@@ -50,7 +50,7 @@ const Auth = () => {
           if (!profile?.approved) {
             navigate("/en-attente");
           } else if (profile.role === "coach") {
-            navigate("/dashboard-coach");
+            navigate("/coach/programmation");
           } else {
             navigate("/sportif/seances");
           }

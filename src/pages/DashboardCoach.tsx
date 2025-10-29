@@ -42,7 +42,7 @@ export default function DashboardCoach() {
       }
 
       if (profileData.role !== "coach") {
-        navigate("/dashboard-sportif");
+        navigate("/sportif/seances");
         return;
       }
 

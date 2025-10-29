@@ -32,7 +32,7 @@ export default function EnAttente() {
       if (profile?.approved) {
         // Si approuvé, rediriger vers le bon dashboard
         if (profile.role === "coach") {
-          navigate("/dashboard-coach");
+          navigate("/coach/programmation");
         } else {
           navigate("/dashboard-sportif");
         }

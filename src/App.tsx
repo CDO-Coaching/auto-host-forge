@@ -39,7 +39,7 @@ const App = () => (
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/en-attente" element={<EnAttente />} />
-            <Route path="/dashboard-coach" element={<DashboardCoach />} />
+            <Route path="/coach/*" element={<DashboardCoach />} />
             <Route path="/dashboard-sportif/*" element={<DashboardSportif />} />
             <Route path="/sportif/*" element={<DashboardSportif />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
