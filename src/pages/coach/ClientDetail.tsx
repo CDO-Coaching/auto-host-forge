@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { getWeek } from "date-fns";
 
 interface AthleteProfile {
@@ -25,6 +27,18 @@ interface Session {
   isExpanded: boolean;
 }
 
+interface Exercise {
+  id: number;
+  exercice: string;
+  recuperation: string;
+  reps: string;
+  series: string;
+  charge: string;
+  rpe: string;
+  tempo: string;
+  commentaire: string;
+}
+
 export default function ClientDetail() {
   const { athleteId } = useParams();
   const navigate = useNavigate();
@@ -33,6 +47,7 @@ export default function ClientDetail() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
+  const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -102,6 +117,38 @@ export default function ClientDetail() {
   const handleValidate = () => {
     setIsValidated(true);
     toast.success("Semaine d'entraînement validée ! Le sportif peut maintenant y accéder.");
+  };
+
+  const handleAddExercise = (sessionId: number) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const newExercise: Exercise = {
+      id: currentExercises.length + 1,
+      exercice: "",
+      recuperation: "",
+      reps: "",
+      series: "",
+      charge: "",
+      rpe: "",
+      tempo: "",
+      commentaire: ""
+    };
+    
+    setSessionExercises({
+      ...sessionExercises,
+      [sessionId]: [...currentExercises, newExercise]
+    });
+  };
+
+  const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const updatedExercises = currentExercises.map(ex =>
+      ex.id === exerciseId ? { ...ex, [field]: value } : ex
+    );
+    
+    setSessionExercises({
+      ...sessionExercises,
+      [sessionId]: updatedExercises
+    });
   };
 
   if (loading) {
@@ -224,12 +271,113 @@ export default function ClientDetail() {
                         
                         {expandedSessionId === session.id && (
                           <div className="border-t p-4 bg-muted/20">
-                            <p className="text-sm text-muted-foreground">
-                              Tableau des exercices pour {session.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Contenu à développer...
-                            </p>
+                            <div className="space-y-4">
+                              <div className="overflow-x-auto">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="min-w-[150px]">Exercice</TableHead>
+                                      <TableHead className="min-w-[120px]">Récupération</TableHead>
+                                      <TableHead className="min-w-[100px]">Reps</TableHead>
+                                      <TableHead className="min-w-[100px]">Séries</TableHead>
+                                      <TableHead className="min-w-[100px]">Charge</TableHead>
+                                      <TableHead className="min-w-[100px]">RPE</TableHead>
+                                      <TableHead className="min-w-[100px]">Tempo</TableHead>
+                                      <TableHead className="min-w-[200px]">Commentaire</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {(sessionExercises[session.id] || []).length === 0 ? (
+                                      <TableRow>
+                                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                                          Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                        </TableCell>
+                                      </TableRow>
+                                    ) : (
+                                      (sessionExercises[session.id] || []).map((exercise) => (
+                                        <TableRow key={exercise.id}>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.exercice}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "exercice", e.target.value)}
+                                              placeholder="Nom de l'exercice"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.recuperation}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "recuperation", e.target.value)}
+                                              placeholder="ex: 90s"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.reps}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)}
+                                              placeholder="ex: 10"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.series}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                              placeholder="ex: 3"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.charge}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)}
+                                              placeholder="ex: 80kg"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.rpe}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                              placeholder="ex: 8"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.tempo}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
+                                              placeholder="ex: 3010"
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                          <TableCell>
+                                            <Input
+                                              value={exercise.commentaire}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                              placeholder="Notes..."
+                                              disabled={isValidated}
+                                            />
+                                          </TableCell>
+                                        </TableRow>
+                                      ))
+                                    )}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                              
+                              {!isValidated && (
+                                <Button
+                                  onClick={() => handleAddExercise(session.id)}
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Ajouter une ligne
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
