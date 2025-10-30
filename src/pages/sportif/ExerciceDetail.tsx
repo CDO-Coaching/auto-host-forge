@@ -23,6 +23,7 @@ export default function ExerciceDetail() {
   const [sportifComment, setSportifComment] = useState("");
   const [sportifRpe, setSportifRpe] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [weekId, setWeekId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -54,6 +55,15 @@ export default function ExerciceDetail() {
     } else {
       setExercise(data);
       setSessionId(data.session_id);
+      // Récupérer la semaine de la séance pour un retour fiable
+      if (data.session_id) {
+        const { data: sessionRow } = await supabase
+          .from("training_sessions")
+          .select("week_id")
+          .eq("id", data.session_id)
+          .maybeSingle();
+        if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
+      }
       setSportifComment(data.sportif_comment || "");
       setSportifRpe(data.sportif_rpe ? String(data.sportif_rpe) : "");
       // Initialiser le timer avec le temps de récupération
@@ -64,7 +74,6 @@ export default function ExerciceDetail() {
     
     setLoading(false);
   };
-
   const parseRecuperationTime = (recup: string): number => {
     // Parse "1min30s" => 90 secondes, "2min" => 120 secondes, etc.
     const minMatch = recup.match(/(\d+)min/);
@@ -177,13 +186,12 @@ export default function ExerciceDetail() {
   }
 
   const handleBack = () => {
-    if (sessionId) {
-      navigate(`/sportif/seance/${sessionId}`);
+    if (weekId && sessionId) {
+      navigate(`/sportif/seance/${weekId}/${sessionId}`);
     } else {
       navigate('/sportif/seances');
     }
   };
-
   if (!exercise) {
     return (
       <div className="min-h-screen p-4">
