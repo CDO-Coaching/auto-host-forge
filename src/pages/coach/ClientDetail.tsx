@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Users } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AthleteProfile {
@@ -18,11 +18,19 @@ interface AthleteProfile {
   role: string;
 }
 
+interface Session {
+  id: number;
+  name: string;
+  isExpanded: boolean;
+}
+
 export default function ClientDetail() {
   const { athleteId } = useParams();
   const navigate = useNavigate();
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
 
   useEffect(() => {
     loadAthleteData();
@@ -48,6 +56,30 @@ export default function ClientDetail() {
     }
     
     setLoading(false);
+  };
+
+  const handleCreateSession = (sessionNumber: number) => {
+    const newSession: Session = {
+      id: sessionNumber,
+      name: `Séance ${sessionNumber}`,
+      isExpanded: false,
+    };
+    
+    const exists = sessions.find(s => s.id === sessionNumber);
+    if (!exists) {
+      setSessions([...sessions, newSession]);
+      toast.success(`Séance ${sessionNumber} créée`);
+    } else {
+      toast.info(`Séance ${sessionNumber} existe déjà`);
+    }
+  };
+
+  const toggleSession = (sessionId: number) => {
+    if (expandedSessionId === sessionId) {
+      setExpandedSessionId(null);
+    } else {
+      setExpandedSessionId(sessionId);
+    }
   };
 
   if (loading) {
@@ -121,15 +153,65 @@ export default function ClientDetail() {
         <TabsContent value="programmation" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Programme d'entraînement</CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle>Programme d'entraînement</CardTitle>
+                <div className="flex gap-2 flex-wrap">
+                  {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                    <Button
+                      key={num}
+                      onClick={() => handleCreateSession(num)}
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Séance {num}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">
-                Ici tu pourras créer et gérer le programme d'entraînement de {athlete.first_name}.
-              </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Fonctionnalité en cours de développement...
-              </p>
+              {sessions.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Aucune séance créée. Clique sur un bouton ci-dessus pour créer une séance.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {sessions
+                    .sort((a, b) => a.id - b.id)
+                    .map((session) => (
+                      <div key={session.id} className="border rounded-lg">
+                        <div
+                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => toggleSession(session.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {expandedSessionId === session.id ? (
+                              <ChevronDown className="h-5 w-5 text-primary" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">{session.name}</span>
+                          </div>
+                          <Badge variant="outline">
+                            {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
+                          </Badge>
+                        </div>
+                        
+                        {expandedSessionId === session.id && (
+                          <div className="border-t p-4 bg-muted/20">
+                            <p className="text-sm text-muted-foreground">
+                              Tableau des exercices pour {session.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Contenu à développer...
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
