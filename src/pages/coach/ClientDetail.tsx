@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X, Copy } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X, Copy, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { getWeek } from "date-fns";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AthleteProfile {
   id: string;
@@ -61,6 +62,8 @@ export default function ClientDetail() {
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
+  const [showLastWeekFeedback, setShowLastWeekFeedback] = useState(true);
+  const [lastWeekData, setLastWeekData] = useState<any>(null);
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -82,6 +85,7 @@ export default function ClientDetail() {
     loadAthleteData();
     loadLibraryExercises();
     loadHistoricalWeeks();
+    loadLastWeekFeedback();
   }, [athleteId]);
 
   const loadLibraryExercises = async () => {
@@ -112,6 +116,41 @@ export default function ClientDetail() {
       console.error("Erreur lors du chargement de l'historique:", error);
     } else {
       setHistoricalWeeks(data || []);
+    }
+  };
+
+  const loadLastWeekFeedback = async () => {
+    if (!athleteId) return;
+    
+    const { data: lastWeek, error: weekError } = await supabase
+      .from("training_weeks")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .eq("validated", true)
+      .order("year", { ascending: false })
+      .order("week_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (weekError || !lastWeek) {
+      console.error("Pas de semaine précédente:", weekError);
+      return;
+    }
+
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from("training_sessions")
+      .select(`
+        *,
+        session_exercises (*)
+      `)
+      .eq("week_id", lastWeek.id)
+      .order("session_number");
+
+    if (!sessionsError && sessionsData) {
+      setLastWeekData({
+        week: lastWeek,
+        sessions: sessionsData
+      });
     }
   };
 
@@ -347,8 +386,9 @@ export default function ClientDetail() {
       setIsValidated(true);
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
       
-      // Recharger l'historique
+      // Recharger l'historique et les retours
       await loadHistoricalWeeks();
+      await loadLastWeekFeedback();
       
     } catch (error) {
       console.error("Erreur lors de la validation:", error);
@@ -587,6 +627,94 @@ export default function ClientDetail() {
         </TabsList>
 
         <TabsContent value="programmation" className="space-y-4">
+          {/* Retours de la semaine précédente */}
+          {lastWeekData && (
+            <Collapsible
+              open={showLastWeekFeedback}
+              onOpenChange={setShowLastWeekFeedback}
+            >
+              <Card className="border-primary/20 bg-primary/5">
+                <CardHeader className="pb-3">
+                  <CollapsibleTrigger className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      <CardTitle className="text-base">
+                        Retours de la semaine {lastWeekData.week.week_number} - {lastWeekData.week.year}
+                      </CardTitle>
+                    </div>
+                    {showLastWeekFeedback ? (
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    )}
+                  </CollapsibleTrigger>
+                </CardHeader>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      {lastWeekData.sessions.map((session: any) => (
+                        <div key={session.id} className="border rounded-lg p-3 bg-background">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold text-sm">{session.name}</h4>
+                            <div className="flex gap-3 text-xs text-muted-foreground">
+                              {session.completed_at && (
+                                <span>
+                                  Réalisée le {new Date(session.completed_at).toLocaleDateString()}
+                                </span>
+                              )}
+                              {session.duration_minutes && (
+                                <span>{session.duration_minutes} min</span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {session.session_exercises && session.session_exercises.length > 0 ? (
+                            <div className="space-y-2">
+                              {session.session_exercises
+                                .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment)
+                                .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+                                .map((ex: any) => (
+                                  <div key={ex.id} className="pl-3 border-l-2 border-primary/30 py-1">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-sm">{ex.exercice}</div>
+                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                          Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
+                                        </div>
+                                      </div>
+                                      {ex.sportif_rpe && (
+                                        <Badge variant="secondary" className="shrink-0">
+                                          RPE ressenti: {ex.sportif_rpe}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {ex.sportif_comment && (
+                                      <div className="mt-1.5 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
+                                        "{ex.sportif_comment}"
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment) && (
+                                <p className="text-xs text-muted-foreground text-center py-2">
+                                  Aucun retour du sportif pour cette séance
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                              Aucun exercice
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
