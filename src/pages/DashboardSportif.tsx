@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckCircle, XCircle, Clock } from "lucide-react";
 import Seances from "./sportif/Seances";
 import Fatigue from "./sportif/Fatigue";
 import Questions from "./sportif/Questions";
@@ -13,6 +15,8 @@ import Profil from "./sportif/Profil";
 export default function DashboardSportif() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [requestStatus, setRequestStatus] = useState<string | null>(null);
+  const [coachName, setCoachName] = useState<string>("");
   const { profile } = useUserProfile();
 
   useEffect(() => {
@@ -53,6 +57,37 @@ export default function DashboardSportif() {
     checkAccess();
   }, [navigate]);
 
+  useEffect(() => {
+    const loadRequestStatus = async () => {
+      if (!profile?.id) return;
+
+      const { data: relationship } = await supabase
+        .from("coach_athlete_relationships")
+        .select("status, coach_id")
+        .eq("athlete_id", profile.id)
+        .order("requested_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (relationship) {
+        setRequestStatus(relationship.status);
+        
+        // Charger le nom du coach
+        const { data: coachProfile } = await supabase
+          .from("user_profiles")
+          .select("first_name, last_name")
+          .eq("id", relationship.coach_id)
+          .single();
+
+        if (coachProfile) {
+          setCoachName(`${coachProfile.first_name} ${coachProfile.last_name}`);
+        }
+      }
+    };
+
+    loadRequestStatus();
+  }, [profile]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -78,6 +113,39 @@ export default function DashboardSportif() {
             </p>
           </header>
           <main className="flex-1 p-6">
+            {requestStatus === "approved" && (
+              <Alert className="mb-6 border-green-600 bg-green-600/10">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+                <AlertTitle className="text-lg font-semibold text-green-600">
+                  Demande acceptée !
+                </AlertTitle>
+                <AlertDescription>
+                  {coachName} a accepté ta demande de coaching. Vous pouvez maintenant travailler ensemble !
+                </AlertDescription>
+              </Alert>
+            )}
+            {requestStatus === "rejected" && (
+              <Alert className="mb-6 border-red-600 bg-red-600/10">
+                <XCircle className="h-5 w-5 text-red-600" />
+                <AlertTitle className="text-lg font-semibold text-red-600">
+                  Demande refusée
+                </AlertTitle>
+                <AlertDescription>
+                  {coachName} a refusé ta demande de coaching. Tu peux faire une demande à un autre coach.
+                </AlertDescription>
+              </Alert>
+            )}
+            {requestStatus === "pending" && (
+              <Alert className="mb-6 border-orange-500 bg-orange-500/10">
+                <Clock className="h-5 w-5 text-orange-500" />
+                <AlertTitle className="text-lg font-semibold text-orange-500">
+                  Demande en attente
+                </AlertTitle>
+                <AlertDescription>
+                  Ta demande de coaching auprès de {coachName} est en cours de traitement.
+                </AlertDescription>
+              </Alert>
+            )}
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />

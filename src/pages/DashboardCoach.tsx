@@ -5,6 +5,9 @@ import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CoachSidebar } from "@/components/CoachSidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
 import Programmation from "./coach/Programmation";
 import MesClients from "./coach/MesClients";
 import Profil from "./coach/Profil";
@@ -12,6 +15,7 @@ import Profil from "./coach/Profil";
 export default function DashboardCoach() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
   const { profile } = useUserProfile();
 
   useEffect(() => {
@@ -52,6 +56,24 @@ export default function DashboardCoach() {
     checkAccess();
   }, [navigate]);
 
+  useEffect(() => {
+    const loadPendingRequests = async () => {
+      if (!profile?.id) return;
+
+      const { data, error } = await supabase
+        .from("coach_athlete_relationships")
+        .select("id", { count: "exact", head: true })
+        .eq("coach_id", profile.id)
+        .eq("status", "pending");
+
+      if (!error && data !== null) {
+        setPendingCount(data.length || 0);
+      }
+    };
+
+    loadPendingRequests();
+  }, [profile]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -77,6 +99,22 @@ export default function DashboardCoach() {
             </p>
           </header>
           <main className="flex-1 p-6">
+            {pendingCount > 0 && (
+              <Alert className="mb-6 border-primary bg-primary/10">
+                <Bell className="h-5 w-5 text-primary" />
+                <AlertTitle className="text-lg font-semibold">
+                  Tu as {pendingCount} nouvelle{pendingCount > 1 ? "s" : ""} demande{pendingCount > 1 ? "s" : ""} !
+                </AlertTitle>
+                <AlertDescription className="mt-2 flex items-center justify-between">
+                  <span>
+                    Des athlètes aimeraient que tu sois leur coach
+                  </span>
+                  <Button onClick={() => navigate("/coach/mes-clients")} size="sm">
+                    Voir les demandes
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
             <Routes>
               <Route path="/" element={<Navigate to="/coach/programmation" replace />} />
               <Route path="/programmation" element={<Programmation />} />
