@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AthleteProfile {
@@ -76,6 +76,23 @@ export default function ClientDetail() {
     } else {
       setExpandedSessionId(sessionId);
     }
+  };
+
+  const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updatedSessions = sessions
+      .filter(s => s.id !== sessionId)
+      .map((s, index) => ({
+        ...s,
+        id: index + 1,
+        name: `Séance ${index + 1}`
+      }));
+    
+    setSessions(updatedSessions);
+    if (expandedSessionId === sessionId) {
+      setExpandedSessionId(null);
+    }
+    toast.success("Séance supprimée");
   };
 
   if (loading) {
@@ -178,9 +195,19 @@ export default function ClientDetail() {
                           )}
                           <span className="font-medium">{session.name}</span>
                         </div>
-                        <Badge variant="outline">
-                          {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => handleDeleteSession(session.id, e)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                       
                       {expandedSessionId === session.id && (
