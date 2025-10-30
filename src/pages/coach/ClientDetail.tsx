@@ -931,7 +931,8 @@ export default function ClientDetail() {
                                 </div>
                               ) : (
                                 // Interface Renfo (existante)
-                                <div className="overflow-x-auto">
+                                <>
+                                  <div className="overflow-x-auto">
                                   <Table>
                                     <TableHeader>
                                       <TableRow>
@@ -1092,23 +1093,24 @@ export default function ClientDetail() {
                                      )}
                                    </TableBody>
                                  </Table>
-                                </div>
-                                
-                                {!isValidated && (
-                                  <Button
-                                    onClick={() => handleAddExercise(session.id)}
-                                    variant="outline"
-                                    size="sm"
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Ajouter une ligne
-                                  </Button>
-                                )}
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                                  </div>
+                                  
+                                  {!isValidated && (
+                                    <Button
+                                      onClick={() => handleAddExercise(session.id)}
+                                      variant="outline"
+                                      size="sm"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Ajouter une ligne
+                                    </Button>
+                                  )}
+                                 </>
+                               )}
+                             </div>
+                           </div>
+                         )}
+                       </div>
                     ))}
                   </div>
                   
