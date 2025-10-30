@@ -200,6 +200,16 @@ export default function ClientDetail() {
       if (field === "commentaire") {
         // Dans le commentaire, Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
+        // Focus sur le champ exercice de la nouvelle ligne
+        setTimeout(() => {
+          const currentExercises = sessionExercises[sessionId] || [];
+          const newExerciseId = currentExercises.length + 1;
+          const newExerciseInput = document.querySelector(
+            `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`
+          ) as HTMLElement;
+          newExerciseInput?.focus();
+          newExerciseInput?.click();
+        }, 100);
       } else {
         // Pour les autres champs, passer au champ suivant
         const fieldOrder: (keyof Exercise)[] = ["exercice", "recuperation", "reps", "series", "charge", "rpe", "tempo", "commentaire"];
