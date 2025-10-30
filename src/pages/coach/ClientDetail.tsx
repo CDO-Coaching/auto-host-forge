@@ -145,9 +145,80 @@ export default function ClientDetail() {
     toast.success("Séance supprimée");
   };
 
-  const handleValidate = () => {
-    setIsValidated(true);
-    toast.success("Semaine d'entraînement validée ! Le sportif peut maintenant y accéder.");
+  const handleValidate = async () => {
+    if (!athleteId) return;
+    
+    try {
+      // Récupérer l'ID du coach connecté
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Erreur d'authentification");
+        return;
+      }
+
+      const currentYear = new Date().getFullYear();
+
+      // 1. Créer la semaine d'entraînement
+      const { data: weekData, error: weekError } = await supabase
+        .from("training_weeks")
+        .insert({
+          coach_id: user.id,
+          athlete_id: athleteId,
+          week_number: currentWeekNumber,
+          year: currentYear,
+          validated: true,
+          validated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (weekError) throw weekError;
+
+      // 2. Pour chaque séance, créer l'entrée et ses exercices
+      for (const session of sessions) {
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("training_sessions")
+          .insert({
+            week_id: weekData.id,
+            session_number: session.id,
+            name: session.name
+          })
+          .select()
+          .single();
+
+        if (sessionError) throw sessionError;
+
+        // 3. Pour chaque exercice de la séance, créer l'entrée
+        const exercises = sessionExercises[session.id] || [];
+        if (exercises.length > 0) {
+          const exercisesToInsert = exercises.map((exercise, index) => ({
+            session_id: sessionData.id,
+            exercise_order: index + 1,
+            exercice: exercise.exercice,
+            recuperation: exercise.recuperation,
+            reps: exercise.reps,
+            series: exercise.series,
+            charge: exercise.charge,
+            rpe: exercise.rpe,
+            tempo: exercise.tempo,
+            commentaire: exercise.commentaire
+          }));
+
+          const { error: exercisesError } = await supabase
+            .from("session_exercises")
+            .insert(exercisesToInsert);
+
+          if (exercisesError) throw exercisesError;
+        }
+      }
+
+      setIsValidated(true);
+      toast.success("Semaine d'entraînement validée et envoyée au sportif !");
+      
+    } catch (error) {
+      console.error("Erreur lors de la validation:", error);
+      toast.error("Erreur lors de la validation de la semaine");
+    }
   };
 
   const handleAddExercise = (sessionId: number) => {
