@@ -90,13 +90,15 @@ export default function SeanceDetail() {
     }
     setIsSessionActive(false);
 
-    const { error } = await supabase
+    const { data, error, status } = await supabase
       .from("training_sessions")
       .update({ 
-        duration_minutes: Math.floor(sessionDuration / 60),
+        duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
         completed_at: new Date().toISOString()
       })
-      .eq("id", sessionId);
+      .eq("id", sessionId)
+      .select('id, duration_minutes, completed_at')
+      .maybeSingle();
 
     if (error) {
       console.error("Erreur lors de l'enregistrement de la durée:", error);
