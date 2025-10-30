@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Dumbbell } from "lucide-react";
+import { Plus, Search, Dumbbell, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -271,16 +271,22 @@ export default function BibliothequeExercices() {
                   <TableRow key={exercise.id}>
                     <TableCell className="font-medium">{exercise.name}</TableCell>
                     <TableCell>{exercise.muscle || "-"}</TableCell>
-                    <TableCell className="max-w-xs">
+                    <TableCell>
                       {exercise.video_url ? (
-                        <a 
-                          href={exercise.video_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline truncate block"
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          asChild
                         >
-                          {exercise.video_url}
-                        </a>
+                          <a 
+                            href={exercise.video_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Voir la vidéo
+                          </a>
+                        </Button>
                       ) : (
                         "-"
                       )}
