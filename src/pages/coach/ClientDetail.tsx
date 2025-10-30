@@ -68,6 +68,8 @@ export default function ClientDetail() {
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
   const [showLastWeekFeedback, setShowLastWeekFeedback] = useState(true);
   const [lastWeekData, setLastWeekData] = useState<any>(null);
+  const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
+  const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -231,7 +233,10 @@ export default function ClientDetail() {
               charge: exercise.charge,
               rpe: exercise.rpe,
               tempo: exercise.tempo,
-              commentaire: exercise.commentaire
+              commentaire: exercise.commentaire,
+              cardio_sport: exercise.cardio_sport || null,
+              cardio_content: exercise.cardio_content || null,
+              cardio_pace: exercise.cardio_pace || null
             })
             .eq("id", exercise.id);
 
@@ -249,6 +254,123 @@ export default function ClientDetail() {
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
       toast.error("Erreur lors de la sauvegarde des modifications");
+    }
+  };
+
+  const handleAddHistoricalSession = async () => {
+    if (!newHistoricalSessionName.trim() || !selectedHistoricalWeek) return;
+
+    try {
+      const nextSessionNumber = historicalSessions.length + 1;
+      
+      const { data: sessionData, error } = await supabase
+        .from("training_sessions")
+        .insert({
+          week_id: selectedHistoricalWeek.id,
+          session_number: nextSessionNumber,
+          name: newHistoricalSessionName,
+          session_type: newHistoricalSessionType
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setNewHistoricalSessionName("");
+      setNewHistoricalSessionType("renfo");
+      toast.success("Séance ajoutée");
+      
+      // Recharger les données
+      await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout de la séance:", error);
+      toast.error("Erreur lors de l'ajout de la séance");
+    }
+  };
+
+  const handleDeleteHistoricalSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("training_sessions")
+        .delete()
+        .eq("id", sessionId);
+
+      if (error) throw error;
+
+      toast.success("Séance supprimée");
+      
+      // Recharger les données
+      if (selectedHistoricalWeek) {
+        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression de la séance");
+    }
+  };
+
+  const handleAddHistoricalExercise = async (sessionId: string) => {
+    const session = historicalSessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    try {
+      const currentExercises = editedHistoricalExercises[sessionId] || [];
+      const isCardio = session.session_type === "cardio";
+      
+      const { data, error } = await supabase
+        .from("session_exercises")
+        .insert({
+          session_id: sessionId,
+          exercise_order: currentExercises.length + 1,
+          exercice: isCardio ? "Séance Cardio" : "",
+          recuperation: "",
+          reps: "",
+          series: "",
+          charge: "",
+          rpe: "",
+          tempo: "",
+          commentaire: "",
+          ...(isCardio && {
+            cardio_sport: null,
+            cardio_content: null,
+            cardio_pace: null
+          })
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success("Exercice ajouté");
+      
+      // Recharger les données
+      if (selectedHistoricalWeek) {
+        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'ajout:", error);
+      toast.error("Erreur lors de l'ajout de l'exercice");
+    }
+  };
+
+  const handleDeleteHistoricalExercise = async (exerciseId: string) => {
+    try {
+      const { error } = await supabase
+        .from("session_exercises")
+        .delete()
+        .eq("id", exerciseId);
+
+      if (error) throw error;
+
+      toast.success("Exercice supprimé");
+      
+      // Recharger les données
+      if (selectedHistoricalWeek) {
+        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression de l'exercice");
     }
   };
 
@@ -1222,6 +1344,43 @@ export default function ClientDetail() {
                       </div>
 
                       <div className="space-y-3">
+                        {isEditingHistorical && (
+                          <Card className="bg-primary/5 border-primary/20">
+                            <CardContent className="pt-4">
+                              <div className="space-y-3">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant={newHistoricalSessionType === "renfo" ? "default" : "outline"}
+                                    onClick={() => setNewHistoricalSessionType("renfo")}
+                                    size="sm"
+                                  >
+                                    Renfo
+                                  </Button>
+                                  <Button
+                                    variant={newHistoricalSessionType === "cardio" ? "default" : "outline"}
+                                    onClick={() => setNewHistoricalSessionType("cardio")}
+                                    size="sm"
+                                  >
+                                    Cardio
+                                  </Button>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Nom de la séance"
+                                    value={newHistoricalSessionName}
+                                    onChange={(e) => setNewHistoricalSessionName(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddHistoricalSession()}
+                                  />
+                                  <Button onClick={handleAddHistoricalSession} size="sm">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Ajouter séance
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+
                         {historicalSessions.map((session) => (
                           <div key={session.id} className="border rounded-lg">
                             <div
@@ -1235,10 +1394,28 @@ export default function ClientDetail() {
                                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                                 )}
                                 <span className="font-medium">{session.name}</span>
+                                <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
+                                  {session.session_type === "cardio" ? "Cardio" : "Renfo"}
+                                </Badge>
                               </div>
-                              <Badge variant="outline">
-                                {session.session_exercises?.length || 0} exercices
-                              </Badge>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  {session.session_exercises?.length || 0} exercices
+                                </Badge>
+                                {isEditingHistorical && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteHistoricalSession(session.id);
+                                    }}
+                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </div>
                             </div>
 
                             {expandedHistoricalSessionId === session.id && (
@@ -1263,20 +1440,21 @@ export default function ClientDetail() {
 
                                 <div className="overflow-x-auto">
                                   <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead>Exercice</TableHead>
-                                        <TableHead>Récup</TableHead>
-                                        <TableHead>Reps</TableHead>
-                                        <TableHead>Séries</TableHead>
-                                        <TableHead>Charge</TableHead>
-                                        <TableHead>RPE prescrit</TableHead>
-                                        <TableHead>RPE ressenti</TableHead>
-                                        <TableHead>Tempo</TableHead>
-                                        <TableHead>Commentaire coach</TableHead>
-                                        <TableHead>Retour sportif</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
+                                     <TableHeader>
+                                       <TableRow>
+                                         <TableHead>Exercice</TableHead>
+                                         <TableHead>Récup</TableHead>
+                                         <TableHead>Reps</TableHead>
+                                         <TableHead>Séries</TableHead>
+                                         <TableHead>Charge</TableHead>
+                                         <TableHead>RPE prescrit</TableHead>
+                                         <TableHead>RPE ressenti</TableHead>
+                                         <TableHead>Tempo</TableHead>
+                                         <TableHead>Commentaire coach</TableHead>
+                                         <TableHead>Retour sportif</TableHead>
+                                         {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                       </TableRow>
+                                     </TableHeader>
                                     <TableBody>
                                       {editedHistoricalExercises[session.id] && editedHistoricalExercises[session.id].length > 0 ? (
                                         editedHistoricalExercises[session.id].map((exercise: any) => (
@@ -1391,28 +1569,53 @@ export default function ClientDetail() {
                                                 exercise.commentaire || "-"
                                               )}
                                             </TableCell>
-                                            <TableCell>
-                                              {exercise.sportif_comment ? (
-                                                <div className="max-w-xs">
-                                                  <p className="text-sm whitespace-pre-wrap">{exercise.sportif_comment}</p>
-                                                </div>
-                                              ) : (
-                                                <span className="text-muted-foreground">-</span>
-                                              )}
-                                            </TableCell>
-                                          </TableRow>
+                                             <TableCell>
+                                               {exercise.sportif_comment ? (
+                                                 <div className="max-w-xs">
+                                                   <p className="text-sm whitespace-pre-wrap">{exercise.sportif_comment}</p>
+                                                 </div>
+                                               ) : (
+                                                 <span className="text-muted-foreground">-</span>
+                                               )}
+                                             </TableCell>
+                                             {isEditingHistorical && (
+                                               <TableCell>
+                                                 <Button
+                                                   variant="ghost"
+                                                   size="sm"
+                                                   onClick={() => handleDeleteHistoricalExercise(exercise.id)}
+                                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                 >
+                                                   <X className="h-4 w-4" />
+                                                 </Button>
+                                               </TableCell>
+                                             )}
+                                           </TableRow>
                                         ))
-                                      ) : (
-                                        <TableRow>
-                                          <TableCell colSpan={10} className="text-center text-muted-foreground">
-                                            Aucun exercice
-                                          </TableCell>
-                                        </TableRow>
-                                      )}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-                              </div>
+                                       ) : (
+                                         <TableRow>
+                                           <TableCell colSpan={isEditingHistorical ? 11 : 10} className="text-center text-muted-foreground">
+                                             Aucun exercice
+                                           </TableCell>
+                                         </TableRow>
+                                       )}
+                                     </TableBody>
+                                   </Table>
+                                 </div>
+                                 
+                                 {isEditingHistorical && (
+                                   <div className="mt-3">
+                                     <Button
+                                       onClick={() => handleAddHistoricalExercise(session.id)}
+                                       variant="outline"
+                                       size="sm"
+                                     >
+                                       <Plus className="h-4 w-4 mr-2" />
+                                       Ajouter un exercice
+                                     </Button>
+                                   </div>
+                                 )}
+                               </div>
                             )}
                           </div>
                         ))}
