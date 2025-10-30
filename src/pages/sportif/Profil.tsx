@@ -85,7 +85,12 @@ export default function Profil() {
       }
 
       // Charger la relation coach actuelle
-      await loadCoachRelationship(session.user.id);
+      const relationship = await loadCoachRelationship(session.user.id);
+      
+      // Si pas de relation existante, charger les coaches disponibles
+      if (!relationship) {
+        await loadAvailableCoaches();
+      }
       
       setLoading(false);
     };
@@ -116,6 +121,8 @@ export default function Profil() {
         } as any);
       }
     }
+    
+    return data;
   };
 
   const loadAvailableCoaches = async () => {
@@ -368,39 +375,41 @@ export default function Profil() {
             </div>
           ) : (
             <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Tu n'as pas encore de coach. Sélectionne-en un parmi la liste ci-dessous.
-              </p>
-              {coaches.length === 0 && !loadingCoaches && (
-                <Button onClick={loadAvailableCoaches}>
-                  Voir les coachs disponibles
-                </Button>
-              )}
-              {loadingCoaches && <p className="text-sm">Chargement des coachs...</p>}
-              {coaches.length > 0 && (
-                <div className="space-y-2">
-                  {coaches.map((coach) => (
-                    <div 
-                      key={coach.id}
-                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {coach.first_name} {coach.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {coach.email}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleRequestCoach(coach.id)}
+              {loadingCoaches ? (
+                <p className="text-sm text-muted-foreground">Chargement des coachs...</p>
+              ) : coaches.length > 0 ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Sélectionne un coach parmi la liste ci-dessous pour bénéficier d'un suivi personnalisé.
+                  </p>
+                  <div className="space-y-2">
+                    {coaches.map((coach) => (
+                      <div 
+                        key={coach.id}
+                        className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                       >
-                        Demander
-                      </Button>
-                    </div>
-                  ))}
-                </div>
+                        <div>
+                          <p className="font-medium">
+                            {coach.first_name} {coach.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {coach.email}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleRequestCoach(coach.id)}
+                        >
+                          Demander
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Aucun coach disponible pour le moment.
+                </p>
               )}
             </div>
           )}
