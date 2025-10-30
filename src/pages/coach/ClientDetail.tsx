@@ -29,6 +29,7 @@ interface Session {
   id: number;
   name: string;
   isExpanded: boolean;
+  session_type: "renfo" | "cardio";
 }
 
 interface Exercise {
@@ -41,6 +42,9 @@ interface Exercise {
   rpe: string;
   tempo: string;
   commentaire: string;
+  cardio_sport?: "course" | "natation" | "vélo" | "yoga" | "hiit" | "";
+  cardio_content?: string;
+  cardio_pace?: string;
 }
 
 export default function ClientDetail() {
@@ -279,16 +283,20 @@ export default function ClientDetail() {
     setLoading(false);
   };
 
+  const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio">("renfo");
+  
   const handleCreateSession = () => {
     const nextSessionNumber = sessions.length + 1;
     const newSession: Session = {
       id: nextSessionNumber,
-      name: `Séance ${nextSessionNumber}`,
+      name: newSessionType === "cardio" ? `Cardio ${nextSessionNumber}` : `Séance ${nextSessionNumber}`,
       isExpanded: false,
+      session_type: newSessionType,
     };
     
     setSessions([...sessions, newSession]);
-    toast.success(`Séance ${nextSessionNumber} créée`);
+    setNewSessionType("renfo"); // Reset to default
+    toast.success(`Séance créée`);
   };
 
   const toggleSession = (sessionId: number) => {
@@ -352,7 +360,8 @@ export default function ClientDetail() {
           .insert({
             week_id: weekData.id,
             session_number: session.id,
-            name: session.name
+            name: session.name,
+            session_type: session.session_type
           })
           .select()
           .single();
@@ -372,7 +381,10 @@ export default function ClientDetail() {
             charge: exercise.charge,
             rpe: exercise.rpe,
             tempo: exercise.tempo,
-            commentaire: exercise.commentaire
+            commentaire: exercise.commentaire,
+            cardio_sport: exercise.cardio_sport || null,
+            cardio_content: exercise.cardio_content || null,
+            cardio_pace: exercise.cardio_pace || null
           }));
 
           const { error: exercisesError } = await supabase
@@ -421,6 +433,7 @@ export default function ClientDetail() {
           id: index + 1,
           name: session.name,
           isExpanded: false,
+          session_type: session.session_type || "renfo",
         }));
 
         const newExercises: Record<number, Exercise[]> = {};
@@ -437,7 +450,10 @@ export default function ClientDetail() {
                 charge: ex.charge,
                 rpe: ex.rpe,
                 tempo: ex.tempo,
-                commentaire: ex.commentaire
+                commentaire: ex.commentaire,
+                cardio_sport: ex.cardio_sport || "",
+                cardio_content: ex.cardio_content || "",
+                cardio_pace: ex.cardio_pace || ""
               }));
             newExercises[sessionIndex + 1] = sortedExercises;
           }
@@ -478,16 +494,24 @@ export default function ClientDetail() {
 
   const handleAddExercise = (sessionId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
+    const session = sessions.find(s => s.id === sessionId);
+    const isCardio = session?.session_type === "cardio";
+    
     const newExercise: Exercise = {
       id: currentExercises.length + 1,
-      exercice: "",
+      exercice: isCardio ? "Séance Cardio" : "",
       recuperation: "",
       reps: "",
       series: "",
       charge: "",
       rpe: "",
       tempo: "",
-      commentaire: ""
+      commentaire: "",
+      ...(isCardio && {
+        cardio_sport: "",
+        cardio_content: "",
+        cardio_pace: ""
+      })
     };
     
     setSessionExercises({
@@ -730,10 +754,26 @@ export default function ClientDetail() {
                       Copier d'une semaine
                     </Button>
                   )}
-                  <Button onClick={handleCreateSession} disabled={isValidated}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Créer une séance
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={newSessionType === "renfo" ? "default" : "outline"}
+                      onClick={() => setNewSessionType("renfo")}
+                      disabled={isValidated}
+                    >
+                      Renfo
+                    </Button>
+                    <Button
+                      variant={newSessionType === "cardio" ? "default" : "outline"}
+                      onClick={() => setNewSessionType("cardio")}
+                      disabled={isValidated}
+                    >
+                      Cardio
+                    </Button>
+                    <Button onClick={handleCreateSession} disabled={isValidated}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -769,6 +809,9 @@ export default function ClientDetail() {
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             )}
                             <span className="font-medium">{session.name}</span>
+                            <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
+                              {session.session_type === "cardio" ? "Cardio" : "Renfo"}
+                            </Badge>
                           </div>
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">
@@ -790,22 +833,120 @@ export default function ClientDetail() {
                         {expandedSessionId === session.id && (
                           <div className="border-t p-4 bg-muted/20">
                             <div className="space-y-4">
-                              <div className="overflow-x-auto">
-                                <Table>
-                                  <TableHeader>
-                                    <TableRow>
-                                      <TableHead className="min-w-[150px]">Exercice</TableHead>
-                                      <TableHead className="min-w-[120px]">Récupération</TableHead>
-                                      <TableHead className="min-w-[100px]">Reps</TableHead>
-                                      <TableHead className="min-w-[100px]">Séries</TableHead>
-                                      <TableHead className="min-w-[100px]">Charge</TableHead>
-                                      <TableHead className="min-w-[100px]">RPE</TableHead>
-                                      <TableHead className="min-w-[100px]">Tempo</TableHead>
-                                      <TableHead className="min-w-[200px]">Commentaire</TableHead>
-                                      <TableHead className="w-[50px]"></TableHead>
-                                    </TableRow>
-                                  </TableHeader>
-                                  <TableBody>
+                              {session.session_type === "cardio" ? (
+                                // Interface Cardio
+                                <div className="space-y-3">
+                                  {(sessionExercises[session.id] || []).length === 0 ? (
+                                    <div className="text-center text-muted-foreground py-8">
+                                      Aucune séance cardio ajoutée. Clique sur "Ajouter une séance cardio" pour commencer.
+                                    </div>
+                                  ) : (
+                                    (sessionExercises[session.id] || []).map((exercise) => (
+                                      <div key={exercise.id} className="border rounded-lg p-4 bg-background space-y-3">
+                                        <div className="flex justify-between items-center">
+                                          <h4 className="font-medium">Séance Cardio {exercise.id}</h4>
+                                          {!isValidated && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div>
+                                            <label className="text-sm font-medium mb-1 block">Sport</label>
+                                            <select
+                                              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                              value={exercise.cardio_sport || ""}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_sport", e.target.value)}
+                                              disabled={isValidated}
+                                            >
+                                              <option value="">Sélectionner...</option>
+                                              <option value="course">Course</option>
+                                              <option value="natation">Natation</option>
+                                              <option value="vélo">Vélo</option>
+                                              <option value="yoga">Yoga (balance)</option>
+                                              <option value="hiit">HIIT</option>
+                                            </select>
+                                          </div>
+                                          {exercise.cardio_sport === "course" && (
+                                            <div>
+                                              <label className="text-sm font-medium mb-1 block">Allure</label>
+                                              <Input
+                                                value={exercise.cardio_pace || ""}
+                                                onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_pace", e.target.value)}
+                                                placeholder="ex: 5:30/km"
+                                                disabled={isValidated}
+                                              />
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <label className="text-sm font-medium mb-1 block">Contenu</label>
+                                          <textarea
+                                            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                            value={exercise.cardio_content || ""}
+                                            onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_content", e.target.value)}
+                                            placeholder="Décris le contenu de la séance..."
+                                            disabled={isValidated}
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div>
+                                            <label className="text-sm font-medium mb-1 block">RPE</label>
+                                            <Input
+                                              value={exercise.rpe || ""}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                              placeholder="ex: 7"
+                                              disabled={isValidated}
+                                            />
+                                          </div>
+                                          <div>
+                                            <label className="text-sm font-medium mb-1 block">Commentaire</label>
+                                            <Input
+                                              value={exercise.commentaire || ""}
+                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                              placeholder="Notes..."
+                                              disabled={isValidated}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                  {!isValidated && (
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => handleAddExercise(session.id)}
+                                      className="w-full"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Ajouter une séance cardio
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                // Interface Renfo (existante)
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead className="min-w-[150px]">Exercice</TableHead>
+                                        <TableHead className="min-w-[120px]">Récupération</TableHead>
+                                        <TableHead className="min-w-[100px]">Reps</TableHead>
+                                        <TableHead className="min-w-[100px]">Séries</TableHead>
+                                        <TableHead className="min-w-[100px]">Charge</TableHead>
+                                        <TableHead className="min-w-[100px]">RPE</TableHead>
+                                        <TableHead className="min-w-[100px]">Tempo</TableHead>
+                                        <TableHead className="min-w-[200px]">Commentaire</TableHead>
+                                        <TableHead className="w-[50px]"></TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                     {(sessionExercises[session.id] || []).length === 0 ? (
                                       <TableRow>
                                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
@@ -945,23 +1086,24 @@ export default function ClientDetail() {
                                                 <X className="h-4 w-4" />
                                               </Button>
                                             )}
-                                          </TableCell>
-                                        </TableRow>
-                                      ))
-                                    )}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                              
-                              {!isValidated && (
-                                <Button
-                                  onClick={() => handleAddExercise(session.id)}
-                                  variant="outline"
-                                  size="sm"
-                                >
-                                  <Plus className="h-4 w-4 mr-2" />
-                                  Ajouter une ligne
-                                </Button>
+                                           </TableCell>
+                                         </TableRow>
+                                       ))
+                                     )}
+                                   </TableBody>
+                                 </Table>
+                                </div>
+                                
+                                {!isValidated && (
+                                  <Button
+                                    onClick={() => handleAddExercise(session.id)}
+                                    variant="outline"
+                                    size="sm"
+                                  >
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Ajouter une ligne
+                                  </Button>
+                                )}
                               )}
                             </div>
                           </div>
