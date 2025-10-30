@@ -787,7 +787,7 @@ export default function ClientDetail() {
                       Sélectionner une semaine
                     </label>
                     <select
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                       value={selectedHistoricalWeek?.id || ""}
                       onChange={(e) => handleSelectHistoricalWeek(e.target.value)}
                     >
