@@ -6,7 +6,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
@@ -19,6 +20,7 @@ export default function DashboardSportif() {
   const [loading, setLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [coachName, setCoachName] = useState<string>("");
+  const [showApprovedAlert, setShowApprovedAlert] = useState(true);
   const { profile } = useUserProfile();
 
   useEffect(() => {
@@ -115,8 +117,8 @@ export default function DashboardSportif() {
             </p>
           </header>
           <main className="flex-1 p-6">
-            {requestStatus === "approved" && (
-              <Alert className="mb-6 border-green-600 bg-green-600/10">
+            {requestStatus === "approved" && showApprovedAlert && (
+              <Alert className="mb-6 border-green-600 bg-green-600/10 relative">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <AlertTitle className="text-lg font-semibold text-green-600">
                   Demande acceptée !
@@ -124,6 +126,14 @@ export default function DashboardSportif() {
                 <AlertDescription>
                   {coachName} a accepté ta demande de coaching. Vous pouvez maintenant travailler ensemble !
                 </AlertDescription>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-green-600/20"
+                  onClick={() => setShowApprovedAlert(false)}
+                >
+                  <X className="h-4 w-4 text-green-600" />
+                </Button>
               </Alert>
             )}
             {requestStatus === "rejected" && (
