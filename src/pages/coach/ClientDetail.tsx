@@ -55,6 +55,8 @@ export default function ClientDetail() {
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
+  const [isEditingHistorical, setIsEditingHistorical] = useState(false);
+  const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -123,71 +125,86 @@ export default function ClientDetail() {
       console.error("Erreur lors du chargement des séances:", sessionsError);
     } else {
       setHistoricalSessions(sessionsData || []);
+      // Initialiser les exercices éditables
+      const exercisesMap: Record<string, any[]> = {};
+      sessionsData?.forEach(session => {
+        if (session.session_exercises) {
+          exercisesMap[session.id] = session.session_exercises.sort((a: any, b: any) => a.exercise_order - b.exercise_order);
+        }
+      });
+      setEditedHistoricalExercises(exercisesMap);
     }
   };
 
   const handleSelectHistoricalWeek = async (weekId: string) => {
     const week = historicalWeeks.find(w => w.id === weekId);
     setSelectedHistoricalWeek(week);
+    setIsEditingHistorical(false);
     await loadHistoricalWeekDetails(weekId);
   };
 
-  const handleEditHistoricalWeek = async (weekId: string) => {
-    // Charger les détails de la semaine historique
-    const week = historicalWeeks.find(w => w.id === weekId);
-    const { data: sessionsData, error } = await supabase
-      .from("training_sessions")
-      .select(`
-        *,
-        session_exercises (*)
-      `)
-      .eq("week_id", weekId)
-      .order("session_number");
-
-    if (error) {
-      toast.error("Erreur lors du chargement de la semaine");
-      return;
-    }
-
-    // Reconstruire les sessions et exercices
-    const loadedSessions: Session[] = sessionsData.map(s => ({
-      id: s.session_number,
-      name: s.name,
-      isExpanded: false
-    }));
-
-    const loadedExercises: Record<number, Exercise[]> = {};
-    sessionsData.forEach(session => {
-      if (session.session_exercises) {
-        loadedExercises[session.session_number] = session.session_exercises
-          .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-          .map((ex: any, index: number) => ({
-            id: index + 1,
-            exercice: ex.exercice,
-            recuperation: ex.recuperation,
-            reps: ex.reps,
-            series: ex.series,
-            charge: ex.charge,
-            rpe: ex.rpe,
-            tempo: ex.tempo,
-            commentaire: ex.commentaire
-          }));
-      }
-    });
-
-    // Supprimer la semaine validée de la base de données
-    await supabase.from("training_weeks").delete().eq("id", weekId);
-
-    // Charger dans l'onglet programmation
-    setSessions(loadedSessions);
-    setSessionExercises(loadedExercises);
-    setIsValidated(false);
-    
-    // Recharger l'historique
-    loadHistoricalWeeks();
-    
-    toast.success("Semaine chargée pour modification");
+  const handleStartEditingHistorical = () => {
+    setIsEditingHistorical(true);
   };
+
+  const handleCancelEditingHistorical = async () => {
+    setIsEditingHistorical(false);
+    // Recharger les données originales
+    if (selectedHistoricalWeek) {
+      await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+    }
+  };
+
+  const handleHistoricalExerciseChange = (sessionId: string, exerciseId: string, field: string, value: string) => {
+    setEditedHistoricalExercises(prev => {
+      const sessionExercises = prev[sessionId] || [];
+      return {
+        ...prev,
+        [sessionId]: sessionExercises.map(ex => 
+          ex.id === exerciseId ? { ...ex, [field]: value } : ex
+        )
+      };
+    });
+  };
+
+  const handleSaveHistoricalChanges = async () => {
+    try {
+      // Mettre à jour tous les exercices modifiés
+      for (const sessionId in editedHistoricalExercises) {
+        const exercises = editedHistoricalExercises[sessionId];
+        
+        for (const exercise of exercises) {
+          const { error } = await supabase
+            .from("session_exercises")
+            .update({
+              exercice: exercise.exercice,
+              recuperation: exercise.recuperation,
+              reps: exercise.reps,
+              series: exercise.series,
+              charge: exercise.charge,
+              rpe: exercise.rpe,
+              tempo: exercise.tempo,
+              commentaire: exercise.commentaire
+            })
+            .eq("id", exercise.id);
+
+          if (error) throw error;
+        }
+      }
+
+      setIsEditingHistorical(false);
+      toast.success("Modifications enregistrées avec succès");
+      
+      // Recharger les données
+      if (selectedHistoricalWeek) {
+        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde:", error);
+      toast.error("Erreur lors de la sauvegarde des modifications");
+    }
+  };
+
 
   const toggleHistoricalSession = (sessionId: string) => {
     if (expandedHistoricalSessionId === sessionId) {
@@ -794,12 +811,32 @@ export default function ClientDetail() {
                             Validée le {new Date(selectedHistoricalWeek.validated_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <Button
-                          onClick={() => handleEditHistoricalWeek(selectedHistoricalWeek.id)}
-                          variant="outline"
-                        >
-                          Modifier
-                        </Button>
+                        <div className="flex gap-2">
+                          {!isEditingHistorical ? (
+                            <Button
+                              onClick={handleStartEditingHistorical}
+                              variant="outline"
+                            >
+                              Modifier
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                onClick={handleSaveHistoricalChanges}
+                                variant="default"
+                              >
+                                <Check className="h-4 w-4 mr-2" />
+                                Enregistrer
+                              </Button>
+                              <Button
+                                onClick={handleCancelEditingHistorical}
+                                variant="outline"
+                              >
+                                Annuler
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-3">
@@ -839,21 +876,109 @@ export default function ClientDetail() {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {session.session_exercises && session.session_exercises.length > 0 ? (
-                                        session.session_exercises
-                                          .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-                                          .map((exercise: any) => (
-                                            <TableRow key={exercise.id}>
-                                              <TableCell className="font-medium">{exercise.exercice}</TableCell>
-                                              <TableCell>{exercise.recuperation || "-"}</TableCell>
-                                              <TableCell>{exercise.reps || "-"}</TableCell>
-                                              <TableCell>{exercise.series || "-"}</TableCell>
-                                              <TableCell>{exercise.charge || "-"}</TableCell>
-                                              <TableCell>{exercise.rpe || "-"}</TableCell>
-                                              <TableCell>{exercise.tempo || "-"}</TableCell>
-                                              <TableCell>{exercise.commentaire || "-"}</TableCell>
-                                            </TableRow>
-                                          ))
+                                      {editedHistoricalExercises[session.id] && editedHistoricalExercises[session.id].length > 0 ? (
+                                        editedHistoricalExercises[session.id].map((exercise: any) => (
+                                          <TableRow key={exercise.id}>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <ExerciseCombobox
+                                                  value={exercise.exercice}
+                                                  onChange={(value) => handleHistoricalExerciseChange(session.id, exercise.id, "exercice", value)}
+                                                  exercises={libraryExercises}
+                                                />
+                                              ) : (
+                                                <span className="font-medium">{exercise.exercice}</span>
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Select
+                                                  value={exercise.recuperation}
+                                                  onValueChange={(value) => handleHistoricalExerciseChange(session.id, exercise.id, "recuperation", value)}
+                                                >
+                                                  <SelectTrigger>
+                                                    <SelectValue placeholder="Récup" />
+                                                  </SelectTrigger>
+                                                  <SelectContent>
+                                                    {recuperationOptions.map((option) => (
+                                                      <SelectItem key={option.value} value={option.value}>
+                                                        {option.label}
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              ) : (
+                                                exercise.recuperation || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.reps}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "reps", e.target.value)}
+                                                  placeholder="ex: 10"
+                                                />
+                                              ) : (
+                                                exercise.reps || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.series}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                                  placeholder="ex: 3"
+                                                />
+                                              ) : (
+                                                exercise.series || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.charge}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "charge", e.target.value)}
+                                                  placeholder="ex: 80kg"
+                                                />
+                                              ) : (
+                                                exercise.charge || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.rpe}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                                  placeholder="ex: 7"
+                                                />
+                                              ) : (
+                                                exercise.rpe || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.tempo}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
+                                                  placeholder="ex: 3010"
+                                                />
+                                              ) : (
+                                                exercise.tempo || "-"
+                                              )}
+                                            </TableCell>
+                                            <TableCell>
+                                              {isEditingHistorical ? (
+                                                <Input
+                                                  value={exercise.commentaire}
+                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                                  placeholder="Notes..."
+                                                />
+                                              ) : (
+                                                exercise.commentaire || "-"
+                                              )}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
                                       ) : (
                                         <TableRow>
                                           <TableCell colSpan={8} className="text-center text-muted-foreground">
