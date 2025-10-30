@@ -270,8 +270,7 @@ export default function ClientDetail() {
       console.log('Ajout séance:', {
         week_id: selectedHistoricalWeek.id,
         session_number: nextSessionNumber,
-        name: newHistoricalSessionName,
-        session_type: newHistoricalSessionType
+        name: newHistoricalSessionName
       });
       
       const { data: sessionData, error } = await supabase
@@ -279,8 +278,7 @@ export default function ClientDetail() {
         .insert({
           week_id: selectedHistoricalWeek.id,
           session_number: nextSessionNumber,
-          name: newHistoricalSessionName,
-          session_type: newHistoricalSessionType
+          name: newHistoricalSessionName
         })
         .select()
         .single();
@@ -496,8 +494,7 @@ export default function ClientDetail() {
           .insert({
             week_id: weekData.id,
             session_number: session.id,
-            name: session.name,
-            session_type: session.session_type
+            name: session.name
           })
           .select()
           .single();
