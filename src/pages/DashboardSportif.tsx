@@ -8,6 +8,8 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Clock } from "lucide-react";
 import Seances from "./sportif/Seances";
+import SeanceDetail from "./sportif/SeanceDetail";
+import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
@@ -149,6 +151,8 @@ export default function DashboardSportif() {
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
+              <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
+              <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
