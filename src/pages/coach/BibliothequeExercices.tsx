@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 interface Exercise {
   id: string;
@@ -28,7 +28,7 @@ export default function BibliothequeExercices() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newExercise, setNewExercise] = useState({
@@ -47,7 +47,7 @@ export default function BibliothequeExercices() {
 
   useEffect(() => {
     filterExercises();
-  }, [exercises, searchTerm, selectedCategory]);
+  }, [exercises, searchTerm, selectedMuscle]);
 
   const loadExercises = async () => {
     setLoading(true);
@@ -72,13 +72,13 @@ export default function BibliothequeExercices() {
       filtered = filtered.filter(
         (ex) =>
           ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          ex.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ex.muscle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           ex.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter((ex) => ex.category === selectedCategory);
+    if (selectedMuscle !== "all") {
+      filtered = filtered.filter((ex) => ex.muscle === selectedMuscle);
     }
 
     // Tri alphabétique par nom
@@ -114,7 +114,7 @@ export default function BibliothequeExercices() {
     }
   };
 
-  const categories = Array.from(new Set(exercises.map((ex) => ex.category).filter(Boolean)));
+  const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle).filter(Boolean))).sort();
 
   return (
     <div className="space-y-6">
@@ -211,31 +211,37 @@ export default function BibliothequeExercices() {
           <CardTitle>Rechercher et filtrer</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher un exercice..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Rechercher un exercice..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium mb-3">Filtrer par muscle :</p>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={selectedMuscle === "all" ? "default" : "outline"}
+                className="cursor-pointer hover:bg-primary/10"
+                onClick={() => setSelectedMuscle("all")}
+              >
+                Tous
+              </Badge>
+              {muscles.map((muscle) => (
+                <Badge
+                  key={muscle}
+                  variant={selectedMuscle === muscle ? "default" : "outline"}
+                  className="cursor-pointer hover:bg-primary/10"
+                  onClick={() => setSelectedMuscle(muscle!)}
+                >
+                  {muscle}
+                </Badge>
+              ))}
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Toutes les catégories</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat!}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
