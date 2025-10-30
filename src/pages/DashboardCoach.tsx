@@ -11,6 +11,7 @@ import { Bell } from "lucide-react";
 import Programmation from "./coach/Programmation";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
+import ClientDetail from "./coach/ClientDetail";
 import Profil from "./coach/Profil";
 
 export default function DashboardCoach() {
@@ -120,6 +121,7 @@ export default function DashboardCoach() {
               <Route path="/" element={<Navigate to="/coach/programmation" replace />} />
               <Route path="/programmation" element={<Programmation />} />
               <Route path="/mes-clients" element={<MesClients />} />
+              <Route path="/client/:athleteId" element={<ClientDetail />} />
               <Route path="/bibliotheque-exercices" element={<BibliothequeExercices />} />
               <Route path="/profil" element={<Profil />} />
             </Routes>

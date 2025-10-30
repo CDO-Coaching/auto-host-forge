@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface Athlete {
   id: string;
@@ -27,6 +28,7 @@ interface AthleteRelationship {
 
 export default function MesClients() {
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
   const firstName = profile?.first_name || "Coach";
   const [pendingRequests, setPendingRequests] = useState<AthleteRelationship[]>([]);
   const [approvedAthletes, setApprovedAthletes] = useState<AthleteRelationship[]>([]);
@@ -223,7 +225,8 @@ export default function MesClients() {
                   {approvedAthletes.map((relationship) => (
                     <div
                       key={relationship.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
+                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
@@ -243,10 +246,13 @@ export default function MesClients() {
                           )}
                         </div>
                       </div>
-                      <Badge className="bg-green-600">
-                        <Check className="h-3 w-3 mr-1" />
-                        Actif
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-green-600">
+                          <Check className="h-3 w-3 mr-1" />
+                          Actif
+                        </Badge>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
                     </div>
                   ))}
                 </div>
