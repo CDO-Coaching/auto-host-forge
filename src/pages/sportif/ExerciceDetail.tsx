@@ -146,147 +146,144 @@ export default function ExerciceDetail() {
     if (!value) return null;
     
     return (
-      <div className="py-3">
-        <p className="text-sm text-muted-foreground mb-1">{label}</p>
-        <p className="text-lg font-medium">{value}</p>
+      <div className="py-2">
+        <p className="text-xs text-muted-foreground mb-1">{label}</p>
+        <p className="text-base font-medium">{value}</p>
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-10 bg-background border-b px-3 py-2">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Compteur de séries */}
-        {exercise.series && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Progression des séries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center gap-4">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={decrementSet}
-                  disabled={completedSets === 0}
-                  className="h-12 w-12 rounded-full p-0"
-                >
-                  <Minus className="h-6 w-6" />
-                </Button>
-                
-                <div className="text-center">
-                  <div className="text-4xl font-bold">
-                    {completedSets} / {exercise.series}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {completedSets === parseInt(exercise.series) ? "✓ Terminé !" : "séries complétées"}
-                  </p>
-                </div>
-                
-                <Button
-                  size="lg"
-                  onClick={incrementSet}
-                  disabled={completedSets >= parseInt(exercise.series)}
-                  className="h-12 w-12 rounded-full p-0"
-                >
-                  <Plus className="h-6 w-6" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      <div className="p-3 space-y-2 max-h-[calc(100vh-60px)] overflow-y-auto">
+        {/* En-tête exercice */}
+        <div className="text-center pb-2">
+          <h1 className="text-xl font-bold">{exercise.exercice}</h1>
+        </div>
 
-        {/* Chronomètre de récupération */}
-        {exercise.recuperation && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Temps de récupération</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-center">
-                <div className={`text-5xl font-bold ${timeRemaining === 0 ? 'text-green-500' : ''}`}>
+        <div className="grid grid-cols-2 gap-2">
+          {/* Compteur de séries */}
+          {exercise.series && (
+            <Card className="p-3">
+              <div className="text-center space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Séries</p>
+                <div className="flex items-center justify-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={decrementSet}
+                    disabled={completedSets === 0}
+                    className="h-8 w-8 rounded-full p-0"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  
+                  <div className="text-2xl font-bold">
+                    {completedSets}/{exercise.series}
+                  </div>
+                  
+                  <Button
+                    size="sm"
+                    onClick={incrementSet}
+                    disabled={completedSets >= parseInt(exercise.series)}
+                    className="h-8 w-8 rounded-full p-0"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Chronomètre de récupération */}
+          {exercise.recuperation && (
+            <Card className="p-3">
+              <div className="text-center space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Récup</p>
+                <div className={`text-2xl font-bold ${timeRemaining === 0 ? 'text-green-500' : ''}`}>
                   {formatTime(timeRemaining)}
                 </div>
-                <Badge variant="outline" className="mt-2">
-                  Récup : {exercise.recuperation}
-                </Badge>
-              </div>
-              
-              <div className="flex gap-2 justify-center">
-                {!isTimerRunning ? (
+                <div className="flex gap-1">
+                  {!isTimerRunning ? (
+                    <Button
+                      size="sm"
+                      onClick={startTimer}
+                      disabled={timeRemaining === 0}
+                      className="flex-1 h-7 text-xs"
+                    >
+                      <Play className="h-3 w-3 mr-1" />
+                      Start
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={pauseTimer}
+                      variant="secondary"
+                      className="flex-1 h-7 text-xs"
+                    >
+                      <Pause className="h-3 w-3 mr-1" />
+                      Pause
+                    </Button>
+                  )}
                   <Button
-                    size="lg"
-                    onClick={startTimer}
-                    disabled={timeRemaining === 0}
-                    className="flex-1"
+                    size="sm"
+                    onClick={resetTimer}
+                    variant="outline"
+                    className="h-7 w-7 p-0"
                   >
-                    <Play className="h-5 w-5 mr-2" />
-                    Démarrer
+                    <RotateCcw className="h-3 w-3" />
                   </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    onClick={pauseTimer}
-                    variant="secondary"
-                    className="flex-1"
-                  >
-                    <Pause className="h-5 w-5 mr-2" />
-                    Pause
-                  </Button>
-                )}
-                
-                <Button
-                  size="lg"
-                  onClick={resetTimer}
-                  variant="outline"
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Détails de l'exercice */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">{exercise.exercice}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0">
-            <InfoItem label="Séries" value={exercise.series} />
-            <Separator />
-            
-            <InfoItem label="Répétitions" value={exercise.reps} />
-            <Separator />
-            
-            <InfoItem label="Charge" value={exercise.charge} />
-            <Separator />
-            
-            <InfoItem label="Récupération" value={exercise.recuperation} />
-            <Separator />
-            
-            <InfoItem label="RPE (effort perçu)" value={exercise.rpe} />
-            <Separator />
-            
-            <InfoItem label="Tempo" value={exercise.tempo} />
-            
-            {exercise.commentaire && (
-              <>
-                <Separator />
-                <div className="py-3">
-                  <p className="text-sm text-muted-foreground mb-2">Notes du coach</p>
-                  <p className="text-base leading-relaxed">{exercise.commentaire}</p>
                 </div>
-              </>
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {/* Détails compacts */}
+        <Card className="p-3">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {exercise.reps && (
+              <div>
+                <span className="text-muted-foreground">Reps:</span>
+                <span className="ml-2 font-medium">{exercise.reps}</span>
+              </div>
             )}
-          </CardContent>
+            {exercise.charge && (
+              <div>
+                <span className="text-muted-foreground">Charge:</span>
+                <span className="ml-2 font-medium">{exercise.charge}</span>
+              </div>
+            )}
+            {exercise.rpe && (
+              <div>
+                <span className="text-muted-foreground">RPE:</span>
+                <span className="ml-2 font-medium">{exercise.rpe}</span>
+              </div>
+            )}
+            {exercise.tempo && (
+              <div>
+                <span className="text-muted-foreground">Tempo:</span>
+                <span className="ml-2 font-medium">{exercise.tempo}</span>
+              </div>
+            )}
+          </div>
+          
+          {exercise.commentaire && (
+            <>
+              <Separator className="my-2" />
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Notes du coach</p>
+                <p className="text-sm leading-relaxed">{exercise.commentaire}</p>
+              </div>
+            </>
+          )}
         </Card>
       </div>
     </div>
