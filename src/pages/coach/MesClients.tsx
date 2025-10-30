@@ -42,39 +42,51 @@ export default function MesClients() {
     if (!profile?.id) return;
 
     setLoading(true);
-    
-    const { data: pending } = await supabase
-      .from("coach_athlete_relationships")
-      .select(`
-        id,
-        athlete_id,
-        status,
-        requested_at,
-        athlete:user_profiles!coach_athlete_relationships_athlete_id_fkey(
-          id, first_name, last_name, email, date_of_birth, gender
-        )
-      `)
-      .eq("coach_id", profile.id)
-      .eq("status", "pending")
-      .order("requested_at", { ascending: false });
 
-    const { data: approved } = await supabase
-      .from("coach_athlete_relationships")
-      .select(`
-        id,
-        athlete_id,
-        status,
-        requested_at,
-        athlete:user_profiles!coach_athlete_relationships_athlete_id_fkey(
-          id, first_name, last_name, email, date_of_birth, gender
-        )
-      `)
-      .eq("coach_id", profile.id)
-      .eq("status", "approved")
-      .order("requested_at", { ascending: false });
+    // 1) Récupère les relations sans jointure pour éviter les blocages RLS
+    const [{ data: pendingRels }, { data: approvedRels }] = await Promise.all([
+      supabase
+        .from("coach_athlete_relationships")
+        .select("id, athlete_id, status, requested_at")
+        .eq("coach_id", profile.id)
+        .eq("status", "pending")
+        .order("requested_at", { ascending: false }),
+      supabase
+        .from("coach_athlete_relationships")
+        .select("id, athlete_id, status, requested_at")
+        .eq("coach_id", profile.id)
+        .eq("status", "approved")
+        .order("requested_at", { ascending: false }),
+    ]);
 
-    setPendingRequests(pending as any || []);
-    setApprovedAthletes(approved as any || []);
+    // 2) Charge les profils des athlètes concernés en une seule requête
+    const athleteIds = Array.from(
+      new Set([...(pendingRels || []), ...(approvedRels || [])].map((r) => r.athlete_id))
+    );
+
+    let athletesMap = new Map<string, Athlete>();
+    if (athleteIds.length > 0) {
+      const { data: athletes } = await supabase
+        .from("user_profiles")
+        .select("id, first_name, last_name, email, date_of_birth, gender")
+        .in("id", athleteIds);
+
+      if (athletes) {
+        athletesMap = new Map(athletes.map((a) => [a.id, a as Athlete]));
+      }
+    }
+
+    // 3) Recompose les objets avec le profil
+    const pendingWithProfiles = (pendingRels || [])
+      .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
+      .filter((r) => !!r.athlete) as AthleteRelationship[];
+
+    const approvedWithProfiles = (approvedRels || [])
+      .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
+      .filter((r) => !!r.athlete) as AthleteRelationship[];
+
+    setPendingRequests(pendingWithProfiles);
+    setApprovedAthletes(approvedWithProfiles);
     setLoading(false);
   };
 
