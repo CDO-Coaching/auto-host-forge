@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -182,6 +182,46 @@ export default function ClientDetail() {
     });
   };
 
+  const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+    
+    setSessionExercises({
+      ...sessionExercises,
+      [sessionId]: updatedExercises
+    });
+    toast.success("Ligne supprimée");
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent, sessionId: number, exerciseId: number, field: keyof Exercise) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      
+      if (field === "commentaire") {
+        // Dans le commentaire, Entrée crée une nouvelle ligne
+        handleAddExercise(sessionId);
+      } else {
+        // Pour les autres champs, passer au champ suivant
+        const fieldOrder: (keyof Exercise)[] = ["exercice", "recuperation", "reps", "series", "charge", "rpe", "tempo", "commentaire"];
+        const currentIndex = fieldOrder.indexOf(field);
+        const nextField = fieldOrder[currentIndex + 1];
+        
+        if (nextField) {
+          const nextInput = document.querySelector(
+            `[data-session="${sessionId}"][data-exercise="${exerciseId}"][data-field="${nextField}"]`
+          ) as HTMLElement;
+          
+          if (nextInput) {
+            nextInput.focus();
+            if (nextInput.tagName === "BUTTON") {
+              nextInput.click();
+            }
+          }
+        }
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -315,12 +355,13 @@ export default function ClientDetail() {
                                       <TableHead className="min-w-[100px]">RPE</TableHead>
                                       <TableHead className="min-w-[100px]">Tempo</TableHead>
                                       <TableHead className="min-w-[200px]">Commentaire</TableHead>
+                                      <TableHead className="w-[50px]"></TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
                                     {(sessionExercises[session.id] || []).length === 0 ? (
                                       <TableRow>
-                                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                                           Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
                                         </TableCell>
                                       </TableRow>
@@ -328,20 +369,41 @@ export default function ClientDetail() {
                                       (sessionExercises[session.id] || []).map((exercise) => (
                                         <TableRow key={exercise.id}>
                                           <TableCell>
-                                            <ExerciseCombobox
-                                              value={exercise.exercice}
-                                              onChange={(value) => handleExerciseChange(session.id, exercise.id, "exercice", value)}
-                                              exercises={libraryExercises}
-                                              disabled={isValidated}
-                                            />
+                                            <div data-session={session.id} data-exercise={exercise.id} data-field="exercice">
+                                              <ExerciseCombobox
+                                                value={exercise.exercice}
+                                                onChange={(value) => {
+                                                  handleExerciseChange(session.id, exercise.id, "exercice", value);
+                                                  // Passer automatiquement au champ suivant
+                                                  setTimeout(() => {
+                                                    const nextInput = document.querySelector(
+                                                      `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="recuperation"]`
+                                                    ) as HTMLElement;
+                                                    nextInput?.focus();
+                                                    nextInput?.click();
+                                                  }, 100);
+                                                }}
+                                                exercises={libraryExercises}
+                                                disabled={isValidated}
+                                              />
+                                            </div>
                                           </TableCell>
                                           <TableCell>
                                             <Select
                                               value={exercise.recuperation}
-                                              onValueChange={(value) => handleExerciseChange(session.id, exercise.id, "recuperation", value)}
+                                              onValueChange={(value) => {
+                                                handleExerciseChange(session.id, exercise.id, "recuperation", value);
+                                                // Passer automatiquement au champ suivant
+                                                setTimeout(() => {
+                                                  const nextInput = document.querySelector(
+                                                    `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="reps"]`
+                                                  ) as HTMLInputElement;
+                                                  nextInput?.focus();
+                                                }, 100);
+                                              }}
                                               disabled={isValidated}
                                             >
-                                              <SelectTrigger>
+                                              <SelectTrigger data-session={session.id} data-exercise={exercise.id} data-field="recuperation">
                                                 <SelectValue placeholder="Temps de récup" />
                                               </SelectTrigger>
                                               <SelectContent>
@@ -357,49 +419,85 @@ export default function ClientDetail() {
                                             <Input
                                               value={exercise.reps}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "reps")}
                                               placeholder="ex: 10"
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="reps"
                                             />
                                           </TableCell>
                                           <TableCell>
                                             <Input
                                               value={exercise.series}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "series")}
                                               placeholder="ex: 3"
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="series"
                                             />
                                           </TableCell>
                                           <TableCell>
                                             <Input
                                               value={exercise.charge}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "charge")}
                                               placeholder="ex: 80kg"
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="charge"
                                             />
                                           </TableCell>
                                           <TableCell>
                                             <Input
                                               value={exercise.rpe}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "rpe")}
                                               placeholder="ex: 8"
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="rpe"
                                             />
                                           </TableCell>
                                           <TableCell>
                                             <Input
                                               value={exercise.tempo}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "tempo")}
                                               placeholder="ex: 3010"
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="tempo"
                                             />
                                           </TableCell>
                                           <TableCell>
                                             <Input
                                               value={exercise.commentaire}
                                               onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "commentaire")}
                                               placeholder="Notes..."
                                               disabled={isValidated}
+                                              data-session={session.id}
+                                              data-exercise={exercise.id}
+                                              data-field="commentaire"
                                             />
+                                          </TableCell>
+                                          <TableCell>
+                                            {!isValidated && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                              >
+                                                <X className="h-4 w-4" />
+                                              </Button>
+                                            )}
                                           </TableCell>
                                         </TableRow>
                                       ))
