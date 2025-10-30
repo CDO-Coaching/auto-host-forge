@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X, Copy } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { getWeek } from "date-fns";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AthleteProfile {
   id: string;
@@ -57,6 +58,9 @@ export default function ClientDetail() {
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
+  const [showCopyDialog, setShowCopyDialog] = useState(false);
+  const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
+  const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -343,9 +347,92 @@ export default function ClientDetail() {
       setIsValidated(true);
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
       
+      // Recharger l'historique
+      await loadHistoricalWeeks();
+      
     } catch (error) {
       console.error("Erreur lors de la validation:", error);
       toast.error("Erreur lors de la validation de la semaine");
+    }
+  };
+
+  const handleCopyFromWeek = async () => {
+    if (!selectedWeekToCopy) {
+      toast.error("Veuillez sélectionner une semaine");
+      return;
+    }
+
+    try {
+      // Charger les données de la semaine sélectionnée
+      const { data: sessionsData, error } = await supabase
+        .from("training_sessions")
+        .select(`
+          *,
+          session_exercises (*)
+        `)
+        .eq("week_id", selectedWeekToCopy)
+        .order("session_number");
+
+      if (error) throw error;
+
+      if (sessionsData && sessionsData.length > 0) {
+        // Créer les nouvelles séances avec les exercices
+        const newSessions: Session[] = sessionsData.map((session, index) => ({
+          id: index + 1,
+          name: session.name,
+          isExpanded: false,
+        }));
+
+        const newExercises: Record<number, Exercise[]> = {};
+        sessionsData.forEach((session, sessionIndex) => {
+          if (session.session_exercises) {
+            const sortedExercises = session.session_exercises
+              .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+              .map((ex: any, exIndex: number) => ({
+                id: exIndex + 1,
+                exercice: ex.exercice,
+                recuperation: ex.recuperation,
+                reps: ex.reps,
+                series: ex.series,
+                charge: ex.charge,
+                rpe: ex.rpe,
+                tempo: ex.tempo,
+                commentaire: ex.commentaire
+              }));
+            newExercises[sessionIndex + 1] = sortedExercises;
+          }
+        });
+
+        setSessions(newSessions);
+        setSessionExercises(newExercises);
+        setWeekToCopyData(sessionsData);
+        setShowCopyDialog(false);
+        toast.success("Semaine copiée avec succès ! Vous pouvez maintenant la modifier.");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la copie:", error);
+      toast.error("Erreur lors de la copie de la semaine");
+    }
+  };
+
+  const handleSelectWeekForPreview = async (weekId: string) => {
+    setSelectedWeekToCopy(weekId);
+    
+    if (weekId) {
+      const { data: sessionsData, error } = await supabase
+        .from("training_sessions")
+        .select(`
+          *,
+          session_exercises (*)
+        `)
+        .eq("week_id", weekId)
+        .order("session_number");
+
+      if (!error && sessionsData) {
+        setWeekToCopyData(sessionsData);
+      }
+    } else {
+      setWeekToCopyData(null);
     }
   };
 
@@ -504,17 +591,40 @@ export default function ClientDetail() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Semaine d'entraînement n°{currentWeekNumber}</CardTitle>
-                <Button onClick={handleCreateSession} disabled={isValidated}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer une séance
-                </Button>
+                <div className="flex gap-2">
+                  {historicalWeeks.length > 0 && !isValidated && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowCopyDialog(true)}
+                      disabled={sessions.length > 0}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copier d'une semaine
+                    </Button>
+                  )}
+                  <Button onClick={handleCreateSession} disabled={isValidated}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer une séance
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
               {sessions.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Aucune séance créée. Clique sur "Créer une séance" pour commencer.
-                </p>
+                <div className="text-center py-8 space-y-4">
+                  <p className="text-muted-foreground">
+                    Aucune séance créée. 
+                  </p>
+                  {historicalWeeks.length > 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Vous pouvez créer une nouvelle séance ou copier une semaine précédente.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Cliquez sur "Créer une séance" pour commencer.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="space-y-3">
@@ -1043,6 +1153,98 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog pour copier une semaine */}
+      <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Copier une semaine précédente</DialogTitle>
+            <DialogDescription>
+              Sélectionnez une semaine à copier. Vous pourrez voir les retours du sportif et modifier les exercices avant validation.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Sélectionner une semaine
+              </label>
+              <select
+                className="w-full p-2 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                value={selectedWeekToCopy}
+                onChange={(e) => handleSelectWeekForPreview(e.target.value)}
+              >
+                <option value="">-- Choisir une semaine --</option>
+                {historicalWeeks.map((week) => (
+                  <option key={week.id} value={week.id}>
+                    Semaine {week.week_number} - {week.year} (validée le {new Date(week.validated_at).toLocaleDateString()})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedWeekToCopy && weekToCopyData && (
+              <div className="border rounded-lg p-4 bg-muted/30">
+                <h4 className="font-semibold mb-3">Aperçu de la semaine avec retours du sportif</h4>
+                <div className="space-y-3 text-sm">
+                  {weekToCopyData.map((session: any) => (
+                    <div key={session.id} className="border rounded p-3 bg-background">
+                      <h5 className="font-medium mb-2">{session.name}</h5>
+                      {session.session_exercises && session.session_exercises.length > 0 ? (
+                        <div className="space-y-2">
+                          {session.session_exercises
+                            .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+                            .map((ex: any) => (
+                              <div key={ex.id} className="pl-4 border-l-2 border-primary/20">
+                                <div className="flex justify-between items-start">
+                                  <span className="font-medium">{ex.exercice}</span>
+                                  <div className="text-right text-xs text-muted-foreground">
+                                    {ex.series}x{ex.reps} @ {ex.charge}
+                                  </div>
+                                </div>
+                                {ex.sportif_rpe && (
+                                  <div className="mt-1 text-xs">
+                                    <span className="text-primary font-medium">RPE ressenti: {ex.sportif_rpe}</span>
+                                    {ex.sportif_feedback_at && (
+                                      <span className="text-muted-foreground ml-2">
+                                        ({new Date(ex.sportif_feedback_at).toLocaleDateString()})
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                                {ex.sportif_comment && (
+                                  <div className="mt-1 text-xs text-muted-foreground italic">
+                                    "{ex.sportif_comment}"
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground text-xs">Aucun exercice</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowCopyDialog(false);
+              setSelectedWeekToCopy("");
+              setWeekToCopyData(null);
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={handleCopyFromWeek} disabled={!selectedWeekToCopy}>
+              <Copy className="h-4 w-4 mr-2" />
+              Copier cette semaine
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
