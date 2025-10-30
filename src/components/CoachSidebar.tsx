@@ -1,4 +1,4 @@
-import { Calendar, Users, User } from "lucide-react";
+import { Calendar, Users, User, BookOpen } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -15,6 +15,7 @@ import {
 const menuItems = [
   { title: "Programmation", url: "/coach/programmation", icon: Calendar },
   { title: "Mes clients", url: "/coach/mes-clients", icon: Users },
+  { title: "Bibliothèque d'exercices", url: "/coach/bibliotheque-exercices", icon: BookOpen },
   { title: "Mon profil", url: "/coach/profil", icon: User },
 ];
 
