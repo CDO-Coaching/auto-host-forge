@@ -261,7 +261,11 @@ export default function ClientDetail() {
     if (!newHistoricalSessionName.trim() || !selectedHistoricalWeek) return;
 
     try {
-      const nextSessionNumber = historicalSessions.length + 1;
+      // Calculer le prochain numéro de séance basé sur le max existant
+      const maxSessionNumber = historicalSessions.reduce((max, session) => 
+        Math.max(max, session.session_number || 0), 0
+      );
+      const nextSessionNumber = maxSessionNumber + 1;
       
       const { data: sessionData, error } = await supabase
         .from("training_sessions")
