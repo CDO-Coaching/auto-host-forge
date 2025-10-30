@@ -267,6 +267,13 @@ export default function ClientDetail() {
       );
       const nextSessionNumber = maxSessionNumber + 1;
       
+      console.log('Ajout séance:', {
+        week_id: selectedHistoricalWeek.id,
+        session_number: nextSessionNumber,
+        name: newHistoricalSessionName,
+        session_type: newHistoricalSessionType
+      });
+      
       const { data: sessionData, error } = await supabase
         .from("training_sessions")
         .insert({
@@ -278,7 +285,10 @@ export default function ClientDetail() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erreur Supabase complète:', error);
+        throw error;
+      }
 
       setNewHistoricalSessionName("");
       setNewHistoricalSessionType("renfo");
@@ -286,9 +296,9 @@ export default function ClientDetail() {
       
       // Recharger les données
       await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de l'ajout de la séance:", error);
-      toast.error("Erreur lors de l'ajout de la séance");
+      toast.error(`Erreur: ${error.message || "Impossible d'ajouter la séance"}`);
     }
   };
 
