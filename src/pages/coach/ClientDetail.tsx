@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { getWeek } from "date-fns";
 
 interface AthleteProfile {
   id: string;
@@ -31,6 +32,9 @@ export default function ClientDetail() {
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
+  const [isValidated, setIsValidated] = useState(false);
+  
+  const currentWeekNumber = getWeek(new Date());
 
   useEffect(() => {
     loadAthleteData();
@@ -93,6 +97,11 @@ export default function ClientDetail() {
       setExpandedSessionId(null);
     }
     toast.success("Séance supprimée");
+  };
+
+  const handleValidate = () => {
+    setIsValidated(true);
+    toast.success("Semaine d'entraînement validée ! Le sportif peut maintenant y accéder.");
   };
 
   if (loading) {
@@ -167,8 +176,8 @@ export default function ClientDetail() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Programme d'entraînement</CardTitle>
-                <Button onClick={handleCreateSession}>
+                <CardTitle>Semaine d'entraînement n°{currentWeekNumber}</CardTitle>
+                <Button onClick={handleCreateSession} disabled={isValidated}>
                   <Plus className="h-4 w-4 mr-2" />
                   Créer une séance
                 </Button>
@@ -180,49 +189,70 @@ export default function ClientDetail() {
                   Aucune séance créée. Clique sur "Créer une séance" pour commencer.
                 </p>
               ) : (
-                <div className="space-y-3">
-                  {sessions.map((session) => (
-                    <div key={session.id} className="border rounded-lg">
-                      <div
-                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                        onClick={() => toggleSession(session.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          {expandedSessionId === session.id ? (
-                            <ChevronDown className="h-5 w-5 text-primary" />
-                          ) : (
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                          )}
-                          <span className="font-medium">{session.name}</span>
+                <>
+                  <div className="space-y-3">
+                    {sessions.map((session) => (
+                      <div key={session.id} className="border rounded-lg">
+                        <div
+                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => !isValidated && toggleSession(session.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            {expandedSessionId === session.id ? (
+                              <ChevronDown className="h-5 w-5 text-primary" />
+                            ) : (
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            )}
+                            <span className="font-medium">{session.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">
+                              {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
+                            </Badge>
+                            {!isValidated && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => handleDeleteSession(session.id, e)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">
-                            {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => handleDeleteSession(session.id, e)}
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        
+                        {expandedSessionId === session.id && (
+                          <div className="border-t p-4 bg-muted/20">
+                            <p className="text-sm text-muted-foreground">
+                              Tableau des exercices pour {session.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Contenu à développer...
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      
-                      {expandedSessionId === session.id && (
-                        <div className="border-t p-4 bg-muted/20">
-                          <p className="text-sm text-muted-foreground">
-                            Tableau des exercices pour {session.name}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Contenu à développer...
-                          </p>
-                        </div>
-                      )}
+                    ))}
+                  </div>
+                  
+                  {!isValidated && (
+                    <div className="mt-6 flex justify-end">
+                      <Button onClick={handleValidate} size="lg">
+                        <Check className="h-4 w-4 mr-2" />
+                        Valider la semaine
+                      </Button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                  
+                  {isValidated && (
+                    <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
+                      <p className="text-sm font-medium text-primary">
+                        ✓ Semaine validée - Le sportif peut maintenant voir ses séances
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
