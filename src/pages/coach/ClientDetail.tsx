@@ -51,6 +51,10 @@ export default function ClientDetail() {
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string }>>([]);
+  const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
+  const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
+  const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
+  const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   
   const currentWeekNumber = getWeek(new Date());
 
@@ -71,6 +75,7 @@ export default function ClientDetail() {
   useEffect(() => {
     loadAthleteData();
     loadLibraryExercises();
+    loadHistoricalWeeks();
   }, [athleteId]);
 
   const loadLibraryExercises = async () => {
@@ -83,6 +88,112 @@ export default function ClientDetail() {
       console.error("Erreur lors du chargement des exercices:", error);
     } else {
       setLibraryExercises(data || []);
+    }
+  };
+
+  const loadHistoricalWeeks = async () => {
+    if (!athleteId) return;
+    
+    const { data, error } = await supabase
+      .from("training_weeks")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .eq("validated", true)
+      .order("year", { ascending: false })
+      .order("week_number", { ascending: false });
+
+    if (error) {
+      console.error("Erreur lors du chargement de l'historique:", error);
+    } else {
+      setHistoricalWeeks(data || []);
+    }
+  };
+
+  const loadHistoricalWeekDetails = async (weekId: string) => {
+    const { data: sessionsData, error: sessionsError } = await supabase
+      .from("training_sessions")
+      .select(`
+        *,
+        session_exercises (*)
+      `)
+      .eq("week_id", weekId)
+      .order("session_number");
+
+    if (sessionsError) {
+      console.error("Erreur lors du chargement des séances:", sessionsError);
+    } else {
+      setHistoricalSessions(sessionsData || []);
+    }
+  };
+
+  const handleSelectHistoricalWeek = async (weekId: string) => {
+    const week = historicalWeeks.find(w => w.id === weekId);
+    setSelectedHistoricalWeek(week);
+    await loadHistoricalWeekDetails(weekId);
+  };
+
+  const handleEditHistoricalWeek = async (weekId: string) => {
+    // Charger les détails de la semaine historique
+    const week = historicalWeeks.find(w => w.id === weekId);
+    const { data: sessionsData, error } = await supabase
+      .from("training_sessions")
+      .select(`
+        *,
+        session_exercises (*)
+      `)
+      .eq("week_id", weekId)
+      .order("session_number");
+
+    if (error) {
+      toast.error("Erreur lors du chargement de la semaine");
+      return;
+    }
+
+    // Reconstruire les sessions et exercices
+    const loadedSessions: Session[] = sessionsData.map(s => ({
+      id: s.session_number,
+      name: s.name,
+      isExpanded: false
+    }));
+
+    const loadedExercises: Record<number, Exercise[]> = {};
+    sessionsData.forEach(session => {
+      if (session.session_exercises) {
+        loadedExercises[session.session_number] = session.session_exercises
+          .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+          .map((ex: any, index: number) => ({
+            id: index + 1,
+            exercice: ex.exercice,
+            recuperation: ex.recuperation,
+            reps: ex.reps,
+            series: ex.series,
+            charge: ex.charge,
+            rpe: ex.rpe,
+            tempo: ex.tempo,
+            commentaire: ex.commentaire
+          }));
+      }
+    });
+
+    // Supprimer la semaine validée de la base de données
+    await supabase.from("training_weeks").delete().eq("id", weekId);
+
+    // Charger dans l'onglet programmation
+    setSessions(loadedSessions);
+    setSessionExercises(loadedExercises);
+    setIsValidated(false);
+    
+    // Recharger l'historique
+    loadHistoricalWeeks();
+    
+    toast.success("Semaine chargée pour modification");
+  };
+
+  const toggleHistoricalSession = (sessionId: string) => {
+    if (expandedHistoricalSessionId === sessionId) {
+      setExpandedHistoricalSessionId(null);
+    } else {
+      setExpandedHistoricalSessionId(sessionId);
     }
   };
 
@@ -645,15 +756,123 @@ export default function ClientDetail() {
         <TabsContent value="historique" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Historique des séances</CardTitle>
+              <CardTitle>Historique des semaines d'entraînement</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Historique complet des séances réalisées par {athlete.first_name}.
-              </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Fonctionnalité en cours de développement...
-              </p>
+            <CardContent className="space-y-4">
+              {historicalWeeks.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">
+                  Aucune semaine d'entraînement validée pour le moment.
+                </p>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">
+                      Sélectionner une semaine
+                    </label>
+                    <select
+                      className="w-full p-2 border rounded-md"
+                      value={selectedHistoricalWeek?.id || ""}
+                      onChange={(e) => handleSelectHistoricalWeek(e.target.value)}
+                    >
+                      <option value="">-- Choisir une semaine --</option>
+                      {historicalWeeks.map((week) => (
+                        <option key={week.id} value={week.id}>
+                          Semaine {week.week_number} - {week.year} (validée le {new Date(week.validated_at).toLocaleDateString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedHistoricalWeek && (
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
+                        <div>
+                          <h3 className="font-semibold">
+                            Semaine {selectedHistoricalWeek.week_number} - {selectedHistoricalWeek.year}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            Validée le {new Date(selectedHistoricalWeek.validated_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => handleEditHistoricalWeek(selectedHistoricalWeek.id)}
+                          variant="outline"
+                        >
+                          Modifier
+                        </Button>
+                      </div>
+
+                      <div className="space-y-3">
+                        {historicalSessions.map((session) => (
+                          <div key={session.id} className="border rounded-lg">
+                            <div
+                              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                              onClick={() => toggleHistoricalSession(session.id)}
+                            >
+                              <div className="flex items-center gap-3">
+                                {expandedHistoricalSessionId === session.id ? (
+                                  <ChevronDown className="h-5 w-5 text-primary" />
+                                ) : (
+                                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                )}
+                                <span className="font-medium">{session.name}</span>
+                              </div>
+                              <Badge variant="outline">
+                                {session.session_exercises?.length || 0} exercices
+                              </Badge>
+                            </div>
+
+                            {expandedHistoricalSessionId === session.id && (
+                              <div className="border-t p-4 bg-muted/20">
+                                <div className="overflow-x-auto">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Exercice</TableHead>
+                                        <TableHead>Récup</TableHead>
+                                        <TableHead>Reps</TableHead>
+                                        <TableHead>Séries</TableHead>
+                                        <TableHead>Charge</TableHead>
+                                        <TableHead>RPE</TableHead>
+                                        <TableHead>Tempo</TableHead>
+                                        <TableHead>Commentaire</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {session.session_exercises && session.session_exercises.length > 0 ? (
+                                        session.session_exercises
+                                          .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+                                          .map((exercise: any) => (
+                                            <TableRow key={exercise.id}>
+                                              <TableCell className="font-medium">{exercise.exercice}</TableCell>
+                                              <TableCell>{exercise.recuperation || "-"}</TableCell>
+                                              <TableCell>{exercise.reps || "-"}</TableCell>
+                                              <TableCell>{exercise.series || "-"}</TableCell>
+                                              <TableCell>{exercise.charge || "-"}</TableCell>
+                                              <TableCell>{exercise.rpe || "-"}</TableCell>
+                                              <TableCell>{exercise.tempo || "-"}</TableCell>
+                                              <TableCell>{exercise.commentaire || "-"}</TableCell>
+                                            </TableRow>
+                                          ))
+                                      ) : (
+                                        <TableRow>
+                                          <TableCell colSpan={8} className="text-center text-muted-foreground">
+                                            Aucun exercice
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
