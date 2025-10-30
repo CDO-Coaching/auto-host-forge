@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Seances() {
   const { profile } = useUserProfile();
@@ -9,6 +11,7 @@ export default function Seances() {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -56,7 +59,16 @@ export default function Seances() {
   const handleWeekChange = (weekId: string) => {
     const week = weeks.find(w => w.id === weekId);
     setSelectedWeek(week);
+    setExpandedSessionId(null); // Réinitialiser la séance sélectionnée
     loadWeekSessions(weekId);
+  };
+
+  const toggleSession = (sessionId: string) => {
+    if (expandedSessionId === sessionId) {
+      setExpandedSessionId(null);
+    } else {
+      setExpandedSessionId(sessionId);
+    }
   };
 
   if (loading) {
@@ -116,52 +128,72 @@ export default function Seances() {
                   Semaine d'entraînement n°{selectedWeek.week_number}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {sessions.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
                     Aucune séance pour cette semaine.
                   </p>
                 ) : (
                   sessions.map((session) => (
-                    <div key={session.id} className="border rounded-lg p-4">
-                      <h3 className="font-bold text-lg mb-3">{session.name}</h3>
-                      {session.session_exercises && session.session_exercises.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b">
-                                <th className="text-left p-2">Exercice</th>
-                                <th className="text-left p-2">Récup</th>
-                                <th className="text-left p-2">Reps</th>
-                                <th className="text-left p-2">Séries</th>
-                                <th className="text-left p-2">Charge</th>
-                                <th className="text-left p-2">RPE</th>
-                                <th className="text-left p-2">Tempo</th>
-                                <th className="text-left p-2">Commentaire</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {session.session_exercises
-                                .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-                                .map((exercise: any) => (
-                                  <tr key={exercise.id} className="border-b">
-                                    <td className="p-2 font-medium">{exercise.exercice}</td>
-                                    <td className="p-2">{exercise.recuperation || "-"}</td>
-                                    <td className="p-2">{exercise.reps || "-"}</td>
-                                    <td className="p-2">{exercise.series || "-"}</td>
-                                    <td className="p-2">{exercise.charge || "-"}</td>
-                                    <td className="p-2">{exercise.rpe || "-"}</td>
-                                    <td className="p-2">{exercise.tempo || "-"}</td>
-                                    <td className="p-2">{exercise.commentaire || "-"}</td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
+                    <div key={session.id} className="border rounded-lg">
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => toggleSession(session.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          {expandedSessionId === session.id ? (
+                            <ChevronDown className="h-5 w-5 text-primary" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                          <span className="font-semibold text-lg">{session.name}</span>
                         </div>
-                      ) : (
-                        <p className="text-muted-foreground text-sm">
-                          Aucun exercice programmé pour cette séance.
-                        </p>
+                        <Badge variant="outline">
+                          {session.session_exercises?.length || 0} exercices
+                        </Badge>
+                      </div>
+
+                      {expandedSessionId === session.id && (
+                        <div className="border-t p-4 bg-muted/20">
+                          {session.session_exercises && session.session_exercises.length > 0 ? (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="border-b">
+                                    <th className="text-left p-2">Exercice</th>
+                                    <th className="text-left p-2">Récup</th>
+                                    <th className="text-left p-2">Reps</th>
+                                    <th className="text-left p-2">Séries</th>
+                                    <th className="text-left p-2">Charge</th>
+                                    <th className="text-left p-2">RPE</th>
+                                    <th className="text-left p-2">Tempo</th>
+                                    <th className="text-left p-2">Commentaire</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {session.session_exercises
+                                    .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+                                    .map((exercise: any) => (
+                                      <tr key={exercise.id} className="border-b">
+                                        <td className="p-2 font-medium">{exercise.exercice}</td>
+                                        <td className="p-2">{exercise.recuperation || "-"}</td>
+                                        <td className="p-2">{exercise.reps || "-"}</td>
+                                        <td className="p-2">{exercise.series || "-"}</td>
+                                        <td className="p-2">{exercise.charge || "-"}</td>
+                                        <td className="p-2">{exercise.rpe || "-"}</td>
+                                        <td className="p-2">{exercise.tempo || "-"}</td>
+                                        <td className="p-2">{exercise.commentaire || "-"}</td>
+                                      </tr>
+                                    ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground text-sm text-center py-4">
+                              Aucun exercice programmé pour cette séance.
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   ))
