@@ -45,7 +45,7 @@ export default function ExerciceDetail() {
     
     const { data, error } = await supabase
       .from("session_exercises")
-      .select("*, training_session_id")
+      .select("*")
       .eq("id", exerciceId)
       .single();
 
@@ -53,7 +53,7 @@ export default function ExerciceDetail() {
       console.error("Erreur lors du chargement de l'exercice:", error);
     } else {
       setExercise(data);
-      setSessionId(data.training_session_id);
+      setSessionId(data.session_id);
       setSportifComment(data.sportif_comment || "");
       setSportifRpe(data.sportif_rpe ? String(data.sportif_rpe) : "");
       // Initialiser le timer avec le temps de récupération
