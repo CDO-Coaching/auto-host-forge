@@ -861,6 +861,24 @@ export default function ClientDetail() {
 
                             {expandedHistoricalSessionId === session.id && (
                               <div className="border-t p-4 bg-muted/20">
+                                {/* Info de la séance */}
+                                <div className="flex gap-6 mb-4 p-3 bg-background rounded-md">
+                                  {session.completed_at && (
+                                    <div>
+                                      <span className="text-sm text-muted-foreground">Date de réalisation: </span>
+                                      <span className="font-medium">
+                                        {new Date(session.completed_at).toLocaleDateString()} à {new Date(session.completed_at).toLocaleTimeString()}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {session.duration_minutes && (
+                                    <div>
+                                      <span className="text-sm text-muted-foreground">Durée: </span>
+                                      <span className="font-medium">{session.duration_minutes} min</span>
+                                    </div>
+                                  )}
+                                </div>
+
                                 <div className="overflow-x-auto">
                                   <Table>
                                     <TableHeader>
@@ -870,9 +888,11 @@ export default function ClientDetail() {
                                         <TableHead>Reps</TableHead>
                                         <TableHead>Séries</TableHead>
                                         <TableHead>Charge</TableHead>
-                                        <TableHead>RPE</TableHead>
+                                        <TableHead>RPE prescrit</TableHead>
+                                        <TableHead>RPE ressenti</TableHead>
                                         <TableHead>Tempo</TableHead>
-                                        <TableHead>Commentaire</TableHead>
+                                        <TableHead>Commentaire coach</TableHead>
+                                        <TableHead>Retour sportif</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -956,6 +976,18 @@ export default function ClientDetail() {
                                               )}
                                             </TableCell>
                                             <TableCell>
+                                              <div className="space-y-1">
+                                                <div className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
+                                                  {exercise.sportif_rpe || "-"}
+                                                </div>
+                                                {exercise.sportif_feedback_at && (
+                                                  <div className="text-xs text-muted-foreground">
+                                                    {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </TableCell>
+                                            <TableCell>
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.tempo}
@@ -977,11 +1009,20 @@ export default function ClientDetail() {
                                                 exercise.commentaire || "-"
                                               )}
                                             </TableCell>
+                                            <TableCell>
+                                              {exercise.sportif_comment ? (
+                                                <div className="max-w-xs">
+                                                  <p className="text-sm whitespace-pre-wrap">{exercise.sportif_comment}</p>
+                                                </div>
+                                              ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                              )}
+                                            </TableCell>
                                           </TableRow>
                                         ))
                                       ) : (
                                         <TableRow>
-                                          <TableCell colSpan={8} className="text-center text-muted-foreground">
+                                          <TableCell colSpan={10} className="text-center text-muted-foreground">
                                             Aucun exercice
                                           </TableCell>
                                         </TableRow>

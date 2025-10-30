@@ -159,6 +159,7 @@ export default function ExerciceDetail() {
       .update({
         sportif_comment: sportifComment.trim() || null,
         sportif_rpe: rpeValue,
+        sportif_feedback_at: new Date().toISOString(),
       })
       .eq("id", exerciceId);
 
