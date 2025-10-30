@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { getWeek } from "date-fns";
+import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 
 interface AthleteProfile {
   id: string;
@@ -48,12 +49,27 @@ export default function ClientDetail() {
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
+  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string }>>([]);
   
   const currentWeekNumber = getWeek(new Date());
 
   useEffect(() => {
     loadAthleteData();
+    loadLibraryExercises();
   }, [athleteId]);
+
+  const loadLibraryExercises = async () => {
+    const { data, error } = await supabase
+      .from("exercise_library")
+      .select("id, name")
+      .order("name");
+
+    if (error) {
+      console.error("Erreur lors du chargement des exercices:", error);
+    } else {
+      setLibraryExercises(data || []);
+    }
+  };
 
   const loadAthleteData = async () => {
     if (!athleteId) return;
@@ -297,10 +313,10 @@ export default function ClientDetail() {
                                       (sessionExercises[session.id] || []).map((exercise) => (
                                         <TableRow key={exercise.id}>
                                           <TableCell>
-                                            <Input
+                                            <ExerciseCombobox
                                               value={exercise.exercice}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "exercice", e.target.value)}
-                                              placeholder="Nom de l'exercice"
+                                              onChange={(value) => handleExerciseChange(session.id, exercise.id, "exercice", value)}
+                                              exercises={libraryExercises}
                                               disabled={isValidated}
                                             />
                                           </TableCell>
