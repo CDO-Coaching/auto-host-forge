@@ -271,8 +271,19 @@ export default function BibliothequeExercices() {
                   <TableRow key={exercise.id}>
                     <TableCell className="font-medium">{exercise.name}</TableCell>
                     <TableCell>{exercise.muscle || "-"}</TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {exercise.video_url || "-"}
+                    <TableCell className="max-w-xs">
+                      {exercise.video_url ? (
+                        <a 
+                          href={exercise.video_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline truncate block"
+                        >
+                          {exercise.video_url}
+                        </a>
+                      ) : (
+                        "-"
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
