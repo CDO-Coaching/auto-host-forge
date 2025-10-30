@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { getWeek } from "date-fns";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AthleteProfile {
   id: string;
@@ -52,6 +53,20 @@ export default function ClientDetail() {
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string }>>([]);
   
   const currentWeekNumber = getWeek(new Date());
+
+  const recuperationOptions = [
+    { value: "30s", label: "30 secondes" },
+    { value: "45s", label: "45 secondes" },
+    { value: "1min", label: "1 minute" },
+    { value: "1min30s", label: "1 min 30 sec" },
+    { value: "2min", label: "2 minutes" },
+    { value: "2min30s", label: "2 min 30 sec" },
+    { value: "3min", label: "3 minutes" },
+    { value: "3min30s", label: "3 min 30 sec" },
+    { value: "4min", label: "4 minutes" },
+    { value: "4min30s", label: "4 min 30 sec" },
+    { value: "5min", label: "5 minutes" },
+  ];
 
   useEffect(() => {
     loadAthleteData();
@@ -321,12 +336,22 @@ export default function ClientDetail() {
                                             />
                                           </TableCell>
                                           <TableCell>
-                                            <Input
+                                            <Select
                                               value={exercise.recuperation}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "recuperation", e.target.value)}
-                                              placeholder="ex: 90s"
+                                              onValueChange={(value) => handleExerciseChange(session.id, exercise.id, "recuperation", value)}
                                               disabled={isValidated}
-                                            />
+                                            >
+                                              <SelectTrigger>
+                                                <SelectValue placeholder="Temps de récup" />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                {recuperationOptions.map((option) => (
+                                                  <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
+                                                  </SelectItem>
+                                                ))}
+                                              </SelectContent>
+                                            </Select>
                                           </TableCell>
                                           <TableCell>
                                             <Input
