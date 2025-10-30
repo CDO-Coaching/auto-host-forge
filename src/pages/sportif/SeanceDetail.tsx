@@ -3,19 +3,33 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [session, setSession] = useState<any>(null);
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  const [sessionDuration, setSessionDuration] = useState<number>(0);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadSessionDetail();
   }, [sessionId]);
+
+  useEffect(() => {
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [timerInterval]);
 
   const loadSessionDetail = async () => {
     setLoading(true);
@@ -40,6 +54,63 @@ export default function SeanceDetail() {
     }
     
     setLoading(false);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes}m ${secs}s`;
+    }
+    return `${minutes}m ${secs}s`;
+  };
+
+  const startSession = () => {
+    const startTime = Date.now();
+    setSessionStartTime(startTime);
+    setIsSessionActive(true);
+    setSessionDuration(0);
+
+    const interval = setInterval(() => {
+      setSessionDuration(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    setTimerInterval(interval);
+
+    toast({
+      title: "Séance démarrée",
+      description: "Bon entraînement !",
+    });
+  };
+
+  const endSession = async () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+    setIsSessionActive(false);
+
+    const { error } = await supabase
+      .from("training_sessions")
+      .update({ 
+        duration_minutes: Math.floor(sessionDuration / 60),
+        completed_at: new Date().toISOString()
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Erreur lors de l'enregistrement de la durée:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer la durée de la séance",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Séance terminée !",
+        description: `Durée totale: ${formatDuration(sessionDuration)}`,
+      });
+    }
   };
 
   if (loading) {
@@ -74,9 +145,30 @@ export default function SeanceDetail() {
       <div className="p-4 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">{session.name}</h1>
-          <Badge variant="outline" className="mt-2">
-            {exercises.length} exercices
-          </Badge>
+          <div className="flex items-center gap-2 mt-2">
+            <Badge variant="outline">
+              {exercises.length} exercices
+            </Badge>
+            {isSessionActive && (
+              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30">
+                {formatDuration(sessionDuration)}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          {!isSessionActive ? (
+            <Button onClick={startSession} className="flex-1" size="lg">
+              <Play className="h-4 w-4 mr-2" />
+              Démarrer la séance
+            </Button>
+          ) : (
+            <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
+              <Square className="h-4 w-4 mr-2" />
+              Terminer la séance
+            </Button>
+          )}
         </div>
 
         <div className="space-y-2">
