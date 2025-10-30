@@ -22,6 +22,7 @@ export default function ExerciceDetail() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [sportifComment, setSportifComment] = useState("");
   const [sportifRpe, setSportifRpe] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,7 +45,7 @@ export default function ExerciceDetail() {
     
     const { data, error } = await supabase
       .from("session_exercises")
-      .select("*")
+      .select("*, training_session_id")
       .eq("id", exerciceId)
       .single();
 
@@ -52,6 +53,7 @@ export default function ExerciceDetail() {
       console.error("Erreur lors du chargement de l'exercice:", error);
     } else {
       setExercise(data);
+      setSessionId(data.training_session_id);
       setSportifComment(data.sportif_comment || "");
       setSportifRpe(data.sportif_rpe ? String(data.sportif_rpe) : "");
       // Initialiser le timer avec le temps de récupération
@@ -174,10 +176,18 @@ export default function ExerciceDetail() {
     );
   }
 
+  const handleBack = () => {
+    if (sessionId) {
+      navigate(`/sportif/seance/${sessionId}`);
+    } else {
+      navigate('/sportif/seances');
+    }
+  };
+
   if (!exercise) {
     return (
       <div className="min-h-screen p-4">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
@@ -200,7 +210,7 @@ export default function ExerciceDetail() {
   return (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-10 bg-background border-b px-3 py-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="sm" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>

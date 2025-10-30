@@ -126,7 +126,7 @@ export default function SeanceDetail() {
   if (!session) {
     return (
       <div className="min-h-screen p-4">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
+        <Button variant="ghost" onClick={() => navigate('/sportif/seances')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
@@ -138,7 +138,7 @@ export default function SeanceDetail() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 z-10 bg-background border-b p-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/sportif/seances')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
