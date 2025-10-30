@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Dumbbell, Video } from "lucide-react";
+import { Plus, Search, Dumbbell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Exercise {
   id: string;
@@ -80,6 +80,9 @@ export default function BibliothequeExercices() {
     if (selectedCategory !== "all") {
       filtered = filtered.filter((ex) => ex.category === selectedCategory);
     }
+
+    // Tri alphabétique par nom
+    filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
 
     setFilteredExercises(filtered);
   };
@@ -253,47 +256,30 @@ export default function BibliothequeExercices() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredExercises.map((exercise) => (
-            <Card key={exercise.id} className="hover:border-primary transition-colors">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{exercise.name}</CardTitle>
-                    {exercise.muscle && (
-                      <CardDescription className="mt-1">{exercise.muscle}</CardDescription>
-                    )}
-                  </div>
-                  {exercise.video_url && (
-                    <Video className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {exercise.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {exercise.description}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2">
-                    {exercise.category && (
-                      <Badge variant="secondary">{exercise.category}</Badge>
-                    )}
-                    {exercise.sub_category && (
-                      <Badge variant="outline">{exercise.sub_category}</Badge>
-                    )}
-                  </div>
-                  {exercise.equipment && (
-                    <p className="text-xs text-muted-foreground">
-                      Équipement: {exercise.equipment}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Muscle principal</TableHead>
+                  <TableHead>Lien vidéo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredExercises.map((exercise) => (
+                  <TableRow key={exercise.id}>
+                    <TableCell className="font-medium">{exercise.name}</TableCell>
+                    <TableCell>{exercise.muscle || "-"}</TableCell>
+                    <TableCell className="max-w-xs truncate">
+                      {exercise.video_url || "-"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
