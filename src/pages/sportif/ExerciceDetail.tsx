@@ -6,6 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Plus, Minus, Play, Pause, RotateCcw } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -16,6 +20,9 @@ export default function ExerciceDetail() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [sportifComment, setSportifComment] = useState("");
+  const [sportifRpe, setSportifRpe] = useState("");
+  const { toast } = useToast();
 
   useEffect(() => {
     loadExerciseDetail();
@@ -45,6 +52,8 @@ export default function ExerciceDetail() {
       console.error("Erreur lors du chargement de l'exercice:", error);
     } else {
       setExercise(data);
+      setSportifComment(data.sportif_comment || "");
+      setSportifRpe(data.sportif_rpe ? String(data.sportif_rpe) : "");
       // Initialiser le timer avec le temps de récupération
       if (data.recuperation) {
         setTimeRemaining(parseRecuperationTime(data.recuperation));
@@ -119,6 +128,41 @@ export default function ExerciceDetail() {
     }
     if (exercise?.recuperation) {
       setTimeRemaining(parseRecuperationTime(exercise.recuperation));
+    }
+  };
+
+  const saveSportifFeedback = async () => {
+    const rpeValue = sportifRpe ? parseInt(sportifRpe) : null;
+    
+    if (rpeValue !== null && (rpeValue < 1 || rpeValue > 10)) {
+      toast({
+        title: "Erreur",
+        description: "Le RPE doit être entre 1 et 10",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("session_exercises")
+      .update({
+        sportif_comment: sportifComment.trim() || null,
+        sportif_rpe: rpeValue,
+      })
+      .eq("id", exerciceId);
+
+    if (error) {
+      console.error("Erreur lors de la sauvegarde:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder vos données",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Enregistré !",
+        description: "Vos retours ont été sauvegardés",
+      });
     }
   };
 
@@ -284,6 +328,50 @@ export default function ExerciceDetail() {
               </div>
             </>
           )}
+        </Card>
+
+        {/* Retours du sportif */}
+        <Card className="p-3">
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold">Mes retours</h3>
+            
+            <div className="space-y-2">
+              <Label htmlFor="sportif-rpe" className="text-xs">
+                RPE ressenti (1-10)
+              </Label>
+              <Input
+                id="sportif-rpe"
+                type="number"
+                min="1"
+                max="10"
+                placeholder="Entre 1 et 10"
+                value={sportifRpe}
+                onChange={(e) => setSportifRpe(e.target.value)}
+                className="h-9"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sportif-comment" className="text-xs">
+                Mon commentaire
+              </Label>
+              <Textarea
+                id="sportif-comment"
+                placeholder="Comment s'est passé cet exercice ?"
+                value={sportifComment}
+                onChange={(e) => setSportifComment(e.target.value)}
+                className="min-h-[80px] text-sm"
+              />
+            </div>
+
+            <Button 
+              onClick={saveSportifFeedback}
+              className="w-full"
+              size="sm"
+            >
+              Enregistrer mes retours
+            </Button>
+          </div>
         </Card>
       </div>
     </div>
