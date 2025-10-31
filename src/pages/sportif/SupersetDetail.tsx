@@ -177,6 +177,11 @@ export default function SupersetDetail() {
         title: "Retour enregistré",
         description: "Ton retour a été sauvegardé pour tous les exercices du superset",
       });
+      
+      // Rediriger vers la page de la séance
+      setTimeout(() => {
+        navigate(`/sportif/seance/${sessionId}`);
+      }, 500);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
       toast({

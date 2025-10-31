@@ -218,19 +218,31 @@ export default function SeanceDetail() {
           ) : (
             exercises.map((item, index) => {
               if (item.isSuperset) {
+                // Vérifier si tous les exercices du superset sont terminés
+                const isCompleted = item.exercises.every((ex: any) => ex.sportif_rpe !== null);
+                
                 return (
                   <Card
                     key={item.super_set_group}
-                    className="cursor-pointer hover:border-primary transition-colors border-2 border-orange-500/50 bg-orange-500/5"
+                    className={`cursor-pointer hover:border-primary transition-colors border-2 ${
+                      isCompleted 
+                        ? 'border-green-500/50 bg-green-500/5' 
+                        : 'border-orange-500/50 bg-orange-500/5'
+                    }`}
                     onClick={() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <Badge className="bg-orange-500 text-white">
+                            <Badge className={isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}>
                               Superset
                             </Badge>
+                            {isCompleted && (
+                              <Badge variant="outline" className="border-green-600 text-green-600">
+                                Terminé
+                              </Badge>
+                            )}
                             <span className="font-semibold">{item.exercises.length} exercices</span>
                           </div>
                           <div className="mt-2 space-y-1">
@@ -247,10 +259,15 @@ export default function SeanceDetail() {
                   </Card>
                 );
               } else {
+                // Vérifier si l'exercice est terminé
+                const isCompleted = item.sportif_rpe !== null;
+                
                 return (
                   <Card
                     key={item.id}
-                    className="cursor-pointer hover:border-primary transition-colors"
+                    className={`cursor-pointer hover:border-primary transition-colors ${
+                      isCompleted ? 'border-green-500/30 bg-green-500/5' : ''
+                    }`}
                     onClick={() => navigate(`/sportif/exercice/${item.id}`)}
                   >
                     <CardContent className="p-4">
@@ -261,6 +278,11 @@ export default function SeanceDetail() {
                               {index + 1}
                             </Badge>
                             <h3 className="font-semibold">{item.exercice}</h3>
+                            {isCompleted && (
+                              <Badge variant="outline" className="border-green-600 text-green-600 text-xs">
+                                Terminé
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
                             {item.series && (

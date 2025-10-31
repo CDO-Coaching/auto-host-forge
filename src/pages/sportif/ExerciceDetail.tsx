@@ -175,6 +175,13 @@ export default function ExerciceDetail() {
         title: "Enregistré !",
         description: "Vos retours ont été sauvegardés",
       });
+      
+      // Rediriger vers la page de la séance
+      if (sessionId) {
+        setTimeout(() => {
+          navigate(`/sportif/seance/${sessionId}`);
+        }, 500);
+      }
     }
   };
 
