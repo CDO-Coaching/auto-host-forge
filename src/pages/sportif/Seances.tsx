@@ -121,7 +121,7 @@ export default function Seances() {
             </CardHeader>
             <CardContent>
               <select
-                className="w-full p-2 border rounded-md"
+                className="w-full p-3 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                 value={selectedWeek?.id || ""}
                 onChange={(e) => handleWeekChange(e.target.value)}
               >

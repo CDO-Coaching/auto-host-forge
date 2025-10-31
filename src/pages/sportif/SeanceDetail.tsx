@@ -50,7 +50,35 @@ export default function SeanceDetail() {
       const sortedExercises = sessionData.session_exercises?.sort(
         (a: any, b: any) => a.exercise_order - b.exercise_order
       ) || [];
-      setExercises(sortedExercises);
+      
+      // Grouper les exercices par superset
+      const groupedExercises: any[] = [];
+      const processedIds = new Set<string>();
+      
+      sortedExercises.forEach((exercise: any) => {
+        if (processedIds.has(exercise.id)) return;
+        
+        if (exercise.superset_id) {
+          // Trouver tous les exercices du même superset
+          const supersetExercises = sortedExercises.filter(
+            (e: any) => e.superset_id === exercise.superset_id
+          );
+          groupedExercises.push({
+            isSuperset: true,
+            superset_id: exercise.superset_id,
+            exercises: supersetExercises,
+          });
+          supersetExercises.forEach((e: any) => processedIds.add(e.id));
+        } else {
+          groupedExercises.push({
+            isSuperset: false,
+            ...exercise,
+          });
+          processedIds.add(exercise.id);
+        }
+      });
+      
+      setExercises(groupedExercises);
     }
     
     setLoading(false);
@@ -183,38 +211,71 @@ export default function SeanceDetail() {
               </CardContent>
             </Card>
           ) : (
-            exercises.map((exercise, index) => (
-              <Card
-                key={exercise.id}
-                className="cursor-pointer hover:border-primary transition-colors"
-                onClick={() => navigate(`/sportif/exercice/${exercise.id}`)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {index + 1}
-                        </Badge>
-                        <h3 className="font-semibold">{exercise.exercice}</h3>
+            exercises.map((item, index) => {
+              if (item.isSuperset) {
+                return (
+                  <Card
+                    key={item.superset_id}
+                    className="cursor-pointer hover:border-primary transition-colors border-2 border-orange-500/50 bg-orange-500/5"
+                    onClick={() => navigate(`/sportif/superset/${sessionId}/${item.superset_id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-orange-500 text-white">
+                              Superset
+                            </Badge>
+                            <span className="font-semibold">{item.exercises.length} exercices</span>
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {item.exercises.map((ex: any, idx: number) => (
+                              <div key={ex.id} className="text-sm text-muted-foreground">
+                                {idx + 1}. {ex.exercice}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
-                        {exercise.series && (
-                          <span>{exercise.series} séries</span>
-                        )}
-                        {exercise.reps && (
-                          <span>• {exercise.reps} reps</span>
-                        )}
-                        {exercise.charge && (
-                          <span>• {exercise.charge}</span>
-                        )}
+                    </CardContent>
+                  </Card>
+                );
+              } else {
+                return (
+                  <Card
+                    key={item.id}
+                    className="cursor-pointer hover:border-primary transition-colors"
+                    onClick={() => navigate(`/sportif/exercice/${item.id}`)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {index + 1}
+                            </Badge>
+                            <h3 className="font-semibold">{item.exercice}</h3>
+                          </div>
+                          <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
+                            {item.series && (
+                              <span>{item.series} séries</span>
+                            )}
+                            {item.reps && (
+                              <span>• {item.reps} reps</span>
+                            )}
+                            {item.charge && (
+                              <span>• {item.charge}</span>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                    </CardContent>
+                  </Card>
+                );
+              }
+            })
           )}
         </div>
       </div>

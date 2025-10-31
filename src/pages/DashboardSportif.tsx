@@ -10,6 +10,7 @@ import { CheckCircle, XCircle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
+import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
 import Questions from "./sportif/Questions";
@@ -20,7 +21,10 @@ export default function DashboardSportif() {
   const [loading, setLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [coachName, setCoachName] = useState<string>("");
-  const [showApprovedAlert, setShowApprovedAlert] = useState(true);
+  const [showApprovedAlert, setShowApprovedAlert] = useState(() => {
+    const saved = localStorage.getItem('hideApprovedAlert');
+    return saved !== 'true';
+  });
   const { profile } = useUserProfile();
 
   useEffect(() => {
@@ -130,7 +134,10 @@ export default function DashboardSportif() {
                   variant="ghost"
                   size="sm"
                   className="absolute top-2 right-2 h-6 w-6 p-0 hover:bg-green-600/20"
-                  onClick={() => setShowApprovedAlert(false)}
+                  onClick={() => {
+                    setShowApprovedAlert(false);
+                    localStorage.setItem('hideApprovedAlert', 'true');
+                  }}
                 >
                   <X className="h-4 w-4 text-green-600" />
                 </Button>
@@ -162,6 +169,7 @@ export default function DashboardSportif() {
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
               <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
+              <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/questions" element={<Questions />} />
