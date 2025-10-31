@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ interface Exercise {
   cardio_sport?: "course" | "natation" | "vélo" | "yoga" | "hiit" | "";
   cardio_content?: string;
   cardio_pace?: string;
+  super_set_group?: string | null;
 }
 
 export default function ClientDetail() {
@@ -703,13 +704,131 @@ export default function ClientDetail() {
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+    const exerciseToDelete = currentExercises.find(ex => ex.id === exerciseId);
     
-    setSessionExercises({
-      ...sessionExercises,
-      [sessionId]: updatedExercises
-    });
+    // Si l'exercice supprimé fait partie d'un super-set, retirer aussi le groupe des autres
+    if (exerciseToDelete?.super_set_group) {
+      const groupExercises = currentExercises.filter(ex => ex.super_set_group === exerciseToDelete.super_set_group);
+      
+      // Si le groupe n'a plus que 2 exercices après suppression, retirer le groupe
+      if (groupExercises.length === 2) {
+        const updatedExercises = currentExercises
+          .filter(ex => ex.id !== exerciseId)
+          .map(ex => ex.super_set_group === exerciseToDelete.super_set_group ? { ...ex, super_set_group: null } : ex);
+        
+        setSessionExercises({
+          ...sessionExercises,
+          [sessionId]: updatedExercises
+        });
+      } else {
+        const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+        setSessionExercises({
+          ...sessionExercises,
+          [sessionId]: updatedExercises
+        });
+      }
+    } else {
+      const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+    }
+    
     toast.success("Ligne supprimée");
+  };
+
+  const handleToggleSuperSet = (sessionId: number, exerciseId: number) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const exerciseIndex = currentExercises.findIndex(ex => ex.id === exerciseId);
+    
+    if (exerciseIndex === -1 || exerciseIndex === currentExercises.length - 1) return;
+    
+    const currentExercise = currentExercises[exerciseIndex];
+    const nextExercise = currentExercises[exerciseIndex + 1];
+    
+    // Cas 1: Aucun des deux n'est dans un groupe - créer un nouveau groupe
+    if (!currentExercise.super_set_group && !nextExercise.super_set_group) {
+      const newGroupId = `group-${Date.now()}`;
+      const updatedExercises = currentExercises.map(ex => {
+        if (ex.id === exerciseId || ex.id === nextExercise.id) {
+          return { ...ex, super_set_group: newGroupId };
+        }
+        return ex;
+      });
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+      toast.success("Super-set créé !");
+    }
+    // Cas 2: L'exercice actuel est dans un groupe - ajouter le suivant au groupe
+    else if (currentExercise.super_set_group && !nextExercise.super_set_group) {
+      const updatedExercises = currentExercises.map(ex => {
+        if (ex.id === nextExercise.id) {
+          return { ...ex, super_set_group: currentExercise.super_set_group };
+        }
+        return ex;
+      });
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+      toast.success("Exercice ajouté au super-set !");
+    }
+    // Cas 3: Le suivant est dans un groupe - ajouter l'actuel au groupe
+    else if (!currentExercise.super_set_group && nextExercise.super_set_group) {
+      const updatedExercises = currentExercises.map(ex => {
+        if (ex.id === exerciseId) {
+          return { ...ex, super_set_group: nextExercise.super_set_group };
+        }
+        return ex;
+      });
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+      toast.success("Exercice ajouté au super-set !");
+    }
+    // Cas 4: Les deux sont dans le même groupe - retirer le lien entre eux
+    else if (currentExercise.super_set_group === nextExercise.super_set_group) {
+      const groupId = currentExercise.super_set_group;
+      const groupExercises = currentExercises.filter(ex => ex.super_set_group === groupId);
+      
+      // Trouver l'index du prochain exercice dans le groupe
+      const groupIndexes = groupExercises.map(ex => currentExercises.findIndex(e => e.id === ex.id));
+      const currentGroupIndex = groupIndexes.indexOf(exerciseIndex);
+      const nextGroupIndex = groupIndexes.indexOf(exerciseIndex + 1);
+      
+      // Si ce sont les deux derniers du groupe adjacents
+      if (currentGroupIndex !== -1 && nextGroupIndex === currentGroupIndex + 1) {
+        // Créer un nouveau groupe pour les exercices après la coupure
+        const newGroupId = `group-${Date.now()}`;
+        const updatedExercises = currentExercises.map(ex => {
+          const exIndex = currentExercises.findIndex(e => e.id === ex.id);
+          if (ex.super_set_group === groupId && exIndex > exerciseIndex) {
+            return { ...ex, super_set_group: newGroupId };
+          }
+          return ex;
+        });
+        
+        setSessionExercises({
+          ...sessionExercises,
+          [sessionId]: updatedExercises
+        });
+        toast.success("Super-set séparé !");
+      }
+    }
+  };
+
+  const isInSameGroup = (sessionId: number, exerciseId: number, nextExerciseId: number): boolean => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const exercise = currentExercises.find(ex => ex.id === exerciseId);
+    const nextExercise = currentExercises.find(ex => ex.id === nextExerciseId);
+    
+    return !!(exercise?.super_set_group && 
+              nextExercise?.super_set_group && 
+              exercise.super_set_group === nextExercise.super_set_group);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, sessionId: number, exerciseId: number, field: keyof Exercise) => {
@@ -1158,15 +1277,34 @@ export default function ClientDetail() {
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                    {(sessionExercises[session.id] || []).length === 0 ? (
+                                     {(sessionExercises[session.id] || []).length === 0 ? (
                                       <TableRow>
                                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                                           Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
                                         </TableCell>
                                       </TableRow>
-                                    ) : (
-                                      (sessionExercises[session.id] || []).map((exercise) => (
-                                        <TableRow key={exercise.id}>
+                                     ) : (
+                                       (sessionExercises[session.id] || []).map((exercise, index) => {
+                                         const exercises = sessionExercises[session.id] || [];
+                                         const nextExercise = exercises[index + 1];
+                                         const isLastExercise = index === exercises.length - 1;
+                                         const inGroup = nextExercise && isInSameGroup(session.id, exercise.id, nextExercise.id);
+                                         const isFirstInGroup = exercise.super_set_group && 
+                                           (index === 0 || exercises[index - 1]?.super_set_group !== exercise.super_set_group);
+                                         
+                                         return (
+                                           <React.Fragment key={exercise.id}>
+                                             {isFirstInGroup && (
+                                               <TableRow>
+                                                 <TableCell colSpan={9} className="py-1 bg-primary/5 border-l-4 border-l-primary">
+                                                   <Badge variant="secondary" className="text-xs">
+                                                     Super-set
+                                                   </Badge>
+                                                 </TableCell>
+                                               </TableRow>
+                                             )}
+                                             
+                                             <TableRow className={exercise.super_set_group ? "bg-primary/5 border-l-4 border-l-primary" : ""}>
                                           <TableCell>
                                             <div data-session={session.id} data-exercise={exercise.id} data-field="exercice">
                                               <ExerciseCombobox
@@ -1297,10 +1435,44 @@ export default function ClientDetail() {
                                                 <X className="h-4 w-4" />
                                               </Button>
                                             )}
-                                           </TableCell>
-                                         </TableRow>
-                                       ))
-                                     )}
+                                            </TableCell>
+                                          </TableRow>
+                                          
+                                          {/* Bouton pour créer/gérer les super-sets */}
+                                          {!isLastExercise && !isValidated && (
+                                            <TableRow>
+                                              <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                  <Button
+                                                    variant={inGroup ? "default" : "ghost"}
+                                                    size="sm"
+                                                    onClick={() => handleToggleSuperSet(session.id, exercise.id)}
+                                                    className={`h-6 px-3 transition-all ${
+                                                      inGroup 
+                                                        ? "bg-primary hover:bg-primary/80" 
+                                                        : "opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                                    }`}
+                                                  >
+                                                    {inGroup ? (
+                                                      <>
+                                                        <X className="h-3 w-3 mr-1" />
+                                                        Séparer
+                                                      </>
+                                                    ) : (
+                                                      <>
+                                                        <Plus className="h-3 w-3 mr-1" />
+                                                        Super-set
+                                                      </>
+                                                    )}
+                                                  </Button>
+                                                </div>
+                                              </TableCell>
+                                            </TableRow>
+                                          )}
+                                        </React.Fragment>
+                                      );
+                                    })
+                                  )}
                                    </TableBody>
                                  </Table>
                                   </div>
