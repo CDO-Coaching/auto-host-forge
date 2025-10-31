@@ -568,6 +568,11 @@ export default function ClientDetail() {
       setIsValidated(true);
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
       
+      // Réinitialiser pour permettre de programmer une nouvelle semaine
+      setSelectedWeekToProgram(null);
+      setSessions([]);
+      setSessionExercises({});
+      
       // Recharger l'historique et les retours
       await loadHistoricalWeeks();
       await loadLastWeekFeedback();
@@ -1293,204 +1298,417 @@ export default function ClientDetail() {
                                         <TableHead className="w-[50px]"></TableHead>
                                       </TableRow>
                                     </TableHeader>
-                                    <TableBody>
-                                     {(sessionExercises[session.id] || []).length === 0 ? (
-                                      <TableRow>
-                                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                          Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
-                                        </TableCell>
-                                      </TableRow>
-                                     ) : (
-                                       (sessionExercises[session.id] || []).map((exercise, index) => {
+                                     <TableBody>
+                                      {(sessionExercises[session.id] || []).length === 0 ? (
+                                       <TableRow>
+                                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                                           Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                         </TableCell>
+                                       </TableRow>
+                                      ) : (
+                                       (() => {
                                          const exercises = sessionExercises[session.id] || [];
-                                         const nextExercise = exercises[index + 1];
-                                         const isLastExercise = index === exercises.length - 1;
-                                         const inGroup = nextExercise && isInSameGroup(session.id, exercise.id, nextExercise.id);
-                                         const isFirstInGroup = exercise.super_set_group && 
-                                           (index === 0 || exercises[index - 1]?.super_set_group !== exercise.super_set_group);
+                                         const result: JSX.Element[] = [];
+                                         let i = 0;
                                          
-                                         return (
-                                           <React.Fragment key={exercise.id}>
-                                             {isFirstInGroup && (
-                                               <TableRow>
-                                                 <TableCell colSpan={9} className="py-1 bg-primary/5 border-l-4 border-l-primary">
-                                                   <Badge variant="secondary" className="text-xs">
-                                                     Super-set
-                                                   </Badge>
-                                                 </TableCell>
-                                               </TableRow>
-                                             )}
+                                         while (i < exercises.length) {
+                                           const exercise = exercises[i];
+                                           
+                                           // Si l'exercice fait partie d'un super-set
+                                           if (exercise.super_set_group) {
+                                             // Trouver tous les exercices du groupe
+                                             const groupExercises = [];
+                                             let j = i;
+                                             while (j < exercises.length && exercises[j].super_set_group === exercise.super_set_group) {
+                                               groupExercises.push(exercises[j]);
+                                               j++;
+                                             }
                                              
-                                             <TableRow className={exercise.super_set_group ? "bg-primary/5 border-l-4 border-l-primary" : ""}>
-                                          <TableCell>
-                                            <div data-session={session.id} data-exercise={exercise.id} data-field="exercice">
-                                              <ExerciseCombobox
-                                                value={exercise.exercice}
-                                                onChange={(value) => {
-                                                  handleExerciseChange(session.id, exercise.id, "exercice", value);
-                                                  // Passer automatiquement au champ suivant
-                                                  setTimeout(() => {
-                                                    const nextInput = document.querySelector(
-                                                      `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="recuperation"]`
-                                                    ) as HTMLElement;
-                                                    nextInput?.focus();
-                                                    nextInput?.click();
-                                                  }, 100);
-                                                }}
-                                                exercises={libraryExercises}
-                                                disabled={isValidated}
-                                              />
-                                            </div>
-                                          </TableCell>
-                                          <TableCell>
-                                            <Select
-                                              value={exercise.recuperation}
-                                              onValueChange={(value) => {
-                                                handleExerciseChange(session.id, exercise.id, "recuperation", value);
-                                                // Passer automatiquement au champ suivant
-                                                setTimeout(() => {
-                                                  const nextInput = document.querySelector(
-                                                    `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="reps"]`
-                                                  ) as HTMLInputElement;
-                                                  nextInput?.focus();
-                                                }, 100);
-                                              }}
-                                              disabled={isValidated}
-                                            >
-                                              <SelectTrigger data-session={session.id} data-exercise={exercise.id} data-field="recuperation">
-                                                <SelectValue placeholder="Temps de récup" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {recuperationOptions.map((option) => (
-                                                  <SelectItem key={option.value} value={option.value}>
-                                                    {option.label}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.reps}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "reps")}
-                                              placeholder="ex: 10"
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="reps"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.series}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "series")}
-                                              placeholder="ex: 3"
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="series"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.charge}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "charge")}
-                                              placeholder="ex: 80kg"
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="charge"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.rpe}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "rpe")}
-                                              placeholder="ex: 8"
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="rpe"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.tempo}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "tempo")}
-                                              placeholder="ex: 3010"
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="tempo"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            <Input
-                                              value={exercise.commentaire}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
-                                              onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "commentaire")}
-                                              placeholder="Notes..."
-                                              disabled={isValidated}
-                                              data-session={session.id}
-                                              data-exercise={exercise.id}
-                                              data-field="commentaire"
-                                            />
-                                          </TableCell>
-                                          <TableCell>
-                                            {!isValidated && (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDeleteExercise(session.id, exercise.id)}
-                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                              >
-                                                <X className="h-4 w-4" />
-                                              </Button>
-                                            )}
-                                            </TableCell>
-                                          </TableRow>
-                                          
-                                          {/* Bouton pour créer/gérer les super-sets */}
-                                          {!isLastExercise && !isValidated && (
-                                            <TableRow>
-                                              <TableCell colSpan={9} className="p-0 h-8 relative group">
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                  <Button
-                                                    variant={inGroup ? "default" : "ghost"}
-                                                    size="sm"
-                                                    onClick={() => handleToggleSuperSet(session.id, exercise.id)}
-                                                    className={`h-6 px-3 transition-all ${
-                                                      inGroup 
-                                                        ? "bg-primary hover:bg-primary/80" 
-                                                        : "opacity-0 group-hover:opacity-100 hover:bg-primary/10"
-                                                    }`}
-                                                  >
-                                                    {inGroup ? (
-                                                      <>
-                                                        <X className="h-3 w-3 mr-1" />
-                                                        Séparer
-                                                      </>
-                                                    ) : (
-                                                      <>
-                                                        <Plus className="h-3 w-3 mr-1" />
-                                                        Super-set
-                                                      </>
-                                                    )}
-                                                  </Button>
-                                                </div>
-                                              </TableCell>
-                                            </TableRow>
-                                          )}
-                                        </React.Fragment>
-                                      );
-                                    })
-                                  )}
-                                   </TableBody>
+                                             // Rendu du bloc super-set
+                                             result.push(
+                                               <React.Fragment key={`superset-${exercise.super_set_group}`}>
+                                                 {/* Séparateur visuel avant le super-set */}
+                                                 <TableRow>
+                                                   <TableCell colSpan={9} className="p-0 h-2 bg-muted/30"></TableCell>
+                                                 </TableRow>
+                                                 
+                                                 {/* En-tête du super-set avec la case de série commune */}
+                                                 <TableRow className="bg-primary/10 border-l-4 border-l-primary">
+                                                   <TableCell colSpan={3} className="font-semibold">
+                                                     <Badge variant="default" className="mr-2">
+                                                       Super-set ({groupExercises.length} exercices)
+                                                     </Badge>
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <div className="font-medium">
+                                                       <label className="text-xs text-muted-foreground mb-1 block">Séries communes</label>
+                                                       <Input
+                                                         value={exercise.series}
+                                                         onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                                         placeholder="ex: 3"
+                                                         disabled={isValidated}
+                                                         className="font-semibold bg-background"
+                                                       />
+                                                     </div>
+                                                   </TableCell>
+                                                   <TableCell colSpan={5}></TableCell>
+                                                 </TableRow>
+                                                 
+                                                 {/* Exercices du super-set */}
+                                                 {groupExercises.map((ex, exIndex) => {
+                                                   const nextExercise = groupExercises[exIndex + 1];
+                                                   const inGroup = nextExercise && isInSameGroup(session.id, ex.id, nextExercise.id);
+                                                   
+                                                   return (
+                                                     <React.Fragment key={ex.id}>
+                                                       <TableRow className="bg-primary/5 border-l-4 border-l-primary">
+                                                         <TableCell>
+                                                           <div data-session={session.id} data-exercise={ex.id} data-field="exercice">
+                                                             <ExerciseCombobox
+                                                               value={ex.exercice}
+                                                               onChange={(value) => {
+                                                                 handleExerciseChange(session.id, ex.id, "exercice", value);
+                                                                 setTimeout(() => {
+                                                                   const nextInput = document.querySelector(
+                                                                     `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="recuperation"]`
+                                                                   ) as HTMLElement;
+                                                                   nextInput?.focus();
+                                                                   nextInput?.click();
+                                                                 }, 100);
+                                                               }}
+                                                               exercises={libraryExercises}
+                                                               disabled={isValidated}
+                                                             />
+                                                           </div>
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Select
+                                                             value={ex.recuperation}
+                                                             onValueChange={(value) => {
+                                                               handleExerciseChange(session.id, ex.id, "recuperation", value);
+                                                               setTimeout(() => {
+                                                                 const nextInput = document.querySelector(
+                                                                   `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="reps"]`
+                                                                 ) as HTMLInputElement;
+                                                                 nextInput?.focus();
+                                                               }, 100);
+                                                             }}
+                                                             disabled={isValidated}
+                                                           >
+                                                             <SelectTrigger data-session={session.id} data-exercise={ex.id} data-field="recuperation">
+                                                               <SelectValue placeholder="Temps de récup" />
+                                                             </SelectTrigger>
+                                                             <SelectContent>
+                                                               {recuperationOptions.map((option) => (
+                                                                 <SelectItem key={option.value} value={option.value}>
+                                                                   {option.label}
+                                                                 </SelectItem>
+                                                               ))}
+                                                             </SelectContent>
+                                                           </Select>
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Input
+                                                             value={ex.reps}
+                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "reps", e.target.value)}
+                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "reps")}
+                                                             placeholder="ex: 10"
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={ex.id}
+                                                             data-field="reps"
+                                                           />
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           {/* Case de série masquée pour les exercices du super-set */}
+                                                           <div className="text-center text-muted-foreground text-xs">
+                                                             (voir en-tête)
+                                                           </div>
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Input
+                                                             value={ex.charge}
+                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "charge", e.target.value)}
+                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "charge")}
+                                                             placeholder="ex: 80kg"
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={ex.id}
+                                                             data-field="charge"
+                                                           />
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Input
+                                                             value={ex.rpe}
+                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "rpe", e.target.value)}
+                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "rpe")}
+                                                             placeholder="ex: 8"
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={ex.id}
+                                                             data-field="rpe"
+                                                           />
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Input
+                                                             value={ex.tempo}
+                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "tempo", e.target.value)}
+                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "tempo")}
+                                                             placeholder="ex: 3010"
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={ex.id}
+                                                             data-field="tempo"
+                                                           />
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           <Input
+                                                             value={ex.commentaire}
+                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "commentaire", e.target.value)}
+                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "commentaire")}
+                                                             placeholder="Notes..."
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={ex.id}
+                                                             data-field="commentaire"
+                                                           />
+                                                         </TableCell>
+                                                         <TableCell>
+                                                           {!isValidated && (
+                                                             <Button
+                                                               variant="ghost"
+                                                               size="sm"
+                                                               onClick={() => handleDeleteExercise(session.id, ex.id)}
+                                                               className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                             >
+                                                               <X className="h-4 w-4" />
+                                                             </Button>
+                                                           )}
+                                                         </TableCell>
+                                                       </TableRow>
+                                                       
+                                                       {/* Bouton pour gérer les liens dans le super-set */}
+                                                       {exIndex < groupExercises.length - 1 && !isValidated && (
+                                                         <TableRow>
+                                                           <TableCell colSpan={9} className="p-0 h-6 relative group bg-primary/5 border-l-4 border-l-primary">
+                                                             <div className="absolute inset-0 flex items-center justify-center">
+                                                               <Button
+                                                                 variant="default"
+                                                                 size="sm"
+                                                                 onClick={() => handleToggleSuperSet(session.id, ex.id)}
+                                                                 className="h-5 px-2 text-xs bg-destructive hover:bg-destructive/80"
+                                                               >
+                                                                 <X className="h-3 w-3 mr-1" />
+                                                                 Séparer
+                                                               </Button>
+                                                             </div>
+                                                           </TableCell>
+                                                         </TableRow>
+                                                       )}
+                                                     </React.Fragment>
+                                                   );
+                                                 })}
+                                                 
+                                                 {/* Séparateur visuel après le super-set */}
+                                                 <TableRow>
+                                                   <TableCell colSpan={9} className="p-0 h-2 bg-muted/30"></TableCell>
+                                                 </TableRow>
+                                                 
+                                                 {/* Bouton pour ajouter au super-set si pas le dernier exercice */}
+                                                 {i + groupExercises.length < exercises.length && !isValidated && (
+                                                   <TableRow>
+                                                     <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                       <div className="absolute inset-0 flex items-center justify-center">
+                                                         <Button
+                                                           variant="ghost"
+                                                           size="sm"
+                                                           onClick={() => handleToggleSuperSet(session.id, groupExercises[groupExercises.length - 1].id)}
+                                                           className="h-6 px-3 opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                                         >
+                                                           <Plus className="h-3 w-3 mr-1" />
+                                                           Ajouter au super-set
+                                                         </Button>
+                                                       </div>
+                                                     </TableCell>
+                                                   </TableRow>
+                                                 )}
+                                               </React.Fragment>
+                                             );
+                                             
+                                             i = j; // Passer au prochain exercice après le groupe
+                                           } else {
+                                             // Exercice normal (pas dans un super-set)
+                                             const nextExercise = exercises[i + 1];
+                                             const isLastExercise = i === exercises.length - 1;
+                                             const inGroup = nextExercise && isInSameGroup(session.id, exercise.id, nextExercise.id);
+                                             
+                                             result.push(
+                                               <React.Fragment key={exercise.id}>
+                                                 <TableRow>
+                                                   <TableCell>
+                                                     <div data-session={session.id} data-exercise={exercise.id} data-field="exercice">
+                                                       <ExerciseCombobox
+                                                         value={exercise.exercice}
+                                                         onChange={(value) => {
+                                                           handleExerciseChange(session.id, exercise.id, "exercice", value);
+                                                           setTimeout(() => {
+                                                             const nextInput = document.querySelector(
+                                                               `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="recuperation"]`
+                                                             ) as HTMLElement;
+                                                             nextInput?.focus();
+                                                             nextInput?.click();
+                                                           }, 100);
+                                                         }}
+                                                         exercises={libraryExercises}
+                                                         disabled={isValidated}
+                                                       />
+                                                     </div>
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Select
+                                                       value={exercise.recuperation}
+                                                       onValueChange={(value) => {
+                                                         handleExerciseChange(session.id, exercise.id, "recuperation", value);
+                                                         setTimeout(() => {
+                                                           const nextInput = document.querySelector(
+                                                             `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="reps"]`
+                                                           ) as HTMLInputElement;
+                                                           nextInput?.focus();
+                                                         }, 100);
+                                                       }}
+                                                       disabled={isValidated}
+                                                     >
+                                                       <SelectTrigger data-session={session.id} data-exercise={exercise.id} data-field="recuperation">
+                                                         <SelectValue placeholder="Temps de récup" />
+                                                       </SelectTrigger>
+                                                       <SelectContent>
+                                                         {recuperationOptions.map((option) => (
+                                                           <SelectItem key={option.value} value={option.value}>
+                                                             {option.label}
+                                                           </SelectItem>
+                                                         ))}
+                                                       </SelectContent>
+                                                     </Select>
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.reps}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "reps")}
+                                                       placeholder="ex: 10"
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="reps"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.series}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "series")}
+                                                       placeholder="ex: 3"
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="series"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.charge}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "charge")}
+                                                       placeholder="ex: 80kg"
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="charge"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.rpe}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "rpe")}
+                                                       placeholder="ex: 8"
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="rpe"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.tempo}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "tempo")}
+                                                       placeholder="ex: 3010"
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="tempo"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     <Input
+                                                       value={exercise.commentaire}
+                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "commentaire")}
+                                                       placeholder="Notes..."
+                                                       disabled={isValidated}
+                                                       data-session={session.id}
+                                                       data-exercise={exercise.id}
+                                                       data-field="commentaire"
+                                                     />
+                                                   </TableCell>
+                                                   <TableCell>
+                                                     {!isValidated && (
+                                                       <Button
+                                                         variant="ghost"
+                                                         size="sm"
+                                                         onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                                         className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                       >
+                                                         <X className="h-4 w-4" />
+                                                       </Button>
+                                                     )}
+                                                   </TableCell>
+                                                 </TableRow>
+                                                 
+                                                 {/* Bouton pour créer un super-set */}
+                                                 {!isLastExercise && !isValidated && (
+                                                   <TableRow>
+                                                     <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                       <div className="absolute inset-0 flex items-center justify-center">
+                                                         <Button
+                                                           variant={inGroup ? "default" : "ghost"}
+                                                           size="sm"
+                                                           onClick={() => handleToggleSuperSet(session.id, exercise.id)}
+                                                           className={`h-6 px-3 transition-all ${
+                                                             inGroup 
+                                                               ? "bg-primary hover:bg-primary/80" 
+                                                               : "opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                                           }`}
+                                                         >
+                                                           <Plus className="h-3 w-3 mr-1" />
+                                                           Super-set
+                                                         </Button>
+                                                       </div>
+                                                     </TableCell>
+                                                   </TableRow>
+                                                 )}
+                                               </React.Fragment>
+                                             );
+                                             
+                                             i++;
+                                           }
+                                         }
+                                         
+                                         return result;
+                                       })()
+                                   )}
+                                    </TableBody>
                                  </Table>
                                   </div>
                                   
