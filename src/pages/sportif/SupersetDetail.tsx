@@ -206,167 +206,185 @@ export default function SupersetDetail() {
         </div>
 
         <div className="space-y-6">
-          {exercises.map((exercise, index) => (
-            <Card key={exercise.id} className="border-2">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary">{index + 1}</Badge>
-                  <CardTitle className="text-xl">{exercise.exercice}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Informations de l'exercice */}
-                <div className="grid grid-cols-2 gap-4">
-                  {exercise.series && (
-                    <div>
-                      <Label className="text-muted-foreground">Séries</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => decrementSet(exercise.id)}
-                          disabled={completedSets[exercise.id] === 0}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="font-bold text-lg min-w-[80px] text-center">
-                          {completedSets[exercise.id]} / {exercise.series}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => incrementSet(exercise.id)}
-                          disabled={completedSets[exercise.id] >= parseInt(exercise.series)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
+          {exercises.map((exercise, index) => {
+            const isLastExercise = index === exercises.length - 1;
+            return (
+              <div key={exercise.id}>
+                <Card className="border-2">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{index + 1}</Badge>
+                      <CardTitle className="text-xl">{exercise.exercice}</CardTitle>
                     </div>
-                  )}
-                  
-                  {exercise.recuperation && (
-                    <div>
-                      <Label className="text-muted-foreground">Récupération</Label>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => isTimerRunning[exercise.id] 
-                            ? pauseTimer(exercise.id) 
-                            : startTimer(exercise.id, exercise.recuperation)}
-                        >
-                          <Timer className="h-4 w-4 mr-1" />
-                          {isTimerRunning[exercise.id] ? "Pause" : "Start"}
-                        </Button>
-                        <span className="font-mono text-lg">
-                          {formatTime(timers[exercise.id])}
-                        </span>
-                        {timers[exercise.id] > 0 && (
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Informations de l'exercice */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {exercise.series && (
+                        <div>
+                          <Label className="text-muted-foreground">Séries</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => decrementSet(exercise.id)}
+                              disabled={completedSets[exercise.id] === 0}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="font-bold text-lg min-w-[80px] text-center">
+                              {completedSets[exercise.id]} / {exercise.series}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => incrementSet(exercise.id)}
+                              disabled={completedSets[exercise.id] >= parseInt(exercise.series)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Autres infos */}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      {exercise.reps && (
+                        <div>
+                          <Label className="text-muted-foreground">Répétitions</Label>
+                          <p className="font-medium">{exercise.reps}</p>
+                        </div>
+                      )}
+                      {exercise.charge && (
+                        <div>
+                          <Label className="text-muted-foreground">Charge</Label>
+                          <p className="font-medium">{exercise.charge}</p>
+                        </div>
+                      )}
+                      {exercise.rpe && (
+                        <div>
+                          <Label className="text-muted-foreground">RPE Coach</Label>
+                          <p className="font-medium">{exercise.rpe}</p>
+                        </div>
+                      )}
+                      {exercise.tempo && (
+                        <div>
+                          <Label className="text-muted-foreground">Tempo</Label>
+                          <p className="font-medium">{exercise.tempo}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {exercise.commentaires_coach && (
+                      <div>
+                        <Label className="text-muted-foreground">Commentaires du coach</Label>
+                        <p className="text-sm mt-1 p-2 bg-muted rounded-md">
+                          {exercise.commentaires_coach}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Retours sportif */}
+                    <div className="space-y-3 pt-4 border-t">
+                      <Label>Ton retour</Label>
+                      <div>
+                        <Label htmlFor={`rpe-${exercise.id}`} className="text-sm text-muted-foreground">
+                          RPE ressenti (0-10)
+                        </Label>
+                        <Input
+                          id={`rpe-${exercise.id}`}
+                          type="number"
+                          min="0"
+                          max="10"
+                          placeholder="Ex: 8"
+                          value={feedbacks[exercise.id]?.rpe || ""}
+                          onChange={(e) =>
+                            setFeedbacks({
+                              ...feedbacks,
+                              [exercise.id]: {
+                                ...feedbacks[exercise.id],
+                                rpe: e.target.value,
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor={`comments-${exercise.id}`} className="text-sm text-muted-foreground">
+                          Commentaires
+                        </Label>
+                        <Textarea
+                          id={`comments-${exercise.id}`}
+                          placeholder="Comment s'est passé cet exercice ?"
+                          value={feedbacks[exercise.id]?.comments || ""}
+                          onChange={(e) =>
+                            setFeedbacks({
+                              ...feedbacks,
+                              [exercise.id]: {
+                                ...feedbacks[exercise.id],
+                                comments: e.target.value,
+                              },
+                            })
+                          }
+                          rows={3}
+                        />
+                      </div>
+                      <Button
+                        onClick={() => saveFeedback(exercise.id)}
+                        className="w-full"
+                      >
+                        Enregistrer mon retour
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Chrono de récupération après chaque exercice */}
+                {exercise.recuperation && (
+                  <Card className={`mt-4 ${isLastExercise ? 'border-2 border-primary bg-primary/5' : 'border'}`}>
+                    <CardContent className="p-4">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <Timer className="h-5 w-5" />
+                          <Label className="text-lg">
+                            {isLastExercise ? "Récupération superset" : `Repos avant exercice ${index + 2}`}
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-3">
                           <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => resetTimer(exercise.id)}
+                            variant={isLastExercise ? "default" : "outline"}
+                            size="lg"
+                            onClick={() => isTimerRunning[exercise.id] 
+                              ? pauseTimer(exercise.id) 
+                              : startTimer(exercise.id, exercise.recuperation)}
                           >
-                            Reset
+                            <Timer className="h-4 w-4 mr-2" />
+                            {isTimerRunning[exercise.id] ? "Pause" : "Démarrer"}
                           </Button>
-                        )}
+                          <span className="font-mono text-3xl font-bold min-w-[100px] text-center">
+                            {formatTime(timers[exercise.id])}
+                          </span>
+                          {timers[exercise.id] > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="lg"
+                              onClick={() => resetTimer(exercise.id)}
+                            >
+                              Reset
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {exercise.recuperation}
+                        </p>
                       </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Autres infos */}
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  {exercise.reps && (
-                    <div>
-                      <Label className="text-muted-foreground">Répétitions</Label>
-                      <p className="font-medium">{exercise.reps}</p>
-                    </div>
-                  )}
-                  {exercise.charge && (
-                    <div>
-                      <Label className="text-muted-foreground">Charge</Label>
-                      <p className="font-medium">{exercise.charge}</p>
-                    </div>
-                  )}
-                  {exercise.rpe && (
-                    <div>
-                      <Label className="text-muted-foreground">RPE Coach</Label>
-                      <p className="font-medium">{exercise.rpe}</p>
-                    </div>
-                  )}
-                  {exercise.tempo && (
-                    <div>
-                      <Label className="text-muted-foreground">Tempo</Label>
-                      <p className="font-medium">{exercise.tempo}</p>
-                    </div>
-                  )}
-                </div>
-
-                {exercise.commentaires_coach && (
-                  <div>
-                    <Label className="text-muted-foreground">Commentaires du coach</Label>
-                    <p className="text-sm mt-1 p-2 bg-muted rounded-md">
-                      {exercise.commentaires_coach}
-                    </p>
-                  </div>
+                    </CardContent>
+                  </Card>
                 )}
-
-                {/* Retours sportif */}
-                <div className="space-y-3 pt-4 border-t">
-                  <Label>Ton retour</Label>
-                  <div>
-                    <Label htmlFor={`rpe-${exercise.id}`} className="text-sm text-muted-foreground">
-                      RPE ressenti (0-10)
-                    </Label>
-                    <Input
-                      id={`rpe-${exercise.id}`}
-                      type="number"
-                      min="0"
-                      max="10"
-                      placeholder="Ex: 8"
-                      value={feedbacks[exercise.id]?.rpe || ""}
-                      onChange={(e) =>
-                        setFeedbacks({
-                          ...feedbacks,
-                          [exercise.id]: {
-                            ...feedbacks[exercise.id],
-                            rpe: e.target.value,
-                          },
-                        })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor={`comments-${exercise.id}`} className="text-sm text-muted-foreground">
-                      Commentaires
-                    </Label>
-                    <Textarea
-                      id={`comments-${exercise.id}`}
-                      placeholder="Comment s'est passé cet exercice ?"
-                      value={feedbacks[exercise.id]?.comments || ""}
-                      onChange={(e) =>
-                        setFeedbacks({
-                          ...feedbacks,
-                          [exercise.id]: {
-                            ...feedbacks[exercise.id],
-                            comments: e.target.value,
-                          },
-                        })
-                      }
-                      rows={3}
-                    />
-                  </div>
-                  <Button
-                    onClick={() => saveFeedback(exercise.id)}
-                    className="w-full"
-                  >
-                    Enregistrer mon retour
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
