@@ -1,13 +1,12 @@
 # Étape 1: Build de l'application
 FROM node:18-alpine AS builder
-
 WORKDIR /app
 
 # Copier les fichiers de dépendances
 COPY package*.json ./
 
-# Installer les dépendances
-RUN npm ci
+# Installer les dépendances avec --legacy-peer-deps pour résoudre les conflits
+RUN npm ci --legacy-peer-deps
 
 # Copier tout le code source
 COPY . .
