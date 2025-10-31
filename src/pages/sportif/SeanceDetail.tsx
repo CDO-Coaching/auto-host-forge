@@ -58,14 +58,14 @@ export default function SeanceDetail() {
       sortedExercises.forEach((exercise: any) => {
         if (processedIds.has(exercise.id)) return;
         
-        if (exercise.superset_id) {
+        if (exercise.super_set_group) {
           // Trouver tous les exercices du même superset
           const supersetExercises = sortedExercises.filter(
-            (e: any) => e.superset_id === exercise.superset_id
+            (e: any) => e.super_set_group === exercise.super_set_group
           );
           groupedExercises.push({
             isSuperset: true,
-            superset_id: exercise.superset_id,
+            super_set_group: exercise.super_set_group,
             exercises: supersetExercises,
           });
           supersetExercises.forEach((e: any) => processedIds.add(e.id));
@@ -215,9 +215,9 @@ export default function SeanceDetail() {
               if (item.isSuperset) {
                 return (
                   <Card
-                    key={item.superset_id}
+                    key={item.super_set_group}
                     className="cursor-pointer hover:border-primary transition-colors border-2 border-orange-500/50 bg-orange-500/5"
-                    onClick={() => navigate(`/sportif/superset/${sessionId}/${item.superset_id}`)}
+                    onClick={() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">

@@ -35,7 +35,7 @@ export default function SupersetDetail() {
     const { data, error } = await supabase
       .from("session_exercises")
       .select("*")
-      .eq("superset_id", supersetId)
+      .eq("super_set_group", supersetId)
       .order("exercise_order");
 
     if (error) {
