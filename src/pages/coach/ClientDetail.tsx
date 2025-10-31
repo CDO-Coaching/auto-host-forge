@@ -67,7 +67,7 @@ export default function ClientDetail() {
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
-  const [showLastWeekFeedback, setShowLastWeekFeedback] = useState(true);
+  const [showLastWeekFeedback, setShowLastWeekFeedback] = useState(false);
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
@@ -148,20 +148,30 @@ export default function ClientDetail() {
   const loadLastWeekFeedback = async () => {
     if (!athleteId) return;
     
-    const { data: lastWeek, error: weekError } = await supabase
+    // Trouver toutes les semaines validées avec des sessions complétées par le sportif
+    const { data: weeks, error: weeksError } = await supabase
       .from("training_weeks")
-      .select("*")
+      .select(`
+        *,
+        training_sessions!inner(
+          id,
+          completed_at
+        )
+      `)
       .eq("athlete_id", athleteId)
       .eq("validated", true)
+      .not("training_sessions.completed_at", "is", null)
       .order("year", { ascending: false })
-      .order("week_number", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("week_number", { ascending: false });
 
-    if (weekError || !lastWeek) {
-      console.error("Pas de semaine précédente:", weekError);
+    if (weeksError || !weeks || weeks.length === 0) {
+      console.error("Pas de semaine avec feedback:", weeksError);
+      setLastWeekData(null);
       return;
     }
+
+    // Prendre la première semaine (la plus récente)
+    const lastWeek = weeks[0];
 
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
