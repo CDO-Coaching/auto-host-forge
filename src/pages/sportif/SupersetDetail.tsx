@@ -183,201 +183,191 @@ export default function SupersetDetail() {
   const maxSets = parseInt(exercises[0]?.series || "0");
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-4">
+      {/* Header compact */}
       <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="p-4">
+        <div className="p-2 flex items-center justify-between">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => navigate(-1)}
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
+            <ArrowLeft className="h-4 w-4 mr-1" />
             Retour
           </Button>
-        </div>
-        
-        {/* Compteur de séries global */}
-        <div className="px-4 pb-4">
-          <Card className="border-2 border-primary">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Séries complétées</Label>
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={decrementGlobalSet}
-                    disabled={globalCompletedSets === 0}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="font-mono text-2xl font-bold min-w-[80px] text-center">
-                    {globalCompletedSets} / {maxSets}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={incrementGlobalSet}
-                    disabled={globalCompletedSets >= maxSets}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <Badge className="bg-orange-500 text-white">Superset</Badge>
         </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Layout horizontal avec scroll mobile */}
-        <div className="overflow-x-auto -mx-4 px-4">
-          <div className="flex gap-3 pb-4" style={{ width: 'max-content' }}>
-            {exercises.map((exercise, index) => {
-              const isLastExercise = index === exercises.length - 1;
-              return (
-                <div key={exercise.id} className="flex gap-3">
-                  {/* Card Exercice mobile */}
-                  <Card className="w-[280px] flex-shrink-0">
-                    <CardHeader className="pb-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{index + 1}</Badge>
-                        <CardTitle className="text-base leading-tight">{exercise.exercice}</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-2 text-sm">
-                      {exercise.charge && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Charge</span>
-                          <span className="font-medium">{exercise.charge}</span>
-                        </div>
-                      )}
-                      {exercise.reps && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Reps</span>
-                          <span className="font-medium">{exercise.reps}</span>
-                        </div>
-                      )}
-                      {exercise.rpe && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">RPE</span>
-                          <span className="font-medium">{exercise.rpe}</span>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Minuteur */}
-                  {exercise.recuperation && (
-                    <Card className={`w-[160px] flex-shrink-0 flex items-center justify-center ${isLastExercise ? 'border-2 border-primary bg-primary/5' : ''}`}>
-                      <CardContent className="p-3">
-                        <div className="flex flex-col items-center gap-2">
-                          <Timer className="h-5 w-5" />
-                          <span className="font-mono text-2xl font-bold">
-                            {formatTime(timers[exercise.id])}
-                          </span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => isTimerRunning[exercise.id] 
-                                ? pauseTimer(exercise.id) 
-                                : startTimer(exercise.id, exercise.recuperation)}
-                            >
-                              {isTimerRunning[exercise.id] ? "Pause" : "Start"}
-                            </Button>
-                            {timers[exercise.id] > 0 && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => resetTimer(exercise.id)}
-                              >
-                                Reset
-                              </Button>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-center text-muted-foreground leading-tight">
-                            {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Section retours */}
-        <div className="space-y-3 mt-6">
-          <h3 className="text-base font-semibold">Tes retours</h3>
-          {exercises.map((exercise, index) => (
-            <Card key={exercise.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">{index + 1}</Badge>
-                  <CardTitle className="text-sm">{exercise.exercice}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div>
-                  <Label htmlFor={`rpe-${exercise.id}`} className="text-xs text-muted-foreground">
-                    RPE (0-10)
-                  </Label>
-                  <Input
-                    id={`rpe-${exercise.id}`}
-                    type="number"
-                    min="0"
-                    max="10"
-                    placeholder="8"
-                    className="h-9"
-                    value={feedbacks[exercise.id]?.rpe || ""}
-                    onChange={(e) =>
-                      setFeedbacks({
-                        ...feedbacks,
-                        [exercise.id]: {
-                          ...feedbacks[exercise.id],
-                          rpe: e.target.value,
-                        },
-                      })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`comments-${exercise.id}`} className="text-xs text-muted-foreground">
-                    Commentaires
-                  </Label>
-                  <Textarea
-                    id={`comments-${exercise.id}`}
-                    placeholder="Ressenti..."
-                    className="text-sm"
-                    value={feedbacks[exercise.id]?.comments || ""}
-                    onChange={(e) =>
-                      setFeedbacks({
-                        ...feedbacks,
-                        [exercise.id]: {
-                          ...feedbacks[exercise.id],
-                          comments: e.target.value,
-                        },
-                      })
-                    }
-                    rows={2}
-                  />
-                </div>
+      <div className="p-3 space-y-3">
+        {/* Compteur de séries global compact */}
+        <Card className="border-2 border-primary">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-semibold">Séries</Label>
+              <div className="flex items-center gap-2">
                 <Button
-                  onClick={() => saveFeedback(exercise.id)}
-                  size="sm"
-                  className="w-full"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={decrementGlobalSet}
+                  disabled={globalCompletedSets === 0}
                 >
-                  Enregistrer
+                  <Minus className="h-3 w-3" />
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                <span className="font-mono text-xl font-bold min-w-[60px] text-center">
+                  {globalCompletedSets}/{maxSets}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={incrementGlobalSet}
+                  disabled={globalCompletedSets >= maxSets}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Exercices en vertical */}
+        {exercises.map((exercise, index) => {
+          const isLastExercise = index === exercises.length - 1;
+          return (
+            <div key={exercise.id} className="space-y-2">
+              {/* Card Exercice compact */}
+              <Card>
+                <CardContent className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="secondary" className="text-xs">{index + 1}</Badge>
+                        <h4 className="font-semibold text-sm leading-tight">{exercise.exercice}</h4>
+                      </div>
+                      <div className="grid grid-cols-3 gap-x-2 text-xs">
+                        {exercise.charge && (
+                          <div>
+                            <span className="text-muted-foreground">Charge:</span>
+                            <span className="ml-1 font-medium">{exercise.charge}</span>
+                          </div>
+                        )}
+                        {exercise.reps && (
+                          <div>
+                            <span className="text-muted-foreground">Reps:</span>
+                            <span className="ml-1 font-medium">{exercise.reps}</span>
+                          </div>
+                        )}
+                        {exercise.rpe && (
+                          <div>
+                            <span className="text-muted-foreground">RPE:</span>
+                            <span className="ml-1 font-medium">{exercise.rpe}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Retour sportif inline */}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor={`rpe-${exercise.id}`} className="text-[10px] text-muted-foreground">
+                        Ton RPE
+                      </Label>
+                      <Input
+                        id={`rpe-${exercise.id}`}
+                        type="number"
+                        min="0"
+                        max="10"
+                        placeholder="8"
+                        className="h-8 text-sm"
+                        value={feedbacks[exercise.id]?.rpe || ""}
+                        onChange={(e) =>
+                          setFeedbacks({
+                            ...feedbacks,
+                            [exercise.id]: {
+                              ...feedbacks[exercise.id],
+                              rpe: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`comments-${exercise.id}`} className="text-[10px] text-muted-foreground">
+                        Ressenti
+                      </Label>
+                      <Input
+                        id={`comments-${exercise.id}`}
+                        placeholder="..."
+                        className="h-8 text-sm"
+                        value={feedbacks[exercise.id]?.comments || ""}
+                        onChange={(e) =>
+                          setFeedbacks({
+                            ...feedbacks,
+                            [exercise.id]: {
+                              ...feedbacks[exercise.id],
+                              comments: e.target.value,
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => saveFeedback(exercise.id)}
+                    size="sm"
+                    className="w-full mt-2 h-7 text-xs"
+                  >
+                    Enregistrer
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Minuteur compact */}
+              {exercise.recuperation && (
+                <Card className={isLastExercise ? 'border-2 border-primary bg-primary/5' : ''}>
+                  <CardContent className="p-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        <span className="text-[10px] text-muted-foreground">
+                          {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
+                        </span>
+                      </div>
+                      <span className="font-mono text-lg font-bold">
+                        {formatTime(timers[exercise.id])}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button
+                          variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
+                          size="sm"
+                          className="h-7 text-xs px-2"
+                          onClick={() => isTimerRunning[exercise.id] 
+                            ? pauseTimer(exercise.id) 
+                            : startTimer(exercise.id, exercise.recuperation)}
+                        >
+                          {isTimerRunning[exercise.id] ? "Pause" : "Start"}
+                        </Button>
+                        {timers[exercise.id] > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs px-2"
+                            onClick={() => resetTimer(exercise.id)}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
