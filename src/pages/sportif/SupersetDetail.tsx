@@ -197,42 +197,44 @@ export default function SupersetDetail() {
         </Button>
       </div>
 
-      <div className="p-4 space-y-4">
-        <div className="flex items-center gap-2">
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-4">
           <Badge className="bg-orange-500 text-white text-lg px-3 py-1">
             Superset
           </Badge>
           <span className="text-muted-foreground">{exercises.length} exercices</span>
         </div>
 
-        <div className="space-y-6">
-          {exercises.map((exercise, index) => {
-            const isLastExercise = index === exercises.length - 1;
-            return (
-              <div key={exercise.id}>
-                <Card className="border-2">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">{index + 1}</Badge>
-                      <CardTitle className="text-xl">{exercise.exercice}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Informations de l'exercice */}
-                    <div className="grid grid-cols-2 gap-4">
+        {/* Layout horizontal avec scroll */}
+        <div className="overflow-x-auto pb-4">
+          <div className="flex gap-4 min-w-max">
+            {exercises.map((exercise, index) => {
+              const isLastExercise = index === exercises.length - 1;
+              return (
+                <div key={exercise.id} className="flex gap-4">
+                  {/* Card Exercice */}
+                  <Card className="w-80 flex-shrink-0">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{index + 1}</Badge>
+                        <CardTitle className="text-lg">{exercise.exercice}</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {/* Séries */}
                       {exercise.series && (
-                        <div>
-                          <Label className="text-muted-foreground">Séries</Label>
-                          <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm">Séries</Label>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => decrementSet(exercise.id)}
                               disabled={completedSets[exercise.id] === 0}
                             >
-                              <Minus className="h-4 w-4" />
+                              <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="font-bold text-lg min-w-[80px] text-center">
+                            <span className="font-bold min-w-[60px] text-center">
                               {completedSets[exercise.id]} / {exercise.series}
                             </span>
                             <Button
@@ -241,150 +243,139 @@ export default function SupersetDetail() {
                               onClick={() => incrementSet(exercise.id)}
                               disabled={completedSets[exercise.id] >= parseInt(exercise.series)}
                             >
-                              <Plus className="h-4 w-4" />
+                              <Plus className="h-3 w-3" />
                             </Button>
                           </div>
                         </div>
                       )}
-                    </div>
 
-                    {/* Autres infos */}
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      {exercise.reps && (
-                        <div>
-                          <Label className="text-muted-foreground">Répétitions</Label>
-                          <p className="font-medium">{exercise.reps}</p>
-                        </div>
-                      )}
+                      {/* Infos principales */}
                       {exercise.charge && (
-                        <div>
-                          <Label className="text-muted-foreground">Charge</Label>
+                        <div className="flex justify-between">
+                          <Label className="text-sm text-muted-foreground">Charge</Label>
                           <p className="font-medium">{exercise.charge}</p>
                         </div>
                       )}
+                      {exercise.reps && (
+                        <div className="flex justify-between">
+                          <Label className="text-sm text-muted-foreground">Répétitions</Label>
+                          <p className="font-medium">{exercise.reps}</p>
+                        </div>
+                      )}
                       {exercise.rpe && (
-                        <div>
-                          <Label className="text-muted-foreground">RPE Coach</Label>
+                        <div className="flex justify-between">
+                          <Label className="text-sm text-muted-foreground">RPE Coach</Label>
                           <p className="font-medium">{exercise.rpe}</p>
                         </div>
                       )}
-                      {exercise.tempo && (
-                        <div>
-                          <Label className="text-muted-foreground">Tempo</Label>
-                          <p className="font-medium">{exercise.tempo}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {exercise.commentaires_coach && (
-                      <div>
-                        <Label className="text-muted-foreground">Commentaires du coach</Label>
-                        <p className="text-sm mt-1 p-2 bg-muted rounded-md">
-                          {exercise.commentaires_coach}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Retours sportif */}
-                    <div className="space-y-3 pt-4 border-t">
-                      <Label>Ton retour</Label>
-                      <div>
-                        <Label htmlFor={`rpe-${exercise.id}`} className="text-sm text-muted-foreground">
-                          RPE ressenti (0-10)
-                        </Label>
-                        <Input
-                          id={`rpe-${exercise.id}`}
-                          type="number"
-                          min="0"
-                          max="10"
-                          placeholder="Ex: 8"
-                          value={feedbacks[exercise.id]?.rpe || ""}
-                          onChange={(e) =>
-                            setFeedbacks({
-                              ...feedbacks,
-                              [exercise.id]: {
-                                ...feedbacks[exercise.id],
-                                rpe: e.target.value,
-                              },
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor={`comments-${exercise.id}`} className="text-sm text-muted-foreground">
-                          Commentaires
-                        </Label>
-                        <Textarea
-                          id={`comments-${exercise.id}`}
-                          placeholder="Comment s'est passé cet exercice ?"
-                          value={feedbacks[exercise.id]?.comments || ""}
-                          onChange={(e) =>
-                            setFeedbacks({
-                              ...feedbacks,
-                              [exercise.id]: {
-                                ...feedbacks[exercise.id],
-                                comments: e.target.value,
-                              },
-                            })
-                          }
-                          rows={3}
-                        />
-                      </div>
-                      <Button
-                        onClick={() => saveFeedback(exercise.id)}
-                        className="w-full"
-                      >
-                        Enregistrer mon retour
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Chrono de récupération après chaque exercice */}
-                {exercise.recuperation && (
-                  <Card className={`mt-4 ${isLastExercise ? 'border-2 border-primary bg-primary/5' : 'border'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex flex-col items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Timer className="h-5 w-5" />
-                          <Label className="text-lg">
-                            {isLastExercise ? "Récupération superset" : `Repos avant exercice ${index + 2}`}
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Button
-                            variant={isLastExercise ? "default" : "outline"}
-                            size="lg"
-                            onClick={() => isTimerRunning[exercise.id] 
-                              ? pauseTimer(exercise.id) 
-                              : startTimer(exercise.id, exercise.recuperation)}
-                          >
-                            <Timer className="h-4 w-4 mr-2" />
-                            {isTimerRunning[exercise.id] ? "Pause" : "Démarrer"}
-                          </Button>
-                          <span className="font-mono text-3xl font-bold min-w-[100px] text-center">
-                            {formatTime(timers[exercise.id])}
-                          </span>
-                          {timers[exercise.id] > 0 && (
-                            <Button
-                              variant="ghost"
-                              size="lg"
-                              onClick={() => resetTimer(exercise.id)}
-                            >
-                              Reset
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {exercise.recuperation}
-                        </p>
-                      </div>
                     </CardContent>
                   </Card>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Minuteur */}
+                  {exercise.recuperation && (
+                    <Card className={`w-64 flex-shrink-0 flex items-center justify-center ${isLastExercise ? 'border-2 border-primary bg-primary/5' : ''}`}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-col items-center gap-3">
+                          <Timer className="h-6 w-6" />
+                          <span className="font-mono text-4xl font-bold">
+                            {formatTime(timers[exercise.id])}
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
+                              size="sm"
+                              onClick={() => isTimerRunning[exercise.id] 
+                                ? pauseTimer(exercise.id) 
+                                : startTimer(exercise.id, exercise.recuperation)}
+                            >
+                              {isTimerRunning[exercise.id] ? "Pause" : "Start"}
+                            </Button>
+                            {timers[exercise.id] > 0 && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => resetTimer(exercise.id)}
+                              >
+                                Reset
+                              </Button>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Section retours en bas */}
+        <div className="mt-8 space-y-4">
+          <h3 className="text-lg font-semibold">Tes retours sur le superset</h3>
+          {exercises.map((exercise, index) => (
+            <Card key={exercise.id}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{index + 1}</Badge>
+                  <CardTitle className="text-base">{exercise.exercice}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor={`rpe-${exercise.id}`} className="text-sm text-muted-foreground">
+                    RPE ressenti (0-10)
+                  </Label>
+                  <Input
+                    id={`rpe-${exercise.id}`}
+                    type="number"
+                    min="0"
+                    max="10"
+                    placeholder="Ex: 8"
+                    value={feedbacks[exercise.id]?.rpe || ""}
+                    onChange={(e) =>
+                      setFeedbacks({
+                        ...feedbacks,
+                        [exercise.id]: {
+                          ...feedbacks[exercise.id],
+                          rpe: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`comments-${exercise.id}`} className="text-sm text-muted-foreground">
+                    Commentaires
+                  </Label>
+                  <Textarea
+                    id={`comments-${exercise.id}`}
+                    placeholder="Comment s'est passé cet exercice ?"
+                    value={feedbacks[exercise.id]?.comments || ""}
+                    onChange={(e) =>
+                      setFeedbacks({
+                        ...feedbacks,
+                        [exercise.id]: {
+                          ...feedbacks[exercise.id],
+                          comments: e.target.value,
+                        },
+                      })
+                    }
+                    rows={2}
+                  />
+                </div>
+                <Button
+                  onClick={() => saveFeedback(exercise.id)}
+                  size="sm"
+                >
+                  Enregistrer
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </div>
