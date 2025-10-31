@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Clock, Check, X, User, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getWeek } from "date-fns";
 
 interface Athlete {
   id: string;
@@ -24,6 +25,7 @@ interface AthleteRelationship {
   status: string;
   requested_at: string;
   athlete: Athlete;
+  hasCurrentWeekProgrammed?: boolean;
 }
 
 export default function MesClients() {
@@ -78,13 +80,40 @@ export default function MesClients() {
       }
     }
 
-    // 3) Recompose les objets avec le profil
+    // 3) Vérifier si la semaine en cours est programmée pour chaque athlète
+    const currentWeek = getWeek(new Date());
+    const currentYear = new Date().getFullYear();
+    
+    const athleteWeeksMap = new Map<string, boolean>();
+    if ((approvedRels || []).length > 0) {
+      const approvedAthleteIds = (approvedRels || []).map((r) => r.athlete_id);
+      
+      const { data: weeks } = await supabase
+        .from("training_weeks")
+        .select("athlete_id")
+        .in("athlete_id", approvedAthleteIds)
+        .eq("week_number", currentWeek)
+        .eq("year", currentYear)
+        .eq("validated", true);
+
+      if (weeks) {
+        weeks.forEach((week) => {
+          athleteWeeksMap.set(week.athlete_id, true);
+        });
+      }
+    }
+
+    // 4) Recompose les objets avec le profil
     const pendingWithProfiles = (pendingRels || [])
       .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
       .filter((r) => !!r.athlete) as AthleteRelationship[];
 
     const approvedWithProfiles = (approvedRels || [])
-      .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
+      .map((r) => ({ 
+        ...r, 
+        athlete: athletesMap.get(r.athlete_id)!,
+        hasCurrentWeekProgrammed: athleteWeeksMap.get(r.athlete_id) || false
+      }))
       .filter((r) => !!r.athlete) as AthleteRelationship[];
 
     setPendingRequests(pendingWithProfiles);
@@ -125,21 +154,21 @@ export default function MesClients() {
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Mes clients</h1>
       
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs defaultValue="approved" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="pending">
-            Demandes en attente
-            {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {pendingRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
           <TabsTrigger value="approved">
             Mes athlètes
             {approvedAthletes.length > 0 && (
               <Badge className="ml-2 bg-green-600">
                 {approvedAthletes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            Demandes en attente
+            {pendingRequests.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {pendingRequests.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -247,10 +276,17 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className="bg-green-600">
-                          <Check className="h-3 w-3 mr-1" />
-                          Actif
-                        </Badge>
+                        {relationship.hasCurrentWeekProgrammed ? (
+                          <Badge className="bg-green-600">
+                            <Check className="h-3 w-3 mr-1" />
+                            Validé
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <X className="h-3 w-3 mr-1" />
+                            Non validé
+                          </Badge>
+                        )}
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
