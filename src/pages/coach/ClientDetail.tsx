@@ -266,7 +266,8 @@ export default function ClientDetail() {
               commentaire: exercise.commentaire,
               cardio_sport: exercise.cardio_sport || null,
               cardio_content: exercise.cardio_content || null,
-              cardio_pace: exercise.cardio_pace || null
+              cardio_pace: exercise.cardio_pace || null,
+              super_set_group: exercise.super_set_group || null
             })
             .eq("id", exercise.id);
 
@@ -564,7 +565,8 @@ export default function ClientDetail() {
             commentaire: exercise.commentaire,
             cardio_sport: exercise.cardio_sport || null,
             cardio_content: exercise.cardio_content || null,
-            cardio_pace: exercise.cardio_pace || null
+            cardio_pace: exercise.cardio_pace || null,
+            super_set_group: exercise.super_set_group || null
           }));
 
           const { error: exercisesError } = await supabase
@@ -638,7 +640,8 @@ export default function ClientDetail() {
                 commentaire: ex.commentaire,
                 cardio_sport: ex.cardio_sport || "",
                 cardio_content: ex.cardio_content || "",
-                cardio_pace: ex.cardio_pace || ""
+                cardio_pace: ex.cardio_pace || "",
+                super_set_group: ex.super_set_group || null
               }));
             newExercises[sessionIndex + 1] = sortedExercises;
           }
