@@ -692,14 +692,31 @@ export default function ClientDetail() {
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const updatedExercises = currentExercises.map(ex =>
-      ex.id === exerciseId ? { ...ex, [field]: value } : ex
-    );
+    const currentExercise = currentExercises.find(ex => ex.id === exerciseId);
     
-    setSessionExercises({
-      ...sessionExercises,
-      [sessionId]: updatedExercises
-    });
+    // Si on modifie les séries d'un exercice dans un super-set, synchroniser avec tous les exercices du groupe
+    if (field === "series" && currentExercise?.super_set_group) {
+      const updatedExercises = currentExercises.map(ex => {
+        if (ex.super_set_group === currentExercise.super_set_group) {
+          return { ...ex, series: value };
+        }
+        return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
+      });
+      
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+    } else {
+      const updatedExercises = currentExercises.map(ex =>
+        ex.id === exerciseId ? { ...ex, [field]: value } : ex
+      );
+      
+      setSessionExercises({
+        ...sessionExercises,
+        [sessionId]: updatedExercises
+      });
+    }
   };
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
