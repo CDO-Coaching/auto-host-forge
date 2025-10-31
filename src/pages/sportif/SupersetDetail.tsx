@@ -59,8 +59,8 @@ export default function SupersetDetail() {
       // Charger le feedback du premier exercice comme feedback global
       if (data && data.length > 0) {
         setGlobalFeedback({
-          rpe: data[0].rpe_sportif || "",
-          comments: data[0].commentaires_sportif || "",
+          rpe: data[0].sportif_rpe ? String(data[0].sportif_rpe) : "",
+          comments: data[0].sportif_comment || "",
         });
       }
       
@@ -157,8 +157,8 @@ export default function SupersetDetail() {
         const { error } = await supabase
           .from("session_exercises")
           .update({
-            rpe_sportif: rpeValue || null,
-            commentaires_sportif: globalFeedback.comments || null,
+            sportif_rpe: rpeValue ? Number(rpeValue) : null,
+            sportif_comment: globalFeedback.comments || null,
           })
           .eq("id", exercise.id);
 
