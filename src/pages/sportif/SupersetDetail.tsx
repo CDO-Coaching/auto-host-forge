@@ -21,6 +21,7 @@ export default function SupersetDetail() {
   const [timerIntervals, setTimerIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
   const [isTimerRunning, setIsTimerRunning] = useState<{ [key: string]: boolean }>({});
   const [globalFeedback, setGlobalFeedback] = useState({ rpe: "", comments: "" });
+  const [weekId, setWeekId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSupersetExercises();
@@ -31,6 +32,16 @@ export default function SupersetDetail() {
 
   const loadSupersetExercises = async () => {
     setLoading(true);
+    
+    // Charger le weekId depuis la session
+    if (sessionId) {
+      const { data: sessionData } = await supabase
+        .from("training_sessions")
+        .select("week_id")
+        .eq("id", sessionId)
+        .maybeSingle();
+      if (sessionData?.week_id) setWeekId(sessionData.week_id);
+    }
     
     const { data, error } = await supabase
       .from("session_exercises")
@@ -180,7 +191,13 @@ export default function SupersetDetail() {
       
       // Rediriger vers la page de la séance
       setTimeout(() => {
-        navigate(`/sportif/seance/${sessionId}`);
+        if (weekId && sessionId) {
+          navigate(`/sportif/seance/${weekId}/${sessionId}`);
+        } else if (sessionId) {
+          navigate(`/sportif/seance/${sessionId}`);
+        } else {
+          navigate('/sportif/seances');
+        }
       }, 500);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);

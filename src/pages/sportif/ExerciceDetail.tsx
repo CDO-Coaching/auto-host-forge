@@ -177,7 +177,11 @@ export default function ExerciceDetail() {
       });
       
       // Rediriger vers la page de la séance
-      if (sessionId) {
+      if (weekId && sessionId) {
+        setTimeout(() => {
+          navigate(`/sportif/seance/${weekId}/${sessionId}`);
+        }, 500);
+      } else if (sessionId) {
         setTimeout(() => {
           navigate(`/sportif/seance/${sessionId}`);
         }, 500);
