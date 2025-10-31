@@ -910,43 +910,84 @@ export default function ClientDetail() {
 
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Nouvelle programmation</CardTitle>
-                <div className="flex gap-2">
-                  {historicalWeeks.length > 0 && !isValidated && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setShowCopyDialog(true)}
-                      disabled={sessions.length > 0}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copier d'une semaine
-                    </Button>
-                  )}
+              <CardTitle>Nouvelle programmation</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Sélecteur de semaine - toujours visible */}
+              {!isValidated && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardHeader>
+                    <CardTitle className="text-base">Sélectionne la semaine à programmer</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Tu peux programmer jusqu'à 12 semaines à l'avance
+                      </p>
+                      <select
+                        className="w-full p-3 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                        value={selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""}
+                        onChange={(e) => {
+                          if (!e.target.value) {
+                            setSelectedWeekToProgram(null);
+                            return;
+                          }
+                          const [week, year] = e.target.value.split("-").map(Number);
+                          setSelectedWeekToProgram({ week, year });
+                        }}
+                      >
+                        <option value="">-- Choisir une semaine --</option>
+                        {availableWeeks.map((w) => (
+                          <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
+                            Semaine {w.week} - {w.year} (du {w.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Boutons de création de séances */}
+              {!isValidated && (
+                <div className="flex justify-between items-center">
+                  <div className="flex gap-2">
+                    {historicalWeeks.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setShowCopyDialog(true)}
+                        disabled={sessions.length > 0 || !selectedWeekToProgram}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copier d'une semaine
+                      </Button>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <Button
                       variant={newSessionType === "renfo" ? "default" : "outline"}
                       onClick={() => setNewSessionType("renfo")}
-                      disabled={isValidated}
+                      disabled={!selectedWeekToProgram}
                     >
                       Renfo
                     </Button>
                     <Button
                       variant={newSessionType === "cardio" ? "default" : "outline"}
                       onClick={() => setNewSessionType("cardio")}
-                      disabled={isValidated}
+                      disabled={!selectedWeekToProgram}
                     >
                       Cardio
                     </Button>
-                    <Button onClick={handleCreateSession} disabled={isValidated}>
+                    <Button 
+                      onClick={handleCreateSession} 
+                      disabled={!selectedWeekToProgram}
+                    >
                       <Plus className="h-4 w-4 mr-2" />
                       Créer
                     </Button>
                   </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
+              )}
               {sessions.length === 0 ? (
                 <div className="text-center py-8 space-y-4">
                   <p className="text-muted-foreground">
@@ -1279,56 +1320,22 @@ export default function ClientDetail() {
                              </div>
                            </div>
                          )}
-                       </div>
-                    ))}
                   </div>
+                ))}
+              </div>
                   
-                  {!isValidated && sessions.length > 0 && (
-                    <div className="mt-6 space-y-4">
-                      <Card className="border-primary/30 bg-primary/5">
-                        <CardHeader>
-                          <CardTitle className="text-base">Pour quelle semaine ?</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <p className="text-sm text-muted-foreground">
-                              Sélectionne la semaine pour laquelle tu veux programmer ces séances (jusqu'à 12 semaines à l'avance)
-                            </p>
-                            <select
-                              className="w-full p-3 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                              value={selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""}
-                              onChange={(e) => {
-                                if (!e.target.value) {
-                                  setSelectedWeekToProgram(null);
-                                  return;
-                                }
-                                const [week, year] = e.target.value.split("-").map(Number);
-                                setSelectedWeekToProgram({ week, year });
-                              }}
-                            >
-                              <option value="">-- Choisir une semaine --</option>
-                              {availableWeeks.map((w) => (
-                                <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
-                                  Semaine {w.week} - {w.year} (du {w.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <div className="flex justify-end">
-                        <Button 
-                          onClick={handleValidate} 
-                          size="lg"
-                          disabled={!selectedWeekToProgram}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Valider la programmation
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+              {!isValidated && sessions.length > 0 && (
+                <div className="mt-6 flex justify-end">
+                  <Button 
+                    onClick={handleValidate} 
+                    size="lg"
+                    disabled={!selectedWeekToProgram}
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Valider la programmation
+                  </Button>
+                </div>
+              )}
                   
                   {isValidated && (
                     <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
