@@ -151,30 +151,38 @@ export default function SupersetDetail() {
       return;
     }
 
-    // Sauvegarder le même feedback pour tous les exercices du superset
-    const updates = exercises.map((exercise) =>
-      supabase
-        .from("session_exercises")
-        .update({
-          rpe_sportif: rpeValue || null,
-          commentaires_sportif: globalFeedback.comments || null,
-        })
-        .eq("id", exercise.id)
-    );
+    try {
+      // Sauvegarder le même feedback pour chaque exercice du superset
+      for (const exercise of exercises) {
+        const { error } = await supabase
+          .from("session_exercises")
+          .update({
+            rpe_sportif: rpeValue || null,
+            commentaires_sportif: globalFeedback.comments || null,
+          })
+          .eq("id", exercise.id);
 
-    const results = await Promise.all(updates);
-    const hasError = results.some((result) => result.error);
+        if (error) {
+          console.error("Erreur lors de la sauvegarde pour l'exercice", exercise.id, error);
+          toast({
+            title: "Erreur",
+            description: `Impossible de sauvegarder le retour: ${error.message}`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
 
-    if (hasError) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder le retour",
-        variant: "destructive",
-      });
-    } else {
       toast({
         title: "Retour enregistré",
-        description: "Ton retour a été sauvegardé pour tout le superset",
+        description: "Ton retour a été sauvegardé pour tous les exercices du superset",
+      });
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la sauvegarde",
+        variant: "destructive",
       });
     }
   };
