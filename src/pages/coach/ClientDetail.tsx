@@ -70,8 +70,27 @@ export default function ClientDetail() {
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
+  const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
   
   const currentWeekNumber = getWeek(new Date());
+  
+  // Générer les 12 prochaines semaines pour la sélection
+  const getNextWeeks = () => {
+    const weeks = [];
+    const now = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+      const targetDate = new Date(now);
+      targetDate.setDate(targetDate.getDate() + (i * 7));
+      const weekNum = getWeek(targetDate);
+      const year = targetDate.getFullYear();
+      weeks.push({ week: weekNum, year, date: targetDate });
+    }
+    
+    return weeks;
+  };
+  
+  const availableWeeks = getNextWeeks();
 
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
@@ -461,6 +480,11 @@ export default function ClientDetail() {
   const handleValidate = async () => {
     if (!athleteId) return;
     
+    if (!selectedWeekToProgram) {
+      toast.error("Veuillez sélectionner une semaine");
+      return;
+    }
+    
     try {
       // Récupérer l'ID du coach connecté
       const { data: { user } } = await supabase.auth.getUser();
@@ -469,7 +493,19 @@ export default function ClientDetail() {
         return;
       }
 
-      const currentYear = new Date().getFullYear();
+      // Vérifier que cette semaine n'est pas déjà programmée
+      const { data: existingWeek } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", athleteId)
+        .eq("week_number", selectedWeekToProgram.week)
+        .eq("year", selectedWeekToProgram.year)
+        .maybeSingle();
+
+      if (existingWeek) {
+        toast.error("Cette semaine est déjà programmée pour cet athlète");
+        return;
+      }
 
       // 1. Créer la semaine d'entraînement
       const { data: weekData, error: weekError } = await supabase
@@ -477,8 +513,8 @@ export default function ClientDetail() {
         .insert({
           coach_id: user.id,
           athlete_id: athleteId,
-          week_number: currentWeekNumber,
-          year: currentYear,
+          week_number: selectedWeekToProgram.week,
+          year: selectedWeekToProgram.year,
           validated: true,
           validated_at: new Date().toISOString()
         })
@@ -875,7 +911,7 @@ export default function ClientDetail() {
           <Card>
             <CardHeader>
               <div className="flex justify-between items-center">
-                <CardTitle>Semaine d'entraînement n°{currentWeekNumber}</CardTitle>
+                <CardTitle>Nouvelle programmation</CardTitle>
                 <div className="flex gap-2">
                   {historicalWeeks.length > 0 && !isValidated && (
                     <Button 
@@ -1247,12 +1283,50 @@ export default function ClientDetail() {
                     ))}
                   </div>
                   
-                  {!isValidated && (
-                    <div className="mt-6 flex justify-end">
-                      <Button onClick={handleValidate} size="lg">
-                        <Check className="h-4 w-4 mr-2" />
-                        Valider la semaine
-                      </Button>
+                  {!isValidated && sessions.length > 0 && (
+                    <div className="mt-6 space-y-4">
+                      <Card className="border-primary/30 bg-primary/5">
+                        <CardHeader>
+                          <CardTitle className="text-base">Pour quelle semaine ?</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                              Sélectionne la semaine pour laquelle tu veux programmer ces séances (jusqu'à 12 semaines à l'avance)
+                            </p>
+                            <select
+                              className="w-full p-3 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                              value={selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""}
+                              onChange={(e) => {
+                                if (!e.target.value) {
+                                  setSelectedWeekToProgram(null);
+                                  return;
+                                }
+                                const [week, year] = e.target.value.split("-").map(Number);
+                                setSelectedWeekToProgram({ week, year });
+                              }}
+                            >
+                              <option value="">-- Choisir une semaine --</option>
+                              {availableWeeks.map((w) => (
+                                <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
+                                  Semaine {w.week} - {w.year} (du {w.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <div className="flex justify-end">
+                        <Button 
+                          onClick={handleValidate} 
+                          size="lg"
+                          disabled={!selectedWeekToProgram}
+                        >
+                          <Check className="h-4 w-4 mr-2" />
+                          Valider la programmation
+                        </Button>
+                      </div>
                     </div>
                   )}
                   

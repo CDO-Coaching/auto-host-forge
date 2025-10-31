@@ -31,13 +31,34 @@ export default function Seances() {
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
     } else {
-      setWeeks(data || []);
-      if (data && data.length > 0) {
-        loadWeekSessions(data[0].id);
-        setSelectedWeek(data[0]);
+      // Filtrer pour ne garder que les semaines en cours ou passées
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentWeekNumber = getWeekNumber(now);
+      
+      const filteredWeeks = (data || []).filter((week: any) => {
+        // Si l'année est passée, on garde la semaine
+        if (week.year < currentYear) return true;
+        // Si l'année est future, on ne garde pas
+        if (week.year > currentYear) return false;
+        // Si c'est l'année en cours, on compare les numéros de semaine
+        return week.week_number <= currentWeekNumber;
+      });
+      
+      setWeeks(filteredWeeks);
+      if (filteredWeeks && filteredWeeks.length > 0) {
+        loadWeekSessions(filteredWeeks[0].id);
+        setSelectedWeek(filteredWeeks[0]);
       }
     }
     setLoading(false);
+  };
+
+  // Fonction pour obtenir le numéro de semaine
+  const getWeekNumber = (date: Date): number => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
   const loadWeekSessions = async (weekId: string) => {
