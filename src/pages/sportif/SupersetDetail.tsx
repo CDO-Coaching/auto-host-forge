@@ -20,7 +20,7 @@ export default function SupersetDetail() {
   const [timers, setTimers] = useState<{ [key: string]: number }>({});
   const [timerIntervals, setTimerIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
   const [isTimerRunning, setIsTimerRunning] = useState<{ [key: string]: boolean }>({});
-  const [feedbacks, setFeedbacks] = useState<{ [key: string]: { rpe: string; comments: string } }>({});
+  const [globalFeedback, setGlobalFeedback] = useState({ rpe: "", comments: "" });
 
   useEffect(() => {
     loadSupersetExercises();
@@ -50,20 +50,22 @@ export default function SupersetDetail() {
       setExercises(data || []);
       const initialTimers: { [key: string]: number } = {};
       const initialRunning: { [key: string]: boolean } = {};
-      const initialFeedbacks: { [key: string]: { rpe: string; comments: string } } = {};
       
       (data || []).forEach((ex: any) => {
         initialTimers[ex.id] = 0;
         initialRunning[ex.id] = false;
-        initialFeedbacks[ex.id] = {
-          rpe: ex.rpe_sportif || "",
-          comments: ex.commentaires_sportif || "",
-        };
       });
+      
+      // Charger le feedback du premier exercice comme feedback global
+      if (data && data.length > 0) {
+        setGlobalFeedback({
+          rpe: data[0].rpe_sportif || "",
+          comments: data[0].commentaires_sportif || "",
+        });
+      }
       
       setTimers(initialTimers);
       setIsTimerRunning(initialRunning);
-      setFeedbacks(initialFeedbacks);
     }
     
     setLoading(false);
@@ -137,9 +139,8 @@ export default function SupersetDetail() {
     }
   };
 
-  const saveFeedback = async (exerciseId: string) => {
-    const feedback = feedbacks[exerciseId];
-    const rpeValue = feedback.rpe.trim();
+  const saveGlobalFeedback = async () => {
+    const rpeValue = globalFeedback.rpe.trim();
 
     if (rpeValue && (isNaN(Number(rpeValue)) || Number(rpeValue) < 0 || Number(rpeValue) > 10)) {
       toast({
@@ -150,15 +151,21 @@ export default function SupersetDetail() {
       return;
     }
 
-    const { error } = await supabase
-      .from("session_exercises")
-      .update({
-        rpe_sportif: rpeValue || null,
-        commentaires_sportif: feedback.comments || null,
-      })
-      .eq("id", exerciseId);
+    // Sauvegarder le même feedback pour tous les exercices du superset
+    const updates = exercises.map((exercise) =>
+      supabase
+        .from("session_exercises")
+        .update({
+          rpe_sportif: rpeValue || null,
+          commentaires_sportif: globalFeedback.comments || null,
+        })
+        .eq("id", exercise.id)
+    );
 
-    if (error) {
+    const results = await Promise.all(updates);
+    const hasError = results.some((result) => result.error);
+
+    if (hasError) {
       toast({
         title: "Erreur",
         description: "Impossible de sauvegarder le retour",
@@ -167,7 +174,7 @@ export default function SupersetDetail() {
     } else {
       toast({
         title: "Retour enregistré",
-        description: "Tes commentaires ont été sauvegardés",
+        description: "Ton retour a été sauvegardé pour tout le superset",
       });
     }
   };
@@ -268,60 +275,6 @@ export default function SupersetDetail() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Retour sportif inline */}
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div>
-                      <Label htmlFor={`rpe-${exercise.id}`} className="text-[10px] text-muted-foreground">
-                        Ton RPE
-                      </Label>
-                      <Input
-                        id={`rpe-${exercise.id}`}
-                        type="number"
-                        min="0"
-                        max="10"
-                        placeholder="8"
-                        className="h-8 text-sm"
-                        value={feedbacks[exercise.id]?.rpe || ""}
-                        onChange={(e) =>
-                          setFeedbacks({
-                            ...feedbacks,
-                            [exercise.id]: {
-                              ...feedbacks[exercise.id],
-                              rpe: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`comments-${exercise.id}`} className="text-[10px] text-muted-foreground">
-                        Ressenti
-                      </Label>
-                      <Input
-                        id={`comments-${exercise.id}`}
-                        placeholder="..."
-                        className="h-8 text-sm"
-                        value={feedbacks[exercise.id]?.comments || ""}
-                        onChange={(e) =>
-                          setFeedbacks({
-                            ...feedbacks,
-                            [exercise.id]: {
-                              ...feedbacks[exercise.id],
-                              comments: e.target.value,
-                            },
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => saveFeedback(exercise.id)}
-                    size="sm"
-                    className="w-full mt-2 h-7 text-xs"
-                  >
-                    Enregistrer
-                  </Button>
                 </CardContent>
               </Card>
 
@@ -368,6 +321,59 @@ export default function SupersetDetail() {
             </div>
           );
         })}
+
+        {/* Feedback global en bas */}
+        <Card className="border-2 border-primary">
+          <CardHeader className="pb-2">
+            <h3 className="text-sm font-semibold">Ton retour sur le superset</h3>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <Label htmlFor="global-rpe" className="text-xs text-muted-foreground">
+                RPE ressenti (0-10)
+              </Label>
+              <Input
+                id="global-rpe"
+                type="number"
+                min="0"
+                max="10"
+                placeholder="Ex: 8"
+                className="h-9"
+                value={globalFeedback.rpe}
+                onChange={(e) =>
+                  setGlobalFeedback({
+                    ...globalFeedback,
+                    rpe: e.target.value,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <Label htmlFor="global-comments" className="text-xs text-muted-foreground">
+                Commentaires
+              </Label>
+              <Textarea
+                id="global-comments"
+                placeholder="Comment s'est passé ce superset ?"
+                className="text-sm"
+                value={globalFeedback.comments}
+                onChange={(e) =>
+                  setGlobalFeedback({
+                    ...globalFeedback,
+                    comments: e.target.value,
+                  })
+                }
+                rows={3}
+              />
+            </div>
+            <Button
+              onClick={saveGlobalFeedback}
+              className="w-full"
+            >
+              Enregistrer mon retour
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
