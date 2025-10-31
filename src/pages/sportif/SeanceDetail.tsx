@@ -51,6 +51,11 @@ export default function SeanceDetail() {
         (a: any, b: any) => a.exercise_order - b.exercise_order
       ) || [];
       
+      // Debug: vérifier les groupes de super-set chargés
+      try {
+        console.log("[SeanceDetail] session:", sessionId, "exercises:", sortedExercises.map((e: any) => ({ id: e.id, order: e.exercise_order, super_set_group: e.super_set_group })));
+      } catch {}
+      
       // Grouper les exercices par superset
       const groupedExercises: any[] = [];
       const processedIds = new Set<string>();
