@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
@@ -40,8 +42,10 @@ export default function Profil() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         navigate("/auth");
         return;
@@ -112,7 +116,7 @@ export default function Profil() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Mon profil</h1>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Informations personnelles</CardTitle>
@@ -160,13 +164,14 @@ export default function Profil() {
                   <FormItem>
                     <FormLabel>Date de naissance</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
-                        max={new Date().toISOString().split('T')[0]}
-                        min="1900-01-01"
-                      />
+                      <Input type="date" {...field} max={new Date().toISOString().split("T")[0]} min="1900-01-01" />
                     </FormControl>
+                    {/* Affichage formaté */}
+                    {field.value && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {format(new Date(field.value), "dd MMMM yyyy", { locale: fr })}
+                      </p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -199,12 +204,7 @@ export default function Profil() {
                 <Button type="submit" disabled={saving} className="flex-1">
                   {saving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
-                <Button 
-                  type="button" 
-                  onClick={handleLogout} 
-                  variant="destructive" 
-                  className="flex-1"
-                >
+                <Button type="button" onClick={handleLogout} variant="destructive" className="flex-1">
                   Se déconnecter
                 </Button>
               </div>
