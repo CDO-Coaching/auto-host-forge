@@ -11,8 +11,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
@@ -166,12 +164,6 @@ export default function Profil() {
                     <FormControl>
                       <Input type="date" {...field} max={new Date().toISOString().split("T")[0]} min="1900-01-01" />
                     </FormControl>
-                    {/* Affichage formaté */}
-                    {field.value && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {format(new Date(field.value), "dd MMMM yyyy", { locale: fr })}
-                      </p>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
