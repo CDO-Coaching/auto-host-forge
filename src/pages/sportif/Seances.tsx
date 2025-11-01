@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Seances() {
@@ -37,11 +37,8 @@ export default function Seances() {
       const currentWeekNumber = getWeekNumber(now);
 
       const filteredWeeks = (data || []).filter((week: any) => {
-        // Si l'année est passée, on garde la semaine
         if (week.year < currentYear) return true;
-        // Si l'année est future, on ne garde pas
         if (week.year > currentYear) return false;
-        // Si c'est l'année en cours, on compare les numéros de semaine
         return week.week_number <= currentWeekNumber;
       });
 
@@ -57,8 +54,7 @@ export default function Seances() {
   // Calcule la semaine ISO (lundi = début de semaine)
   const getWeekNumber = (date: Date): number => {
     const newDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    // Déplacer la date au jeudi de la semaine actuelle (ISO 8601)
-    const dayNum = newDate.getUTCDay() || 7; // dimanche = 7
+    const dayNum = newDate.getUTCDay() || 7;
     newDate.setUTCDate(newDate.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(newDate.getUTCFullYear(), 0, 1));
     const weekNo = Math.ceil(((newDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
@@ -88,6 +84,12 @@ export default function Seances() {
     const week = weeks.find((w) => w.id === weekId);
     setSelectedWeek(week);
     loadWeekSessions(weekId);
+  };
+
+  // 🔍 Vérifie si une séance est terminée (tous les exos ont completed_at ou done)
+  const isSessionCompleted = (session: any) => {
+    if (!session.session_exercises || session.session_exercises.length === 0) return false;
+    return session.session_exercises.every((ex: any) => ex.completed_at || ex.done === true);
   };
 
   if (loading) {
@@ -146,25 +148,35 @@ export default function Seances() {
                 {sessions.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
                 ) : (
-                  sessions.map((session) => (
-                    <Card
-                      key={session.id}
-                      className="cursor-pointer hover:border-primary transition-colors"
-                      onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{session.name}</h3>
-                            <Badge variant="outline" className="mt-1">
-                              {session.session_exercises?.length || 0} exercices
-                            </Badge>
+                  sessions.map((session) => {
+                    const completed = isSessionCompleted(session);
+                    return (
+                      <Card
+                        key={session.id}
+                        className={`cursor-pointer transition-colors ${
+                          completed ? "border-green-500 bg-green-500/10" : "hover:border-primary"
+                        }`}
+                        onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg flex items-center gap-2">
+                                {session.name}
+                                {completed && <CheckCircle2 className="text-green-500 h-5 w-5" />}
+                              </h3>
+                              <Badge variant={completed ? "secondary" : "outline"} className="mt-1">
+                                {session.session_exercises?.length || 0} exercices
+                              </Badge>
+                            </div>
+                            <ChevronRight
+                              className={`h-5 w-5 ${completed ? "text-green-500" : "text-muted-foreground"}`}
+                            />
                           </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
+                        </CardContent>
+                      </Card>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
