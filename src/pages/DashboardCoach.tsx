@@ -8,6 +8,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import Programmation from "./coach/Programmation";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
@@ -16,14 +17,15 @@ import Profil from "./coach/Profil";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const { profile } = useUserProfile();
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    // Attendre que l'authentification soit chargée
+    if (authLoading) return;
+
     const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         navigate("/auth");
         return;
@@ -51,12 +53,10 @@ export default function DashboardCoach() {
         navigate("/sportif/seances");
         return;
       }
-
-      setLoading(false);
     };
 
     checkAccess();
-  }, [navigate]);
+  }, [session, authLoading, navigate]);
 
   useEffect(() => {
     const loadPendingRequests = async () => {
@@ -76,7 +76,7 @@ export default function DashboardCoach() {
     loadPendingRequests();
   }, [profile]);
 
-  if (loading) {
+  if (authLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>

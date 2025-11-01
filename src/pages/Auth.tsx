@@ -7,18 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import cdoLogo from "@/assets/cdo-logo.png";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { session, loading } = useAuth();
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // Récupérer le profil pour rediriger vers le bon dashboard
+    // Attendre que le contexte d'auth ait fini de charger
+    if (loading) return;
+
+    // Si déjà connecté, rediriger
+    if (session) {
+      const redirectUser = async () => {
         const { data: profile } = await supabase
           .from("user_profiles")
           .select("approved, role")
@@ -32,34 +36,11 @@ const Auth = () => {
         } else {
           navigate("/sportif/seances");
         }
-      }
-    };
+      };
 
-    checkSession();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      if (session) {
-        // Différer l'appel Supabase pour éviter les deadlocks
-        setTimeout(async () => {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("approved, role")
-            .eq("id", session.user.id)
-            .single();
-
-          if (!profile?.approved) {
-            navigate("/en-attente");
-          } else if (profile.role === "coach") {
-            navigate("/coach/programmation");
-          } else {
-            navigate("/sportif/seances");
-          }
-        }, 0);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+      redirectUser();
+    }
+  }, [session, loading, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();

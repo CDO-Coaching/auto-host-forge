@@ -5,6 +5,7 @@ import { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -27,25 +28,27 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <ScrollToTop />
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-foreground">Chargement...</div>}>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/coaching" element={<Coaching />} />
-            <Route path="/appointment" element={<Appointment />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/en-attente" element={<EnAttente />} />
-            <Route path="/coach/*" element={<DashboardCoach />} />
-            <Route path="/dashboard-sportif/*" element={<DashboardSportif />} />
-            <Route path="/sportif/*" element={<DashboardSportif />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
+        <AuthProvider>
+          <ScrollToTop />
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-foreground">Chargement...</div>}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/coaching" element={<Coaching />} />
+              <Route path="/appointment" element={<Appointment />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/en-attente" element={<EnAttente />} />
+              <Route path="/coach/*" element={<DashboardCoach />} />
+              <Route path="/dashboard-sportif/*" element={<DashboardSportif />} />
+              <Route path="/sportif/*" element={<DashboardSportif />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

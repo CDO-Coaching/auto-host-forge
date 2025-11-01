@@ -8,6 +8,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
@@ -18,7 +19,6 @@ import Profil from "./sportif/Profil";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [coachName, setCoachName] = useState<string>("");
   const [showApprovedAlert, setShowApprovedAlert] = useState(() => {
@@ -26,11 +26,13 @@ export default function DashboardSportif() {
     return saved !== 'true';
   });
   const { profile } = useUserProfile();
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    // Attendre que l'authentification soit chargée
+    if (authLoading) return;
+
     const checkAccess = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         navigate("/auth");
         return;
@@ -58,12 +60,10 @@ export default function DashboardSportif() {
         navigate("/coach/programmation");
         return;
       }
-
-      setLoading(false);
     };
 
     checkAccess();
-  }, [navigate]);
+  }, [session, authLoading, navigate]);
 
   useEffect(() => {
     const loadRequestStatus = async () => {
@@ -96,7 +96,7 @@ export default function DashboardSportif() {
     loadRequestStatus();
   }, [profile]);
 
-  if (loading) {
+  if (authLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>
