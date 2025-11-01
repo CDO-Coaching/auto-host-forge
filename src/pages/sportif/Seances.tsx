@@ -35,7 +35,7 @@ export default function Seances() {
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentWeekNumber = getWeekNumber(now);
-      
+
       const filteredWeeks = (data || []).filter((week: any) => {
         // Si l'année est passée, on garde la semaine
         if (week.year < currentYear) return true;
@@ -44,7 +44,7 @@ export default function Seances() {
         // Si c'est l'année en cours, on compare les numéros de semaine
         return week.week_number <= currentWeekNumber;
       });
-      
+
       setWeeks(filteredWeeks);
       if (filteredWeeks && filteredWeeks.length > 0) {
         loadWeekSessions(filteredWeeks[0].id);
@@ -54,20 +54,26 @@ export default function Seances() {
     setLoading(false);
   };
 
-  // Fonction pour obtenir le numéro de semaine
+  // Calcule la semaine ISO (lundi = début de semaine)
   const getWeekNumber = (date: Date): number => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    const newDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    // Déplacer la date au jeudi de la semaine actuelle (ISO 8601)
+    const dayNum = newDate.getUTCDay() || 7; // dimanche = 7
+    newDate.setUTCDate(newDate.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(newDate.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil(((newDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return weekNo;
   };
 
   const loadWeekSessions = async (weekId: string) => {
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
-      .select(`
+      .select(
+        `
         *,
         session_exercises (*)
-      `)
+      `,
+      )
       .eq("week_id", weekId)
       .order("session_number");
 
@@ -79,7 +85,7 @@ export default function Seances() {
   };
 
   const handleWeekChange = (weekId: string) => {
-    const week = weeks.find(w => w.id === weekId);
+    const week = weeks.find((w) => w.id === weekId);
     setSelectedWeek(week);
     loadWeekSessions(weekId);
   };
@@ -96,9 +102,7 @@ export default function Seances() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Tes séances</h1>
-        <p className="text-muted-foreground mt-2">
-          {firstName}, voici ton programme d'entraînement personnalisé
-        </p>
+        <p className="text-muted-foreground mt-2">{firstName}, voici ton programme d'entraînement personnalisé</p>
       </div>
 
       {weeks.length === 0 ? (
@@ -108,8 +112,7 @@ export default function Seances() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              {firstName}, ton coach n'a pas encore programmé de séances. 
-              Reste motivé, elles arrivent bientôt ! 💪
+              {firstName}, ton coach n'a pas encore programmé de séances. Reste motivé, elles arrivent bientôt ! 💪
             </p>
           </CardContent>
         </Card>
@@ -137,15 +140,11 @@ export default function Seances() {
           {selectedWeek && (
             <Card>
               <CardHeader>
-                <CardTitle>
-                  Semaine d'entraînement n°{selectedWeek.week_number}
-                </CardTitle>
+                <CardTitle>Semaine d'entraînement n°{selectedWeek.week_number}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {sessions.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">
-                    Aucune séance pour cette semaine.
-                  </p>
+                  <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
                 ) : (
                   sessions.map((session) => (
                     <Card
