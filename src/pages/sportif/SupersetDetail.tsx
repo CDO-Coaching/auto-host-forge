@@ -22,6 +22,7 @@ export default function SupersetDetail() {
   const [isTimerRunning, setIsTimerRunning] = useState<{ [key: string]: boolean }>({});
   const [globalFeedback, setGlobalFeedback] = useState({ rpe: "", comments: "" });
   const [weekId, setWeekId] = useState<string | null>(null);
+  const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     loadSupersetExercises();
@@ -32,7 +33,7 @@ export default function SupersetDetail() {
 
   const loadSupersetExercises = async () => {
     setLoading(true);
-    
+
     // Charger le weekId depuis la session
     if (sessionId) {
       const { data: sessionData } = await supabase
@@ -42,7 +43,7 @@ export default function SupersetDetail() {
         .maybeSingle();
       if (sessionData?.week_id) setWeekId(sessionData.week_id);
     }
-    
+
     const { data, error } = await supabase
       .from("session_exercises")
       .select("*")
@@ -61,12 +62,28 @@ export default function SupersetDetail() {
       setExercises(data || []);
       const initialTimers: { [key: string]: number } = {};
       const initialRunning: { [key: string]: boolean } = {};
-      
+
       (data || []).forEach((ex: any) => {
         initialTimers[ex.id] = 0;
         initialRunning[ex.id] = false;
       });
-      
+      // Charger les vidéos depuis la bibliothèque d'exercices
+      const urls: { [key: string]: string } = {};
+      for (const ex of data || []) {
+        if (ex.exercice) {
+          const { data: libraryData } = await supabase
+            .from("exercise_library")
+            .select("video_url")
+            .eq("name", ex.exercice)
+            .maybeSingle();
+
+          if (libraryData?.video_url) {
+            urls[ex.id] = libraryData.video_url;
+          }
+        }
+      }
+      setVideoUrls(urls);
+
       // Charger le feedback du premier exercice comme feedback global
       if (data && data.length > 0) {
         setGlobalFeedback({
@@ -74,11 +91,11 @@ export default function SupersetDetail() {
           comments: data[0].sportif_comment || "",
         });
       }
-      
+
       setTimers(initialTimers);
       setIsTimerRunning(initialRunning);
     }
-    
+
     setLoading(false);
   };
 
@@ -188,7 +205,7 @@ export default function SupersetDetail() {
         title: "Retour enregistré",
         description: "Ton retour a été sauvegardé pour tous les exercices du superset",
       });
-      
+
       // Rediriger vers la page de la séance
       setTimeout(() => {
         if (weekId && sessionId) {
@@ -196,7 +213,7 @@ export default function SupersetDetail() {
         } else if (sessionId) {
           navigate(`/sportif/seance/${sessionId}`);
         } else {
-          navigate('/sportif/seances');
+          navigate("/sportif/seances");
         }
       }, 500);
     } catch (error) {
@@ -224,11 +241,7 @@ export default function SupersetDetail() {
       {/* Header compact */}
       <div className="sticky top-0 z-10 bg-background border-b">
         <div className="p-2 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Retour
           </Button>
@@ -280,9 +293,24 @@ export default function SupersetDetail() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary" className="text-xs">{index + 1}</Badge>
-                        <h4 className="font-semibold text-sm leading-tight">{exercise.exercice}</h4>
+                        <Badge variant="secondary" className="text-xs">
+                          {index + 1}
+                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-sm leading-tight">{exercise.exercice}</h4>
+                          {videoUrls[exercise.id] && (
+                            <a
+                              href={videoUrls[exercise.id]}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-yellow-400 hover:text-yellow-200 translate-y-[1px]"
+                            >
+                              🎥
+                            </a>
+                          )}
+                        </div>
                       </div>
+
                       <div className="grid grid-cols-3 gap-x-2 text-xs">
                         {exercise.charge && (
                           <div>
@@ -310,7 +338,7 @@ export default function SupersetDetail() {
 
               {/* Minuteur compact */}
               {exercise.recuperation && (
-                <Card className={isLastExercise ? 'border-2 border-primary bg-primary/5' : ''}>
+                <Card className={isLastExercise ? "border-2 border-primary bg-primary/5" : ""}>
                   <CardContent className="p-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -319,17 +347,17 @@ export default function SupersetDetail() {
                           {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
                         </span>
                       </div>
-                      <span className="font-mono text-lg font-bold">
-                        {formatTime(timers[exercise.id])}
-                      </span>
+                      <span className="font-mono text-lg font-bold">{formatTime(timers[exercise.id])}</span>
                       <div className="flex gap-1">
                         <Button
                           variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
                           size="sm"
                           className="h-7 text-xs px-2"
-                          onClick={() => isTimerRunning[exercise.id] 
-                            ? pauseTimer(exercise.id) 
-                            : startTimer(exercise.id, exercise.recuperation)}
+                          onClick={() =>
+                            isTimerRunning[exercise.id]
+                              ? pauseTimer(exercise.id)
+                              : startTimer(exercise.id, exercise.recuperation)
+                          }
                         >
                           {isTimerRunning[exercise.id] ? "Pause" : "Start"}
                         </Button>
@@ -396,10 +424,7 @@ export default function SupersetDetail() {
                 rows={3}
               />
             </div>
-            <Button
-              onClick={saveGlobalFeedback}
-              className="w-full"
-            >
+            <Button onClick={saveGlobalFeedback} className="w-full">
               Enregistrer mon retour
             </Button>
           </CardContent>
