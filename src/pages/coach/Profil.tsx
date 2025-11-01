@@ -11,6 +11,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -160,21 +163,118 @@ export default function Profil() {
               <FormField
                 control={form.control}
                 name="date_of_birth"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date de naissance</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} max={new Date().toISOString().split("T")[0]} min="1900-01-01" />
-                    </FormControl>
-                    {/* Affichage formaté */}
-                    {field.value && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {format(new Date(field.value), "dd MMMM yyyy", { locale: fr })}
-                      </p>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // 👇 On commence ici par définir la date actuelle
+                  const currentDate = field.value ? new Date(field.value) : undefined;
+
+                  // 👇 Puis on initialise les états en fonction de currentDate
+                  const [selectedYear, setSelectedYear] = useState<number | null>(
+                    currentDate ? currentDate.getFullYear() : null,
+                  );
+                  const [selectedMonth, setSelectedMonth] = useState<number | null>(
+                    currentDate ? currentDate.getMonth() : null,
+                  );
+
+                  return (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Date de naissance</FormLabel>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button variant="outline" className="w-full pl-3 text-left font-normal">
+                              {field.value
+                                ? format(new Date(field.value), "dd MMMM yyyy", { locale: fr })
+                                : "Choisir une date"}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-auto p-3" align="start">
+                          <div className="flex justify-between items-center mb-2">
+                            {/* Sélecteur d’année */}
+                            <Select
+                              onValueChange={(val) => setSelectedYear(Number(val))}
+                              value={selectedYear?.toString() ?? currentDate?.getFullYear().toString()}
+                            >
+                              <SelectTrigger className="w-[110px]">
+                                <SelectValue placeholder="Année" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[200px] overflow-y-auto">
+                                {Array.from({ length: 120 }, (_, i) => {
+                                  const year = new Date().getFullYear() - i;
+                                  return (
+                                    <SelectItem key={year} value={year.toString()}>
+                                      {year}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
+
+                            {/* Sélecteur de mois */}
+                            <Select
+                              onValueChange={(val) => setSelectedMonth(Number(val))}
+                              value={
+                                selectedMonth !== null
+                                  ? selectedMonth.toString()
+                                  : currentDate
+                                    ? currentDate.getMonth().toString()
+                                    : undefined
+                              }
+                            >
+                              <SelectTrigger className="w-[130px]">
+                                <SelectValue placeholder="Mois" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {[
+                                  "janvier",
+                                  "février",
+                                  "mars",
+                                  "avril",
+                                  "mai",
+                                  "juin",
+                                  "juillet",
+                                  "août",
+                                  "septembre",
+                                  "octobre",
+                                  "novembre",
+                                  "décembre",
+                                ].map((month, i) => (
+                                  <SelectItem key={month} value={i.toString()}>
+                                    {month}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Calendrier */}
+                          <Calendar
+                            mode="single"
+                            selected={currentDate}
+                            onSelect={(date) => field.onChange(date?.toISOString().split("T")[0])}
+                            month={
+                              selectedYear !== null && selectedMonth !== null
+                                ? new Date(selectedYear, selectedMonth)
+                                : currentDate
+                            }
+                            onMonthChange={(month) => {
+                              setSelectedYear(month.getFullYear());
+                              setSelectedMonth(month.getMonth());
+                            }}
+                            locale={fr}
+                            fromYear={1900}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
