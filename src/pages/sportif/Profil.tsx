@@ -13,6 +13,11 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { UserCheck, UserX, Clock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
@@ -33,7 +38,7 @@ interface Coach {
 interface CoachRelationship {
   id: string;
   coach_id: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   coach: Coach;
 }
 
@@ -59,8 +64,10 @@ export default function Profil() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         navigate("/auth");
         return;
@@ -86,12 +93,12 @@ export default function Profil() {
 
       // Charger la relation coach actuelle
       const relationship = await loadCoachRelationship(session.user.id);
-      
+
       // Si pas de relation existante, charger les coaches disponibles
       if (!relationship) {
         await loadAvailableCoaches();
       }
-      
+
       setLoading(false);
     };
 
@@ -117,11 +124,11 @@ export default function Profil() {
       if (coachData) {
         setCurrentRelationship({
           ...data,
-          coach: coachData
+          coach: coachData,
         } as any);
       }
     }
-    
+
     return data;
   };
 
@@ -142,13 +149,11 @@ export default function Profil() {
 
   const handleRequestCoach = async (coachId: string) => {
     try {
-      const { error } = await supabase
-        .from("coach_athlete_relationships")
-        .insert({
-          athlete_id: userId,
-          coach_id: coachId,
-          status: "pending",
-        });
+      const { error } = await supabase.from("coach_athlete_relationships").insert({
+        athlete_id: userId,
+        coach_id: coachId,
+        status: "pending",
+      });
 
       if (error) throw error;
 
@@ -164,10 +169,7 @@ export default function Profil() {
     if (!currentRelationship) return;
 
     try {
-      const { error } = await supabase
-        .from("coach_athlete_relationships")
-        .delete()
-        .eq("id", currentRelationship.id);
+      const { error } = await supabase.from("coach_athlete_relationships").delete().eq("id", currentRelationship.id);
 
       if (error) throw error;
 
@@ -220,21 +222,36 @@ export default function Profil() {
 
   const getStatusBadge = () => {
     if (!currentRelationship) return null;
-    
+
     switch (currentRelationship.status) {
       case "pending":
-        return <Badge variant="secondary" className="ml-2"><Clock className="h-3 w-3 mr-1" />En attente</Badge>;
+        return (
+          <Badge variant="secondary" className="ml-2">
+            <Clock className="h-3 w-3 mr-1" />
+            En attente
+          </Badge>
+        );
       case "approved":
-        return <Badge className="ml-2 bg-green-600"><UserCheck className="h-3 w-3 mr-1" />Approuvé</Badge>;
+        return (
+          <Badge className="ml-2 bg-green-600">
+            <UserCheck className="h-3 w-3 mr-1" />
+            Approuvé
+          </Badge>
+        );
       case "rejected":
-        return <Badge variant="destructive" className="ml-2"><UserX className="h-3 w-3 mr-1" />Refusé</Badge>;
+        return (
+          <Badge variant="destructive" className="ml-2">
+            <UserX className="h-3 w-3 mr-1" />
+            Refusé
+          </Badge>
+        );
     }
   };
 
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Mon profil</h1>
-      
+
       <Card>
         <CardHeader>
           <CardTitle>Informations personnelles</CardTitle>
@@ -279,16 +296,30 @@ export default function Profil() {
                 control={form.control}
                 name="date_of_birth"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Date de naissance</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="date" 
-                        {...field} 
-                        max={new Date().toISOString().split('T')[0]}
-                        min="1900-01-01"
-                      />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant="outline" className="w-full pl-3 text-left font-normal h-10">
+                            {field.value
+                              ? format(new Date(field.value), "dd MMMM yyyy", { locale: fr })
+                              : "Choisir une date"}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date) => field.onChange(date?.toISOString().split("T")[0])}
+                          fromYear={1900}
+                          toYear={new Date().getFullYear()}
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -321,12 +352,7 @@ export default function Profil() {
                 <Button type="submit" disabled={saving} className="flex-1">
                   {saving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
-                <Button 
-                  type="button" 
-                  onClick={handleLogout} 
-                  variant="destructive" 
-                  className="flex-1"
-                >
+                <Button type="button" onClick={handleLogout} variant="destructive" className="flex-1">
                   Se déconnecter
                 </Button>
               </div>
@@ -338,9 +364,7 @@ export default function Profil() {
       <Card>
         <CardHeader>
           <CardTitle>Mon coach</CardTitle>
-          <CardDescription>
-            Choisis ton coach pour bénéficier d'un suivi personnalisé
-          </CardDescription>
+          <CardDescription>Choisis ton coach pour bénéficier d'un suivi personnalisé</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {currentRelationship ? (
@@ -350,19 +374,11 @@ export default function Profil() {
                   <p className="font-medium">
                     {currentRelationship.coach.first_name} {currentRelationship.coach.last_name}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {currentRelationship.coach.email}
-                  </p>
-                  <div className="mt-2">
-                    {getStatusBadge()}
-                  </div>
+                  <p className="text-sm text-muted-foreground">{currentRelationship.coach.email}</p>
+                  <div className="mt-2">{getStatusBadge()}</div>
                 </div>
                 {currentRelationship.status === "pending" && (
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={handleCancelRequest}
-                  >
+                  <Button variant="destructive" size="sm" onClick={handleCancelRequest}>
                     Annuler la demande
                   </Button>
                 )}
@@ -384,7 +400,7 @@ export default function Profil() {
                   </p>
                   <div className="space-y-2">
                     {coaches.map((coach) => (
-                      <div 
+                      <div
                         key={coach.id}
                         className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                       >
@@ -392,14 +408,9 @@ export default function Profil() {
                           <p className="font-medium">
                             {coach.first_name} {coach.last_name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
-                            {coach.email}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{coach.email}</p>
                         </div>
-                        <Button
-                          size="sm"
-                          onClick={() => handleRequestCoach(coach.id)}
-                        >
+                        <Button size="sm" onClick={() => handleRequestCoach(coach.id)}>
                           Demander
                         </Button>
                       </div>
@@ -407,9 +418,7 @@ export default function Profil() {
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  Aucun coach disponible pour le moment.
-                </p>
+                <p className="text-sm text-muted-foreground">Aucun coach disponible pour le moment.</p>
               )}
             </div>
           )}
