@@ -250,195 +250,185 @@ export default function ExerciceDetail() {
         </Button>
       </div>
 
-      <div className="p-4 space-y-4 max-h-[calc(100vh-60px)] overflow-y-auto">
-        {/* En-tête exercice */}
-        <div className="text-center pb-2">
-          <h1 className="text-2xl font-bold">{exercise.exercice}</h1>
+      <div className="h-[calc(100vh-60px)] overflow-hidden flex flex-col p-3">
+        {/* En-tête exercice - compact */}
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-lg font-bold flex-1">{exercise.exercice}</h1>
           {videoUrl && (
             <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-3"
+              variant="ghost" 
+              size="sm"
+              className="h-8 px-2"
               asChild
             >
               <a href={videoUrl} target="_blank" rel="noopener noreferrer">
-                <Video className="h-4 w-4 mr-2" />
-                Voir la vidéo de l'exercice
+                <Video className="h-4 w-4" />
               </a>
             </Button>
           )}
         </div>
 
-        {/* Compteur de séries - Vue plus grande */}
-        {exercise.series && (
-          <Card className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-            <div className="text-center space-y-3">
-              <p className="text-sm font-semibold text-primary uppercase tracking-wide">Séries</p>
-              <div className="flex items-center justify-center gap-4">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={decrementSet}
-                  disabled={completedSets === 0}
-                  className="h-12 w-12 rounded-full p-0"
-                >
-                  <Minus className="h-5 w-5" />
-                </Button>
-                
-                <div className="text-5xl font-bold">
-                  {completedSets}<span className="text-2xl text-muted-foreground">/{exercise.series}</span>
+        {/* Grid principal - toutes les infos */}
+        <div className="flex-1 grid grid-cols-2 gap-2 mb-2">
+          {/* Compteur de séries */}
+          {exercise.series && (
+            <Card className="p-3 bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 flex flex-col justify-center">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-primary uppercase mb-1">Séries</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={decrementSet}
+                    disabled={completedSets === 0}
+                    className="h-8 w-8 rounded-full p-0"
+                  >
+                    <Minus className="h-3 w-3" />
+                  </Button>
+                  
+                  <div className="text-3xl font-bold">
+                    {completedSets}<span className="text-lg text-muted-foreground">/{exercise.series}</span>
+                  </div>
+                  
+                  <Button
+                    size="sm"
+                    onClick={incrementSet}
+                    disabled={completedSets >= parseInt(exercise.series)}
+                    className="h-8 w-8 rounded-full p-0"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
                 </div>
-                
-                <Button
-                  size="lg"
-                  onClick={incrementSet}
-                  disabled={completedSets >= parseInt(exercise.series)}
-                  className="h-12 w-12 rounded-full p-0"
-                >
-                  <Plus className="h-5 w-5" />
-                </Button>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
+          )}
 
-        {/* Chronomètre de récupération - Vue plus grande */}
-        {exercise.recuperation && (
-          <Card className="p-6 bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20">
-            <div className="text-center space-y-3">
-              <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Récupération</p>
-              <div className={`text-5xl font-bold ${timeRemaining === 0 ? 'text-green-500' : 'text-foreground'}`}>
-                {formatTime(timeRemaining)}
-              </div>
-              <div className="flex gap-2 justify-center">
-                {!isTimerRunning ? (
+          {/* Chronomètre de récupération */}
+          {exercise.recuperation && (
+            <Card className="p-3 bg-gradient-to-br from-blue-500/5 to-blue-500/10 border-blue-500/20 flex flex-col justify-center">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-blue-600 uppercase mb-1">Récup</p>
+                <div className={`text-3xl font-bold mb-2 ${timeRemaining === 0 ? 'text-green-500' : 'text-foreground'}`}>
+                  {formatTime(timeRemaining)}
+                </div>
+                <div className="flex gap-1">
+                  {!isTimerRunning ? (
+                    <Button
+                      size="sm"
+                      onClick={startTimer}
+                      disabled={timeRemaining === 0}
+                      className="flex-1 h-7 text-xs px-1"
+                    >
+                      <Play className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={pauseTimer}
+                      variant="secondary"
+                      className="flex-1 h-7 text-xs px-1"
+                    >
+                      <Pause className="h-3 w-3" />
+                    </Button>
+                  )}
                   <Button
-                    size="default"
-                    onClick={startTimer}
-                    disabled={timeRemaining === 0}
-                    className="px-6"
+                    size="sm"
+                    onClick={resetTimer}
+                    variant="outline"
+                    className="h-7 w-7 p-0"
                   >
-                    <Play className="h-4 w-4 mr-2" />
-                    Démarrer
+                    <RotateCcw className="h-3 w-3" />
                   </Button>
-                ) : (
-                  <Button
-                    size="default"
-                    onClick={pauseTimer}
-                    variant="secondary"
-                    className="px-6"
-                  >
-                    <Pause className="h-4 w-4 mr-2" />
-                    Pause
-                  </Button>
-                )}
-                <Button
-                  size="default"
-                  onClick={resetTimer}
-                  variant="outline"
-                >
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Reset
-                </Button>
+                </div>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
+          )}
 
-        {/* Détails de l'exercice - Cards séparées et grandes */}
-        <div className="grid grid-cols-2 gap-3">
+          {/* Détails de l'exercice - Cards compactes */}
           {exercise.reps && (
-            <Card className="p-4 bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <Repeat className="h-6 w-6 text-orange-600" />
-                <p className="text-xs font-medium text-muted-foreground uppercase">Répétitions</p>
-                <p className="text-3xl font-bold text-foreground">{exercise.reps}</p>
+            <Card className="p-3 bg-gradient-to-br from-orange-500/5 to-orange-500/10 border-orange-500/20">
+              <div className="flex flex-col items-center text-center">
+                <Repeat className="h-5 w-5 text-orange-600 mb-1" />
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Reps</p>
+                <p className="text-2xl font-bold text-foreground">{exercise.reps}</p>
               </div>
             </Card>
           )}
           
           {exercise.charge && (
-            <Card className="p-4 bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <Weight className="h-6 w-6 text-red-600" />
-                <p className="text-xs font-medium text-muted-foreground uppercase">Charge</p>
-                <p className="text-3xl font-bold text-foreground">{exercise.charge}</p>
+            <Card className="p-3 bg-gradient-to-br from-red-500/5 to-red-500/10 border-red-500/20">
+              <div className="flex flex-col items-center text-center">
+                <Weight className="h-5 w-5 text-red-600 mb-1" />
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Charge</p>
+                <p className="text-2xl font-bold text-foreground">{exercise.charge}</p>
               </div>
             </Card>
           )}
           
           {exercise.rpe && (
-            <Card className="p-4 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10 border-yellow-500/20">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <Zap className="h-6 w-6 text-yellow-600" />
-                <p className="text-xs font-medium text-muted-foreground uppercase">RPE</p>
-                <p className="text-3xl font-bold text-foreground">{exercise.rpe}</p>
+            <Card className="p-3 bg-gradient-to-br from-yellow-500/5 to-yellow-500/10 border-yellow-500/20">
+              <div className="flex flex-col items-center text-center">
+                <Zap className="h-5 w-5 text-yellow-600 mb-1" />
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">RPE</p>
+                <p className="text-2xl font-bold text-foreground">{exercise.rpe}</p>
               </div>
             </Card>
           )}
           
           {exercise.tempo && (
-            <Card className="p-4 bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
-              <div className="flex flex-col items-center text-center space-y-2">
-                <Clock className="h-6 w-6 text-purple-600" />
-                <p className="text-xs font-medium text-muted-foreground uppercase">Tempo</p>
-                <p className="text-3xl font-bold text-foreground">{exercise.tempo}</p>
+            <Card className="p-3 bg-gradient-to-br from-purple-500/5 to-purple-500/10 border-purple-500/20">
+              <div className="flex flex-col items-center text-center">
+                <Clock className="h-5 w-5 text-purple-600 mb-1" />
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Tempo</p>
+                <p className="text-2xl font-bold text-foreground">{exercise.tempo}</p>
+              </div>
+            </Card>
+          )}
+          
+          {/* Notes du coach - Prend 2 colonnes si présent */}
+          {exercise.commentaire && (
+            <Card className="p-3 col-span-2">
+              <div>
+                <p className="text-xs font-semibold text-primary mb-1">📝 Notes</p>
+                <p className="text-xs leading-relaxed line-clamp-2">{exercise.commentaire}</p>
               </div>
             </Card>
           )}
         </div>
-        
-        {/* Notes du coach */}
-        {exercise.commentaire && (
-          <Card className="p-4">
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-primary">📝 Notes du coach</p>
-              <p className="text-sm leading-relaxed">{exercise.commentaire}</p>
-            </div>
-          </Card>
-        )}
 
-        {/* Retours du sportif */}
+        {/* Retours du sportif - compact et au bas */}
         <Card className="p-3">
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold">Mes retours</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="sportif-rpe" className="text-xs">
-                RPE ressenti (1-10)
-              </Label>
+          <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+            <div className="space-y-1">
+              <Label htmlFor="sportif-rpe" className="text-xs">RPE (1-10)</Label>
               <Input
                 id="sportif-rpe"
                 type="number"
                 min="1"
                 max="10"
-                placeholder="Entre 1 et 10"
+                placeholder="1-10"
                 value={sportifRpe}
                 onChange={(e) => setSportifRpe(e.target.value)}
-                className="h-9"
+                className="h-8 text-sm"
               />
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sportif-comment" className="text-xs">
-                Mon commentaire
-              </Label>
-              <Textarea
-                id="sportif-comment"
-                placeholder="Comment s'est passé cet exercice ?"
-                value={sportifComment}
-                onChange={(e) => setSportifComment(e.target.value)}
-                className="min-h-[80px] text-sm"
-              />
-            </div>
-
             <Button 
               onClick={saveSportifFeedback}
-              className="w-full"
               size="sm"
+              className="h-8"
             >
-              Enregistrer mes retours
+              Enregistrer
             </Button>
+          </div>
+          <div className="space-y-1 mt-2">
+            <Label htmlFor="sportif-comment" className="text-xs">Commentaire</Label>
+            <Textarea
+              id="sportif-comment"
+              placeholder="Ton retour..."
+              value={sportifComment}
+              onChange={(e) => setSportifComment(e.target.value)}
+              className="min-h-[50px] text-sm resize-none"
+            />
           </div>
         </Card>
       </div>
