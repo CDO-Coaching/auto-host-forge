@@ -5,14 +5,34 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ArrowLeft, User, Calendar, Mail, Plus, ChevronDown, ChevronRight, Trash2, Check, X, Copy, MessageSquare } from "lucide-react";
+import {
+  ArrowLeft,
+  User,
+  Calendar,
+  Mail,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Trash2,
+  Check,
+  X,
+  Copy,
+  MessageSquare,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { getWeek } from "date-fns";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AthleteProfile {
@@ -72,25 +92,25 @@ export default function ClientDetail() {
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
-  
+
   const currentWeekNumber = getWeek(new Date());
-  
+
   // Générer les 12 prochaines semaines pour la sélection
   const getNextWeeks = () => {
     const weeks = [];
     const now = new Date();
-    
+
     for (let i = 0; i < 12; i++) {
       const targetDate = new Date(now);
-      targetDate.setDate(targetDate.getDate() + (i * 7));
+      targetDate.setDate(targetDate.getDate() + i * 7);
       const weekNum = getWeek(targetDate);
       const year = targetDate.getFullYear();
       weeks.push({ week: weekNum, year, date: targetDate });
     }
-    
+
     return weeks;
   };
-  
+
   const availableWeeks = getNextWeeks();
 
   const recuperationOptions = [
@@ -115,10 +135,7 @@ export default function ClientDetail() {
   }, [athleteId]);
 
   const loadLibraryExercises = async () => {
-    const { data, error } = await supabase
-      .from("exercise_library")
-      .select("id, name")
-      .order("name");
+    const { data, error } = await supabase.from("exercise_library").select("id, name").order("name");
 
     if (error) {
       console.error("Erreur lors du chargement des exercices:", error);
@@ -129,7 +146,7 @@ export default function ClientDetail() {
 
   const loadHistoricalWeeks = async () => {
     if (!athleteId) return;
-    
+
     const { data, error } = await supabase
       .from("training_weeks")
       .select("*")
@@ -147,17 +164,19 @@ export default function ClientDetail() {
 
   const loadLastWeekFeedback = async () => {
     if (!athleteId) return;
-    
+
     // Trouver toutes les semaines validées avec des sessions complétées par le sportif
     const { data: weeks, error: weeksError } = await supabase
       .from("training_weeks")
-      .select(`
+      .select(
+        `
         *,
         training_sessions!inner(
           id,
           completed_at
         )
-      `)
+      `,
+      )
       .eq("athlete_id", athleteId)
       .eq("validated", true)
       .not("training_sessions.completed_at", "is", null)
@@ -175,17 +194,19 @@ export default function ClientDetail() {
 
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
-      .select(`
+      .select(
+        `
         *,
         session_exercises (*)
-      `)
+      `,
+      )
       .eq("week_id", lastWeek.id)
       .order("session_number");
 
     if (!sessionsError && sessionsData) {
       setLastWeekData({
         week: lastWeek,
-        sessions: sessionsData
+        sessions: sessionsData,
       });
     }
   };
@@ -193,10 +214,12 @@ export default function ClientDetail() {
   const loadHistoricalWeekDetails = async (weekId: string) => {
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
-      .select(`
+      .select(
+        `
         *,
         session_exercises (*)
-      `)
+      `,
+      )
       .eq("week_id", weekId)
       .order("session_number");
 
@@ -206,9 +229,11 @@ export default function ClientDetail() {
       setHistoricalSessions(sessionsData || []);
       // Initialiser les exercices éditables
       const exercisesMap: Record<string, any[]> = {};
-      sessionsData?.forEach(session => {
+      sessionsData?.forEach((session) => {
         if (session.session_exercises) {
-          exercisesMap[session.id] = session.session_exercises.sort((a: any, b: any) => a.exercise_order - b.exercise_order);
+          exercisesMap[session.id] = session.session_exercises.sort(
+            (a: any, b: any) => a.exercise_order - b.exercise_order,
+          );
         }
       });
       setEditedHistoricalExercises(exercisesMap);
@@ -216,7 +241,7 @@ export default function ClientDetail() {
   };
 
   const handleSelectHistoricalWeek = async (weekId: string) => {
-    const week = historicalWeeks.find(w => w.id === weekId);
+    const week = historicalWeeks.find((w) => w.id === weekId);
     setSelectedHistoricalWeek(week);
     setIsEditingHistorical(false);
     await loadHistoricalWeekDetails(weekId);
@@ -235,13 +260,11 @@ export default function ClientDetail() {
   };
 
   const handleHistoricalExerciseChange = (sessionId: string, exerciseId: string, field: string, value: string) => {
-    setEditedHistoricalExercises(prev => {
+    setEditedHistoricalExercises((prev) => {
       const sessionExercises = prev[sessionId] || [];
       return {
         ...prev,
-        [sessionId]: sessionExercises.map(ex => 
-          ex.id === exerciseId ? { ...ex, [field]: value } : ex
-        )
+        [sessionId]: sessionExercises.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)),
       };
     });
   };
@@ -251,7 +274,7 @@ export default function ClientDetail() {
       // Mettre à jour tous les exercices modifiés
       for (const sessionId in editedHistoricalExercises) {
         const exercises = editedHistoricalExercises[sessionId];
-        
+
         for (const exercise of exercises) {
           const { error } = await supabase
             .from("session_exercises")
@@ -267,7 +290,7 @@ export default function ClientDetail() {
               cardio_sport: exercise.cardio_sport || null,
               cardio_content: exercise.cardio_content || null,
               cardio_pace: exercise.cardio_pace || null,
-              super_set_group: exercise.super_set_group || null
+              super_set_group: exercise.super_set_group || null,
             })
             .eq("id", exercise.id);
 
@@ -277,7 +300,7 @@ export default function ClientDetail() {
 
       setIsEditingHistorical(false);
       toast.success("Modifications enregistrées avec succès");
-      
+
       // Recharger les données
       if (selectedHistoricalWeek) {
         await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
@@ -293,36 +316,37 @@ export default function ClientDetail() {
 
     try {
       // Calculer le prochain numéro de séance basé sur le max existant
-      const maxSessionNumber = historicalSessions.reduce((max, session) => 
-        Math.max(max, session.session_number || 0), 0
+      const maxSessionNumber = historicalSessions.reduce(
+        (max, session) => Math.max(max, session.session_number || 0),
+        0,
       );
       const nextSessionNumber = maxSessionNumber + 1;
-      
-      console.log('Ajout séance:', {
+
+      console.log("Ajout séance:", {
         week_id: selectedHistoricalWeek.id,
         session_number: nextSessionNumber,
-        name: newHistoricalSessionName
+        name: newHistoricalSessionName,
       });
-      
+
       const { data: sessionData, error } = await supabase
         .from("training_sessions")
         .insert({
           week_id: selectedHistoricalWeek.id,
           session_number: nextSessionNumber,
-          name: newHistoricalSessionName
+          name: newHistoricalSessionName,
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Erreur Supabase complète:', error);
+        console.error("Erreur Supabase complète:", error);
         throw error;
       }
 
       setNewHistoricalSessionName("");
       setNewHistoricalSessionType("renfo");
       toast.success("Séance ajoutée");
-      
+
       // Recharger les données
       await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
     } catch (error: any) {
@@ -333,15 +357,12 @@ export default function ClientDetail() {
 
   const handleDeleteHistoricalSession = async (sessionId: string) => {
     try {
-      const { error } = await supabase
-        .from("training_sessions")
-        .delete()
-        .eq("id", sessionId);
+      const { error } = await supabase.from("training_sessions").delete().eq("id", sessionId);
 
       if (error) throw error;
 
       toast.success("Séance supprimée");
-      
+
       // Recharger les données
       if (selectedHistoricalWeek) {
         await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
@@ -353,13 +374,13 @@ export default function ClientDetail() {
   };
 
   const handleAddHistoricalExercise = async (sessionId: string) => {
-    const session = historicalSessions.find(s => s.id === sessionId);
+    const session = historicalSessions.find((s) => s.id === sessionId);
     if (!session) return;
 
     try {
       const currentExercises = editedHistoricalExercises[sessionId] || [];
       const isCardio = session.session_type === "cardio";
-      
+
       const { data, error } = await supabase
         .from("session_exercises")
         .insert({
@@ -376,8 +397,8 @@ export default function ClientDetail() {
           ...(isCardio && {
             cardio_sport: null,
             cardio_content: null,
-            cardio_pace: null
-          })
+            cardio_pace: null,
+          }),
         })
         .select()
         .single();
@@ -385,7 +406,7 @@ export default function ClientDetail() {
       if (error) throw error;
 
       toast.success("Exercice ajouté");
-      
+
       // Recharger les données
       if (selectedHistoricalWeek) {
         await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
@@ -398,15 +419,12 @@ export default function ClientDetail() {
 
   const handleDeleteHistoricalExercise = async (exerciseId: string) => {
     try {
-      const { error } = await supabase
-        .from("session_exercises")
-        .delete()
-        .eq("id", exerciseId);
+      const { error } = await supabase.from("session_exercises").delete().eq("id", exerciseId);
 
       if (error) throw error;
 
       toast.success("Exercice supprimé");
-      
+
       // Recharger les données
       if (selectedHistoricalWeek) {
         await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
@@ -416,7 +434,6 @@ export default function ClientDetail() {
       toast.error("Erreur lors de la suppression de l'exercice");
     }
   };
-
 
   const toggleHistoricalSession = (sessionId: string) => {
     if (expandedHistoricalSessionId === sessionId) {
@@ -430,12 +447,8 @@ export default function ClientDetail() {
     if (!athleteId) return;
 
     setLoading(true);
-    
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .eq("id", athleteId)
-      .single();
+
+    const { data, error } = await supabase.from("user_profiles").select("*").eq("id", athleteId).single();
 
     if (error) {
       toast.error("Erreur lors du chargement des données");
@@ -444,12 +457,12 @@ export default function ClientDetail() {
     } else {
       setAthlete(data);
     }
-    
+
     setLoading(false);
   };
 
   const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio">("renfo");
-  
+
   const handleCreateSession = () => {
     const nextSessionNumber = sessions.length + 1;
     const newSession: Session = {
@@ -458,7 +471,7 @@ export default function ClientDetail() {
       isExpanded: false,
       session_type: newSessionType,
     };
-    
+
     setSessions([...sessions, newSession]);
     setNewSessionType("renfo"); // Reset to default
     toast.success(`Séance créée`);
@@ -475,13 +488,13 @@ export default function ClientDetail() {
   const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     const updatedSessions = sessions
-      .filter(s => s.id !== sessionId)
+      .filter((s) => s.id !== sessionId)
       .map((s, index) => ({
         ...s,
         id: index + 1,
-        name: `Séance ${index + 1}`
+        name: `Séance ${index + 1}`,
       }));
-    
+
     setSessions(updatedSessions);
     if (expandedSessionId === sessionId) {
       setExpandedSessionId(null);
@@ -491,15 +504,17 @@ export default function ClientDetail() {
 
   const handleValidate = async () => {
     if (!athleteId) return;
-    
+
     if (!selectedWeekToProgram) {
       toast.error("Veuillez sélectionner une semaine");
       return;
     }
-    
+
     try {
       // Récupérer l'ID du coach connecté
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Erreur d'authentification");
         return;
@@ -528,7 +543,7 @@ export default function ClientDetail() {
           week_number: selectedWeekToProgram.week,
           year: selectedWeekToProgram.year,
           validated: true,
-          validated_at: new Date().toISOString()
+          validated_at: new Date().toISOString(),
         })
         .select()
         .single();
@@ -542,7 +557,7 @@ export default function ClientDetail() {
           .insert({
             week_id: weekData.id,
             session_number: session.id,
-            name: session.name
+            name: session.name,
           })
           .select()
           .single();
@@ -566,12 +581,10 @@ export default function ClientDetail() {
             cardio_sport: exercise.cardio_sport || null,
             cardio_content: exercise.cardio_content || null,
             cardio_pace: exercise.cardio_pace || null,
-            super_set_group: exercise.super_set_group || null
+            super_set_group: exercise.super_set_group || null,
           }));
 
-          const { error: exercisesError } = await supabase
-            .from("session_exercises")
-            .insert(exercisesToInsert);
+          const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
 
           if (exercisesError) throw exercisesError;
         }
@@ -579,16 +592,15 @@ export default function ClientDetail() {
 
       setIsValidated(true);
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
-      
+
       // Réinitialiser pour permettre de programmer une nouvelle semaine
       setSelectedWeekToProgram(null);
       setSessions([]);
       setSessionExercises({});
-      
+
       // Recharger l'historique et les retours
       await loadHistoricalWeeks();
       await loadLastWeekFeedback();
-      
     } catch (error) {
       console.error("Erreur lors de la validation:", error);
       toast.error("Erreur lors de la validation de la semaine");
@@ -605,10 +617,12 @@ export default function ClientDetail() {
       // Charger les données de la semaine sélectionnée
       const { data: sessionsData, error } = await supabase
         .from("training_sessions")
-        .select(`
+        .select(
+          `
           *,
           session_exercises (*)
-        `)
+        `,
+        )
         .eq("week_id", selectedWeekToCopy)
         .order("session_number");
 
@@ -641,7 +655,7 @@ export default function ClientDetail() {
                 cardio_sport: ex.cardio_sport || "",
                 cardio_content: ex.cardio_content || "",
                 cardio_pace: ex.cardio_pace || "",
-                super_set_group: ex.super_set_group || null
+                super_set_group: ex.super_set_group || null,
               }));
             newExercises[sessionIndex + 1] = sortedExercises;
           }
@@ -661,14 +675,16 @@ export default function ClientDetail() {
 
   const handleSelectWeekForPreview = async (weekId: string) => {
     setSelectedWeekToCopy(weekId);
-    
+
     if (weekId) {
       const { data: sessionsData, error } = await supabase
         .from("training_sessions")
-        .select(`
+        .select(
+          `
           *,
           session_exercises (*)
-        `)
+        `,
+        )
         .eq("week_id", weekId)
         .order("session_number");
 
@@ -682,9 +698,9 @@ export default function ClientDetail() {
 
   const handleAddExercise = (sessionId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const session = sessions.find(s => s.id === sessionId);
+    const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
-    
+
     const newExercise: Exercise = {
       id: currentExercises.length + 1,
       exercice: isCardio ? "Séance Cardio" : "",
@@ -698,94 +714,94 @@ export default function ClientDetail() {
       ...(isCardio && {
         cardio_sport: "",
         cardio_content: "",
-        cardio_pace: ""
-      })
+        cardio_pace: "",
+      }),
     };
-    
+
     setSessionExercises({
       ...sessionExercises,
-      [sessionId]: [...currentExercises, newExercise]
+      [sessionId]: [...currentExercises, newExercise],
     });
   };
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const currentExercise = currentExercises.find(ex => ex.id === exerciseId);
-    
+    const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
+
     // Si on modifie les séries d'un exercice dans un super-set, synchroniser avec tous les exercices du groupe
     if (field === "series" && currentExercise?.super_set_group) {
-      const updatedExercises = currentExercises.map(ex => {
+      const updatedExercises = currentExercises.map((ex) => {
         if (ex.super_set_group === currentExercise.super_set_group) {
           return { ...ex, series: value };
         }
         return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
       });
-      
+
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
     } else {
-      const updatedExercises = currentExercises.map(ex =>
-        ex.id === exerciseId ? { ...ex, [field]: value } : ex
-      );
-      
+      const updatedExercises = currentExercises.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex));
+
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
     }
   };
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const exerciseToDelete = currentExercises.find(ex => ex.id === exerciseId);
-    
+    const exerciseToDelete = currentExercises.find((ex) => ex.id === exerciseId);
+
     // Si l'exercice supprimé fait partie d'un super-set, retirer aussi le groupe des autres
     if (exerciseToDelete?.super_set_group) {
-      const groupExercises = currentExercises.filter(ex => ex.super_set_group === exerciseToDelete.super_set_group);
-      
+      const groupExercises = currentExercises.filter((ex) => ex.super_set_group === exerciseToDelete.super_set_group);
+
       // Si le groupe n'a plus que 2 exercices après suppression, retirer le groupe
       if (groupExercises.length === 2) {
         const updatedExercises = currentExercises
-          .filter(ex => ex.id !== exerciseId)
-          .map(ex => ex.super_set_group === exerciseToDelete.super_set_group ? { ...ex, super_set_group: null } : ex);
-        
+          .filter((ex) => ex.id !== exerciseId)
+          .map((ex) =>
+            ex.super_set_group === exerciseToDelete.super_set_group ? { ...ex, super_set_group: null } : ex,
+          );
+
         setSessionExercises({
           ...sessionExercises,
-          [sessionId]: updatedExercises
+          [sessionId]: updatedExercises,
         });
       } else {
-        const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+        const updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
         setSessionExercises({
           ...sessionExercises,
-          [sessionId]: updatedExercises
+          [sessionId]: updatedExercises,
         });
       }
     } else {
-      const updatedExercises = currentExercises.filter(ex => ex.id !== exerciseId);
+      const updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
     }
-    
+
     toast.success("Ligne supprimée");
   };
 
   const handleToggleSuperSet = (sessionId: number, exerciseId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const exerciseIndex = currentExercises.findIndex(ex => ex.id === exerciseId);
-    
+    const exerciseIndex = currentExercises.findIndex((ex) => ex.id === exerciseId);
+
     if (exerciseIndex === -1 || exerciseIndex === currentExercises.length - 1) return;
-    
+
     const currentExercise = currentExercises[exerciseIndex];
     const nextExercise = currentExercises[exerciseIndex + 1];
-    
+
     // Cas 1: Aucun des deux n'est dans un groupe - créer un nouveau groupe
     if (!currentExercise.super_set_group && !nextExercise.super_set_group) {
       const newGroupId = `group-${Date.now()}`;
-      const updatedExercises = currentExercises.map(ex => {
+      const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId || ex.id === nextExercise.id) {
           return { ...ex, super_set_group: newGroupId };
         }
@@ -793,13 +809,13 @@ export default function ClientDetail() {
       });
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
       toast.success("Super-set créé !");
     }
     // Cas 2: L'exercice actuel est dans un groupe - ajouter le suivant au groupe
     else if (currentExercise.super_set_group && !nextExercise.super_set_group) {
-      const updatedExercises = currentExercises.map(ex => {
+      const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === nextExercise.id) {
           return { ...ex, super_set_group: currentExercise.super_set_group };
         }
@@ -807,13 +823,13 @@ export default function ClientDetail() {
       });
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
       toast.success("Exercice ajouté au super-set !");
     }
     // Cas 3: Le suivant est dans un groupe - ajouter l'actuel au groupe
     else if (!currentExercise.super_set_group && nextExercise.super_set_group) {
-      const updatedExercises = currentExercises.map(ex => {
+      const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId) {
           return { ...ex, super_set_group: nextExercise.super_set_group };
         }
@@ -821,35 +837,35 @@ export default function ClientDetail() {
       });
       setSessionExercises({
         ...sessionExercises,
-        [sessionId]: updatedExercises
+        [sessionId]: updatedExercises,
       });
       toast.success("Exercice ajouté au super-set !");
     }
     // Cas 4: Les deux sont dans le même groupe - retirer le lien entre eux
     else if (currentExercise.super_set_group === nextExercise.super_set_group) {
       const groupId = currentExercise.super_set_group;
-      const groupExercises = currentExercises.filter(ex => ex.super_set_group === groupId);
-      
+      const groupExercises = currentExercises.filter((ex) => ex.super_set_group === groupId);
+
       // Trouver l'index du prochain exercice dans le groupe
-      const groupIndexes = groupExercises.map(ex => currentExercises.findIndex(e => e.id === ex.id));
+      const groupIndexes = groupExercises.map((ex) => currentExercises.findIndex((e) => e.id === ex.id));
       const currentGroupIndex = groupIndexes.indexOf(exerciseIndex);
       const nextGroupIndex = groupIndexes.indexOf(exerciseIndex + 1);
-      
+
       // Si ce sont les deux derniers du groupe adjacents
       if (currentGroupIndex !== -1 && nextGroupIndex === currentGroupIndex + 1) {
         // Créer un nouveau groupe pour les exercices après la coupure
         const newGroupId = `group-${Date.now()}`;
-        const updatedExercises = currentExercises.map(ex => {
-          const exIndex = currentExercises.findIndex(e => e.id === ex.id);
+        const updatedExercises = currentExercises.map((ex) => {
+          const exIndex = currentExercises.findIndex((e) => e.id === ex.id);
           if (ex.super_set_group === groupId && exIndex > exerciseIndex) {
             return { ...ex, super_set_group: newGroupId };
           }
           return ex;
         });
-        
+
         setSessionExercises({
           ...sessionExercises,
-          [sessionId]: updatedExercises
+          [sessionId]: updatedExercises,
         });
         toast.success("Super-set séparé !");
       }
@@ -858,18 +874,20 @@ export default function ClientDetail() {
 
   const isInSameGroup = (sessionId: number, exerciseId: number, nextExerciseId: number): boolean => {
     const currentExercises = sessionExercises[sessionId] || [];
-    const exercise = currentExercises.find(ex => ex.id === exerciseId);
-    const nextExercise = currentExercises.find(ex => ex.id === nextExerciseId);
-    
-    return !!(exercise?.super_set_group && 
-              nextExercise?.super_set_group && 
-              exercise.super_set_group === nextExercise.super_set_group);
+    const exercise = currentExercises.find((ex) => ex.id === exerciseId);
+    const nextExercise = currentExercises.find((ex) => ex.id === nextExerciseId);
+
+    return !!(
+      exercise?.super_set_group &&
+      nextExercise?.super_set_group &&
+      exercise.super_set_group === nextExercise.super_set_group
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, sessionId: number, exerciseId: number, field: keyof Exercise) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      
+
       if (field === "commentaire") {
         // Dans le commentaire, Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
@@ -878,22 +896,31 @@ export default function ClientDetail() {
           const currentExercises = sessionExercises[sessionId] || [];
           const newExerciseId = currentExercises.length + 1;
           const newExerciseInput = document.querySelector(
-            `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`
+            `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`,
           ) as HTMLElement;
           newExerciseInput?.focus();
           newExerciseInput?.click();
         }, 100);
       } else {
         // Pour les autres champs, passer au champ suivant
-        const fieldOrder: (keyof Exercise)[] = ["exercice", "recuperation", "reps", "series", "charge", "rpe", "tempo", "commentaire"];
+        const fieldOrder: (keyof Exercise)[] = [
+          "exercice",
+          "recuperation",
+          "reps",
+          "series",
+          "charge",
+          "rpe",
+          "tempo",
+          "commentaire",
+        ];
         const currentIndex = fieldOrder.indexOf(field);
         const nextField = fieldOrder[currentIndex + 1];
-        
+
         if (nextField) {
           const nextInput = document.querySelector(
-            `[data-session="${sessionId}"][data-exercise="${exerciseId}"][data-field="${nextField}"]`
+            `[data-session="${sessionId}"][data-exercise="${exerciseId}"][data-field="${nextField}"]`,
           ) as HTMLElement;
-          
+
           if (nextInput) {
             nextInput.focus();
             if (nextInput.tagName === "BUTTON") {
@@ -938,31 +965,18 @@ export default function ClientDetail() {
         </Button>
       </div>
 
-      <div className="flex items-center gap-6">
-        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-          <User className="h-10 w-10 text-primary" />
-        </div>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">
+      <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
+        <div>
+          <h2 className="text-lg font-semibold">
             {athlete.first_name} {athlete.last_name}
-          </h1>
-          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Mail className="h-4 w-4" />
-              {athlete.email}
-            </div>
-            {athlete.date_of_birth && (
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                Né(e) le {new Date(athlete.date_of_birth).toLocaleDateString()}
-              </div>
-            )}
-            {athlete.gender && (
-              <Badge variant="outline">
-                {athlete.gender === "male" ? "Homme" : athlete.gender === "female" ? "Femme" : "Autre"}
-              </Badge>
-            )}
-          </div>
+          </h2>
+          <p className="text-sm text-muted-foreground">{athlete.email}</p>
+        </div>
+        <div className="text-sm text-muted-foreground text-right">
+          {athlete.gender && (
+            <p>{athlete.gender === "female" ? "Femme" : athlete.gender === "male" ? "Homme" : "Autre"}</p>
+          )}
+          {athlete.date_of_birth && <p>{new Date(athlete.date_of_birth).toLocaleDateString("fr-FR")}</p>}
         </div>
       </div>
 
@@ -976,10 +990,7 @@ export default function ClientDetail() {
         <TabsContent value="programmation" className="space-y-4">
           {/* Retours de la semaine précédente */}
           {lastWeekData && (
-            <Collapsible
-              open={showLastWeekFeedback}
-              onOpenChange={setShowLastWeekFeedback}
-            >
+            <Collapsible open={showLastWeekFeedback} onOpenChange={setShowLastWeekFeedback}>
               <Card className="border-primary/20 bg-primary/5">
                 <CardHeader className="pb-3">
                   <CollapsibleTrigger className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
@@ -1005,16 +1016,12 @@ export default function ClientDetail() {
                             <h4 className="font-semibold text-sm">{session.name}</h4>
                             <div className="flex gap-3 text-xs text-muted-foreground">
                               {session.completed_at && (
-                                <span>
-                                  Réalisée le {new Date(session.completed_at).toLocaleDateString()}
-                                </span>
+                                <span>Réalisée le {new Date(session.completed_at).toLocaleDateString()}</span>
                               )}
-                              {session.duration_minutes && (
-                                <span>{session.duration_minutes} min</span>
-                              )}
+                              {session.duration_minutes && <span>{session.duration_minutes} min</span>}
                             </div>
                           </div>
-                          
+
                           {session.session_exercises && session.session_exercises.length > 0 ? (
                             <div className="space-y-2">
                               {session.session_exercises
@@ -1049,9 +1056,7 @@ export default function ClientDetail() {
                               )}
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                              Aucun exercice
-                            </p>
+                            <p className="text-xs text-muted-foreground text-center py-2">Aucun exercice</p>
                           )}
                         </div>
                       ))}
@@ -1075,12 +1080,12 @@ export default function ClientDetail() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">
-                        Tu peux programmer jusqu'à 12 semaines à l'avance
-                      </p>
+                      <p className="text-sm text-muted-foreground">Tu peux programmer jusqu'à 12 semaines à l'avance</p>
                       <select
                         className="w-full p-3 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                        value={selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""}
+                        value={
+                          selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""
+                        }
                         onChange={(e) => {
                           if (!e.target.value) {
                             setSelectedWeekToProgram(null);
@@ -1093,7 +1098,8 @@ export default function ClientDetail() {
                         <option value="">-- Choisir une semaine --</option>
                         {availableWeeks.map((w) => (
                           <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
-                            Semaine {w.week} - {w.year} (du {w.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })})
+                            Semaine {w.week} - {w.year} (du{" "}
+                            {w.date.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })})
                           </option>
                         ))}
                       </select>
@@ -1107,8 +1113,8 @@ export default function ClientDetail() {
                 <div className="flex justify-between items-center">
                   <div className="flex gap-2">
                     {historicalWeeks.length > 0 && (
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => setShowCopyDialog(true)}
                         disabled={sessions.length > 0 || !selectedWeekToProgram}
                       >
@@ -1132,10 +1138,7 @@ export default function ClientDetail() {
                     >
                       Cardio
                     </Button>
-                    <Button 
-                      onClick={handleCreateSession} 
-                      disabled={!selectedWeekToProgram}
-                    >
+                    <Button onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
                       <Plus className="h-4 w-4 mr-2" />
                       Créer
                     </Button>
@@ -1144,17 +1147,13 @@ export default function ClientDetail() {
               )}
               {sessions.length === 0 ? (
                 <div className="text-center py-8 space-y-4">
-                  <p className="text-muted-foreground">
-                    Aucune séance créée. 
-                  </p>
+                  <p className="text-muted-foreground">Aucune séance créée.</p>
                   {historicalWeeks.length > 0 ? (
                     <p className="text-sm text-muted-foreground">
                       Vous pouvez créer une nouvelle séance ou copier une semaine précédente.
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Cliquez sur "Créer une séance" pour commencer.
-                    </p>
+                    <p className="text-sm text-muted-foreground">Cliquez sur "Créer une séance" pour commencer.</p>
                   )}
                 </div>
               ) : (
@@ -1178,9 +1177,7 @@ export default function ClientDetail() {
                             </Badge>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline">
-                              {expandedSessionId === session.id ? "Ouvert" : "Fermé"}
-                            </Badge>
+                            <Badge variant="outline">{expandedSessionId === session.id ? "Ouvert" : "Fermé"}</Badge>
                             {!isValidated && (
                               <Button
                                 variant="ghost"
@@ -1193,7 +1190,7 @@ export default function ClientDetail() {
                             )}
                           </div>
                         </div>
-                        
+
                         {expandedSessionId === session.id && (
                           <div className="border-t p-4 bg-muted/20">
                             <div className="space-y-4">
@@ -1202,7 +1199,8 @@ export default function ClientDetail() {
                                 <div className="space-y-3">
                                   {(sessionExercises[session.id] || []).length === 0 ? (
                                     <div className="text-center text-muted-foreground py-8">
-                                      Aucune séance cardio ajoutée. Clique sur "Ajouter une séance cardio" pour commencer.
+                                      Aucune séance cardio ajoutée. Clique sur "Ajouter une séance cardio" pour
+                                      commencer.
                                     </div>
                                   ) : (
                                     (sessionExercises[session.id] || []).map((exercise) => (
@@ -1226,7 +1224,14 @@ export default function ClientDetail() {
                                             <select
                                               className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
                                               value={exercise.cardio_sport || ""}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_sport", e.target.value)}
+                                              onChange={(e) =>
+                                                handleExerciseChange(
+                                                  session.id,
+                                                  exercise.id,
+                                                  "cardio_sport",
+                                                  e.target.value,
+                                                )
+                                              }
                                               disabled={isValidated}
                                             >
                                               <option value="">Sélectionner...</option>
@@ -1242,7 +1247,14 @@ export default function ClientDetail() {
                                               <label className="text-sm font-medium mb-1 block">Allure</label>
                                               <Input
                                                 value={exercise.cardio_pace || ""}
-                                                onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_pace", e.target.value)}
+                                                onChange={(e) =>
+                                                  handleExerciseChange(
+                                                    session.id,
+                                                    exercise.id,
+                                                    "cardio_pace",
+                                                    e.target.value,
+                                                  )
+                                                }
                                                 placeholder="ex: 5:30/km"
                                                 disabled={isValidated}
                                               />
@@ -1254,7 +1266,14 @@ export default function ClientDetail() {
                                           <textarea
                                             className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
                                             value={exercise.cardio_content || ""}
-                                            onChange={(e) => handleExerciseChange(session.id, exercise.id, "cardio_content", e.target.value)}
+                                            onChange={(e) =>
+                                              handleExerciseChange(
+                                                session.id,
+                                                exercise.id,
+                                                "cardio_content",
+                                                e.target.value,
+                                              )
+                                            }
                                             placeholder="Décris le contenu de la séance..."
                                             disabled={isValidated}
                                           />
@@ -1264,7 +1283,9 @@ export default function ClientDetail() {
                                             <label className="text-sm font-medium mb-1 block">RPE</label>
                                             <Input
                                               value={exercise.rpe || ""}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                              onChange={(e) =>
+                                                handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)
+                                              }
                                               placeholder="ex: 7"
                                               disabled={isValidated}
                                             />
@@ -1273,7 +1294,14 @@ export default function ClientDetail() {
                                             <label className="text-sm font-medium mb-1 block">Commentaire</label>
                                             <Input
                                               value={exercise.commentaire || ""}
-                                              onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                              onChange={(e) =>
+                                                handleExerciseChange(
+                                                  session.id,
+                                                  exercise.id,
+                                                  "commentaire",
+                                                  e.target.value,
+                                                )
+                                              }
                                               placeholder="Notes..."
                                               disabled={isValidated}
                                             />
@@ -1297,466 +1325,631 @@ export default function ClientDetail() {
                                 // Interface Renfo (existante)
                                 <>
                                   <div className="overflow-x-auto">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="min-w-[150px]">Exercice</TableHead>
-                                        <TableHead className="min-w-[120px]">Récupération</TableHead>
-                                        <TableHead className="min-w-[100px]">Reps</TableHead>
-                                        <TableHead className="min-w-[100px]">Séries</TableHead>
-                                        <TableHead className="min-w-[100px]">Charge</TableHead>
-                                        <TableHead className="min-w-[100px]">RPE</TableHead>
-                                        <TableHead className="min-w-[100px]">Tempo</TableHead>
-                                        <TableHead className="min-w-[200px]">Commentaire</TableHead>
-                                        <TableHead className="w-[50px]"></TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                     <TableBody>
-                                      {(sessionExercises[session.id] || []).length === 0 ? (
-                                       <TableRow>
-                                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                           Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
-                                         </TableCell>
-                                       </TableRow>
-                                      ) : (
-                                       (() => {
-                                         const exercises = sessionExercises[session.id] || [];
-                                         const result: JSX.Element[] = [];
-                                         let i = 0;
-                                         
-                                         while (i < exercises.length) {
-                                           const exercise = exercises[i];
-                                           
-                                           // Si l'exercice fait partie d'un super-set
-                                           if (exercise.super_set_group) {
-                                             // Trouver tous les exercices du groupe
-                                             const groupExercises = [];
-                                             let j = i;
-                                             while (j < exercises.length && exercises[j].super_set_group === exercise.super_set_group) {
-                                               groupExercises.push(exercises[j]);
-                                               j++;
-                                             }
-                                             
-                                             // Rendu du bloc super-set
-                                             result.push(
-                                               <React.Fragment key={`superset-${exercise.super_set_group}`}>
-                                                 {/* Séparateur visuel avant le super-set */}
-                                                 <TableRow>
-                                                   <TableCell colSpan={9} className="p-0 h-2 bg-muted/30"></TableCell>
-                                                 </TableRow>
-                                                 
-                                                 {/* En-tête du super-set avec la case de série commune */}
-                                                 <TableRow className="bg-primary/10 border-l-4 border-l-primary">
-                                                   <TableCell colSpan={3} className="font-semibold">
-                                                     <Badge variant="default" className="mr-2">
-                                                       Super-set ({groupExercises.length} exercices)
-                                                     </Badge>
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <div className="font-medium">
-                                                       <label className="text-xs text-muted-foreground mb-1 block">Séries communes</label>
-                                                       <Input
-                                                         value={exercise.series}
-                                                         onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
-                                                         placeholder="ex: 3"
-                                                         disabled={isValidated}
-                                                         className="font-semibold bg-background"
-                                                       />
-                                                     </div>
-                                                   </TableCell>
-                                                   <TableCell colSpan={5}></TableCell>
-                                                 </TableRow>
-                                                 
-                                                 {/* Exercices du super-set */}
-                                                 {groupExercises.map((ex, exIndex) => {
-                                                   const nextExercise = groupExercises[exIndex + 1];
-                                                   const inGroup = nextExercise && isInSameGroup(session.id, ex.id, nextExercise.id);
-                                                   
-                                                   return (
-                                                     <React.Fragment key={ex.id}>
-                                                       <TableRow className="bg-primary/5 border-l-4 border-l-primary">
-                                                         <TableCell>
-                                                           <div data-session={session.id} data-exercise={ex.id} data-field="exercice">
-                                                             <ExerciseCombobox
-                                                               value={ex.exercice}
-                                                               onChange={(value) => {
-                                                                 handleExerciseChange(session.id, ex.id, "exercice", value);
-                                                                 setTimeout(() => {
-                                                                   const nextInput = document.querySelector(
-                                                                     `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="recuperation"]`
-                                                                   ) as HTMLElement;
-                                                                   nextInput?.focus();
-                                                                   nextInput?.click();
-                                                                 }, 100);
-                                                               }}
-                                                               exercises={libraryExercises}
-                                                               disabled={isValidated}
-                                                             />
-                                                           </div>
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Select
-                                                             value={ex.recuperation}
-                                                             onValueChange={(value) => {
-                                                               handleExerciseChange(session.id, ex.id, "recuperation", value);
-                                                               setTimeout(() => {
-                                                                 const nextInput = document.querySelector(
-                                                                   `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="reps"]`
-                                                                 ) as HTMLInputElement;
-                                                                 nextInput?.focus();
-                                                               }, 100);
-                                                             }}
-                                                             disabled={isValidated}
-                                                           >
-                                                             <SelectTrigger data-session={session.id} data-exercise={ex.id} data-field="recuperation">
-                                                               <SelectValue placeholder="Temps de récup" />
-                                                             </SelectTrigger>
-                                                             <SelectContent>
-                                                               {recuperationOptions.map((option) => (
-                                                                 <SelectItem key={option.value} value={option.value}>
-                                                                   {option.label}
-                                                                 </SelectItem>
-                                                               ))}
-                                                             </SelectContent>
-                                                           </Select>
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Input
-                                                             value={ex.reps}
-                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "reps", e.target.value)}
-                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "reps")}
-                                                             placeholder="ex: 10"
-                                                             disabled={isValidated}
-                                                             data-session={session.id}
-                                                             data-exercise={ex.id}
-                                                             data-field="reps"
-                                                           />
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           {/* Case de série masquée pour les exercices du super-set */}
-                                                           <div className="text-center text-muted-foreground text-xs">
-                                                             (voir en-tête)
-                                                           </div>
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Input
-                                                             value={ex.charge}
-                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "charge", e.target.value)}
-                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "charge")}
-                                                             placeholder="ex: 80kg"
-                                                             disabled={isValidated}
-                                                             data-session={session.id}
-                                                             data-exercise={ex.id}
-                                                             data-field="charge"
-                                                           />
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Input
-                                                             value={ex.rpe}
-                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "rpe", e.target.value)}
-                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "rpe")}
-                                                             placeholder="ex: 8"
-                                                             disabled={isValidated}
-                                                             data-session={session.id}
-                                                             data-exercise={ex.id}
-                                                             data-field="rpe"
-                                                           />
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Input
-                                                             value={ex.tempo}
-                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "tempo", e.target.value)}
-                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "tempo")}
-                                                             placeholder="ex: 3010"
-                                                             disabled={isValidated}
-                                                             data-session={session.id}
-                                                             data-exercise={ex.id}
-                                                             data-field="tempo"
-                                                           />
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           <Input
-                                                             value={ex.commentaire}
-                                                             onChange={(e) => handleExerciseChange(session.id, ex.id, "commentaire", e.target.value)}
-                                                             onKeyDown={(e) => handleKeyDown(e, session.id, ex.id, "commentaire")}
-                                                             placeholder="Notes..."
-                                                             disabled={isValidated}
-                                                             data-session={session.id}
-                                                             data-exercise={ex.id}
-                                                             data-field="commentaire"
-                                                           />
-                                                         </TableCell>
-                                                         <TableCell>
-                                                           {!isValidated && (
-                                                             <Button
-                                                               variant="ghost"
-                                                               size="sm"
-                                                               onClick={() => handleDeleteExercise(session.id, ex.id)}
-                                                               className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                             >
-                                                               <X className="h-4 w-4" />
-                                                             </Button>
-                                                           )}
-                                                         </TableCell>
-                                                       </TableRow>
-                                                       
-                                                       {/* Bouton pour gérer les liens dans le super-set */}
-                                                       {exIndex < groupExercises.length - 1 && !isValidated && (
-                                                         <TableRow>
-                                                           <TableCell colSpan={9} className="p-0 h-6 relative group bg-primary/5 border-l-4 border-l-primary">
-                                                             <div className="absolute inset-0 flex items-center justify-center">
-                                                               <Button
-                                                                 variant="default"
-                                                                 size="sm"
-                                                                 onClick={() => handleToggleSuperSet(session.id, ex.id)}
-                                                                 className="h-5 px-2 text-xs bg-destructive hover:bg-destructive/80"
-                                                               >
-                                                                 <X className="h-3 w-3 mr-1" />
-                                                                 Séparer
-                                                               </Button>
-                                                             </div>
-                                                           </TableCell>
-                                                         </TableRow>
-                                                       )}
-                                                     </React.Fragment>
-                                                   );
-                                                 })}
-                                                 
-                                                 {/* Séparateur visuel après le super-set */}
-                                                 <TableRow>
-                                                   <TableCell colSpan={9} className="p-0 h-2 bg-muted/30"></TableCell>
-                                                 </TableRow>
-                                                 
-                                                 {/* Bouton pour ajouter au super-set si pas le dernier exercice */}
-                                                 {i + groupExercises.length < exercises.length && !isValidated && (
-                                                   <TableRow>
-                                                     <TableCell colSpan={9} className="p-0 h-8 relative group">
-                                                       <div className="absolute inset-0 flex items-center justify-center">
-                                                         <Button
-                                                           variant="ghost"
-                                                           size="sm"
-                                                           onClick={() => handleToggleSuperSet(session.id, groupExercises[groupExercises.length - 1].id)}
-                                                           className="h-6 px-3 opacity-0 group-hover:opacity-100 hover:bg-primary/10"
-                                                         >
-                                                           <Plus className="h-3 w-3 mr-1" />
-                                                           Ajouter au super-set
-                                                         </Button>
-                                                       </div>
-                                                     </TableCell>
-                                                   </TableRow>
-                                                 )}
-                                               </React.Fragment>
-                                             );
-                                             
-                                             i = j; // Passer au prochain exercice après le groupe
-                                           } else {
-                                             // Exercice normal (pas dans un super-set)
-                                             const nextExercise = exercises[i + 1];
-                                             const isLastExercise = i === exercises.length - 1;
-                                             const inGroup = nextExercise && isInSameGroup(session.id, exercise.id, nextExercise.id);
-                                             
-                                             result.push(
-                                               <React.Fragment key={exercise.id}>
-                                                 <TableRow>
-                                                   <TableCell>
-                                                     <div data-session={session.id} data-exercise={exercise.id} data-field="exercice">
-                                                       <ExerciseCombobox
-                                                         value={exercise.exercice}
-                                                         onChange={(value) => {
-                                                           handleExerciseChange(session.id, exercise.id, "exercice", value);
-                                                           setTimeout(() => {
-                                                             const nextInput = document.querySelector(
-                                                               `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="recuperation"]`
-                                                             ) as HTMLElement;
-                                                             nextInput?.focus();
-                                                             nextInput?.click();
-                                                           }, 100);
-                                                         }}
-                                                         exercises={libraryExercises}
-                                                         disabled={isValidated}
-                                                       />
-                                                     </div>
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Select
-                                                       value={exercise.recuperation}
-                                                       onValueChange={(value) => {
-                                                         handleExerciseChange(session.id, exercise.id, "recuperation", value);
-                                                         setTimeout(() => {
-                                                           const nextInput = document.querySelector(
-                                                             `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="reps"]`
-                                                           ) as HTMLInputElement;
-                                                           nextInput?.focus();
-                                                         }, 100);
-                                                       }}
-                                                       disabled={isValidated}
-                                                     >
-                                                       <SelectTrigger data-session={session.id} data-exercise={exercise.id} data-field="recuperation">
-                                                         <SelectValue placeholder="Temps de récup" />
-                                                       </SelectTrigger>
-                                                       <SelectContent>
-                                                         {recuperationOptions.map((option) => (
-                                                           <SelectItem key={option.value} value={option.value}>
-                                                             {option.label}
-                                                           </SelectItem>
-                                                         ))}
-                                                       </SelectContent>
-                                                     </Select>
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.reps}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "reps")}
-                                                       placeholder="ex: 10"
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="reps"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.series}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "series")}
-                                                       placeholder="ex: 3"
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="series"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.charge}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "charge")}
-                                                       placeholder="ex: 80kg"
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="charge"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.rpe}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "rpe")}
-                                                       placeholder="ex: 8"
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="rpe"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.tempo}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "tempo")}
-                                                       placeholder="ex: 3010"
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="tempo"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     <Input
-                                                       value={exercise.commentaire}
-                                                       onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
-                                                       onKeyDown={(e) => handleKeyDown(e, session.id, exercise.id, "commentaire")}
-                                                       placeholder="Notes..."
-                                                       disabled={isValidated}
-                                                       data-session={session.id}
-                                                       data-exercise={exercise.id}
-                                                       data-field="commentaire"
-                                                     />
-                                                   </TableCell>
-                                                   <TableCell>
-                                                     {!isValidated && (
-                                                       <Button
-                                                         variant="ghost"
-                                                         size="sm"
-                                                         onClick={() => handleDeleteExercise(session.id, exercise.id)}
-                                                         className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                       >
-                                                         <X className="h-4 w-4" />
-                                                       </Button>
-                                                     )}
-                                                   </TableCell>
-                                                 </TableRow>
-                                                 
-                                                 {/* Bouton pour créer un super-set */}
-                                                 {!isLastExercise && !isValidated && (
-                                                   <TableRow>
-                                                     <TableCell colSpan={9} className="p-0 h-8 relative group">
-                                                       <div className="absolute inset-0 flex items-center justify-center">
-                                                         <Button
-                                                           variant={inGroup ? "default" : "ghost"}
-                                                           size="sm"
-                                                           onClick={() => handleToggleSuperSet(session.id, exercise.id)}
-                                                           className={`h-6 px-3 transition-all ${
-                                                             inGroup 
-                                                               ? "bg-primary hover:bg-primary/80" 
-                                                               : "opacity-0 group-hover:opacity-100 hover:bg-primary/10"
-                                                           }`}
-                                                         >
-                                                           <Plus className="h-3 w-3 mr-1" />
-                                                           Super-set
-                                                         </Button>
-                                                       </div>
-                                                     </TableCell>
-                                                   </TableRow>
-                                                 )}
-                                               </React.Fragment>
-                                             );
-                                             
-                                             i++;
-                                           }
-                                         }
-                                         
-                                         return result;
-                                       })()
-                                   )}
-                                    </TableBody>
-                                 </Table>
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="min-w-[150px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[120px]">Récupération</TableHead>
+                                          <TableHead className="min-w-[100px]">Reps</TableHead>
+                                          <TableHead className="min-w-[100px]">Séries</TableHead>
+                                          <TableHead className="min-w-[100px]">Charge</TableHead>
+                                          <TableHead className="min-w-[100px]">RPE</TableHead>
+                                          <TableHead className="min-w-[100px]">Tempo</TableHead>
+                                          <TableHead className="min-w-[200px]">Commentaire</TableHead>
+                                          <TableHead className="w-[50px]"></TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(sessionExercises[session.id] || []).length === 0 ? (
+                                          <TableRow>
+                                            <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                                              Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                            </TableCell>
+                                          </TableRow>
+                                        ) : (
+                                          (() => {
+                                            const exercises = sessionExercises[session.id] || [];
+                                            const result: JSX.Element[] = [];
+                                            let i = 0;
+
+                                            while (i < exercises.length) {
+                                              const exercise = exercises[i];
+
+                                              // Si l'exercice fait partie d'un super-set
+                                              if (exercise.super_set_group) {
+                                                // Trouver tous les exercices du groupe
+                                                const groupExercises = [];
+                                                let j = i;
+                                                while (
+                                                  j < exercises.length &&
+                                                  exercises[j].super_set_group === exercise.super_set_group
+                                                ) {
+                                                  groupExercises.push(exercises[j]);
+                                                  j++;
+                                                }
+
+                                                // Rendu du bloc super-set
+                                                result.push(
+                                                  <React.Fragment key={`superset-${exercise.super_set_group}`}>
+                                                    {/* Séparateur visuel avant le super-set */}
+                                                    <TableRow>
+                                                      <TableCell
+                                                        colSpan={9}
+                                                        className="p-0 h-2 bg-muted/30"
+                                                      ></TableCell>
+                                                    </TableRow>
+
+                                                    {/* En-tête du super-set avec la case de série commune */}
+                                                    <TableRow className="bg-primary/10 border-l-4 border-l-primary">
+                                                      <TableCell colSpan={3} className="font-semibold">
+                                                        <Badge variant="default" className="mr-2">
+                                                          Super-set ({groupExercises.length} exercices)
+                                                        </Badge>
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <div className="font-medium">
+                                                          <label className="text-xs text-muted-foreground mb-1 block">
+                                                            Séries communes
+                                                          </label>
+                                                          <Input
+                                                            value={exercise.series}
+                                                            onChange={(e) =>
+                                                              handleExerciseChange(
+                                                                session.id,
+                                                                exercise.id,
+                                                                "series",
+                                                                e.target.value,
+                                                              )
+                                                            }
+                                                            placeholder="ex: 3"
+                                                            disabled={isValidated}
+                                                            className="font-semibold bg-background"
+                                                          />
+                                                        </div>
+                                                      </TableCell>
+                                                      <TableCell colSpan={5}></TableCell>
+                                                    </TableRow>
+
+                                                    {/* Exercices du super-set */}
+                                                    {groupExercises.map((ex, exIndex) => {
+                                                      const nextExercise = groupExercises[exIndex + 1];
+                                                      const inGroup =
+                                                        nextExercise &&
+                                                        isInSameGroup(session.id, ex.id, nextExercise.id);
+
+                                                      return (
+                                                        <React.Fragment key={ex.id}>
+                                                          <TableRow className="bg-primary/5 border-l-4 border-l-primary">
+                                                            <TableCell>
+                                                              <div
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="exercice"
+                                                              >
+                                                                <ExerciseCombobox
+                                                                  value={ex.exercice}
+                                                                  onChange={(value) => {
+                                                                    handleExerciseChange(
+                                                                      session.id,
+                                                                      ex.id,
+                                                                      "exercice",
+                                                                      value,
+                                                                    );
+                                                                    setTimeout(() => {
+                                                                      const nextInput = document.querySelector(
+                                                                        `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="recuperation"]`,
+                                                                      ) as HTMLElement;
+                                                                      nextInput?.focus();
+                                                                      nextInput?.click();
+                                                                    }, 100);
+                                                                  }}
+                                                                  exercises={libraryExercises}
+                                                                  disabled={isValidated}
+                                                                />
+                                                              </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Select
+                                                                value={ex.recuperation}
+                                                                onValueChange={(value) => {
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "recuperation",
+                                                                    value,
+                                                                  );
+                                                                  setTimeout(() => {
+                                                                    const nextInput = document.querySelector(
+                                                                      `[data-session="${session.id}"][data-exercise="${ex.id}"][data-field="reps"]`,
+                                                                    ) as HTMLInputElement;
+                                                                    nextInput?.focus();
+                                                                  }, 100);
+                                                                }}
+                                                                disabled={isValidated}
+                                                              >
+                                                                <SelectTrigger
+                                                                  data-session={session.id}
+                                                                  data-exercise={ex.id}
+                                                                  data-field="recuperation"
+                                                                >
+                                                                  <SelectValue placeholder="Temps de récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {recuperationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value}>
+                                                                      {option.label}
+                                                                    </SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.reps}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "reps",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "reps")
+                                                                }
+                                                                placeholder="ex: 10"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="reps"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              {/* Case de série masquée pour les exercices du super-set */}
+                                                              <div className="text-center text-muted-foreground text-xs">
+                                                                (voir en-tête)
+                                                              </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.charge}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "charge",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "charge")
+                                                                }
+                                                                placeholder="ex: 80kg"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="charge"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.rpe}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "rpe",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "rpe")
+                                                                }
+                                                                placeholder="ex: 8"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="rpe"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.tempo}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "tempo",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "tempo")
+                                                                }
+                                                                placeholder="ex: 3010"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="tempo"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.commentaire}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "commentaire",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "commentaire")
+                                                                }
+                                                                placeholder="Notes..."
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="commentaire"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              {!isValidated && (
+                                                                <Button
+                                                                  variant="ghost"
+                                                                  size="sm"
+                                                                  onClick={() =>
+                                                                    handleDeleteExercise(session.id, ex.id)
+                                                                  }
+                                                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                                >
+                                                                  <X className="h-4 w-4" />
+                                                                </Button>
+                                                              )}
+                                                            </TableCell>
+                                                          </TableRow>
+
+                                                          {/* Bouton pour gérer les liens dans le super-set */}
+                                                          {exIndex < groupExercises.length - 1 && !isValidated && (
+                                                            <TableRow>
+                                                              <TableCell
+                                                                colSpan={9}
+                                                                className="p-0 h-6 relative group bg-primary/5 border-l-4 border-l-primary"
+                                                              >
+                                                                <div className="absolute inset-0 flex items-center justify-center">
+                                                                  <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                      handleToggleSuperSet(session.id, ex.id)
+                                                                    }
+                                                                    className="h-5 px-2 text-xs bg-destructive hover:bg-destructive/80"
+                                                                  >
+                                                                    <X className="h-3 w-3 mr-1" />
+                                                                    Séparer
+                                                                  </Button>
+                                                                </div>
+                                                              </TableCell>
+                                                            </TableRow>
+                                                          )}
+                                                        </React.Fragment>
+                                                      );
+                                                    })}
+
+                                                    {/* Séparateur visuel après le super-set */}
+                                                    <TableRow>
+                                                      <TableCell
+                                                        colSpan={9}
+                                                        className="p-0 h-2 bg-muted/30"
+                                                      ></TableCell>
+                                                    </TableRow>
+
+                                                    {/* Bouton pour ajouter au super-set si pas le dernier exercice */}
+                                                    {i + groupExercises.length < exercises.length && !isValidated && (
+                                                      <TableRow>
+                                                        <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                          <div className="absolute inset-0 flex items-center justify-center">
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={() =>
+                                                                handleToggleSuperSet(
+                                                                  session.id,
+                                                                  groupExercises[groupExercises.length - 1].id,
+                                                                )
+                                                              }
+                                                              className="h-6 px-3 opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                                            >
+                                                              <Plus className="h-3 w-3 mr-1" />
+                                                              Ajouter au super-set
+                                                            </Button>
+                                                          </div>
+                                                        </TableCell>
+                                                      </TableRow>
+                                                    )}
+                                                  </React.Fragment>,
+                                                );
+
+                                                i = j; // Passer au prochain exercice après le groupe
+                                              } else {
+                                                // Exercice normal (pas dans un super-set)
+                                                const nextExercise = exercises[i + 1];
+                                                const isLastExercise = i === exercises.length - 1;
+                                                const inGroup =
+                                                  nextExercise &&
+                                                  isInSameGroup(session.id, exercise.id, nextExercise.id);
+
+                                                result.push(
+                                                  <React.Fragment key={exercise.id}>
+                                                    <TableRow>
+                                                      <TableCell>
+                                                        <div
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="exercice"
+                                                        >
+                                                          <ExerciseCombobox
+                                                            value={exercise.exercice}
+                                                            onChange={(value) => {
+                                                              handleExerciseChange(
+                                                                session.id,
+                                                                exercise.id,
+                                                                "exercice",
+                                                                value,
+                                                              );
+                                                              setTimeout(() => {
+                                                                const nextInput = document.querySelector(
+                                                                  `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="recuperation"]`,
+                                                                ) as HTMLElement;
+                                                                nextInput?.focus();
+                                                                nextInput?.click();
+                                                              }, 100);
+                                                            }}
+                                                            exercises={libraryExercises}
+                                                            disabled={isValidated}
+                                                          />
+                                                        </div>
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Select
+                                                          value={exercise.recuperation}
+                                                          onValueChange={(value) => {
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "recuperation",
+                                                              value,
+                                                            );
+                                                            setTimeout(() => {
+                                                              const nextInput = document.querySelector(
+                                                                `[data-session="${session.id}"][data-exercise="${exercise.id}"][data-field="reps"]`,
+                                                              ) as HTMLInputElement;
+                                                              nextInput?.focus();
+                                                            }, 100);
+                                                          }}
+                                                          disabled={isValidated}
+                                                        >
+                                                          <SelectTrigger
+                                                            data-session={session.id}
+                                                            data-exercise={exercise.id}
+                                                            data-field="recuperation"
+                                                          >
+                                                            <SelectValue placeholder="Temps de récup" />
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            {recuperationOptions.map((option) => (
+                                                              <SelectItem key={option.value} value={option.value}>
+                                                                {option.label}
+                                                              </SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.reps}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "reps",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "reps")
+                                                          }
+                                                          placeholder="ex: 10"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="reps"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.series}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "series",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "series")
+                                                          }
+                                                          placeholder="ex: 3"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="series"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.charge}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "charge",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "charge")
+                                                          }
+                                                          placeholder="ex: 80kg"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="charge"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.rpe}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "rpe",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "rpe")
+                                                          }
+                                                          placeholder="ex: 8"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="rpe"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.tempo}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "tempo",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "tempo")
+                                                          }
+                                                          placeholder="ex: 3010"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="tempo"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.commentaire}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "commentaire",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "commentaire")
+                                                          }
+                                                          placeholder="Notes..."
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="commentaire"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        {!isValidated && (
+                                                          <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                              handleDeleteExercise(session.id, exercise.id)
+                                                            }
+                                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                          >
+                                                            <X className="h-4 w-4" />
+                                                          </Button>
+                                                        )}
+                                                      </TableCell>
+                                                    </TableRow>
+
+                                                    {/* Bouton pour créer un super-set */}
+                                                    {!isLastExercise && !isValidated && (
+                                                      <TableRow>
+                                                        <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                          <div className="absolute inset-0 flex items-center justify-center">
+                                                            <Button
+                                                              variant={inGroup ? "default" : "ghost"}
+                                                              size="sm"
+                                                              onClick={() =>
+                                                                handleToggleSuperSet(session.id, exercise.id)
+                                                              }
+                                                              className={`h-6 px-3 transition-all ${
+                                                                inGroup
+                                                                  ? "bg-primary hover:bg-primary/80"
+                                                                  : "opacity-0 group-hover:opacity-100 hover:bg-primary/10"
+                                                              }`}
+                                                            >
+                                                              <Plus className="h-3 w-3 mr-1" />
+                                                              Super-set
+                                                            </Button>
+                                                          </div>
+                                                        </TableCell>
+                                                      </TableRow>
+                                                    )}
+                                                  </React.Fragment>,
+                                                );
+
+                                                i++;
+                                              }
+                                            }
+
+                                            return result;
+                                          })()
+                                        )}
+                                      </TableBody>
+                                    </Table>
                                   </div>
-                                  
+
                                   {!isValidated && (
-                                    <Button
-                                      onClick={() => handleAddExercise(session.id)}
-                                      variant="outline"
-                                      size="sm"
-                                    >
+                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm">
                                       <Plus className="h-4 w-4 mr-2" />
                                       Ajouter une ligne
                                     </Button>
                                   )}
-                                 </>
-                               )}
-                             </div>
-                           </div>
-                         )}
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-                  
-              {!isValidated && sessions.length > 0 && (
-                <div className="mt-6 flex justify-end">
-                  <Button 
-                    onClick={handleValidate} 
-                    size="lg"
-                    disabled={!selectedWeekToProgram}
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    Valider la programmation
-                  </Button>
-                </div>
-              )}
-                  
+
+                  {!isValidated && sessions.length > 0 && (
+                    <div className="mt-6 flex justify-end">
+                      <Button onClick={handleValidate} size="lg" disabled={!selectedWeekToProgram}>
+                        <Check className="h-4 w-4 mr-2" />
+                        Valider la programmation
+                      </Button>
+                    </div>
+                  )}
+
                   {isValidated && (
                     <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
                       <p className="text-sm font-medium text-primary">
@@ -1779,9 +1972,7 @@ export default function ClientDetail() {
               <p className="text-muted-foreground">
                 Suivi des performances et de la progression de {athlete.first_name}.
               </p>
-              <p className="mt-4 text-sm text-muted-foreground">
-                Fonctionnalité en cours de développement...
-              </p>
+              <p className="mt-4 text-sm text-muted-foreground">Fonctionnalité en cours de développement...</p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1799,9 +1990,7 @@ export default function ClientDetail() {
               ) : (
                 <>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">
-                      Sélectionner une semaine
-                    </label>
+                    <label className="text-sm font-medium mb-2 block">Sélectionner une semaine</label>
                     <select
                       className="w-full p-2 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                       value={selectedHistoricalWeek?.id || ""}
@@ -1810,7 +1999,8 @@ export default function ClientDetail() {
                       <option value="">-- Choisir une semaine --</option>
                       {historicalWeeks.map((week) => (
                         <option key={week.id} value={week.id}>
-                          Semaine {week.week_number} - {week.year} (validée le {new Date(week.validated_at).toLocaleDateString()})
+                          Semaine {week.week_number} - {week.year} (validée le{" "}
+                          {new Date(week.validated_at).toLocaleDateString()})
                         </option>
                       ))}
                     </select>
@@ -1829,25 +2019,16 @@ export default function ClientDetail() {
                         </div>
                         <div className="flex gap-2">
                           {!isEditingHistorical ? (
-                            <Button
-                              onClick={handleStartEditingHistorical}
-                              variant="outline"
-                            >
+                            <Button onClick={handleStartEditingHistorical} variant="outline">
                               Modifier
                             </Button>
                           ) : (
                             <>
-                              <Button
-                                onClick={handleSaveHistoricalChanges}
-                                variant="default"
-                              >
+                              <Button onClick={handleSaveHistoricalChanges} variant="default">
                                 <Check className="h-4 w-4 mr-2" />
                                 Enregistrer
                               </Button>
-                              <Button
-                                onClick={handleCancelEditingHistorical}
-                                variant="outline"
-                              >
+                              <Button onClick={handleCancelEditingHistorical} variant="outline">
                                 Annuler
                               </Button>
                             </>
@@ -1881,7 +2062,7 @@ export default function ClientDetail() {
                                     placeholder="Nom de la séance"
                                     value={newHistoricalSessionName}
                                     onChange={(e) => setNewHistoricalSessionName(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddHistoricalSession()}
+                                    onKeyPress={(e) => e.key === "Enter" && handleAddHistoricalSession()}
                                   />
                                   <Button onClick={handleAddHistoricalSession} size="sm">
                                     <Plus className="h-4 w-4 mr-2" />
@@ -1911,9 +2092,7 @@ export default function ClientDetail() {
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline">
-                                  {session.session_exercises?.length || 0} exercices
-                                </Badge>
+                                <Badge variant="outline">{session.session_exercises?.length || 0} exercices</Badge>
                                 {isEditingHistorical && (
                                   <Button
                                     variant="ghost"
@@ -1938,7 +2117,8 @@ export default function ClientDetail() {
                                     <div>
                                       <span className="text-sm text-muted-foreground">Date de réalisation: </span>
                                       <span className="font-medium">
-                                        {new Date(session.completed_at).toLocaleDateString()} à {new Date(session.completed_at).toLocaleTimeString()}
+                                        {new Date(session.completed_at).toLocaleDateString()} à{" "}
+                                        {new Date(session.completed_at).toLocaleTimeString()}
                                       </span>
                                     </div>
                                   )}
@@ -1952,30 +2132,38 @@ export default function ClientDetail() {
 
                                 <div className="overflow-x-auto">
                                   <Table>
-                                     <TableHeader>
-                                       <TableRow>
-                                         <TableHead>Exercice</TableHead>
-                                         <TableHead>Récup</TableHead>
-                                         <TableHead>Reps</TableHead>
-                                         <TableHead>Séries</TableHead>
-                                         <TableHead>Charge</TableHead>
-                                         <TableHead>RPE prescrit</TableHead>
-                                         <TableHead>RPE ressenti</TableHead>
-                                         <TableHead>Tempo</TableHead>
-                                         <TableHead>Commentaire coach</TableHead>
-                                         <TableHead>Retour sportif</TableHead>
-                                         {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
-                                       </TableRow>
-                                     </TableHeader>
+                                    <TableHeader>
+                                      <TableRow>
+                                        <TableHead>Exercice</TableHead>
+                                        <TableHead>Récup</TableHead>
+                                        <TableHead>Reps</TableHead>
+                                        <TableHead>Séries</TableHead>
+                                        <TableHead>Charge</TableHead>
+                                        <TableHead>RPE prescrit</TableHead>
+                                        <TableHead>RPE ressenti</TableHead>
+                                        <TableHead>Tempo</TableHead>
+                                        <TableHead>Commentaire coach</TableHead>
+                                        <TableHead>Retour sportif</TableHead>
+                                        {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                      </TableRow>
+                                    </TableHeader>
                                     <TableBody>
-                                      {editedHistoricalExercises[session.id] && editedHistoricalExercises[session.id].length > 0 ? (
+                                      {editedHistoricalExercises[session.id] &&
+                                      editedHistoricalExercises[session.id].length > 0 ? (
                                         editedHistoricalExercises[session.id].map((exercise: any) => (
                                           <TableRow key={exercise.id}>
                                             <TableCell>
                                               {isEditingHistorical ? (
                                                 <ExerciseCombobox
                                                   value={exercise.exercice}
-                                                  onChange={(value) => handleHistoricalExerciseChange(session.id, exercise.id, "exercice", value)}
+                                                  onChange={(value) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "exercice",
+                                                      value,
+                                                    )
+                                                  }
                                                   exercises={libraryExercises}
                                                 />
                                               ) : (
@@ -1986,7 +2174,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Select
                                                   value={exercise.recuperation}
-                                                  onValueChange={(value) => handleHistoricalExerciseChange(session.id, exercise.id, "recuperation", value)}
+                                                  onValueChange={(value) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "recuperation",
+                                                      value,
+                                                    )
+                                                  }
                                                 >
                                                   <SelectTrigger>
                                                     <SelectValue placeholder="Récup" />
@@ -2007,7 +2202,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.reps}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "reps", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "reps",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="ex: 10"
                                                 />
                                               ) : (
@@ -2018,7 +2220,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.series}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "series", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "series",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="ex: 3"
                                                 />
                                               ) : (
@@ -2029,7 +2238,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.charge}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "charge", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "charge",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="ex: 80kg"
                                                 />
                                               ) : (
@@ -2040,7 +2256,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.rpe}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "rpe", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "rpe",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="ex: 7"
                                                 />
                                               ) : (
@@ -2049,7 +2272,13 @@ export default function ClientDetail() {
                                             </TableCell>
                                             <TableCell>
                                               <div className="space-y-1">
-                                                <div className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
+                                                <div
+                                                  className={
+                                                    exercise.sportif_rpe
+                                                      ? "font-medium text-primary"
+                                                      : "text-muted-foreground"
+                                                  }
+                                                >
                                                   {exercise.sportif_rpe || "-"}
                                                 </div>
                                                 {exercise.sportif_feedback_at && (
@@ -2063,7 +2292,14 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.tempo}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "tempo", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "tempo",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="ex: 3010"
                                                 />
                                               ) : (
@@ -2074,60 +2310,72 @@ export default function ClientDetail() {
                                               {isEditingHistorical ? (
                                                 <Input
                                                   value={exercise.commentaire}
-                                                  onChange={(e) => handleHistoricalExerciseChange(session.id, exercise.id, "commentaire", e.target.value)}
+                                                  onChange={(e) =>
+                                                    handleHistoricalExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "commentaire",
+                                                      e.target.value,
+                                                    )
+                                                  }
                                                   placeholder="Notes..."
                                                 />
                                               ) : (
                                                 exercise.commentaire || "-"
                                               )}
                                             </TableCell>
-                                             <TableCell>
-                                               {exercise.sportif_comment ? (
-                                                 <div className="max-w-xs">
-                                                   <p className="text-sm whitespace-pre-wrap">{exercise.sportif_comment}</p>
-                                                 </div>
-                                               ) : (
-                                                 <span className="text-muted-foreground">-</span>
-                                               )}
-                                             </TableCell>
-                                             {isEditingHistorical && (
-                                               <TableCell>
-                                                 <Button
-                                                   variant="ghost"
-                                                   size="sm"
-                                                   onClick={() => handleDeleteHistoricalExercise(exercise.id)}
-                                                   className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                 >
-                                                   <X className="h-4 w-4" />
-                                                 </Button>
-                                               </TableCell>
-                                             )}
-                                           </TableRow>
+                                            <TableCell>
+                                              {exercise.sportif_comment ? (
+                                                <div className="max-w-xs">
+                                                  <p className="text-sm whitespace-pre-wrap">
+                                                    {exercise.sportif_comment}
+                                                  </p>
+                                                </div>
+                                              ) : (
+                                                <span className="text-muted-foreground">-</span>
+                                              )}
+                                            </TableCell>
+                                            {isEditingHistorical && (
+                                              <TableCell>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleDeleteHistoricalExercise(exercise.id)}
+                                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                >
+                                                  <X className="h-4 w-4" />
+                                                </Button>
+                                              </TableCell>
+                                            )}
+                                          </TableRow>
                                         ))
-                                       ) : (
-                                         <TableRow>
-                                           <TableCell colSpan={isEditingHistorical ? 11 : 10} className="text-center text-muted-foreground">
-                                             Aucun exercice
-                                           </TableCell>
-                                         </TableRow>
-                                       )}
-                                     </TableBody>
-                                   </Table>
-                                 </div>
-                                 
-                                 {isEditingHistorical && (
-                                   <div className="mt-3">
-                                     <Button
-                                       onClick={() => handleAddHistoricalExercise(session.id)}
-                                       variant="outline"
-                                       size="sm"
-                                     >
-                                       <Plus className="h-4 w-4 mr-2" />
-                                       Ajouter un exercice
-                                     </Button>
-                                   </div>
-                                 )}
-                               </div>
+                                      ) : (
+                                        <TableRow>
+                                          <TableCell
+                                            colSpan={isEditingHistorical ? 11 : 10}
+                                            className="text-center text-muted-foreground"
+                                          >
+                                            Aucun exercice
+                                          </TableCell>
+                                        </TableRow>
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+
+                                {isEditingHistorical && (
+                                  <div className="mt-3">
+                                    <Button
+                                      onClick={() => handleAddHistoricalExercise(session.id)}
+                                      variant="outline"
+                                      size="sm"
+                                    >
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Ajouter un exercice
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         ))}
@@ -2147,15 +2395,14 @@ export default function ClientDetail() {
           <DialogHeader>
             <DialogTitle>Copier une semaine précédente</DialogTitle>
             <DialogDescription>
-              Sélectionnez une semaine à copier. Vous pourrez voir les retours du sportif et modifier les exercices avant validation.
+              Sélectionnez une semaine à copier. Vous pourrez voir les retours du sportif et modifier les exercices
+              avant validation.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
-                Sélectionner une semaine
-              </label>
+              <label className="text-sm font-medium mb-2 block">Sélectionner une semaine</label>
               <select
                 className="w-full p-2 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                 value={selectedWeekToCopy}
@@ -2164,7 +2411,8 @@ export default function ClientDetail() {
                 <option value="">-- Choisir une semaine --</option>
                 {historicalWeeks.map((week) => (
                   <option key={week.id} value={week.id}>
-                    Semaine {week.week_number} - {week.year} (validée le {new Date(week.validated_at).toLocaleDateString()})
+                    Semaine {week.week_number} - {week.year} (validée le{" "}
+                    {new Date(week.validated_at).toLocaleDateString()})
                   </option>
                 ))}
               </select>
@@ -2218,11 +2466,14 @@ export default function ClientDetail() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowCopyDialog(false);
-              setSelectedWeekToCopy("");
-              setWeekToCopyData(null);
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCopyDialog(false);
+                setSelectedWeekToCopy("");
+                setWeekToCopyData(null);
+              }}
+            >
               Annuler
             </Button>
             <Button onClick={handleCopyFromWeek} disabled={!selectedWeekToCopy}>
