@@ -18,6 +18,27 @@ export default function SeanceDetail() {
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  // --- Restaurer l’état du timer depuis localStorage ---
+  useEffect(() => {
+    const savedTimer = localStorage.getItem(`session_timer_${sessionId}`);
+    if (savedTimer) {
+      const { startTime, duration, isActive } = JSON.parse(savedTimer);
+      if (isActive) {
+        setSessionStartTime(startTime);
+        setIsSessionActive(true);
+
+        // Recalcule le temps écoulé
+        const elapsed = Math.floor((Date.now() - startTime) / 1000) + duration;
+        setSessionDuration(elapsed);
+
+        // Relance le timer
+        const interval = setInterval(() => {
+          setSessionDuration(Math.floor((Date.now() - startTime) / 1000) + duration);
+        }, 1000);
+        setTimerInterval(interval);
+      }
+    }
+  }, [sessionId]);
 
   useEffect(() => {
     loadSessionDetail();
@@ -31,15 +52,29 @@ export default function SeanceDetail() {
     };
   }, [timerInterval]);
 
+  // --- Sauvegarder le timer dans localStorage ---
+  useEffect(() => {
+    localStorage.setItem(
+      `session_timer_${sessionId}`,
+      JSON.stringify({
+        startTime: sessionStartTime,
+        duration: sessionDuration,
+        isActive: isSessionActive,
+      }),
+    );
+  }, [sessionStartTime, sessionDuration, isSessionActive, sessionId]);
+
   const loadSessionDetail = async () => {
     setLoading(true);
-    
+
     const { data: sessionData, error: sessionError } = await supabase
       .from("training_sessions")
-      .select(`
+      .select(
+        `
         *,
         session_exercises (*)
-      `)
+      `,
+      )
       .eq("id", sessionId)
       .single();
 
@@ -47,27 +82,29 @@ export default function SeanceDetail() {
       console.error("Erreur lors du chargement de la séance:", sessionError);
     } else {
       setSession(sessionData);
-      const sortedExercises = sessionData.session_exercises?.sort(
-        (a: any, b: any) => a.exercise_order - b.exercise_order
-      ) || [];
-      
+      const sortedExercises =
+        sessionData.session_exercises?.sort((a: any, b: any) => a.exercise_order - b.exercise_order) || [];
+
       // Debug: vérifier les groupes de super-set chargés
       try {
-        console.log("[SeanceDetail] session:", sessionId, "exercises:", sortedExercises.map((e: any) => ({ id: e.id, order: e.exercise_order, super_set_group: e.super_set_group })));
+        console.log(
+          "[SeanceDetail] session:",
+          sessionId,
+          "exercises:",
+          sortedExercises.map((e: any) => ({ id: e.id, order: e.exercise_order, super_set_group: e.super_set_group })),
+        );
       } catch {}
-      
+
       // Grouper les exercices par superset
       const groupedExercises: any[] = [];
       const processedIds = new Set<string>();
-      
+
       sortedExercises.forEach((exercise: any) => {
         if (processedIds.has(exercise.id)) return;
-        
+
         if (exercise.super_set_group) {
           // Trouver tous les exercices du même superset
-          const supersetExercises = sortedExercises.filter(
-            (e: any) => e.super_set_group === exercise.super_set_group
-          );
+          const supersetExercises = sortedExercises.filter((e: any) => e.super_set_group === exercise.super_set_group);
           groupedExercises.push({
             isSuperset: true,
             super_set_group: exercise.super_set_group,
@@ -82,10 +119,10 @@ export default function SeanceDetail() {
           processedIds.add(exercise.id);
         }
       });
-      
+
       setExercises(groupedExercises);
     }
-    
+
     setLoading(false);
   };
 
@@ -125,12 +162,12 @@ export default function SeanceDetail() {
 
     const { data, error, status } = await supabase
       .from("training_sessions")
-      .update({ 
+      .update({
         duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
       })
       .eq("id", sessionId)
-      .select('id, duration_minutes, completed_at')
+      .select("id, duration_minutes, completed_at")
       .maybeSingle();
 
     if (error) {
@@ -147,6 +184,21 @@ export default function SeanceDetail() {
       });
     }
   };
+  // --- Arrêter automatiquement la séance quand tout est terminé ---
+  useEffect(() => {
+    if (isSessionActive && exercises.length > 0) {
+      const allDone = exercises.every((ex: any) => {
+        if (ex.isSuperset) {
+          return ex.exercises.every((e: any) => e.sportif_rpe !== null);
+        }
+        return ex.sportif_rpe !== null;
+      });
+
+      if (allDone) {
+        endSession();
+      }
+    }
+  }, [exercises, isSessionActive]);
 
   if (loading) {
     return (
@@ -159,7 +211,7 @@ export default function SeanceDetail() {
   if (!session) {
     return (
       <div className="min-h-screen p-4">
-        <Button variant="ghost" onClick={() => navigate('/sportif/seances')}>
+        <Button variant="ghost" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
@@ -171,7 +223,7 @@ export default function SeanceDetail() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="sticky top-0 z-10 bg-background border-b p-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/sportif/seances')}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
@@ -181,9 +233,7 @@ export default function SeanceDetail() {
         <div>
           <h1 className="text-2xl font-bold">{session.name}</h1>
           <div className="flex items-center gap-2 mt-2">
-            <Badge variant="outline">
-              {exercises.length} exercices
-            </Badge>
+            <Badge variant="outline">{exercises.length} exercices</Badge>
             {isSessionActive && (
               <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30">
                 {formatDuration(sessionDuration)}
@@ -210,9 +260,7 @@ export default function SeanceDetail() {
           {exercises.length === 0 ? (
             <Card>
               <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">
-                  Aucun exercice pour cette séance
-                </p>
+                <p className="text-center text-muted-foreground">Aucun exercice pour cette séance</p>
               </CardContent>
             </Card>
           ) : (
@@ -220,14 +268,12 @@ export default function SeanceDetail() {
               if (item.isSuperset) {
                 // Vérifier si tous les exercices du superset sont terminés
                 const isCompleted = item.exercises.every((ex: any) => ex.sportif_rpe !== null);
-                
+
                 return (
                   <Card
                     key={item.super_set_group}
                     className={`cursor-pointer hover:border-primary transition-colors border-2 ${
-                      isCompleted 
-                        ? 'border-green-500/50 bg-green-500/5' 
-                        : 'border-orange-500/50 bg-orange-500/5'
+                      isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
                     onClick={() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
                   >
@@ -261,12 +307,12 @@ export default function SeanceDetail() {
               } else {
                 // Vérifier si l'exercice est terminé
                 const isCompleted = item.sportif_rpe !== null;
-                
+
                 return (
                   <Card
                     key={item.id}
                     className={`cursor-pointer hover:border-primary transition-colors ${
-                      isCompleted ? 'border-green-500/30 bg-green-500/5' : ''
+                      isCompleted ? "border-green-500/30 bg-green-500/5" : ""
                     }`}
                     onClick={() => navigate(`/sportif/exercice/${item.id}`)}
                   >
@@ -285,15 +331,9 @@ export default function SeanceDetail() {
                             )}
                           </div>
                           <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
-                            {item.series && (
-                              <span>{item.series} séries</span>
-                            )}
-                            {item.reps && (
-                              <span>• {item.reps} reps</span>
-                            )}
-                            {item.charge && (
-                              <span>• {item.charge}</span>
-                            )}
+                            {item.series && <span>{item.series} séries</span>}
+                            {item.reps && <span>• {item.reps} reps</span>}
+                            {item.charge && <span>• {item.charge}</span>}
                           </div>
                         </div>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
