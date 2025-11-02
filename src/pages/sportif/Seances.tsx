@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronRight, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function Seances() {
@@ -31,7 +31,6 @@ export default function Seances() {
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
     } else {
-      // Filtrer pour ne garder que les semaines en cours ou passées
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentWeekNumber = getWeekNumber(now);
@@ -51,7 +50,6 @@ export default function Seances() {
     setLoading(false);
   };
 
-  // Calcule la semaine ISO (lundi = début de semaine)
   const getWeekNumber = (date: Date): number => {
     const newDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const dayNum = newDate.getUTCDay() || 7;
@@ -76,17 +74,16 @@ export default function Seances() {
     if (sessionsError) {
       console.error("Erreur lors du chargement des séances:", sessionsError);
     } else {
-      // Trier les séances : non terminées en premier, puis terminées
       const sorted = (sessionsData || []).sort((a: any, b: any) => {
         const aCompleted = isSessionCompleted(a);
         const bCompleted = isSessionCompleted(b);
-        
+
         if (aCompleted === bCompleted) {
           return a.session_number - b.session_number;
         }
         return aCompleted ? 1 : -1;
       });
-      
+
       setSessions(sorted);
     }
   };
@@ -97,7 +94,6 @@ export default function Seances() {
     loadWeekSessions(weekId);
   };
 
-  // 🔍 Vérifie si une séance est terminée (tous les exos ont leur feedback rempli)
   const isSessionCompleted = (session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
     return session.session_exercises.every((ex: any) => ex.sportif_rpe !== null && ex.sportif_rpe !== undefined);
@@ -118,7 +114,7 @@ export default function Seances() {
           <h1 className="text-3xl font-bold">Tes séances</h1>
           <p className="text-muted-foreground mt-2">{firstName}, voici ton programme personnalisé</p>
         </div>
-        
+
         {weeks.length > 0 && (
           <div className="flex flex-col items-end gap-1 min-w-[140px]">
             <label className="text-xs text-muted-foreground">Semaine</label>
@@ -158,16 +154,16 @@ export default function Seances() {
               sessions.map((session, index) => {
                 const completed = isSessionCompleted(session);
                 const isFirstToDo = index === 0 && !completed;
-                
+
                 return (
                   <Card
                     key={session.id}
                     className={`cursor-pointer transition-all ${
-                      completed 
-                        ? "border-green-500 bg-green-500/10" 
-                        : isFirstToDo 
-                        ? "border-primary border-2 bg-primary/5 animate-pulse shadow-lg" 
-                        : "hover:border-primary hover:shadow-md"
+                      completed
+                        ? "border-green-500 bg-green-500/10"
+                        : isFirstToDo
+                          ? "border-primary border-2 bg-primary/5 animate-pulse shadow-lg"
+                          : "hover:border-primary hover:shadow-md"
                     }`}
                     onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
                   >
@@ -175,23 +171,33 @@ export default function Seances() {
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-bold text-2xl">
+                            <h3 className="font-bold text-2xl flex items-center gap-2">
                               {session.name}
+                              {completed && (
+                                <div className="flex items-center gap-1 text-green-500 text-sm font-normal">
+                                  <CheckCircle2 className="h-5 w-5" />
+                                  {session.duration_minutes && (
+                                    <span className="flex items-center gap-1 text-green-400 text-xs">
+                                      <Clock className="h-4 w-4" />
+                                      {session.duration_minutes} min
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </h3>
+
                             {isFirstToDo && (
                               <Badge variant="default" className="bg-primary text-primary-foreground animate-bounce">
                                 À faire
                               </Badge>
                             )}
-                            {completed && <CheckCircle2 className="text-green-500 h-6 w-6" />}
                           </div>
-                          <Badge 
-                            variant={completed ? "secondary" : "outline"} 
-                            className="text-sm px-3 py-1"
-                          >
+
+                          <Badge variant={completed ? "secondary" : "outline"} className="text-sm px-3 py-1">
                             {session.session_exercises?.length || 0} exercices
                           </Badge>
                         </div>
+
                         <ChevronRight
                           className={`h-7 w-7 ${
                             completed ? "text-green-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
