@@ -101,10 +101,29 @@ export default function Seances() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Tes séances</h1>
-        <p className="text-muted-foreground mt-2">{firstName}, voici ton programme d'entraînement personnalisé</p>
+    <div className="space-y-4 pb-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-3xl font-bold">Tes séances</h1>
+          <p className="text-muted-foreground mt-2">{firstName}, voici ton programme personnalisé</p>
+        </div>
+        
+        {weeks.length > 0 && (
+          <div className="flex flex-col items-end gap-1 min-w-[140px]">
+            <label className="text-xs text-muted-foreground">Semaine</label>
+            <select
+              className="text-sm p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-1 focus:ring-ring"
+              value={selectedWeek?.id || ""}
+              onChange={(e) => handleWeekChange(e.target.value)}
+            >
+              {weeks.map((week) => (
+                <option key={week.id} value={week.id}>
+                  S{week.week_number} - {week.year}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {weeks.length === 0 ? (
@@ -119,69 +138,47 @@ export default function Seances() {
           </CardContent>
         </Card>
       ) : (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Sélectionner une semaine</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <select
-                className="w-full p-3 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                value={selectedWeek?.id || ""}
-                onChange={(e) => handleWeekChange(e.target.value)}
-              >
-                {weeks.map((week) => (
-                  <option key={week.id} value={week.id}>
-                    Semaine {week.week_number} - {week.year}
-                  </option>
-                ))}
-              </select>
-            </CardContent>
-          </Card>
-
-          {selectedWeek && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Semaine d'entraînement n°{selectedWeek.week_number}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {sessions.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
-                ) : (
-                  sessions.map((session) => {
-                    const completed = isSessionCompleted(session);
-                    return (
-                      <Card
-                        key={session.id}
-                        className={`cursor-pointer transition-colors ${
-                          completed ? "border-green-500 bg-green-500/10" : "hover:border-primary"
-                        }`}
-                        onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-lg flex items-center gap-2">
-                                {session.name}
-                                {completed && <CheckCircle2 className="text-green-500 h-5 w-5" />}
-                              </h3>
-                              <Badge variant={completed ? "secondary" : "outline"} className="mt-1">
-                                {session.session_exercises?.length || 0} exercices
-                              </Badge>
-                            </div>
-                            <ChevronRight
-                              className={`h-5 w-5 ${completed ? "text-green-500" : "text-muted-foreground"}`}
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </>
+        selectedWeek && (
+          <div className="space-y-3">
+            <h2 className="text-xl font-semibold">Semaine {selectedWeek.week_number}</h2>
+            {sessions.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
+            ) : (
+              sessions.map((session) => {
+                const completed = isSessionCompleted(session);
+                return (
+                  <Card
+                    key={session.id}
+                    className={`cursor-pointer transition-all ${
+                      completed ? "border-green-500 bg-green-500/10" : "hover:border-primary hover:shadow-md"
+                    }`}
+                    onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-2xl flex items-center gap-3 mb-2">
+                            {session.name}
+                            {completed && <CheckCircle2 className="text-green-500 h-6 w-6" />}
+                          </h3>
+                          <Badge 
+                            variant={completed ? "secondary" : "outline"} 
+                            className="text-sm px-3 py-1"
+                          >
+                            {session.session_exercises?.length || 0} exercices
+                          </Badge>
+                        </div>
+                        <ChevronRight
+                          className={`h-7 w-7 ${completed ? "text-green-500" : "text-muted-foreground"}`}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </div>
+        )
       )}
     </div>
   );
