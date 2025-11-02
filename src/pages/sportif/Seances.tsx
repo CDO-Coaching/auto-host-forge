@@ -86,10 +86,10 @@ export default function Seances() {
     loadWeekSessions(weekId);
   };
 
-  // 🔍 Vérifie si une séance est terminée (tous les exos ont completed_at ou done)
+  // 🔍 Vérifie si une séance est terminée (tous les exos ont sportif_feedback_at)
   const isSessionCompleted = (session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
-    return session.session_exercises.every((ex: any) => ex.completed_at || ex.done === true);
+    return session.session_exercises.every((ex: any) => ex.sportif_feedback_at !== null);
   };
 
   if (loading) {
