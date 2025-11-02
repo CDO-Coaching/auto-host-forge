@@ -76,7 +76,18 @@ export default function Seances() {
     if (sessionsError) {
       console.error("Erreur lors du chargement des séances:", sessionsError);
     } else {
-      setSessions(sessionsData || []);
+      // Trier les séances : non terminées en premier, puis terminées
+      const sorted = (sessionsData || []).sort((a: any, b: any) => {
+        const aCompleted = isSessionCompleted(a);
+        const bCompleted = isSessionCompleted(b);
+        
+        if (aCompleted === bCompleted) {
+          return a.session_number - b.session_number;
+        }
+        return aCompleted ? 1 : -1;
+      });
+      
+      setSessions(sorted);
     }
   };
 
@@ -144,23 +155,36 @@ export default function Seances() {
             {sessions.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
             ) : (
-              sessions.map((session) => {
+              sessions.map((session, index) => {
                 const completed = isSessionCompleted(session);
+                const isFirstToDo = index === 0 && !completed;
+                
                 return (
                   <Card
                     key={session.id}
                     className={`cursor-pointer transition-all ${
-                      completed ? "border-green-500 bg-green-500/10" : "hover:border-primary hover:shadow-md"
+                      completed 
+                        ? "border-green-500 bg-green-500/10" 
+                        : isFirstToDo 
+                        ? "border-primary border-2 bg-primary/5 animate-pulse shadow-lg" 
+                        : "hover:border-primary hover:shadow-md"
                     }`}
                     onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
                   >
                     <CardContent className="p-5">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <h3 className="font-bold text-2xl flex items-center gap-3 mb-2">
-                            {session.name}
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-bold text-2xl">
+                              {session.name}
+                            </h3>
+                            {isFirstToDo && (
+                              <Badge variant="default" className="bg-primary text-primary-foreground animate-bounce">
+                                À faire
+                              </Badge>
+                            )}
                             {completed && <CheckCircle2 className="text-green-500 h-6 w-6" />}
-                          </h3>
+                          </div>
                           <Badge 
                             variant={completed ? "secondary" : "outline"} 
                             className="text-sm px-3 py-1"
@@ -169,7 +193,9 @@ export default function Seances() {
                           </Badge>
                         </div>
                         <ChevronRight
-                          className={`h-7 w-7 ${completed ? "text-green-500" : "text-muted-foreground"}`}
+                          className={`h-7 w-7 ${
+                            completed ? "text-green-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
+                          }`}
                         />
                       </div>
                     </CardContent>
