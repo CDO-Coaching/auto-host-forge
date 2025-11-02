@@ -3,13 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Plus, Minus, Play, Pause, RotateCcw, ExternalLink, Video, Zap, Weight, Repeat, Clock } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -20,11 +18,10 @@ export default function ExerciceDetail() {
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
-  const [sportifComment, setSportifComment] = useState("");
-  const [sportifRpe, setSportifRpe] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,8 +62,6 @@ export default function ExerciceDetail() {
           .maybeSingle();
         if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
       }
-      setSportifComment(data.sportif_comment || "");
-      setSportifRpe(data.sportif_rpe ? String(data.sportif_rpe) : "");
       // Initialiser le timer avec le temps de récupération
       if (data.recuperation) {
         setTimeRemaining(parseRecuperationTime(data.recuperation));
@@ -156,22 +151,13 @@ export default function ExerciceDetail() {
     }
   };
 
-  const saveSportifFeedback = async () => {
-    const rpeValue = sportifRpe ? parseInt(sportifRpe) : null;
-    
-    if (rpeValue !== null && (rpeValue < 1 || rpeValue > 10)) {
-      toast({
-        title: "Erreur",
-        description: "Le RPE doit être entre 1 et 10",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleValidateFeedback = async (rpe: string, comment: string) => {
+    const rpeValue = rpe ? parseInt(rpe) : null;
 
     const { error } = await supabase
       .from("session_exercises")
       .update({
-        sportif_comment: sportifComment.trim() || null,
+        sportif_comment: comment.trim() || null,
         sportif_rpe: rpeValue,
         sportif_feedback_at: new Date().toISOString(),
       })
@@ -184,23 +170,30 @@ export default function ExerciceDetail() {
         description: "Impossible de sauvegarder vos données",
         variant: "destructive",
       });
+      throw error;
     } else {
       toast({
         title: "Enregistré !",
-        description: "Vos retours ont été sauvegardés",
+        description: "Ton retour a été sauvegardé",
       });
       
+      setDialogOpen(false);
+      
       // Rediriger vers la page de la séance
-      if (weekId && sessionId) {
-        setTimeout(() => {
+      setTimeout(() => {
+        if (weekId && sessionId) {
           navigate(`/sportif/seance/${weekId}/${sessionId}`);
-        }, 500);
-      } else if (sessionId) {
-        setTimeout(() => {
+        } else if (sessionId) {
           navigate(`/sportif/seance/${sessionId}`);
-        }, 500);
-      }
+        } else {
+          navigate("/sportif/seances");
+        }
+      }, 500);
     }
+  };
+
+  const handleCancelFeedback = () => {
+    setDialogOpen(false);
   };
 
   if (loading) {
@@ -221,10 +214,6 @@ export default function ExerciceDetail() {
   if (!exercise) {
     return (
       <div className="min-h-screen p-4">
-        <Button variant="ghost" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
-        </Button>
         <p className="text-center text-muted-foreground mt-8">Exercice introuvable</p>
       </div>
     );
@@ -243,14 +232,15 @@ export default function ExerciceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 bg-background border-b px-3 py-2">
-        <Button variant="ghost" size="sm" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour
-        </Button>
-      </div>
+      <ExerciseFeedbackDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onValidate={handleValidateFeedback}
+        onCancel={handleCancelFeedback}
+        exerciseName={exercise?.exercice}
+      />
 
-      <div className="h-[calc(100vh-60px)] overflow-hidden flex flex-col p-3">
+      <div className="h-screen overflow-hidden flex flex-col p-3">
         {/* En-tête exercice - compact */}
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-lg font-bold flex-1">{exercise.exercice}</h1>
@@ -396,41 +386,14 @@ export default function ExerciceDetail() {
           )}
         </div>
 
-        {/* Retours du sportif - compact et au bas */}
-        <Card className="p-3">
-          <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
-            <div className="space-y-1">
-              <Label htmlFor="sportif-rpe" className="text-xs">RPE (1-10)</Label>
-              <Input
-                id="sportif-rpe"
-                type="number"
-                min="1"
-                max="10"
-                placeholder="1-10"
-                value={sportifRpe}
-                onChange={(e) => setSportifRpe(e.target.value)}
-                className="h-8 text-sm"
-              />
-            </div>
-            <Button 
-              onClick={saveSportifFeedback}
-              size="sm"
-              className="h-8"
-            >
-              Enregistrer
-            </Button>
-          </div>
-          <div className="space-y-1 mt-2">
-            <Label htmlFor="sportif-comment" className="text-xs">Commentaire</Label>
-            <Textarea
-              id="sportif-comment"
-              placeholder="Ton retour..."
-              value={sportifComment}
-              onChange={(e) => setSportifComment(e.target.value)}
-              className="min-h-[50px] text-sm resize-none"
-            />
-          </div>
-        </Card>
+        {/* Bouton exercice terminé */}
+        <Button 
+          onClick={() => setDialogOpen(true)}
+          size="lg"
+          className="w-full mt-2"
+        >
+          Exercice terminé
+        </Button>
       </div>
     </div>
   );

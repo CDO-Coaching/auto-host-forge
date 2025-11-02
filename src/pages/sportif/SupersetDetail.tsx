@@ -3,12 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Timer, Minus, Plus } from "lucide-react";
+import { Timer, Minus, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -20,9 +19,9 @@ export default function SupersetDetail() {
   const [timers, setTimers] = useState<{ [key: string]: number }>({});
   const [timerIntervals, setTimerIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
   const [isTimerRunning, setIsTimerRunning] = useState<{ [key: string]: boolean }>({});
-  const [globalFeedback, setGlobalFeedback] = useState({ rpe: "", comments: "" });
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     loadSupersetExercises();
@@ -83,14 +82,6 @@ export default function SupersetDetail() {
         }
       }
       setVideoUrls(urls);
-
-      // Charger le feedback du premier exercice comme feedback global
-      if (data && data.length > 0) {
-        setGlobalFeedback({
-          rpe: data[0].sportif_rpe ? String(data[0].sportif_rpe) : "",
-          comments: data[0].sportif_comment || "",
-        });
-      }
 
       setTimers(initialTimers);
       setIsTimerRunning(initialRunning);
@@ -167,17 +158,8 @@ export default function SupersetDetail() {
     }
   };
 
-  const saveGlobalFeedback = async () => {
-    const rpeValue = globalFeedback.rpe.trim();
-
-    if (rpeValue && (isNaN(Number(rpeValue)) || Number(rpeValue) < 0 || Number(rpeValue) > 10)) {
-      toast({
-        title: "RPE invalide",
-        description: "Le RPE doit être un nombre entre 0 et 10",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleValidateFeedback = async (rpe: string, comment: string) => {
+    const rpeValue = rpe ? Number(rpe) : null;
 
     try {
       // Sauvegarder le même feedback pour chaque exercice du superset
@@ -185,8 +167,8 @@ export default function SupersetDetail() {
         const { error } = await supabase
           .from("session_exercises")
           .update({
-            sportif_rpe: rpeValue ? Number(rpeValue) : null,
-            sportif_comment: globalFeedback.comments || null,
+            sportif_rpe: rpeValue,
+            sportif_comment: comment.trim() || null,
           })
           .eq("id", exercise.id);
 
@@ -197,7 +179,7 @@ export default function SupersetDetail() {
             description: `Impossible de sauvegarder le retour: ${error.message}`,
             variant: "destructive",
           });
-          return;
+          throw error;
         }
       }
 
@@ -205,6 +187,8 @@ export default function SupersetDetail() {
         title: "Retour enregistré",
         description: "Ton retour a été sauvegardé pour tous les exercices du superset",
       });
+
+      setDialogOpen(false);
 
       // Rediriger vers la page de la séance
       setTimeout(() => {
@@ -223,7 +207,12 @@ export default function SupersetDetail() {
         description: "Une erreur est survenue lors de la sauvegarde",
         variant: "destructive",
       });
+      throw error;
     }
+  };
+
+  const handleCancelFeedback = () => {
+    setDialogOpen(false);
   };
 
   if (loading) {
@@ -238,13 +227,17 @@ export default function SupersetDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-4">
+      <ExerciseFeedbackDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onValidate={handleValidateFeedback}
+        onCancel={handleCancelFeedback}
+        exerciseName="ce superset"
+      />
+
       {/* Header compact */}
       <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="p-2 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Retour
-          </Button>
+        <div className="p-2 flex justify-center">
           <Badge className="bg-orange-500 text-white">Superset</Badge>
         </div>
       </div>
@@ -380,55 +373,14 @@ export default function SupersetDetail() {
           );
         })}
 
-        {/* Feedback global en bas */}
-        <Card className="border-2 border-primary">
-          <CardHeader className="pb-2">
-            <h3 className="text-sm font-semibold">Ton retour sur le superset</h3>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div>
-              <Label htmlFor="global-rpe" className="text-xs text-muted-foreground">
-                RPE ressenti (0-10)
-              </Label>
-              <Input
-                id="global-rpe"
-                type="number"
-                min="0"
-                max="10"
-                placeholder="Ex: 8"
-                className="h-9"
-                value={globalFeedback.rpe}
-                onChange={(e) =>
-                  setGlobalFeedback({
-                    ...globalFeedback,
-                    rpe: e.target.value,
-                  })
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="global-comments" className="text-xs text-muted-foreground">
-                Commentaires
-              </Label>
-              <Textarea
-                id="global-comments"
-                placeholder="Comment s'est passé ce superset ?"
-                className="text-sm"
-                value={globalFeedback.comments}
-                onChange={(e) =>
-                  setGlobalFeedback({
-                    ...globalFeedback,
-                    comments: e.target.value,
-                  })
-                }
-                rows={3}
-              />
-            </div>
-            <Button onClick={saveGlobalFeedback} className="w-full">
-              Enregistrer mon retour
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Bouton superset terminé */}
+        <Button 
+          onClick={() => setDialogOpen(true)}
+          size="lg"
+          className="w-full"
+        >
+          Superset terminé
+        </Button>
       </div>
     </div>
   );
