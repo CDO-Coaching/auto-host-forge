@@ -630,12 +630,23 @@ export default function ClientDetail() {
 
       if (sessionsData && sessionsData.length > 0) {
         // Créer les nouvelles séances avec les exercices
-        const newSessions: Session[] = sessionsData.map((session, index) => ({
-          id: index + 1,
-          name: session.name,
-          isExpanded: false,
-          session_type: session.session_type || "renfo",
-        }));
+        const newSessions: Session[] = sessionsData.map((session, index) => {
+          // Détecter automatiquement si c'est une session cardio en regardant les exercices
+          let sessionType = session.session_type;
+          if (!sessionType && session.session_exercises && session.session_exercises.length > 0) {
+            const hasCardioFields = session.session_exercises.some((ex: any) => 
+              ex.cardio_sport || ex.cardio_content || ex.cardio_pace
+            );
+            sessionType = hasCardioFields ? "cardio" : "renfo";
+          }
+          
+          return {
+            id: index + 1,
+            name: session.name,
+            isExpanded: false,
+            session_type: sessionType || "renfo",
+          };
+        });
 
         const newExercises: Record<number, Exercise[]> = {};
         sessionsData.forEach((session, sessionIndex) => {
