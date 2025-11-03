@@ -202,16 +202,22 @@ export default function Profil() {
     }
   };
 
-  /* Déconnexion */
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error("Erreur lors de la déconnexion");
-    } else {
-      toast.success("Déconnexion réussie");
-      navigate("/");
-    }
-  };
+  /* Déconnexion (totale) */
+const handleLogout = async () => {
+  try {
+    // Déconnexion complète (révoque toutes les sessions sur tous les appareils)
+    const { error } = await supabase.auth.signOut({ scope: "global" });
+
+    if (error) throw error;
+
+    toast.success("Tu as été déconnecté de tous tes appareils.");
+    navigate("/");
+  } catch (error) {
+    console.error(error);
+    toast.error("Erreur lors de la déconnexion.");
+  }
+};
+
 
   if (loading) return <div className="text-center">Chargement...</div>;
 
