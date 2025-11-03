@@ -357,234 +357,114 @@ export default function ClientDetail() {
 
   const handleDeleteHistoricalSession = async (sessionId: string) => {
     try {
-      const { error } = await supabase.from("training_sessions").delete().eq("id", sessionId);
+      const handleValidate = async () => {
+  if (!athleteId) return;
 
-      if (error) throw error;
+  if (!selectedWeekToProgram) {
+    toast.error("Veuillez sélectionner une semaine");
+    return;
+  }
 
-      toast.success("Séance supprimée");
-
-      // Recharger les données
-      if (selectedHistoricalWeek) {
-        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
-      toast.error("Erreur lors de la suppression de la séance");
-    }
-  };
-
-  const handleAddHistoricalExercise = async (sessionId: string) => {
-    const session = historicalSessions.find((s) => s.id === sessionId);
-    if (!session) return;
-
-    try {
-      const currentExercises = editedHistoricalExercises[sessionId] || [];
-      const isCardio = session.session_type === "cardio";
-
-      const { data, error } = await supabase
-        .from("session_exercises")
-        .insert({
-          session_id: sessionId,
-          exercise_order: currentExercises.length + 1,
-          exercice: isCardio ? "Séance Cardio" : "",
-          recuperation: "",
-          reps: "",
-          series: "",
-          charge: "",
-          rpe: "",
-          tempo: "",
-          commentaire: "",
-          ...(isCardio && {
-            cardio_sport: null,
-            cardio_content: null,
-            cardio_pace: null,
-          }),
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Exercice ajouté");
-
-      // Recharger les données
-      if (selectedHistoricalWeek) {
-        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'ajout:", error);
-      toast.error("Erreur lors de l'ajout de l'exercice");
-    }
-  };
-
-  const handleDeleteHistoricalExercise = async (exerciseId: string) => {
-    try {
-      const { error } = await supabase.from("session_exercises").delete().eq("id", exerciseId);
-
-      if (error) throw error;
-
-      toast.success("Exercice supprimé");
-
-      // Recharger les données
-      if (selectedHistoricalWeek) {
-        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
-      toast.error("Erreur lors de la suppression de l'exercice");
-    }
-  };
-
-  const toggleHistoricalSession = (sessionId: string) => {
-    if (expandedHistoricalSessionId === sessionId) {
-      setExpandedHistoricalSessionId(null);
-    } else {
-      setExpandedHistoricalSessionId(sessionId);
-    }
-  };
-
-  const loadAthleteData = async () => {
-    if (!athleteId) return;
-
-    setLoading(true);
-
-    const { data, error } = await supabase.from("user_profiles").select("*").eq("id", athleteId).single();
-
-    if (error) {
-      toast.error("Erreur lors du chargement des données");
-      console.error(error);
-      navigate("/coach/mes-clients");
-    } else {
-      setAthlete(data);
-    }
-
-    setLoading(false);
-  };
-
-  const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio">("renfo");
-
-  const handleCreateSession = () => {
-    const nextSessionNumber = sessions.length + 1;
-    const newSession: Session = {
-      id: nextSessionNumber,
-      name: newSessionType === "cardio" ? `Cardio ${nextSessionNumber}` : `Séance ${nextSessionNumber}`,
-      isExpanded: false,
-      session_type: newSessionType,
-    };
-
-    setSessions([...sessions, newSession]);
-    setNewSessionType("renfo"); // Reset to default
-    toast.success(`Séance créée`);
-  };
-
-  const toggleSession = (sessionId: number) => {
-    if (expandedSessionId === sessionId) {
-      setExpandedSessionId(null);
-    } else {
-      setExpandedSessionId(sessionId);
-    }
-  };
-
-  const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updatedSessions = sessions
-      .filter((s) => s.id !== sessionId)
-      .map((s, index) => ({
-        ...s,
-        id: index + 1,
-        name: `Séance ${index + 1}`,
-      }));
-
-    setSessions(updatedSessions);
-    if (expandedSessionId === sessionId) {
-      setExpandedSessionId(null);
-    }
-    toast.success("Séance supprimée");
-  };
-
-  const handleValidate = async () => {
-    if (!athleteId) return;
-
-    if (!selectedWeekToProgram) {
-      toast.error("Veuillez sélectionner une semaine");
+  try {
+    // 🔹 Récupérer l'ID du coach connecté
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error("Erreur d'authentification");
       return;
     }
 
-    try {
-      // Récupérer l'ID du coach connecté
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error("Erreur d'authentification");
-        return;
-      }
+    // 🔹 Vérifier que cette semaine n'est pas déjà programmée
+    const { data: existingWeek } = await supabase
+      .from("training_weeks")
+      .select("id")
+      .eq("athlete_id", athleteId)
+      .eq("week_number", selectedWeekToProgram.week)
+      .eq("year", selectedWeekToProgram.year)
+      .maybeSingle();
 
-      // Vérifier que cette semaine n'est pas déjà programmée
-      const { data: existingWeek } = await supabase
-        .from("training_weeks")
-        .select("id")
-        .eq("athlete_id", athleteId)
-        .eq("week_number", selectedWeekToProgram.week)
-        .eq("year", selectedWeekToProgram.year)
-        .maybeSingle();
+    if (existingWeek) {
+      toast.error("Cette semaine est déjà programmée pour cet athlète");
+      return;
+    }
 
-      if (existingWeek) {
-        toast.error("Cette semaine est déjà programmée pour cet athlète");
-        return;
-      }
+    // 1️⃣ Création de la semaine d'entraînement
+    const { data: weekData, error: weekError } = await supabase
+      .from("training_weeks")
+      .insert({
+        coach_id: user.id,
+        athlete_id: athleteId,
+        week_number: selectedWeekToProgram.week,
+        year: selectedWeekToProgram.year,
+        validated: true,
+        validated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-      // 1. Créer la semaine d'entraînement
-      const { data: weekData, error: weekError } = await supabase
-        .from("training_weeks")
+    if (weekError) throw weekError;
+
+    // 2️⃣ Création des séances avec conservation du type
+    for (const session of sessions) {
+      const { data: sessionData, error: sessionError } = await supabase
+        .from("training_sessions")
         .insert({
-          coach_id: user.id,
-          athlete_id: athleteId,
-          week_number: selectedWeekToProgram.week,
-          year: selectedWeekToProgram.year,
-          validated: true,
-          validated_at: new Date().toISOString(),
+          week_id: weekData.id,
+          session_number: session.id,
+          name: session.name,
+          session_type: session.session_type || "renfo", // ✅ conserve le type renfo/cardio
+          created_at: new Date().toISOString(),
         })
         .select()
         .single();
 
-      if (weekError) throw weekError;
+      if (sessionError) throw sessionError;
 
-      // 2. Pour chaque séance, créer l'entrée et ses exercices
-      for (const session of sessions) {
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("training_sessions")
-          .insert({
-            week_id: weekData.id,
-            session_number: session.id,
-            name: session.name,
-          })
-          .select()
-          .single();
+      // 3️⃣ Insertion des exercices de la séance
+      const exercises = sessionExercises[session.id] || [];
+      if (exercises.length > 0) {
+        const exercisesToInsert = exercises.map((exercise, index) => ({
+          session_id: sessionData.id,
+          exercise_order: index + 1,
+          exercice: exercise.exercice,
+          recuperation: exercise.recuperation,
+          reps: exercise.reps,
+          series: exercise.series,
+          charge: exercise.charge,
+          rpe: exercise.rpe,
+          tempo: exercise.tempo,
+          commentaire: exercise.commentaire,
 
-        if (sessionError) throw sessionError;
+          // ✅ Champs spécifiques cardio
+          cardio_sport: exercise.cardio_sport ?? null,
+          cardio_content: exercise.cardio_content ?? null,
+          cardio_pace: exercise.cardio_pace ?? null,
 
-        // 3. Pour chaque exercice de la séance, créer l'entrée
-        const exercises = sessionExercises[session.id] || [];
-        if (exercises.length > 0) {
-          const exercisesToInsert = exercises.map((exercise, index) => ({
-            session_id: sessionData.id,
-            exercise_order: index + 1,
-            exercice: exercise.exercice,
-            recuperation: exercise.recuperation,
-            reps: exercise.reps,
-            series: exercise.series,
-            charge: exercise.charge,
-            rpe: exercise.rpe,
-            tempo: exercise.tempo,
-            commentaire: exercise.commentaire,
-            cardio_sport: exercise.cardio_sport || null,
-            cardio_content: exercise.cardio_content || null,
-            cardio_pace: exercise.cardio_pace || null,
-            super_set_group: exercise.super_set_group || null,
-          }));
+          // ✅ Champs spécifiques superset
+          is_superset: exercise.is_superset ?? false,
+          super_set_group: exercise.super_set_group ?? null,
 
-          const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
+          // ✅ Métadonnées utiles
+          exercise_type: exercise.exercise_type ?? null,
+          created_at: new Date().toISOString(),
+        }));
+
+        const { error: exercisesError } = await supabase
+          .from("session_exercises")
+          .insert(exercisesToInsert);
+
+        if (exercisesError) throw exercisesError;
+      }
+    }
+
+    toast.success("Semaine validée et séances enregistrées !");
+  } catch (error) {
+    console.error("Erreur lors de la validation :", error);
+    toast.error("Erreur lors de la validation de la semaine");
+  }
+};
+
 
           if (exercisesError) throw exercisesError;
         }
