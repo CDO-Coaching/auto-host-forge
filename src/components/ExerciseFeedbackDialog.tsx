@@ -14,11 +14,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Info } from "lucide-react";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ExerciseFeedbackDialogProps {
   open: boolean;
@@ -113,18 +112,16 @@ RPE 10 : échec total, tu ne pouvais pas faire plus.
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Label htmlFor="rpe">RPE ressenti (0-10)</Label>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
-                      <Info className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-sm whitespace-pre-line">
-                    <p>{rpeExplanation}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
+                    <Info className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="max-w-sm whitespace-pre-line text-sm">
+                  <p>{rpeExplanation}</p>
+                </PopoverContent>
+              </Popover>
             </div>
             <Input
               id="rpe"
