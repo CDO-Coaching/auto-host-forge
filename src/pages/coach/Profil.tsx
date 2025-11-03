@@ -13,9 +13,20 @@ import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
@@ -26,7 +37,7 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
-export default function Profil() {
+export default function ProfilCoach() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
@@ -43,6 +54,7 @@ export default function Profil() {
     },
   });
 
+  // Charger le profil
   useEffect(() => {
     const loadProfile = async () => {
       const {
@@ -77,6 +89,7 @@ export default function Profil() {
     loadProfile();
   }, [navigate, form]);
 
+  // Sauvegarder les modifications
   const onSubmit = async (data: ProfileFormValues) => {
     setSaving(true);
     try {
@@ -102,6 +115,7 @@ export default function Profil() {
     }
   };
 
+  // Déconnexion simple
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -112,13 +126,11 @@ export default function Profil() {
     }
   };
 
-  if (loading) {
-    return <div className="text-center">Chargement...</div>;
-  }
+  if (loading) return <div className="text-center">Chargement...</div>;
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Mon profil</h1>
+    <div className="space-y-6 pb-10">
+      <h1 className="text-3xl font-bold">Mon profil coach</h1>
 
       <Card>
         <CardHeader>
@@ -160,25 +172,22 @@ export default function Profil() {
                 )}
               />
 
+              {/* Date de naissance avec calendrier */}
               <FormField
                 control={form.control}
                 name="date_of_birth"
                 render={({ field }) => {
-                  // 👇 On commence ici par définir la date actuelle
                   const currentDate = field.value ? new Date(field.value) : undefined;
-
-                  // 👇 Puis on initialise les états en fonction de currentDate
                   const [selectedYear, setSelectedYear] = useState<number | null>(
-                    currentDate ? currentDate.getFullYear() : null,
+                    currentDate ? currentDate.getFullYear() : null
                   );
                   const [selectedMonth, setSelectedMonth] = useState<number | null>(
-                    currentDate ? currentDate.getMonth() : null,
+                    currentDate ? currentDate.getMonth() : null
                   );
 
                   return (
                     <FormItem className="flex flex-col">
                       <FormLabel>Date de naissance</FormLabel>
-
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -190,13 +199,12 @@ export default function Profil() {
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
-
                         <PopoverContent className="w-auto p-3" align="start">
+                          {/* Sélecteurs année + mois */}
                           <div className="flex justify-between items-center mb-2">
-                            {/* Sélecteur d’année */}
                             <Select
                               onValueChange={(val) => setSelectedYear(Number(val))}
-                              value={selectedYear?.toString() ?? currentDate?.getFullYear().toString()}
+                              value={selectedYear?.toString() ?? ""}
                             >
                               <SelectTrigger className="w-[110px]">
                                 <SelectValue placeholder="Année" />
@@ -213,34 +221,17 @@ export default function Profil() {
                               </SelectContent>
                             </Select>
 
-                            {/* Sélecteur de mois */}
                             <Select
                               onValueChange={(val) => setSelectedMonth(Number(val))}
-                              value={
-                                selectedMonth !== null
-                                  ? selectedMonth.toString()
-                                  : currentDate
-                                    ? currentDate.getMonth().toString()
-                                    : undefined
-                              }
+                              value={selectedMonth?.toString() ?? ""}
                             >
                               <SelectTrigger className="w-[130px]">
                                 <SelectValue placeholder="Mois" />
                               </SelectTrigger>
                               <SelectContent>
                                 {[
-                                  "janvier",
-                                  "février",
-                                  "mars",
-                                  "avril",
-                                  "mai",
-                                  "juin",
-                                  "juillet",
-                                  "août",
-                                  "septembre",
-                                  "octobre",
-                                  "novembre",
-                                  "décembre",
+                                  "janvier", "février", "mars", "avril", "mai", "juin",
+                                  "juillet", "août", "septembre", "octobre", "novembre", "décembre",
                                 ].map((month, i) => (
                                   <SelectItem key={month} value={i.toString()}>
                                     {month}
@@ -270,13 +261,13 @@ export default function Profil() {
                           />
                         </PopoverContent>
                       </Popover>
-
                       <FormMessage />
                     </FormItem>
                   );
                 }}
               />
 
+              {/* Sexe */}
               <FormField
                 control={form.control}
                 name="gender"
@@ -300,13 +291,55 @@ export default function Profil() {
                 )}
               />
 
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={saving} className="flex-1">
-                  {saving ? "Enregistrement..." : "Enregistrer"}
+              {/* Actions */}
+              <div className="flex flex-col gap-3 pt-4">
+                <Button type="submit" disabled={saving} className="w-full">
+                  {saving ? "Enregistrement..." : "Enregistrer les modifications"}
                 </Button>
-                <Button type="button" onClick={handleLogout} variant="destructive" className="flex-1">
-                  Se déconnecter
-                </Button>
+
+                <div className="flex gap-3">
+                  {/* Déconnexion simple */}
+                  <Button type="button" onClick={handleLogout} variant="destructive" className="flex-1">
+                    Se déconnecter
+                  </Button>
+
+                  {/* Déconnexion globale */}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="outline" className="flex-1">
+                        Déconnecter tous mes appareils
+                      </Button>
+                    </AlertDialogTrigger>
+
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Déconnexion globale</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Cela va te déconnecter de <strong>tous les appareils</strong> connectés à ton compte.  
+                          Es-tu sûr de vouloir continuer ?
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Annuler</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            try {
+                              const { error } = await supabase.auth.signOut({ scope: "global" });
+                              if (error) throw error;
+                              toast.success("Tous tes appareils ont été déconnectés avec succès.");
+                            } catch (error) {
+                              console.error(error);
+                              toast.error("Erreur lors de la déconnexion globale.");
+                            }
+                          }}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Confirmer
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </form>
           </Form>
