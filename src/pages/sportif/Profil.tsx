@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
+/* ---------------------- Validation du profil ---------------------- */
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
   last_name: z.string().trim().min(1, "Le nom est requis").max(100),
@@ -21,6 +22,108 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+/* ---------------------- Sélecteur de coach ---------------------- */
+function CoachSelector({ userId }: { userId: string }) {
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [selectedCoach, setSelectedCoach] = useState<string>("");
+  const [currentCoach, setCurrentCoach] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      // 1️⃣ Charger tous les coachs
+      const { data: coachList, error: coachError } = await supabase
+        .from("user_profiles")
+        .select("id, first_name, last_name")
+        .eq("role", "coach");
+
+      if (coachError) console.error(coachError);
+      else setCoaches(coachList || []);
+
+      // 2️⃣ Vérifier si le sportif a déjà un coach
+      const { data: relation, error: relationError } = await supabase
+        .from("coach_athlete_relationships")
+        .select("*, user_profiles!coach_id(first_name, last_name)")
+        .eq("athlete_id", userId)
+        .maybeSingle();
+
+      if (!relationError && relation) setCurrentCoach(relation);
+
+      setLoading(false);
+    };
+
+    loadData();
+  }, [userId]);
+
+  const handleRequest = async () => {
+    if (!selectedCoach) return;
+
+    const { error } = await supabase.from("coach_athlete_relationships").insert([
+      {
+        athlete_id: userId,
+        coach_id: selectedCoach,
+        status: "pending",
+        requested_at: new Date().toISOString(),
+      },
+    ]);
+
+    if (error) {
+      toast.error("Erreur lors de l'envoi de la demande");
+      console.error(error);
+    } else {
+      toast.success("Demande envoyée au coach !");
+      setCurrentCoach({ coach_id: selectedCoach, status: "pending" });
+    }
+  };
+
+  if (loading) return <p>Chargement...</p>;
+
+  if (currentCoach) {
+    return (
+      <div className="space-y-2">
+        {currentCoach.status === "approved" ? (
+          <p>
+            ✅ Coach actuel :{" "}
+            <strong>
+              {currentCoach.user_profiles?.first_name}{" "}
+              {currentCoach.user_profiles?.last_name}
+            </strong>
+          </p>
+        ) : (
+          <p>⏳ Demande en attente d’approbation</p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Label>Sélectionner un coach</Label>
+      <Select value={selectedCoach} onValueChange={setSelectedCoach}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Choisissez votre coach" />
+        </SelectTrigger>
+        <SelectContent>
+          {coaches.map((coach) => (
+            <SelectItem key={coach.id} value={coach.id}>
+              {coach.first_name} {coach.last_name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Button
+        onClick={handleRequest}
+        disabled={!selectedCoach}
+        className="w-full mt-2"
+      >
+        Demander un suivi
+      </Button>
+    </div>
+  );
+}
+
+/* ---------------------- Page Profil ---------------------- */
 export default function Profil() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -38,6 +141,7 @@ export default function Profil() {
     },
   });
 
+  /* Charger les infos du profil */
   useEffect(() => {
     const loadProfile = async () => {
       const {
@@ -72,6 +176,7 @@ export default function Profil() {
     loadProfile();
   }, [navigate, form]);
 
+  /* Sauvegarde du profil */
   const onSubmit = async (data: ProfileFormValues) => {
     setSaving(true);
     try {
@@ -97,6 +202,7 @@ export default function Profil() {
     }
   };
 
+  /* Déconnexion */
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -107,14 +213,13 @@ export default function Profil() {
     }
   };
 
-  if (loading) {
-    return <div className="text-center">Chargement...</div>;
-  }
+  if (loading) return <div className="text-center">Chargement...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <h1 className="text-3xl font-bold">Mon profil</h1>
 
+      {/* ----------- Informations personnelles ----------- */}
       <Card>
         <CardHeader>
           <CardTitle>Informations personnelles</CardTitle>
@@ -162,7 +267,12 @@ export default function Profil() {
                   <FormItem>
                     <FormLabel>Date de naissance</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} max={new Date().toISOString().split("T")[0]} min="1900-01-01" />
+                      <Input
+                        type="date"
+                        {...field}
+                        max={new Date().toISOString().split("T")[0]}
+                        min="1900-01-01"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -196,12 +306,27 @@ export default function Profil() {
                 <Button type="submit" disabled={saving} className="flex-1">
                   {saving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
-                <Button type="button" onClick={handleLogout} variant="destructive" className="flex-1">
+                <Button
+                  type="button"
+                  onClick={handleLogout}
+                  variant="destructive"
+                  className="flex-1"
+                >
                   Se déconnecter
                 </Button>
               </div>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      {/* ----------- Sélecteur de coach ----------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Mon coach</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CoachSelector userId={userId} />
         </CardContent>
       </Card>
     </div>
