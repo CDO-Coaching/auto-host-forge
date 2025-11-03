@@ -233,6 +233,7 @@ export default function SupersetDetail() {
         onValidate={handleValidateFeedback}
         onCancel={handleCancelFeedback}
         exerciseName="ce superset"
+        exerciseType="renfo"
       />
 
       {/* Header compact */}

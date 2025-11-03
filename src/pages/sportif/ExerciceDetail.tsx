@@ -238,6 +238,7 @@ export default function ExerciceDetail() {
         onValidate={handleValidateFeedback}
         onCancel={handleCancelFeedback}
         exerciseName={exercise?.exercice}
+        exerciseType="renfo"
       />
 
       <div className="h-screen overflow-hidden flex flex-col p-3">

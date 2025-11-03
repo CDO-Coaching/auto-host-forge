@@ -457,6 +457,7 @@ export default function SeanceDetail() {
         onValidate={handleValidateCardioFeedback}
         onCancel={handleCancelCardioFeedback}
         exerciseName={selectedCardioExercise?.exercice}
+        exerciseType="cardio"
       />
     </div>
   );
