@@ -3,9 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -18,6 +19,8 @@ export default function SeanceDetail() {
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   // --- Restaurer l’état du timer depuis localStorage ---
   useEffect(() => {
     const savedTimer = localStorage.getItem(`session_timer_${sessionId}`);
@@ -200,6 +203,45 @@ export default function SeanceDetail() {
     }
   }, [exercises, isSessionActive]);
 
+  const handleCardioComplete = (exercise: any) => {
+    setSelectedCardioExercise(exercise);
+    setFeedbackDialogOpen(true);
+  };
+
+  const handleValidateCardioFeedback = async (rpe: string, comment: string) => {
+    if (!selectedCardioExercise) return;
+
+    const { error } = await supabase
+      .from("session_exercises")
+      .update({
+        sportif_rpe: rpe || null,
+        sportif_comment: comment || null,
+        sportif_feedback_at: new Date().toISOString(),
+      })
+      .eq("id", selectedCardioExercise.id);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'enregistrer le feedback",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Feedback enregistré",
+        description: "Ton feedback a bien été enregistré",
+      });
+      setFeedbackDialogOpen(false);
+      setSelectedCardioExercise(null);
+      await loadSessionDetail();
+    }
+  };
+
+  const handleCancelCardioFeedback = () => {
+    setFeedbackDialogOpen(false);
+    setSelectedCardioExercise(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -307,7 +349,69 @@ export default function SeanceDetail() {
               } else {
                 // Vérifier si l'exercice est terminé
                 const isCompleted = item.sportif_rpe !== null;
+                const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
 
+                // Affichage cardio en ligne
+                if (isCardio) {
+                  return (
+                    <Card
+                      key={item.id}
+                      className={`${
+                        isCompleted ? "border-green-500/30 bg-green-500/5" : ""
+                      }`}
+                    >
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {index + 1}
+                            </Badge>
+                            <h3 className="font-semibold">{item.exercice}</h3>
+                            {isCompleted && (
+                              <Badge variant="outline" className="border-green-600 text-green-600 text-xs">
+                                Terminé
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2 text-sm">
+                          {item.cardio_sport && (
+                            <div>
+                              <span className="font-medium text-muted-foreground">Sport: </span>
+                              <span>{item.cardio_sport}</span>
+                            </div>
+                          )}
+                          {item.cardio_content && (
+                            <div>
+                              <span className="font-medium text-muted-foreground">Contenu: </span>
+                              <span className="whitespace-pre-wrap">{item.cardio_content}</span>
+                            </div>
+                          )}
+                          {item.cardio_pace && (
+                            <div>
+                              <span className="font-medium text-muted-foreground">Allure: </span>
+                              <span>{item.cardio_pace}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {!isCompleted && (
+                          <Button 
+                            onClick={() => handleCardioComplete(item)}
+                            className="w-full"
+                            size="lg"
+                          >
+                            <Check className="h-4 w-4 mr-2" />
+                            Exercice terminé
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                // Affichage renfo classique
                 return (
                   <Card
                     key={item.id}
@@ -346,6 +450,14 @@ export default function SeanceDetail() {
           )}
         </div>
       </div>
+
+      <ExerciseFeedbackDialog
+        open={feedbackDialogOpen}
+        onOpenChange={setFeedbackDialogOpen}
+        onValidate={handleValidateCardioFeedback}
+        onCancel={handleCancelCardioFeedback}
+        exerciseName={selectedCardioExercise?.exercice}
+      />
     </div>
   );
 }
