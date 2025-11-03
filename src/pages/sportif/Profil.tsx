@@ -11,6 +11,17 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 /* ---------------------- Validation du profil ---------------------- */
 const profileSchema = z.object({
@@ -202,22 +213,16 @@ export default function Profil() {
     }
   };
 
-  /* Déconnexion (totale) */
-const handleLogout = async () => {
-  try {
-    // Déconnexion complète (révoque toutes les sessions sur tous les appareils)
-    const { error } = await supabase.auth.signOut({ scope: "global" });
-
-    if (error) throw error;
-
-    toast.success("Tu as été déconnecté de tous tes appareils.");
-    navigate("/");
-  } catch (error) {
-    console.error(error);
-    toast.error("Erreur lors de la déconnexion.");
-  }
-};
-
+  /* Déconnexion */
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error("Erreur lors de la déconnexion");
+    } else {
+      toast.success("Déconnexion réussie");
+      navigate("/");
+    }
+  };
 
   if (loading) return <div className="text-center">Chargement...</div>;
 
@@ -308,19 +313,67 @@ const handleLogout = async () => {
                 )}
               />
 
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={saving} className="flex-1">
-                  {saving ? "Enregistrement..." : "Enregistrer"}
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleLogout}
-                  variant="destructive"
-                  className="flex-1"
-                >
-                  Se déconnecter
-                </Button>
-              </div>
+              {/* --- Actions de profil --- */}
+<div className="flex flex-col gap-3 pt-4">
+  <Button type="submit" disabled={saving} className="w-full">
+    {saving ? "Enregistrement..." : "Enregistrer les modifications"}
+  </Button>
+
+  <div className="flex gap-3">
+    {/* Déconnexion simple */}
+    <Button
+      type="button"
+      onClick={handleLogout}
+      variant="destructive"
+      className="flex-1"
+    >
+      Se déconnecter
+    </Button>
+
+    {/* Déconnexion globale avec confirmation */}
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="flex-1"
+        >
+          Déconnecter tous mes appareils
+        </Button>
+      </AlertDialogTrigger>
+
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Déconnexion de tous les appareils</AlertDialogTitle>
+          <AlertDialogDescription>
+            Cette action va te déconnecter de <strong>tous les appareils</strong> connectés à ton compte
+            (téléphone, tablette, ordinateur, etc.).  
+            Es-tu sûr de vouloir continuer ?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={async () => {
+              try {
+                const { error } = await supabase.auth.signOut({ scope: "global" });
+                if (error) throw error;
+                toast.success("Tous tes appareils ont été déconnectés avec succès.");
+              } catch (error) {
+                console.error(error);
+                toast.error("Erreur lors de la déconnexion globale.");
+              }
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Confirmer
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  </div>
+</div>
+
             </form>
           </Form>
         </CardContent>
