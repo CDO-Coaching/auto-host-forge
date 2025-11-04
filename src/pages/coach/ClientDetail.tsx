@@ -473,6 +473,30 @@ export default function ClientDetail() {
     };
 
     setSessions([...sessions, newSession]);
+
+    // Si c'est une séance cardio, ajouter automatiquement un exercice cardio
+    if (newSessionType === "cardio") {
+      const newExercise: Exercise = {
+        id: 1,
+        exercice: "Séance Cardio",
+        recuperation: "",
+        reps: "",
+        series: "",
+        charge: "",
+        rpe: "",
+        tempo: "",
+        commentaire: "",
+        cardio_sport: "",
+        cardio_content: "",
+        cardio_pace: "",
+      };
+
+      setSessionExercises({
+        ...sessionExercises,
+        [nextSessionNumber]: [newExercise],
+      });
+    }
+
     setNewSessionType("renfo"); // Reset to default
     toast.success(`Séance créée`);
   };
