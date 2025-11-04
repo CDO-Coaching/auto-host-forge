@@ -1020,7 +1020,7 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate("/coach/mes-clients")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -1028,14 +1028,14 @@ export default function ClientDetail() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between bg-muted/30 p-3 rounded-md">
+      <div className="flex items-center justify-between bg-muted/30 p-2 rounded-md">
         <div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-base font-semibold">
             {athlete.first_name} {athlete.last_name}
           </h2>
-          <p className="text-sm text-muted-foreground">{athlete.email}</p>
+          <p className="text-xs text-muted-foreground">{athlete.email}</p>
         </div>
-        <div className="text-sm text-muted-foreground text-right">
+        <div className="text-xs text-muted-foreground text-right">
           {athlete.gender && (
             <p>{athlete.gender === "female" ? "Femme" : athlete.gender === "male" ? "Homme" : "Autre"}</p>
           )}
@@ -1055,71 +1055,71 @@ export default function ClientDetail() {
           {lastWeekData && (
             <Collapsible open={showLastWeekFeedback} onOpenChange={setShowLastWeekFeedback}>
               <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2 pt-3 px-4">
                   <CollapsibleTrigger className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
                     <div className="flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-base">
+                      <MessageSquare className="h-4 w-4 text-primary" />
+                      <CardTitle className="text-sm">
                         Retours de la semaine {lastWeekData.week.week_number} - {lastWeekData.week.year}
                       </CardTitle>
                     </div>
                     {showLastWeekFeedback ? (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     )}
                   </CollapsibleTrigger>
                 </CardHeader>
                 <CollapsibleContent>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
+                  <CardContent className="pt-0 px-4 pb-3">
+                    <div className="space-y-2">
                       {lastWeekData.sessions.map((session: any) => (
-                        <div key={session.id} className="border rounded-lg p-3 bg-background">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-semibold text-sm">{session.name}</h4>
-                            <div className="flex gap-3 text-xs text-muted-foreground">
+                        <div key={session.id} className="border rounded-lg p-2 bg-background">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="font-semibold text-xs">{session.name}</h4>
+                            <div className="flex gap-2 text-[10px] text-muted-foreground">
                               {session.completed_at && (
-                                <span>Réalisée le {new Date(session.completed_at).toLocaleDateString()}</span>
+                                <span>{new Date(session.completed_at).toLocaleDateString()}</span>
                               )}
                               {session.duration_minutes && <span>{session.duration_minutes} min</span>}
                             </div>
                           </div>
 
                           {session.session_exercises && session.session_exercises.length > 0 ? (
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               {session.session_exercises
                                 .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment)
                                 .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
                                 .map((ex: any) => (
-                                  <div key={ex.id} className="pl-3 border-l-2 border-primary/30 py-1">
+                                  <div key={ex.id} className="pl-2 border-l-2 border-primary/30 py-1">
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="flex-1">
-                                        <div className="font-medium text-sm">{ex.exercice}</div>
-                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                        <div className="font-medium text-xs">{ex.exercice}</div>
+                                        <div className="text-[10px] text-muted-foreground mt-0.5">
                                           Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
                                         </div>
                                       </div>
                                       {ex.sportif_rpe && (
-                                        <Badge variant="secondary" className="shrink-0">
-                                          RPE ressenti: {ex.sportif_rpe}
+                                        <Badge variant="secondary" className="shrink-0 text-[10px] h-4">
+                                          RPE: {ex.sportif_rpe}
                                         </Badge>
                                       )}
                                     </div>
                                     {ex.sportif_comment && (
-                                      <div className="mt-1.5 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
+                                      <div className="mt-1 text-[10px] italic text-muted-foreground bg-muted/50 p-1.5 rounded">
                                         "{ex.sportif_comment}"
                                       </div>
                                     )}
                                   </div>
                                 ))}
                               {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment) && (
-                                <p className="text-xs text-muted-foreground text-center py-2">
+                                <p className="text-[10px] text-muted-foreground text-center py-1">
                                   Aucun retour du sportif pour cette séance
                                 </p>
                               )}
                             </div>
                           ) : (
-                            <p className="text-xs text-muted-foreground text-center py-2">Aucun exercice</p>
+                            <p className="text-[10px] text-muted-foreground text-center py-1">Aucun exercice</p>
                           )}
                         </div>
                       ))}
@@ -1131,21 +1131,21 @@ export default function ClientDetail() {
           )}
 
           <Card>
-            <CardHeader>
-              <CardTitle>Nouvelle programmation</CardTitle>
+            <CardHeader className="py-3 px-4">
+              <CardTitle className="text-base">Nouvelle programmation</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-3 px-4 pb-4">
               {/* Sélecteur de semaine - toujours visible */}
               {!isValidated && (
                 <Card className="border-primary/30 bg-primary/5">
-                  <CardHeader>
-                    <CardTitle className="text-base">Sélectionne la semaine à programmer</CardTitle>
+                  <CardHeader className="py-2 px-3">
+                    <CardTitle className="text-sm">Sélectionne la semaine à programmer</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground">Tu peux programmer jusqu'à 12 semaines à l'avance</p>
+                  <CardContent className="px-3 pb-3">
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">Tu peux programmer jusqu'à 12 semaines à l'avance</p>
                       <select
-                        className="w-full p-3 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                        className="w-full p-2 border rounded-md bg-background text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                         value={
                           selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""
                         }
@@ -1173,21 +1173,23 @@ export default function ClientDetail() {
 
               {/* Boutons de création de séances */}
               {!isValidated && (
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center gap-2">
                   <div className="flex gap-2">
                     {historicalWeeks.length > 0 && (
                       <Button
                         variant="outline"
+                        size="sm"
                         onClick={() => setShowCopyDialog(true)}
                         disabled={sessions.length > 0 || !selectedWeekToProgram}
                       >
-                        <Copy className="h-4 w-4 mr-2" />
+                        <Copy className="h-3 w-3 mr-1" />
                         Copier d'une semaine
                       </Button>
                     )}
                   </div>
                   <div className="flex gap-2">
                     <Button
+                      size="sm"
                       variant={newSessionType === "renfo" ? "default" : "outline"}
                       onClick={() => setNewSessionType("renfo")}
                       disabled={!selectedWeekToProgram}
@@ -1195,28 +1197,29 @@ export default function ClientDetail() {
                       Renfo
                     </Button>
                     <Button
+                      size="sm"
                       variant={newSessionType === "cardio" ? "default" : "outline"}
                       onClick={() => setNewSessionType("cardio")}
                       disabled={!selectedWeekToProgram}
                     >
                       Cardio
                     </Button>
-                    <Button onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
+                      <Plus className="h-3 w-3 mr-1" />
                       Créer
                     </Button>
                   </div>
                 </div>
               )}
               {sessions.length === 0 ? (
-                <div className="text-center py-8 space-y-4">
-                  <p className="text-muted-foreground">Aucune séance créée.</p>
+                <div className="text-center py-6 space-y-2">
+                  <p className="text-sm text-muted-foreground">Aucune séance créée.</p>
                   {historicalWeeks.length > 0 ? (
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       Vous pouvez créer une nouvelle séance ou copier une semaine précédente.
                     </p>
                   ) : (
-                    <p className="text-sm text-muted-foreground">Cliquez sur "Créer une séance" pour commencer.</p>
+                    <p className="text-xs text-muted-foreground">Cliquez sur "Créer une séance" pour commencer.</p>
                   )}
                 </div>
               ) : (
