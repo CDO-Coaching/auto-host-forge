@@ -357,7 +357,24 @@ export default function ClientDetail() {
 
   const handleDeleteHistoricalSession = async (sessionId: string) => {
     try {
-      const handleValidate = async () => {
+      const { error } = await supabase
+        .from("training_sessions")
+        .delete()
+        .eq("id", sessionId);
+
+      if (error) throw error;
+
+      toast.success("Séance supprimée");
+      if (selectedHistoricalWeek) {
+        await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression de la séance");
+    }
+  };
+
+  const handleValidate = async () => {
   if (!athleteId) return;
 
   if (!selectedWeekToProgram) {
@@ -464,28 +481,6 @@ export default function ClientDetail() {
     toast.error("Erreur lors de la validation de la semaine");
   }
 };
-
-
-          if (exercisesError) throw exercisesError;
-        }
-      }
-
-      setIsValidated(true);
-      toast.success("Semaine d'entraînement validée et envoyée au sportif !");
-
-      // Réinitialiser pour permettre de programmer une nouvelle semaine
-      setSelectedWeekToProgram(null);
-      setSessions([]);
-      setSessionExercises({});
-
-      // Recharger l'historique et les retours
-      await loadHistoricalWeeks();
-      await loadLastWeekFeedback();
-    } catch (error) {
-      console.error("Erreur lors de la validation:", error);
-      toast.error("Erreur lors de la validation de la semaine");
-    }
-  };
 
   const handleCopyFromWeek = async () => {
     if (!selectedWeekToCopy) {
