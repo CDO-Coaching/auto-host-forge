@@ -132,7 +132,32 @@ export default function ClientDetail() {
     loadLibraryExercises();
     loadHistoricalWeeks();
     loadLastWeekFeedback();
+    
+    // Restaurer les données sauvegardées localement
+    const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.sessions) setSessions(parsed.sessions);
+        if (parsed.sessionExercises) setSessionExercises(parsed.sessionExercises);
+        if (parsed.selectedWeekToProgram) setSelectedWeekToProgram(parsed.selectedWeekToProgram);
+      } catch (error) {
+        console.error("Erreur lors de la restauration des données:", error);
+      }
+    }
   }, [athleteId]);
+
+  // Sauvegarder automatiquement les données localement
+  useEffect(() => {
+    if (athleteId && (sessions.length > 0 || Object.keys(sessionExercises).length > 0)) {
+      const dataToSave = {
+        sessions,
+        sessionExercises,
+        selectedWeekToProgram,
+      };
+      localStorage.setItem(`coach-programming-${athleteId}`, JSON.stringify(dataToSave));
+    }
+  }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
   const loadLibraryExercises = async () => {
     const { data, error } = await supabase.from("exercise_library").select("id, name").order("name");
@@ -621,6 +646,9 @@ export default function ClientDetail() {
       setSelectedWeekToProgram(null);
       setSessions([]);
       setSessionExercises({});
+
+      // Nettoyer les données sauvegardées localement
+      localStorage.removeItem(`coach-programming-${athleteId}`);
 
       // Recharger l'historique et les retours
       await loadHistoricalWeeks();

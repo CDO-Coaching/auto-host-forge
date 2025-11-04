@@ -25,10 +25,34 @@ export default function SupersetDetail() {
 
   useEffect(() => {
     loadSupersetExercises();
+    
+    // Restaurer les données sauvegardées
+    const savedData = localStorage.getItem(`superset-progress-${supersetId}`);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.globalCompletedSets !== undefined) setGlobalCompletedSets(parsed.globalCompletedSets);
+        if (parsed.timers) setTimers(parsed.timers);
+      } catch (error) {
+        console.error("Erreur lors de la restauration:", error);
+      }
+    }
+    
     return () => {
       Object.values(timerIntervals).forEach(clearInterval);
     };
   }, [supersetId]);
+
+  // Sauvegarder automatiquement la progression
+  useEffect(() => {
+    if (supersetId) {
+      const dataToSave = {
+        globalCompletedSets,
+        timers,
+      };
+      localStorage.setItem(`superset-progress-${supersetId}`, JSON.stringify(dataToSave));
+    }
+  }, [globalCompletedSets, timers, supersetId]);
 
   const loadSupersetExercises = async () => {
     setLoading(true);
@@ -187,6 +211,9 @@ export default function SupersetDetail() {
         title: "Retour enregistré",
         description: "Ton retour a été sauvegardé pour tous les exercices du superset",
       });
+
+      // Nettoyer les données sauvegardées
+      localStorage.removeItem(`superset-progress-${supersetId}`);
 
       setDialogOpen(false);
 

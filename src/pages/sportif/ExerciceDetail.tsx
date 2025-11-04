@@ -26,10 +26,34 @@ export default function ExerciceDetail() {
 
   useEffect(() => {
     loadExerciseDetail();
+    
+    // Restaurer les données sauvegardées
+    const savedData = localStorage.getItem(`exercise-progress-${exerciceId}`);
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (parsed.completedSets !== undefined) setCompletedSets(parsed.completedSets);
+        if (parsed.timeRemaining !== undefined) setTimeRemaining(parsed.timeRemaining);
+      } catch (error) {
+        console.error("Erreur lors de la restauration:", error);
+      }
+    }
+    
     return () => {
       if (timerInterval) clearInterval(timerInterval);
     };
   }, [exerciceId]);
+
+  // Sauvegarder automatiquement la progression
+  useEffect(() => {
+    if (exerciceId) {
+      const dataToSave = {
+        completedSets,
+        timeRemaining,
+      };
+      localStorage.setItem(`exercise-progress-${exerciceId}`, JSON.stringify(dataToSave));
+    }
+  }, [completedSets, timeRemaining, exerciceId]);
 
   useEffect(() => {
     if (timeRemaining <= 0 && isTimerRunning) {
@@ -176,6 +200,9 @@ export default function ExerciceDetail() {
         title: "Enregistré !",
         description: "Ton retour a été sauvegardé",
       });
+      
+      // Nettoyer les données sauvegardées
+      localStorage.removeItem(`exercise-progress-${exerciceId}`);
       
       setDialogOpen(false);
       
