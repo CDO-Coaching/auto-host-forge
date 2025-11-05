@@ -170,8 +170,11 @@ const Contact = () => {
               Réserver mon échange avec le coach 📞
             </Button>
 
-            <p className="text-center text-sm text-muted-foreground mt-4">
-              🔥 +130 personnes accompagnées — tu es peut-être le/la prochain(e).
+            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+              🔒 Les informations recueillies via ce formulaire sont enregistrées par CDO Coaching pour permettre de
+              vous recontacter et répondre à votre demande. Vos données ne sont pas partagées avec des tiers.
+              Conformément à la loi Informatique et Libertés, vous pouvez exercer vos droits d'accès, de rectification
+              ou de suppression en écrivant à corentin@cdocoaching.com.
             </p>
           </form>
         </Card>
