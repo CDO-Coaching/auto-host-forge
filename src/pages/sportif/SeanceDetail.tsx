@@ -21,22 +21,47 @@ export default function SeanceDetail() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
-  // --- Restaurer l’état du timer depuis localStorage ---
+  
+  // --- Restaurer l'état du timer depuis localStorage ---
   useEffect(() => {
     const savedTimer = localStorage.getItem(`session_timer_${sessionId}`);
     if (savedTimer) {
-      const { startTime, duration, isActive } = JSON.parse(savedTimer);
+      const { startTime, isActive } = JSON.parse(savedTimer);
       if (isActive) {
         setSessionStartTime(startTime);
         setIsSessionActive(true);
 
-        // Recalcule le temps écoulé
-        const elapsed = Math.floor((Date.now() - startTime) / 1000) + duration;
+        // Recalcule le temps écoulé depuis le début réel
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setSessionDuration(elapsed);
 
         // Relance le timer
         const interval = setInterval(() => {
-          setSessionDuration(Math.floor((Date.now() - startTime) / 1000) + duration);
+          const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
+          setSessionDuration(currentElapsed);
+          
+          // Arrêt automatique après 2 heures (7200 secondes)
+          if (currentElapsed >= 7200) {
+            clearInterval(interval);
+            setTimerInterval(null);
+            setIsSessionActive(false);
+            localStorage.removeItem(`session_timer_${sessionId}`);
+            
+            // Enregistrer dans la base
+            supabase
+              .from("training_sessions")
+              .update({
+                duration_minutes: 120,
+                completed_at: new Date().toISOString(),
+              })
+              .eq("id", sessionId)
+              .then(() => {
+                toast({
+                  title: "Séance terminée automatiquement",
+                  description: "La séance a duré 2 heures et a été arrêtée automatiquement.",
+                });
+              });
+          }
         }, 1000);
         setTimerInterval(interval);
       }
@@ -57,15 +82,16 @@ export default function SeanceDetail() {
 
   // --- Sauvegarder le timer dans localStorage ---
   useEffect(() => {
-    localStorage.setItem(
-      `session_timer_${sessionId}`,
-      JSON.stringify({
-        startTime: sessionStartTime,
-        duration: sessionDuration,
-        isActive: isSessionActive,
-      }),
-    );
-  }, [sessionStartTime, sessionDuration, isSessionActive, sessionId]);
+    if (isSessionActive && sessionStartTime) {
+      localStorage.setItem(
+        `session_timer_${sessionId}`,
+        JSON.stringify({
+          startTime: sessionStartTime,
+          isActive: isSessionActive,
+        }),
+      );
+    }
+  }, [sessionStartTime, isSessionActive, sessionId]);
 
   const loadSessionDetail = async () => {
     setLoading(true);
@@ -146,7 +172,31 @@ export default function SeanceDetail() {
     setSessionDuration(0);
 
     const interval = setInterval(() => {
-      setSessionDuration(Math.floor((Date.now() - startTime) / 1000));
+      const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
+      setSessionDuration(currentElapsed);
+      
+      // Arrêt automatique après 2 heures (7200 secondes)
+      if (currentElapsed >= 7200) {
+        clearInterval(interval);
+        setTimerInterval(null);
+        setIsSessionActive(false);
+        localStorage.removeItem(`session_timer_${sessionId}`);
+        
+        // Enregistrer dans la base
+        supabase
+          .from("training_sessions")
+          .update({
+            duration_minutes: 120,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", sessionId)
+          .then(() => {
+            toast({
+              title: "Séance terminée automatiquement",
+              description: "La séance a duré 2 heures et a été arrêtée automatiquement.",
+            });
+          });
+      }
     }, 1000);
     setTimerInterval(interval);
 
@@ -162,6 +212,9 @@ export default function SeanceDetail() {
       setTimerInterval(null);
     }
     setIsSessionActive(false);
+    
+    // Nettoyer le localStorage
+    localStorage.removeItem(`session_timer_${sessionId}`);
 
     const { data, error, status } = await supabase
       .from("training_sessions")
@@ -187,6 +240,7 @@ export default function SeanceDetail() {
       });
     }
   };
+  
   // --- Arrêter automatiquement la séance quand tout est terminé ---
   useEffect(() => {
     if (isSessionActive && exercises.length > 0) {
