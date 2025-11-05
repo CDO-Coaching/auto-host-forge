@@ -87,11 +87,9 @@ const Contact = () => {
           Restons en <span className="text-primary">Contact</span>
         </h1>
 
-        {/* Texte motivant */}
         <p className="text-center text-lg text-muted-foreground mb-10">
-          Tu veux progresser, être guidé, et ne plus avancer seul ? Partage tes disponibilités ci-dessous et on discute
-          ensemble pour trouver ce qui te correspond 💪 Pas d’engagement — juste un échange pour comprendre tes
-          objectifs.
+          Tu veux progresser, être guidé, et ne plus avancer seul ? Partage tes disponibilités ci-dessous et on organise
+          ton premier échange 💪
         </p>
 
         <Card className="p-8">
@@ -124,6 +122,7 @@ const Contact = () => {
                 required={formData.contactMethod === "email"}
               />
             </div>
+
             <div>
               <Label>Téléphone</Label>
               <Input
@@ -159,7 +158,9 @@ const Contact = () => {
             <div>
               <Label>Message</Label>
               <Textarea
-                placeholder="Partage ici tes disponibilités pour que l’on organise ton premier échange ✨"
+                placeholder={`Partage tes créneaux où tu es dispo 😊
+(ex : Lundi soir, Mardi midi, Mercredi matin, Ce week-end, Après 20h dans la semaine…)
+On fixe ensemble ton premier échange ✨`}
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 required
@@ -167,7 +168,7 @@ const Contact = () => {
             </div>
 
             <Button type="submit" variant="hero" className="w-full text-lg py-6">
-              Réserver mon échange avec le coach 📞
+              Réserver mon échange 📞
             </Button>
 
             <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
