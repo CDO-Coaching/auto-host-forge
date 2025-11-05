@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronRight, Play, Square, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
+import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -21,6 +22,7 @@ export default function SeanceDetail() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
   
   // --- Restaurer l'état du timer depuis localStorage ---
   useEffect(() => {
@@ -234,11 +236,17 @@ export default function SeanceDetail() {
         variant: "destructive",
       });
     } else {
-      toast({
-        title: "Séance terminée !",
-        description: `Durée totale: ${formatDuration(sessionDuration)}`,
-      });
+      // Afficher la célébration
+      setShowCelebration(true);
     }
+  };
+  
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    toast({
+      title: "Séance terminée !",
+      description: `Durée totale: ${formatDuration(sessionDuration)}`,
+    });
   };
   
   // --- Arrêter automatiquement la séance quand tout est terminé ---
@@ -318,6 +326,13 @@ export default function SeanceDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <CelebrationOverlay 
+        show={showCelebration}
+        message={session?.name || ""}
+        onComplete={handleCelebrationComplete}
+        type="session"
+      />
+      
       <div className="sticky top-0 z-10 bg-background border-b p-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />

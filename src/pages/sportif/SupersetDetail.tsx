@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
+import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -22,6 +23,7 @@ export default function SupersetDetail() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
     loadSupersetExercises();
@@ -207,26 +209,13 @@ export default function SupersetDetail() {
         }
       }
 
-      toast({
-        title: "Retour enregistré",
-        description: "Ton retour a été sauvegardé pour tous les exercices du superset",
-      });
-
       // Nettoyer les données sauvegardées
       localStorage.removeItem(`superset-progress-${supersetId}`);
 
       setDialogOpen(false);
-
-      // Rediriger vers la page de la séance
-      setTimeout(() => {
-        if (weekId && sessionId) {
-          navigate(`/sportif/seance/${weekId}/${sessionId}`);
-        } else if (sessionId) {
-          navigate(`/sportif/seance/${sessionId}`);
-        } else {
-          navigate("/sportif/seances");
-        }
-      }, 500);
+      
+      // Afficher la célébration
+      setShowCelebration(true);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
       toast({
@@ -236,6 +225,26 @@ export default function SupersetDetail() {
       });
       throw error;
     }
+  };
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    
+    toast({
+      title: "Retour enregistré",
+      description: "Ton retour a été sauvegardé pour tous les exercices du superset",
+    });
+
+    // Rediriger vers la page de la séance
+    setTimeout(() => {
+      if (weekId && sessionId) {
+        navigate(`/sportif/seance/${weekId}/${sessionId}`);
+      } else if (sessionId) {
+        navigate(`/sportif/seance/${sessionId}`);
+      } else {
+        navigate("/sportif/seances");
+      }
+    }, 300);
   };
 
   const handleCancelFeedback = () => {
@@ -254,6 +263,13 @@ export default function SupersetDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-4">
+      <CelebrationOverlay 
+        show={showCelebration}
+        message="Superset terminé"
+        onComplete={handleCelebrationComplete}
+        type="exercise"
+      />
+      
       <ExerciseFeedbackDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}

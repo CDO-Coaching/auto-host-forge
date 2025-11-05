@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
+import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -22,6 +23,7 @@ export default function ExerciceDetail() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -196,27 +198,34 @@ export default function ExerciceDetail() {
       });
       throw error;
     } else {
-      toast({
-        title: "Enregistré !",
-        description: "Ton retour a été sauvegardé",
-      });
-      
       // Nettoyer les données sauvegardées
       localStorage.removeItem(`exercise-progress-${exerciceId}`);
       
       setDialogOpen(false);
       
-      // Rediriger vers la page de la séance
-      setTimeout(() => {
-        if (weekId && sessionId) {
-          navigate(`/sportif/seance/${weekId}/${sessionId}`);
-        } else if (sessionId) {
-          navigate(`/sportif/seance/${sessionId}`);
-        } else {
-          navigate("/sportif/seances");
-        }
-      }, 500);
+      // Afficher la célébration
+      setShowCelebration(true);
     }
+  };
+
+  const handleCelebrationComplete = () => {
+    setShowCelebration(false);
+    
+    toast({
+      title: "Enregistré !",
+      description: "Ton retour a été sauvegardé",
+    });
+    
+    // Rediriger vers la page de la séance
+    setTimeout(() => {
+      if (weekId && sessionId) {
+        navigate(`/sportif/seance/${weekId}/${sessionId}`);
+      } else if (sessionId) {
+        navigate(`/sportif/seance/${sessionId}`);
+      } else {
+        navigate("/sportif/seances");
+      }
+    }, 300);
   };
 
   const handleCancelFeedback = () => {
@@ -259,6 +268,13 @@ export default function ExerciceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      <CelebrationOverlay 
+        show={showCelebration}
+        message={exercise?.exercice || ""}
+        onComplete={handleCelebrationComplete}
+        type="exercise"
+      />
+      
       <ExerciseFeedbackDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
