@@ -12,49 +12,79 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Contact = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    message: "",
+    contactMethod: "",
+  });
+
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.contactMethod) {
-      toast({ title: "Attention", description: "Veuillez sélectionner un mode de contact", variant: "destructive" });
+      toast({
+        title: "Attention",
+        description: "Veuillez sélectionner un mode de contact",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.contactMethod === "phone" && !formData.phone) {
-      toast({ title: "Attention", description: "Veuillez renseigner votre numéro de téléphone", variant: "destructive" });
+      toast({
+        title: "Attention",
+        description: "Veuillez renseigner votre numéro de téléphone",
+        variant: "destructive",
+      });
       return;
     }
 
     if (formData.contactMethod === "email" && !formData.email) {
-      toast({ title: "Attention", description: "Veuillez renseigner votre email", variant: "destructive" });
+      toast({
+        title: "Attention",
+        description: "Veuillez renseigner votre email",
+        variant: "destructive",
+      });
       return;
     }
 
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const formattedDate = `${year}-${month}-${day} ${hour}:00`;
+    const formattedDate = now.toISOString().slice(0, 19).replace("T", " ");
 
-    const { error } = await supabase.from("prise_de_contact").insert([{
-      "prénom": formData.firstName, 
-      nom: formData.lastName, 
-      email: formData.email,
-      "N°tel": formData.phone || null,
-      message: formData.message,
-      mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
-      created_at: formattedDate
-    }]);
-    
+    const { error } = await supabase.from("prise_de_contact").insert([
+      {
+        "prénom": formData.firstName,
+        nom: formData.lastName,
+        email: formData.email,
+        "N°tel": formData.phone || null,
+        message: formData.message,
+        mode_de_contact:
+          formData.contactMethod === "email" ? "par email" : "par téléphone",
+        created_at: formattedDate,
+      },
+    ]);
+
     if (error) {
-      toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue",
+        variant: "destructive",
+      });
     } else {
       setShowSuccess(true);
-      setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        message: "",
+        contactMethod: "",
+      });
       setTimeout(() => setShowSuccess(false), 4000);
     }
   };
@@ -62,49 +92,125 @@ const Contact = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      
+
       {showSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 animate-fade-in">
           <div className="text-center animate-scale-in space-y-6 p-8">
             <div className="text-8xl mb-4">✅</div>
-            <h2 className="text-6xl font-black text-primary mb-4">Message envoyé !</h2>
-            <p className="text-2xl text-muted-foreground">Je te répondrai très rapidement</p>
+            <h2 className="text-6xl font-black text-primary mb-4">
+              Message envoyé !
+            </h2>
+            <p className="text-2xl text-muted-foreground">
+              Je reviens vers toi rapidement pour fixer un créneau ensemble.
+            </p>
           </div>
         </div>
       )}
+
       <section className="pt-32 pb-20 container mx-auto px-4 max-w-2xl">
-        <h1 className="text-5xl font-black text-center mb-12">Restons en <span className="text-primary">Contact</span></h1>
+        <h1 className="text-5xl font-black text-center mb-12">
+          Restons en <span className="text-primary">Contact</span>
+        </h1>
+
         <Card className="p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Prénom</Label><Input value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} required /></div>
-              <div><Label>Nom</Label><Input value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} required /></div>
+              <div>
+                <Label>Prénom</Label>
+                <Input
+                  value={formData.firstName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, firstName: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div>
+                <Label>Nom</Label>
+                <Input
+                  value={formData.lastName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, lastName: e.target.value })
+                  }
+                  required
+                />
+              </div>
             </div>
-            <div><Label>Email</Label><Input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required={formData.contactMethod === "email"} /></div>
-            <div><Label>Téléphone</Label><Input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} required={formData.contactMethod === "phone"} /></div>
+
+            <div>
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                required={formData.contactMethod === "email"}
+              />
+            </div>
+
+            <div>
+              <Label>Téléphone</Label>
+              <Input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) =>
+                  setFormData({ ...formData, phone: e.target.value })
+                }
+                required={formData.contactMethod === "phone"}
+              />
+            </div>
+
             <div>
               <Label>Mode de contact préféré *</Label>
-              <RadioGroup value={formData.contactMethod} onValueChange={(value) => setFormData({...formData, contactMethod: value})} className="mt-2">
+              <RadioGroup
+                value={formData.contactMethod}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, contactMethod: value })
+                }
+                className="mt-2"
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="email" id="email" />
-                  <Label htmlFor="email" className="cursor-pointer font-normal">Par email</Label>
+                  <Label htmlFor="email" className="cursor-pointer">
+                    Par email
+                  </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="phone" id="phone" />
-                  <Label htmlFor="phone" className="cursor-pointer font-normal">Par téléphone</Label>
+                  <Label htmlFor="phone" className="cursor-pointer">
+                    Par téléphone
+                  </Label>
                 </div>
               </RadioGroup>
             </div>
-            <div><Label>Message</Label><Textarea value={formData.message} onChange={e => setFormData({...formData, message: e.target.value})} required /></div>
-            <Button type="submit" variant="hero" className="w-full">Envoyer</Button>
+
+            <div>
+              <Label>Message</Label>
+              <Textarea
+                placeholder="Partage ici tes disponibilités pour que l’on réserve ensemble un appel découverte ou une rencontre 😊
+Ex : Lundi 18h, Mardi matin, Jeudi après 17h"
+                value={formData.message}
+                onChange={(e) =>
+                  setFormData({ ...formData, message: e.target.value })
+                }
+                required
+              />
+            </div>
+
+            <Button type="submit" variant="hero" className="w-full">
+              Envoyer
+            </Button>
+
             <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-              🔒 Les informations recueillies via ce formulaire sont enregistrées par CDO Coaching pour permettre de vous recontacter et répondre à votre demande.
-              Vos données ne sont pas partagées avec des tiers.
-              Conformément à la loi Informatique et Libertés, vous pouvez exercer vos droits d'accès, de rectification ou de suppression en écrivant à corentin@cdocoaching.com.
+              🔒 Tes informations sont utilisées uniquement pour te recontacter.
+              Elles ne seront jamais partagées. Tu peux demander leur suppression
+              à tout moment en écrivant à corentin@cdocoaching.com.
             </p>
           </form>
         </Card>
       </section>
+
       <Footer />
     </div>
   );
