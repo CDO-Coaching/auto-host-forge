@@ -60,8 +60,27 @@ const Contact = () => {
     ]);
 
     if (error) {
+      console.error("Erreur insertion:", error);
       toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
     } else {
+      // Envoyer la notification par email au coach
+      try {
+        await supabase.functions.invoke('notify-contact', {
+          body: {
+            prénom: formData.firstName,
+            nom: formData.lastName,
+            email: formData.email,
+            telephone: formData.phone || undefined,
+            message: formData.message,
+            mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone"
+          }
+        });
+        console.log("Notification email envoyée");
+      } catch (notifyError) {
+        console.error("Erreur notification email:", notifyError);
+        // Ne pas bloquer le succès si la notification échoue
+      }
+      
       setShowSuccess(true);
       setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
       setTimeout(() => setShowSuccess(false), 4000);

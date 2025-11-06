@@ -2,3 +2,6 @@ project_id = "default"
 
 [functions.notify-signup]
 verify_jwt = false
+
+[functions.notify-contact]
+verify_jwt = false
