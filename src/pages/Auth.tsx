@@ -59,6 +59,20 @@ const Auth = () => {
           }
         });
         if (error) throw error;
+        
+        // Notifier le coach de la nouvelle inscription
+        try {
+          await supabase.functions.invoke('notify-signup', {
+            body: {
+              email,
+              signupDate: new Date().toISOString()
+            }
+          });
+        } catch (notifyError) {
+          console.error("Erreur lors de l'envoi de la notification:", notifyError);
+          // Ne pas bloquer l'inscription si la notification échoue
+        }
+        
         toast({ 
           title: "Inscription réussie", 
           description: "Veuillez confirmer votre email avant de vous connecter. En attente d'approbation par l'administrateur."
