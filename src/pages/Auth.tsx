@@ -13,14 +13,19 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // Champs supplémentaires uniquement pour l'inscription
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [gender, setGender] = useState("");
+
   const navigate = useNavigate();
   const { session, loading } = useAuth();
 
   useEffect(() => {
-    // Attendre que le contexte d'auth ait fini de charger
     if (loading) return;
 
-    // Si déjà connecté, rediriger
     if (session) {
       const redirectUser = async () => {
         const { data: profile } = await supabase
@@ -50,32 +55,36 @@ const Auth = () => {
         if (error) throw error;
         toast({ title: "Connexion réussie" });
       } else {
-        const { error } = await supabase.auth.signUp({ 
-          email, 
+        const { data, error } = await supabase.auth.signUp({
+          email,
           password,
-          options: { 
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-            data: { email }
-          }
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
         });
         if (error) throw error;
-        
-        // Notifier le coach de la nouvelle inscription
-        try {
-          await supabase.functions.invoke('notify-signup', {
-            body: {
-              email,
-              signupDate: new Date().toISOString()
-            }
-          });
-        } catch (notifyError) {
-          console.error("Erreur lors de l'envoi de la notification:", notifyError);
-          // Ne pas bloquer l'inscription si la notification échoue
-        }
-        
-        toast({ 
-          title: "Inscription réussie", 
-          description: "Veuillez confirmer votre email avant de vous connecter. En attente d'approbation par l'administrateur."
+
+        const userId = data.user?.id;
+
+        // Création du profil utilisateur
+        await supabase.from("user_profiles").insert({
+          id: userId,
+          first_name: firstName,
+          last_name: lastName,
+          birthday: birthDate,
+          gender: gender,
+          role: "sportif",
+          approved: false,
+        });
+
+        // Notification webhook (facultatif - inchangé)
+        await supabase.functions
+          .invoke("notify-signup", {
+            body: { email, signupDate: new Date().toISOString() },
+          })
+          .catch(() => {});
+
+        toast({
+          title: "Inscription réussie",
+          description: "Confirme ton email avant de te connecter. Ensuite, ton compte devra être approuvé.",
         });
       }
     } catch (error: any) {
@@ -92,16 +101,73 @@ const Auth = () => {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            <div><Label>Email</Label><Input type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
-            <div><Label>Mot de passe</Label><Input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} /></div>
-            <Button type="submit" variant="hero" className="w-full">{isLogin ? "Se connecter" : "S'inscrire"}</Button>
+            {/* Email */}
+            <div>
+              <Label>Email</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+
+            {/* Mot de passe */}
+            <div>
+              <Label>Mot de passe</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </div>
+
+            {/* Champs supplémentaires uniquement si inscription */}
+            {!isLogin && (
+              <>
+                <div>
+                  <Label>Prénom</Label>
+                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                </div>
+
+                <div>
+                  <Label>Nom</Label>
+                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                </div>
+
+                <div>
+                  <Label>Date de naissance</Label>
+                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
+                </div>
+
+                <div>
+                  <Label>Genre</Label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    required
+                    className="w-full rounded-md border bg-transparent px-3 py-2"
+                  >
+                    <option value="">Sélectionne</option>
+                    <option value="Homme">Homme</option>
+                    <option value="Femme">Femme</option>
+                    <option value="Autre">Autre</option>
+                  </select>
+                </div>
+              </>
+            )}
+
+            <Button type="submit" variant="hero" className="w-full">
+              {isLogin ? "Se connecter" : "S'inscrire"}
+            </Button>
           </form>
+
           <div className="mt-4 text-center">
             <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline text-sm">
               {isLogin ? "Pas de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
             </button>
           </div>
-          <Link to="/" className="block text-center mt-4 text-sm text-muted-foreground">← Retour</Link>
+
+          <Link to="/" className="block text-center mt-4 text-sm text-muted-foreground">
+            ← Retour
+          </Link>
         </CardContent>
       </Card>
     </div>
