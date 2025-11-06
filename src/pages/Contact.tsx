@@ -52,7 +52,7 @@ const Contact = () => {
         prénom: formData.firstName,
         nom: formData.lastName,
         email: formData.email,
-        "N°tel": formData.phone || null,
+        telephone: formData.phone || null,
         message: formData.message,
         mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
         created_at: formattedDate,
