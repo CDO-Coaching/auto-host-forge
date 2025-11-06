@@ -14,7 +14,7 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // Champs supplémentaires uniquement pour l'inscription
+  // Champs supplémentaires pour inscription
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
@@ -23,28 +23,34 @@ const Auth = () => {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
 
+  // Quand l'utilisateur est connecté → on insère / met à jour le profil depuis user_metadata
   useEffect(() => {
-    if (loading) return;
+    if (loading || !session) return;
 
-    if (session) {
-      const redirectUser = async () => {
-        const { data: profile } = await supabase
-          .from("user_profiles")
-          .select("approved, role")
-          .eq("id", session.user.id)
-          .single();
+    const syncProfile = async () => {
+      const u = session.user;
+      const m = u.user_metadata || {};
 
-        if (!profile?.approved) {
-          navigate("/en-attente");
-        } else if (profile.role === "coach") {
-          navigate("/coach/programmation");
-        } else {
-          navigate("/sportif/seances");
-        }
-      };
+      await supabase.from("user_profiles").upsert(
+        {
+          id: u.id,
+          first_name: m.first_name ?? null,
+          last_name: m.last_name ?? null,
+          date_of_birth: m.date_of_birth ?? null,
+          gender: m.gender ?? null,
+          role: m.role ?? "sportif",
+        },
+        { onConflict: "id" },
+      );
 
-      redirectUser();
-    }
+      const { data: profile } = await supabase.from("user_profiles").select("approved, role").eq("id", u.id).single();
+
+      if (!profile?.approved) navigate("/en-attente");
+      else if (profile.role === "coach") navigate("/coach/programmation");
+      else navigate("/sportif/seances");
+    };
+
+    syncProfile();
   }, [session, loading, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -55,27 +61,24 @@ const Auth = () => {
         if (error) throw error;
         toast({ title: "Connexion réussie" });
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        // ⬇️ ICI → on sauvegarde les données dans user_metadata
+        const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            data: {
+              first_name: firstName,
+              last_name: lastName,
+              date_of_birth: birthDate,
+              gender,
+              role: "sportif",
+            },
+          },
         });
         if (error) throw error;
 
-        const userId = data.user?.id;
-
-        // Création du profil utilisateur
-        await supabase.from("user_profiles").insert({
-          id: userId,
-          first_name: firstName,
-          last_name: lastName,
-          date_of_birth: birthDate,
-          gender: gender,
-          role: "sportif",
-          approved: false,
-        });
-
-        // Notification webhook (facultatif - inchangé)
+        // Notification (facultatif, inchangé)
         await supabase.functions
           .invoke("notify-signup", {
             body: { email, signupDate: new Date().toISOString() },
@@ -84,7 +87,7 @@ const Auth = () => {
 
         toast({
           title: "Inscription réussie",
-          description: "Confirme ton email avant de te connecter. Ensuite, ton compte devra être approuvé.",
+          description: "Confirme ton email avant connexion. Ton compte devra ensuite être approuvé.",
         });
       }
     } catch (error: any) {
@@ -99,15 +102,14 @@ const Auth = () => {
           <img src={cdoLogo} alt="CDO Coaching" className="h-20 w-20 mx-auto mb-4" />
           <CardTitle>{isLogin ? "Connexion" : "Inscription"}</CardTitle>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
-            {/* Email */}
             <div>
               <Label>Email</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
-            {/* Mot de passe */}
             <div>
               <Label>Mot de passe</Label>
               <Input
@@ -119,7 +121,6 @@ const Auth = () => {
               />
             </div>
 
-            {/* Champs supplémentaires uniquement si inscription */}
             {!isLogin && (
               <>
                 <div>
