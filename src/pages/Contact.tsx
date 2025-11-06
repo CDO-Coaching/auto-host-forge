@@ -62,29 +62,31 @@ const Contact = () => {
     if (error) {
       console.error("Erreur insertion:", error);
       toast({ title: "Erreur", description: "Une erreur est survenue", variant: "destructive" });
-    } else {
-      // Envoyer la notification par email au coach
-      try {
-        await supabase.functions.invoke('notify-contact', {
-          body: {
-            prénom: formData.firstName,
-            nom: formData.lastName,
-            email: formData.email,
-            telephone: formData.phone || undefined,
-            message: formData.message,
-            mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone"
-          }
-        });
-        console.log("Notification email envoyée");
-      } catch (notifyError) {
-        console.error("Erreur notification email:", notifyError);
-        // Ne pas bloquer le succès si la notification échoue
-      }
-      
-      setShowSuccess(true);
-      setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
-      setTimeout(() => setShowSuccess(false), 4000);
+      return;
     }
+
+    // ✅ Envoi de l'email via ton endpoint Lovable + Resend
+    try {
+      await fetch("/api/notify-contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prénom: formData.firstName,
+          nom: formData.lastName,
+          email: formData.email,
+          telephone: formData.phone || null,
+          message: formData.message,
+          mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
+        }),
+      });
+      console.log("Email envoyé ✅");
+    } catch (err) {
+      console.error("Erreur envoi email:", err);
+    }
+
+    setShowSuccess(true);
+    setFormData({ firstName: "", lastName: "", email: "", phone: "", message: "", contactMethod: "" });
+    setTimeout(() => setShowSuccess(false), 4000);
   };
 
   return (
@@ -116,86 +118,46 @@ const Contact = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Prénom</Label>
-                <Input
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  required
-                />
+                <Input value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required/>
               </div>
               <div>
                 <Label>Nom</Label>
-                <Input
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  required
-                />
+                <Input value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required/>
               </div>
             </div>
 
             <div>
               <Label>Email</Label>
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required={formData.contactMethod === "email"}
-              />
+              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required={formData.contactMethod === "email"}/>
             </div>
 
             <div>
               <Label>Téléphone</Label>
-              <Input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                required={formData.contactMethod === "phone"}
-              />
+              <Input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} required={formData.contactMethod === "phone"}/>
             </div>
 
             <div>
               <Label>Mode de contact préféré *</Label>
-              <RadioGroup
-                value={formData.contactMethod}
-                onValueChange={(value) => setFormData({ ...formData, contactMethod: value })}
-                className="mt-2"
-              >
+              <RadioGroup value={formData.contactMethod} onValueChange={(value) => setFormData({ ...formData, contactMethod: value })} className="mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="email" id="email" />
-                  <Label htmlFor="email" className="cursor-pointer font-normal">
-                    Par email
-                  </Label>
+                  <Label htmlFor="email" className="cursor-pointer font-normal">Par email</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="phone" id="phone" />
-                  <Label htmlFor="phone" className="cursor-pointer font-normal">
-                    Par téléphone
-                  </Label>
+                  <Label htmlFor="phone" className="cursor-pointer font-normal">Par téléphone</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div>
               <Label>Message</Label>
-              <Textarea
-                placeholder={`Partage tes créneaux où tu es dispo 😊
-(ex : Lundi soir, Mardi midi, Mercredi matin, Ce week-end, Après 20h dans la semaine…)
-On fixe ensemble ton premier échange ✨`}
-                value={formData.message}
-                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                required
-              />
+              <Textarea placeholder="Partage tes créneaux où tu es dispo 😊" value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} required />
             </div>
 
             <Button type="submit" variant="hero" className="w-full text-lg py-6">
               Réserver mon échange 📞
             </Button>
-
-            <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
-              🔒 Les informations recueillies via ce formulaire sont enregistrées par CDO Coaching pour permettre de
-              vous recontacter et répondre à votre demande. Vos données ne sont pas partagées avec des tiers.
-              Conformément à la loi Informatique et Libertés, vous pouvez exercer vos droits d'accès, de rectification
-              ou de suppression en écrivant à corentin@cdocoaching.com.
-            </p>
           </form>
         </Card>
       </section>
