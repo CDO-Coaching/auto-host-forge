@@ -69,7 +69,7 @@ const Auth = () => {
           id: userId,
           first_name: firstName,
           last_name: lastName,
-          birthday: birthDate,
+          date_of_birth: birthDate,
           gender: gender,
           role: "sportif",
           approved: false,
