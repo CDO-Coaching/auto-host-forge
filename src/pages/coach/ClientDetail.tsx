@@ -1171,8 +1171,8 @@ export default function ClientDetail() {
                 </Card>
               )}
 
-              {/* Boutons de création de séances */}
-              {!isValidated && (
+              {/* Bouton de validation en haut */}
+              {!isValidated && sessions.length > 0 && (
                 <div className="flex justify-between items-center gap-2">
                   <div className="flex gap-2">
                     {historicalWeeks.length > 0 && (
@@ -1187,28 +1187,10 @@ export default function ClientDetail() {
                       </Button>
                     )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant={newSessionType === "renfo" ? "default" : "outline"}
-                      onClick={() => setNewSessionType("renfo")}
-                      disabled={!selectedWeekToProgram}
-                    >
-                      Renfo
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={newSessionType === "cardio" ? "default" : "outline"}
-                      onClick={() => setNewSessionType("cardio")}
-                      disabled={!selectedWeekToProgram}
-                    >
-                      Cardio
-                    </Button>
-                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
-                      <Plus className="h-3 w-3 mr-1" />
-                      Créer
-                    </Button>
-                  </div>
+                  <Button onClick={handleValidate} size="sm" disabled={!selectedWeekToProgram}>
+                    <Check className="h-4 w-4 mr-2" />
+                    Valider la programmation
+                  </Button>
                 </div>
               )}
               {sessions.length === 0 ? (
@@ -2008,10 +1990,26 @@ export default function ClientDetail() {
                   </div>
 
                   {!isValidated && sessions.length > 0 && (
-                    <div className="mt-6 flex justify-end">
-                      <Button onClick={handleValidate} size="lg" disabled={!selectedWeekToProgram}>
-                        <Check className="h-4 w-4 mr-2" />
-                        Valider la programmation
+                    <div className="mt-6 flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant={newSessionType === "renfo" ? "default" : "outline"}
+                        onClick={() => setNewSessionType("renfo")}
+                        disabled={!selectedWeekToProgram}
+                      >
+                        Renfo
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant={newSessionType === "cardio" ? "default" : "outline"}
+                        onClick={() => setNewSessionType("cardio")}
+                        disabled={!selectedWeekToProgram}
+                      >
+                        Cardio
+                      </Button>
+                      <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Créer
                       </Button>
                     </div>
                   )}
