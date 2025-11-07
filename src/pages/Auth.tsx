@@ -13,6 +13,7 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Champs supplémentaires uniquement pour l'inscription
   const [firstName, setFirstName] = useState("");
@@ -49,11 +50,31 @@ const Auth = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
+        
         toast({ title: "Connexion réussie" });
+        
+        // Redirection explicite après connexion
+        if (data.user) {
+          const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("approved, role")
+            .eq("id", data.user.id)
+            .single();
+
+          if (!profile?.approved) {
+            navigate("/en-attente");
+          } else if (profile.role === "coach") {
+            navigate("/coach/programmation");
+          } else {
+            navigate("/sportif/seances");
+          }
+        }
       } else {
         const { data, error } = await supabase.auth.signUp({
           email,
@@ -89,6 +110,8 @@ const Auth = () => {
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -154,8 +177,8 @@ const Auth = () => {
               </>
             )}
 
-            <Button type="submit" variant="hero" className="w-full">
-              {isLogin ? "Se connecter" : "S'inscrire"}
+            <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "S'inscrire"}
             </Button>
           </form>
 
