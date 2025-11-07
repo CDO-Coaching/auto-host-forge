@@ -27,11 +27,18 @@ const AuthCallback = () => {
           if (session) {
             const { data: profile } = await supabase
               .from("user_profiles")
-              .select("approved, role")
+              .select("approved, role, first_name, last_name")
               .eq("id", session.user.id)
               .single();
 
-            if (!profile?.approved) {
+            // Vérifier si le profil est complet
+            if (!profile?.first_name || !profile?.last_name) {
+              toast({ 
+                title: "Email confirmé", 
+                description: "Complète ton profil pour continuer." 
+              });
+              navigate("/sportif/profil");
+            } else if (!profile?.approved) {
               toast({ 
                 title: "Email confirmé", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 
@@ -53,11 +60,18 @@ const AuthCallback = () => {
             // Récupérer le profil pour rediriger selon le rôle
             const { data: profile } = await supabase
               .from("user_profiles")
-              .select("approved, role")
+              .select("approved, role, first_name, last_name")
               .eq("id", session.user.id)
               .single();
 
-            if (!profile?.approved) {
+            // Vérifier si le profil est complet
+            if (!profile?.first_name || !profile?.last_name) {
+              toast({ 
+                title: "Bienvenue", 
+                description: "Complète ton profil pour continuer." 
+              });
+              navigate("/sportif/profil");
+            } else if (!profile?.approved) {
               toast({ 
                 title: "Connexion réussie", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 

@@ -205,6 +205,20 @@ export default function Profil() {
       if (error) throw error;
 
       toast.success("Profil mis à jour avec succès");
+      
+      // Vérifier l'état d'approbation après la sauvegarde
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("approved")
+        .eq("id", userId)
+        .single();
+
+      // Si le profil n'est pas encore approuvé, rediriger vers la page d'attente
+      if (profile && !profile.approved) {
+        setTimeout(() => {
+          navigate("/en-attente");
+        }, 1500);
+      }
     } catch (error: any) {
       toast.error("Erreur lors de la mise à jour du profil");
       console.error(error);
@@ -229,6 +243,17 @@ export default function Profil() {
   return (
     <div className="space-y-6 pb-10">
       <h1 className="text-3xl font-bold">Mon profil</h1>
+
+      {/* Message d'information si le profil n'est pas complet */}
+      {(!form.watch("first_name") || !form.watch("last_name")) && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="pt-6">
+            <p className="text-sm text-center">
+              📝 Complète ton profil pour accéder à tes séances et continuer l'inscription
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ----------- Informations personnelles ----------- */}
       <Card>

@@ -25,16 +25,22 @@ export default function EnAttente() {
       // Vérifier le statut d'approbation
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("approved, role")
+        .select("approved, role, first_name, last_name")
         .eq("id", session.user.id)
         .single();
+
+      // Vérifier si le profil est complet
+      if (!profile?.first_name || !profile?.last_name) {
+        navigate("/sportif/profil");
+        return;
+      }
 
       if (profile?.approved) {
         // Si approuvé, rediriger vers le bon dashboard
         if (profile.role === "coach") {
           navigate("/coach/programmation");
         } else {
-          navigate("/dashboard-sportif");
+          navigate("/sportif/seances");
         }
       }
     };

@@ -15,12 +15,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Champs supplémentaires uniquement pour l'inscription
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
-  const [gender, setGender] = useState("");
-
   const navigate = useNavigate();
   const { session, loading } = useAuth();
 
@@ -31,11 +25,14 @@ const Auth = () => {
       const redirectUser = async () => {
         const { data: profile } = await supabase
           .from("user_profiles")
-          .select("approved, role")
+          .select("approved, role, first_name, last_name")
           .eq("id", session.user.id)
           .single();
 
-        if (!profile?.approved) {
+        // Vérifier si le profil est complet
+        if (!profile?.first_name || !profile?.last_name) {
+          navigate("/sportif/profil");
+        } else if (!profile?.approved) {
           navigate("/en-attente");
         } else if (profile.role === "coach") {
           navigate("/coach/programmation");
@@ -63,11 +60,14 @@ const Auth = () => {
         if (data.user) {
           const { data: profile } = await supabase
             .from("user_profiles")
-            .select("approved, role")
+            .select("approved, role, first_name, last_name")
             .eq("id", data.user.id)
             .single();
 
-          if (!profile?.approved) {
+          // Vérifier si le profil est complet
+          if (!profile?.first_name || !profile?.last_name) {
+            navigate("/sportif/profil");
+          } else if (!profile?.approved) {
             navigate("/en-attente");
           } else if (profile.role === "coach") {
             navigate("/coach/programmation");
@@ -85,18 +85,15 @@ const Auth = () => {
 
         const userId = data.user?.id;
 
-        // Création du profil utilisateur
+        // Création du profil utilisateur avec seulement le rôle
         await supabase.from("user_profiles").insert({
           id: userId,
-          first_name: firstName,
-          last_name: lastName,
-          date_of_birth: birthDate,
-          gender: gender,
+          email: email,
           role: "sportif",
           approved: false,
         });
 
-        // Notification webhook (facultatif - inchangé)
+        // Notification webhook
         await supabase.functions
           .invoke("notify-signup", {
             body: { email, signupDate: new Date().toISOString() },
@@ -105,7 +102,7 @@ const Auth = () => {
 
         toast({
           title: "Inscription réussie",
-          description: "Confirme ton email avant de te connecter. Ensuite, ton compte devra être approuvé.",
+          description: "Confirme ton email pour compléter ton profil.",
         });
       }
     } catch (error: any) {
@@ -141,41 +138,6 @@ const Auth = () => {
                 minLength={6}
               />
             </div>
-
-            {/* Champs supplémentaires uniquement si inscription */}
-            {!isLogin && (
-              <>
-                <div>
-                  <Label>Prénom</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
-                </div>
-
-                <div>
-                  <Label>Nom</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} required />
-                </div>
-
-                <div>
-                  <Label>Date de naissance</Label>
-                  <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
-                </div>
-
-                <div>
-                  <Label>Genre</Label>
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    required
-                    className="w-full rounded-md border bg-transparent px-3 py-2"
-                  >
-                    <option value="">Sélectionne</option>
-                    <option value="Homme">Homme</option>
-                    <option value="Femme">Femme</option>
-                    <option value="Autre">Autre</option>
-                  </select>
-                </div>
-              </>
-            )}
 
             <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "S'inscrire"}
