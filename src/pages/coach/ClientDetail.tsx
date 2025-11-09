@@ -113,6 +113,61 @@ export default function ClientDetail() {
 
   const availableWeeks = getNextWeeks();
 
+  // Fonction pour calculer l'état d'une séance
+  const getSessionStatus = (session: any) => {
+    const exercises = session.session_exercises || [];
+    if (exercises.length === 0) return "non_commencee";
+    
+    const completedExercises = exercises.filter((ex: any) => ex.sportif_rpe !== null);
+    
+    if (completedExercises.length === 0) return "non_commencee";
+    if (completedExercises.length === exercises.length) return "terminee";
+    return "en_cours";
+  };
+
+  // Fonction pour calculer l'état d'une semaine
+  const getWeekStatus = (weekId: string) => {
+    const sessions = historicalSessions.filter((s: any) => s.week_id === weekId);
+    if (sessions.length === 0) return "non_commencee";
+    
+    const sessionsStatus = sessions.map(getSessionStatus);
+    
+    const hasStarted = sessionsStatus.some((status) => status !== "non_commencee");
+    const allCompleted = sessionsStatus.every((status) => status === "terminee");
+    
+    if (!hasStarted) return "non_commencee";
+    if (allCompleted) return "terminee";
+    return "en_cours";
+  };
+
+  // Fonction pour obtenir le badge d'état d'une séance
+  const getSessionStatusBadge = (status: string) => {
+    switch (status) {
+      case "terminee":
+        return <Badge className="bg-green-600 text-white">Terminée</Badge>;
+      case "en_cours":
+        return <Badge className="bg-orange-500 text-white">En cours</Badge>;
+      case "non_commencee":
+        return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  // Fonction pour obtenir le badge d'état d'une semaine
+  const getWeekStatusBadge = (status: string) => {
+    switch (status) {
+      case "terminee":
+        return <Badge className="bg-green-600 text-white">Semaine terminée</Badge>;
+      case "en_cours":
+        return <Badge className="bg-orange-500 text-white">Semaine en cours</Badge>;
+      case "non_commencee":
+        return <Badge variant="outline" className="text-muted-foreground">Semaine non commencée</Badge>;
+      default:
+        return null;
+    }
+  };
+
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
     { value: "45s", label: "45 secondes" },
@@ -2061,22 +2116,32 @@ export default function ClientDetail() {
                       onChange={(e) => handleSelectHistoricalWeek(e.target.value)}
                     >
                       <option value="">-- Choisir une semaine --</option>
-                      {historicalWeeks.map((week) => (
-                        <option key={week.id} value={week.id}>
-                          Semaine {week.week_number} - {week.year} (validée le{" "}
-                          {new Date(week.validated_at).toLocaleDateString()})
-                        </option>
-                      ))}
+                      {historicalWeeks.map((week) => {
+                        const weekStatus = historicalSessions.length > 0 && selectedHistoricalWeek?.id === week.id 
+                          ? getWeekStatus(week.id) 
+                          : null;
+                        const statusText = weekStatus === "terminee" ? " ✓" : weekStatus === "en_cours" ? " ⏳" : weekStatus === "non_commencee" ? " ○" : "";
+                        
+                        return (
+                          <option key={week.id} value={week.id}>
+                            Semaine {week.week_number} - {week.year}{statusText} (validée le{" "}
+                            {new Date(week.validated_at).toLocaleDateString()})
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   {selectedHistoricalWeek && (
                     <div className="space-y-4">
                       <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
-                        <div>
-                          <h3 className="font-semibold">
-                            Semaine {selectedHistoricalWeek.week_number} - {selectedHistoricalWeek.year}
-                          </h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold">
+                              Semaine {selectedHistoricalWeek.week_number} - {selectedHistoricalWeek.year}
+                            </h3>
+                            {getWeekStatusBadge(getWeekStatus(selectedHistoricalWeek.id))}
+                          </div>
                           <p className="text-sm text-muted-foreground">
                             Validée le {new Date(selectedHistoricalWeek.validated_at).toLocaleDateString()}
                           </p>
@@ -2154,6 +2219,7 @@ export default function ClientDetail() {
                                 <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
                                   {session.session_type === "cardio" ? "Cardio" : "Renfo"}
                                 </Badge>
+                                {getSessionStatusBadge(getSessionStatus(session))}
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline">{session.session_exercises?.length || 0} exercices</Badge>
