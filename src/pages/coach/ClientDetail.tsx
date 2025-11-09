@@ -1989,7 +1989,7 @@ export default function ClientDetail() {
                     ))}
                   </div>
 
-                  {!isValidated && sessions.length > 0 && (
+                  {!isValidated && (
                     <div className="mt-6 flex justify-end gap-2">
                       <Button
                         size="sm"
