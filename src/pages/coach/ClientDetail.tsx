@@ -1989,30 +1989,6 @@ export default function ClientDetail() {
                     ))}
                   </div>
 
-                  {!isValidated && (
-                    <div className="mt-6 flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant={newSessionType === "renfo" ? "default" : "outline"}
-                        onClick={() => setNewSessionType("renfo")}
-                        disabled={!selectedWeekToProgram}
-                      >
-                        Renfo
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={newSessionType === "cardio" ? "default" : "outline"}
-                        onClick={() => setNewSessionType("cardio")}
-                        disabled={!selectedWeekToProgram}
-                      >
-                        Cardio
-                      </Button>
-                      <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Créer
-                      </Button>
-                    </div>
-                  )}
 
                   {isValidated && (
                     <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-lg">
@@ -2022,6 +1998,31 @@ export default function ClientDetail() {
                     </div>
                   )}
                 </>
+              )}
+
+              {!isValidated && (
+                <div className="mt-6 flex justify-end gap-2">
+                  <Button
+                    size="sm"
+                    variant={newSessionType === "renfo" ? "default" : "outline"}
+                    onClick={() => setNewSessionType("renfo")}
+                    disabled={!selectedWeekToProgram}
+                  >
+                    Renfo
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={newSessionType === "cardio" ? "default" : "outline"}
+                    onClick={() => setNewSessionType("cardio")}
+                    disabled={!selectedWeekToProgram}
+                  >
+                    Cardio
+                  </Button>
+                  <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
