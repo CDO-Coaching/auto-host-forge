@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import cdoLogo from "@/assets/cdo-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
+import { Mail } from "lucide-react";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
 
   const navigate = useNavigate();
   const { session, loading } = useAuth();
@@ -100,10 +103,7 @@ const Auth = () => {
           })
           .catch(() => {});
 
-        toast({
-          title: "Inscription réussie",
-          description: "Confirme ton email pour compléter ton profil.",
-        });
+        setShowEmailDialog(true);
       }
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erreur", description: error.message });
@@ -113,8 +113,40 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <>
+      <AlertDialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex justify-center mb-4">
+              <div className="rounded-full bg-primary/10 p-4">
+                <Mail className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            <AlertDialogTitle className="text-center text-2xl">
+              Vérifie ton email !
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-base space-y-3 pt-2">
+              <p>
+                Nous t'avons envoyé un email de confirmation à <strong>{email}</strong>
+              </p>
+              <p>
+                Clique sur le lien dans l'email pour valider ton compte et compléter ton profil.
+              </p>
+              <p className="text-destructive font-medium">
+                ⚠️ N'oublie pas de vérifier tes spams !
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button onClick={() => setShowEmailDialog(false)} className="w-full">
+              J'ai compris
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <img src={cdoLogo} alt="CDO Coaching" className="h-20 w-20 mx-auto mb-4" />
           <CardTitle>{isLogin ? "Connexion" : "Inscription"}</CardTitle>
@@ -156,6 +188,7 @@ const Auth = () => {
         </CardContent>
       </Card>
     </div>
+    </>
   );
 };
 
