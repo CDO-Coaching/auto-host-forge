@@ -1231,20 +1231,7 @@ export default function ClientDetail() {
 
               {/* Bouton de validation en haut */}
               {!isValidated && sessions.length > 0 && (
-                <div className="flex justify-between items-center gap-2">
-                  <div className="flex gap-2">
-                    {historicalWeeks.length > 0 && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCopyDialog(true)}
-                        disabled={sessions.length > 0 || !selectedWeekToProgram}
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        Copier d'une semaine
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex justify-end items-center gap-2">
                   <Button onClick={handleValidate} size="sm" disabled={!selectedWeekToProgram}>
                     <Check className="h-4 w-4 mr-2" />
                     Valider la programmation
@@ -2059,27 +2046,40 @@ export default function ClientDetail() {
               )}
 
               {!isValidated && (
-                <div className="mt-6 flex justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant={newSessionType === "renfo" ? "default" : "outline"}
-                    onClick={() => setNewSessionType("renfo")}
-                    disabled={!selectedWeekToProgram}
-                  >
-                    Renfo
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={newSessionType === "cardio" ? "default" : "outline"}
-                    onClick={() => setNewSessionType("cardio")}
-                    disabled={!selectedWeekToProgram}
-                  >
-                    Cardio
-                  </Button>
-                  <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Créer
-                  </Button>
+                <div className="mt-6 flex justify-between gap-2">
+                  {historicalWeeks.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowCopyDialog(true)}
+                      disabled={!selectedWeekToProgram}
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copier d'une semaine
+                    </Button>
+                  )}
+                  <div className="flex gap-2 ml-auto">
+                    <Button
+                      size="sm"
+                      variant={newSessionType === "renfo" ? "default" : "outline"}
+                      onClick={() => setNewSessionType("renfo")}
+                      disabled={!selectedWeekToProgram}
+                    >
+                      Renfo
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={newSessionType === "cardio" ? "default" : "outline"}
+                      onClick={() => setNewSessionType("cardio")}
+                      disabled={!selectedWeekToProgram}
+                    >
+                      Cardio
+                    </Button>
+                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Créer
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
