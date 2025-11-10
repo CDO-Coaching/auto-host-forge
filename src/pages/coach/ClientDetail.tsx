@@ -159,19 +159,6 @@ export default function ClientDetail() {
     }
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
-  // Scroll automatique vers le bas lors de l'ajout de séances ou d'exercices
-  useEffect(() => {
-    if (!isValidated && sessions.length > 0) {
-      // Attendre un peu que le DOM soit mis à jour
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.documentElement.scrollHeight,
-          behavior: 'smooth'
-        });
-      }, 150);
-    }
-  }, [sessions, sessionExercises, isValidated]);
-
   const loadLibraryExercises = async () => {
     const { data, error } = await supabase.from("exercise_library").select("id, name, muscle").order("name");
 
@@ -544,13 +531,6 @@ export default function ClientDetail() {
       setExpandedSessionId(null);
     } else {
       setExpandedSessionId(sessionId);
-      // Scroll vers le bas quand on ouvre une séance pour voir la zone d'ajout
-      setTimeout(() => {
-        window.scrollTo({
-          top: document.documentElement.scrollHeight,
-          behavior: 'smooth',
-        });
-      }, 200);
     }
   };
 
