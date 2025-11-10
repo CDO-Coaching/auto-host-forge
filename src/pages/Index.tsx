@@ -1,12 +1,60 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
 import heroImage from "@/assets/coach-action-training.jpg";
 import { Dumbbell, Target, Users, Zap } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    const checkUserAndRedirect = async () => {
+      if (loading) return;
+      
+      if (user) {
+        // Récupérer le profil de l'utilisateur
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('role, approved, first_name, last_name')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          // Si le profil n'est pas approuvé, rediriger vers la page d'attente
+          if (!profile.approved) {
+            navigate("/en-attente");
+            return;
+          }
+
+          // Si le profil n'est pas complet, rediriger vers la page de profil
+          if (!profile.first_name || !profile.last_name) {
+            if (profile.role === 'coach') {
+              navigate("/coach/profil");
+            } else {
+              navigate("/sportif/profil");
+            }
+            return;
+          }
+
+          // Sinon, rediriger vers le dashboard approprié
+          if (profile.role === 'coach') {
+            navigate("/coach/programmation");
+          } else {
+            navigate("/sportif/seances");
+          }
+        }
+      }
+    };
+
+    checkUserAndRedirect();
+  }, [user, loading, navigate]);
+
   const services = [
     {
       icon: <Dumbbell className="w-8 h-8" />,
