@@ -6,7 +6,7 @@ import { Plus, TrendingUp } from "lucide-react";
 import { MaxDialog } from "./MaxDialog";
 import { MaxesList } from "./MaxesList";
 import { MaxProgressChart } from "./MaxProgressChart";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExerciseFilterCombobox } from "./ExerciseFilterCombobox";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -47,15 +47,28 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMax, setEditingMax] = useState<Max | null>(null);
-  const [filterMuscle, setFilterMuscle] = useState<string>("all");
+  const [filterExerciseId, setFilterExerciseId] = useState<string>("");
   const [selectedExerciseForChart, setSelectedExerciseForChart] = useState<string>("");
   const [chartData, setChartData] = useState<MaxHistory[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [maxToDelete, setMaxToDelete] = useState<string | null>(null);
+  const [exercisesList, setExercisesList] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     loadMaxes();
+    loadExercisesList();
   }, [athleteId]);
+
+  const loadExercisesList = async () => {
+    const { data } = await supabase
+      .from("exercise_library")
+      .select("id, name")
+      .order("name");
+    
+    if (data) {
+      setExercisesList(data);
+    }
+  };
 
   const loadMaxes = async () => {
     setLoading(true);
@@ -170,10 +183,10 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
     setEditingMax(null);
   };
 
-  const muscles = ["all", ...new Set(maxes.map((m) => m.muscle))];
-  const filteredMaxes = filterMuscle === "all" 
-    ? maxes 
-    : maxes.filter((m) => m.muscle === filterMuscle);
+  // Filtrer par exercice si sélectionné
+  const filteredMaxes = filterExerciseId 
+    ? maxes.filter((m) => m.exercise_id === filterExerciseId)
+    : maxes;
 
   const latestMaxes = filteredMaxes.reduce((acc, max) => {
     const key = `${max.exercise_id}-${max.max_type}`;
@@ -184,6 +197,18 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
   }, {} as Record<string, Max>);
 
   const uniqueMaxes = Object.values(latestMaxes);
+  
+  // Si un exercice est sélectionné, charger automatiquement son chart
+  useEffect(() => {
+    if (filterExerciseId) {
+      setSelectedExerciseForChart(filterExerciseId);
+      loadChartData(filterExerciseId);
+    } else {
+      setSelectedExerciseForChart("");
+      setChartData([]);
+    }
+  }, [filterExerciseId]);
+  
   const selectedExercise = maxes.find((m) => m.exercise_id === selectedExerciseForChart);
 
   if (loading) {
@@ -242,44 +267,16 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
 
       {maxes.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Select value={filterMuscle} onValueChange={setFilterMuscle}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrer par muscle" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les muscles</SelectItem>
-                {muscles.slice(1).map((muscle) => (
-                  <SelectItem key={muscle} value={muscle}>
-                    {muscle}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {uniqueMaxes.length > 0 && (
-              <Select
-                value={selectedExerciseForChart}
-                onValueChange={(value) => {
-                  setSelectedExerciseForChart(value);
-                  loadChartData(value);
-                }}
-              >
-                <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder="Voir la progression" />
-                </SelectTrigger>
-                <SelectContent>
-                  {uniqueMaxes.map((max) => (
-                    <SelectItem key={max.exercise_id} value={max.exercise_id}>
-                      {max.exercise_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Filtrer par exercice</label>
+            <ExerciseFilterCombobox
+              value={filterExerciseId}
+              onChange={setFilterExerciseId}
+              exercises={exercisesList}
+            />
           </div>
 
-          {selectedExercise && chartData.length > 1 && (
+          {filterExerciseId && selectedExercise && chartData.length > 0 && (
             <MaxProgressChart
               data={chartData}
               exerciseName={selectedExercise.exercise_name}
