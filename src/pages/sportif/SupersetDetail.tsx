@@ -294,7 +294,7 @@ export default function SupersetDetail() {
           .insert({
             athlete_id: user.id,
             exercise_id: libraryData.id,
-            max_type: "Max théorique",
+            max_type: "max_theorique",
             weight_kg: theoretical1RM,
             recorded_at: new Date().toISOString(),
             notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
