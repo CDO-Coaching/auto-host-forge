@@ -544,6 +544,13 @@ export default function ClientDetail() {
       setExpandedSessionId(null);
     } else {
       setExpandedSessionId(sessionId);
+      // Scroll vers le bas quand on ouvre une séance pour voir la zone d'ajout
+      setTimeout(() => {
+        window.scrollTo({
+          top: document.documentElement.scrollHeight,
+          behavior: 'smooth',
+        });
+      }, 200);
     }
   };
 
@@ -798,8 +805,9 @@ export default function ClientDetail() {
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
 
+    const newExerciseId = currentExercises.length + 1;
     const newExercise: Exercise = {
-      id: currentExercises.length + 1,
+      id: newExerciseId,
       exercice: isCardio ? "Séance Cardio" : "",
       recuperation: "",
       reps: "",
@@ -819,6 +827,22 @@ export default function ClientDetail() {
       ...sessionExercises,
       [sessionId]: [...currentExercises, newExercise],
     });
+
+    // Après insertion, descendre automatiquement en bas et amener la nouvelle ligne à l'écran
+    setTimeout(() => {
+      // Scroll global en bas
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: 'smooth',
+      });
+      // S'assurer que la nouvelle ligne est visible et focus sur le champ exercice
+      const newExerciseButton = document.querySelector(
+        `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`
+      ) as HTMLElement | null;
+      newExerciseButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      newExerciseButton?.focus();
+      newExerciseButton?.click();
+    }, 200);
   };
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
