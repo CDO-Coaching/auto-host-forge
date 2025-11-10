@@ -243,6 +243,12 @@ export default function ExerciceDetail() {
 
   const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
     try {
+      // Ne pas enregistrer si l'exercice a un tempo défini
+      if (exercise.tempo && exercise.tempo.trim() !== "") {
+        console.log("Max théorique non enregistré: tempo défini");
+        return;
+      }
+
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
       

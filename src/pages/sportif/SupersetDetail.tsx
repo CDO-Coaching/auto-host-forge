@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
-import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -224,14 +223,8 @@ export default function SupersetDetail() {
         }
       }
 
-      // Calculer et enregistrer les max théoriques pour chaque exercice du superset
-      if (rpeValue) {
-        for (const exercise of exercises) {
-          if (shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
-            await recordTheoreticalMax(exercise, rpeValue);
-          }
-        }
-      }
+      // Ne pas enregistrer les max théoriques pour les supersets
+      // Les max théoriques ne sont enregistrés que pour les exercices solo
 
       // Nettoyer les données sauvegardées
       localStorage.removeItem(`superset-progress-${supersetId}`);
@@ -251,69 +244,6 @@ export default function SupersetDetail() {
     }
   };
 
-  const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
-    try {
-      const weight = parseWeight(exercise.charge);
-      const repsValue = parseReps(exercise.reps);
-      
-      if (!weight || !repsValue) return;
-
-      // Calculer le 1RM théorique
-      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue);
-
-      // Récupérer l'exercise_id depuis la bibliothèque
-      const { data: libraryData } = await supabase
-        .from("exercise_library")
-        .select("id")
-        .eq("name", exercise.exercice)
-        .maybeSingle();
-
-      if (!libraryData?.id) {
-        console.log("Exercice non trouvé dans la bibliothèque:", exercise.exercice);
-        return;
-      }
-
-      // Récupérer l'athlete_id
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Chercher le max le plus récent pour cet exercice (tous types confondus)
-      const { data: latestMax } = await supabase
-        .from("exercise_maxes")
-        .select("weight_kg")
-        .eq("athlete_id", user.id)
-        .eq("exercise_id", libraryData.id)
-        .order("recorded_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Enregistrer uniquement si c'est un nouveau record
-      if (!latestMax || theoretical1RM > latestMax.weight_kg) {
-        const { error: insertError } = await supabase
-          .from("exercise_maxes")
-          .insert({
-            athlete_id: user.id,
-            exercise_id: libraryData.id,
-            max_type: "max_theorique",
-            weight_kg: theoretical1RM,
-            recorded_at: new Date().toISOString(),
-            notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
-          });
-
-        if (insertError) {
-          console.error("Erreur insert max théorique:", insertError);
-          toast({
-            title: "Max non enregistré",
-            description: `Autorisation refusée pour ${exercise.exercice}`,
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'enregistrement du max théorique:", error);
-      // Ne pas faire échouer la sauvegarde du feedback si l'enregistrement du max échoue
-    }
-  };
 
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
