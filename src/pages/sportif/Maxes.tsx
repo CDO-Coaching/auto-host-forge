@@ -1,0 +1,326 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, TrendingUp } from "lucide-react";
+import { MaxDialog } from "@/components/MaxDialog";
+import { MaxesList } from "@/components/MaxesList";
+import { MaxProgressChart } from "@/components/MaxProgressChart";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+interface Max {
+  id: string;
+  exercise_id: string;
+  exercise_name: string;
+  muscle: string;
+  max_type: string;
+  weight_kg: number;
+  recorded_at: string;
+  notes: string | null;
+  previous_weight?: number;
+}
+
+interface MaxHistory {
+  recorded_at: string;
+  weight_kg: number;
+  max_type: string;
+}
+
+export default function Maxes() {
+  const [maxes, setMaxes] = useState<Max[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingMax, setEditingMax] = useState<Max | null>(null);
+  const [filterMuscle, setFilterMuscle] = useState<string>("all");
+  const [selectedExerciseForChart, setSelectedExerciseForChart] = useState<string>("");
+  const [chartData, setChartData] = useState<MaxHistory[]>([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [maxToDelete, setMaxToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadMaxes();
+  }, []);
+
+  const loadMaxes = async () => {
+    setLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Récupérer tous les maxes avec les détails des exercices
+      const { data: maxesData, error } = await supabase
+        .from("exercise_maxes")
+        .select(`
+          id,
+          exercise_id,
+          max_type,
+          weight_kg,
+          recorded_at,
+          notes,
+          exercise_library (
+            name,
+            muscle
+          )
+        `)
+        .eq("athlete_id", user.id)
+        .order("recorded_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Transformer et enrichir les données
+      const enrichedMaxes = await Promise.all(
+        maxesData.map(async (max: any) => {
+          // Chercher le max précédent pour le même exercice
+          const { data: previousMax } = await supabase
+            .from("exercise_maxes")
+            .select("weight_kg")
+            .eq("athlete_id", user.id)
+            .eq("exercise_id", max.exercise_id)
+            .eq("max_type", max.max_type)
+            .lt("recorded_at", max.recorded_at)
+            .order("recorded_at", { ascending: false })
+            .limit(1)
+            .single();
+
+          return {
+            id: max.id,
+            exercise_id: max.exercise_id,
+            exercise_name: max.exercise_library.name,
+            muscle: max.exercise_library.muscle,
+            max_type: max.max_type,
+            weight_kg: max.weight_kg,
+            recorded_at: max.recorded_at,
+            notes: max.notes,
+            previous_weight: previousMax?.weight_kg,
+          };
+        })
+      );
+
+      setMaxes(enrichedMaxes);
+
+      // Sélectionner automatiquement le premier exercice pour le graphique
+      if (enrichedMaxes.length > 0 && !selectedExerciseForChart) {
+        setSelectedExerciseForChart(enrichedMaxes[0].exercise_id);
+        loadChartData(enrichedMaxes[0].exercise_id);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors du chargement des maxes");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadChartData = async (exerciseId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("exercise_maxes")
+      .select("recorded_at, weight_kg, max_type")
+      .eq("athlete_id", user.id)
+      .eq("exercise_id", exerciseId)
+      .order("recorded_at", { ascending: true });
+
+    if (data) {
+      setChartData(data);
+    }
+  };
+
+  const handleEditMax = (max: Max) => {
+    setEditingMax(max);
+    setDialogOpen(true);
+  };
+
+  const handleDeleteMax = (id: string) => {
+    setMaxToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!maxToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("exercise_maxes")
+        .delete()
+        .eq("id", maxToDelete);
+
+      if (error) throw error;
+
+      toast.success("Max supprimé");
+      loadMaxes();
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la suppression");
+    } finally {
+      setDeleteDialogOpen(false);
+      setMaxToDelete(null);
+    }
+  };
+
+  const handleDialogClose = () => {
+    setDialogOpen(false);
+    setEditingMax(null);
+  };
+
+  const muscles = ["all", ...new Set(maxes.map((m) => m.muscle))];
+  const filteredMaxes = filterMuscle === "all" 
+    ? maxes 
+    : maxes.filter((m) => m.muscle === filterMuscle);
+
+  // Grouper par exercice pour obtenir le max le plus récent de chaque
+  const latestMaxes = filteredMaxes.reduce((acc, max) => {
+    const key = `${max.exercise_id}-${max.max_type}`;
+    if (!acc[key] || new Date(max.recorded_at) > new Date(acc[key].recorded_at)) {
+      acc[key] = max;
+    }
+    return acc;
+  }, {} as Record<string, Max>);
+
+  const uniqueMaxes = Object.values(latestMaxes);
+  const selectedExercise = maxes.find((m) => m.exercise_id === selectedExerciseForChart);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-3xl font-bold">Mes Maxes</h1>
+        <Card>
+          <CardContent className="py-8 text-center">
+            Chargement...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Mes Maxes</h1>
+        <Button onClick={() => setDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nouveau max
+        </Button>
+      </div>
+
+      {maxes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Statistiques
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-3xl font-bold text-primary">{uniqueMaxes.length}</div>
+                <div className="text-sm text-muted-foreground">Exercices suivis</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary">{maxes.length}</div>
+                <div className="text-sm text-muted-foreground">Maxes enregistrés</div>
+              </div>
+              <div>
+                <div className="text-3xl font-bold text-primary">
+                  {maxes.filter((m) => m.previous_weight && m.weight_kg > m.previous_weight).length}
+                </div>
+                <div className="text-sm text-muted-foreground">Records battus</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {maxes.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <Select value={filterMuscle} onValueChange={setFilterMuscle}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrer par muscle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les muscles</SelectItem>
+                {muscles.slice(1).map((muscle) => (
+                  <SelectItem key={muscle} value={muscle}>
+                    {muscle}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {uniqueMaxes.length > 0 && (
+              <Select
+                value={selectedExerciseForChart}
+                onValueChange={(value) => {
+                  setSelectedExerciseForChart(value);
+                  loadChartData(value);
+                }}
+              >
+                <SelectTrigger className="w-[300px]">
+                  <SelectValue placeholder="Voir la progression" />
+                </SelectTrigger>
+                <SelectContent>
+                  {uniqueMaxes.map((max) => (
+                    <SelectItem key={max.exercise_id} value={max.exercise_id}>
+                      {max.exercise_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {selectedExercise && chartData.length > 1 && (
+            <MaxProgressChart
+              data={chartData}
+              exerciseName={selectedExercise.exercise_name}
+            />
+          )}
+        </div>
+      )}
+
+      <MaxesList
+        maxes={uniqueMaxes}
+        onEdit={handleEditMax}
+        onDelete={handleDeleteMax}
+      />
+
+      <MaxDialog
+        open={dialogOpen}
+        onOpenChange={handleDialogClose}
+        onSuccess={loadMaxes}
+        editMax={editingMax}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce max ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Le max sera définitivement supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
