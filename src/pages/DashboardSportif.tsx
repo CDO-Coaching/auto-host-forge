@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { ChatBubble } from "@/components/ChatBubble";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,7 @@ export default function DashboardSportif() {
             </Routes>
           </main>
         </div>
+        <ChatBubble />
       </div>
     </SidebarProvider>
   );

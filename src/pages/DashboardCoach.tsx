@@ -14,6 +14,7 @@ import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
 import Profil from "./coach/Profil";
+import Messagerie from "./coach/Messagerie";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
@@ -122,6 +123,7 @@ export default function DashboardCoach() {
               <Route path="/programmation" element={<Programmation />} />
               <Route path="/mes-clients" element={<MesClients />} />
               <Route path="/client/:athleteId" element={<ClientDetail />} />
+              <Route path="/messagerie" element={<Messagerie />} />
               <Route path="/bibliotheque-exercices" element={<BibliothequeExercices />} />
               <Route path="/profil" element={<Profil />} />
             </Routes>
