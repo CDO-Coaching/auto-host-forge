@@ -2194,6 +2194,9 @@ export default function ClientDetail() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline">{session.session_exercises?.length || 0} exercices</Badge>
+                                {session.duration_minutes && (
+                                  <Badge variant="secondary">{session.duration_minutes} min</Badge>
+                                )}
                                 {isEditingHistorical && (
                                   <Button
                                     variant="ghost"
