@@ -24,6 +24,16 @@ const Auth = () => {
   useEffect(() => {
     if (loading) return;
 
+    // Ne pas rediriger si on vient du callback ou de la confirmation d'email
+    const fromCallback = sessionStorage.getItem('from_callback');
+    const justConfirmed = sessionStorage.getItem('just_confirmed_email');
+    
+    if (fromCallback || justConfirmed) {
+      sessionStorage.removeItem('from_callback');
+      sessionStorage.removeItem('just_confirmed_email');
+      return;
+    }
+
     if (session) {
       const redirectUser = async () => {
         const { data: profile } = await supabase
@@ -34,13 +44,13 @@ const Auth = () => {
 
         // Vérifier si le profil est complet
         if (!profile?.first_name || !profile?.last_name) {
-          navigate("/sportif/profil");
+          navigate("/sportif/profil", { replace: true });
         } else if (!profile?.approved) {
-          navigate("/en-attente");
+          navigate("/en-attente", { replace: true });
         } else if (profile.role === "coach") {
-          navigate("/coach/programmation");
+          navigate("/coach/programmation", { replace: true });
         } else {
-          navigate("/sportif/seances");
+          navigate("/sportif/seances", { replace: true });
         }
       };
 

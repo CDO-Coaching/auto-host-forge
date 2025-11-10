@@ -8,7 +8,11 @@ const AuthCallback = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    let hasRedirected = false;
+
     const handleCallback = async () => {
+      if (hasRedirected) return;
+
       try {
         const token = searchParams.get('token');
         const type = searchParams.get('type');
@@ -21,6 +25,9 @@ const AuthCallback = () => {
           });
 
           if (error) throw error;
+
+          // Marquer qu'on vient de confirmer l'email
+          sessionStorage.setItem('just_confirmed_email', 'true');
 
           // Récupérer le profil pour rediriger selon le rôle
           const { data: { session } } = await supabase.auth.getSession();
@@ -37,17 +44,21 @@ const AuthCallback = () => {
                 title: "Email confirmé", 
                 description: "Complète ton profil pour continuer." 
               });
-              navigate("/sportif/profil");
+              hasRedirected = true;
+              navigate("/sportif/profil", { replace: true });
             } else if (!profile?.approved) {
               toast({ 
                 title: "Email confirmé", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 
               });
-              navigate("/en-attente");
+              hasRedirected = true;
+              navigate("/en-attente", { replace: true });
             } else if (profile.role === "coach") {
-              navigate("/coach/programmation");
+              hasRedirected = true;
+              navigate("/coach/programmation", { replace: true });
             } else {
-              navigate("/sportif/seances");
+              hasRedirected = true;
+              navigate("/sportif/seances", { replace: true });
             }
           }
         } else {
@@ -57,6 +68,9 @@ const AuthCallback = () => {
           if (error) throw error;
           
           if (session) {
+            // Marquer qu'on vient du callback
+            sessionStorage.setItem('from_callback', 'true');
+
             // Récupérer le profil pour rediriger selon le rôle
             const { data: profile } = await supabase
               .from("user_profiles")
@@ -70,20 +84,25 @@ const AuthCallback = () => {
                 title: "Bienvenue", 
                 description: "Complète ton profil pour continuer." 
               });
-              navigate("/sportif/profil");
+              hasRedirected = true;
+              navigate("/sportif/profil", { replace: true });
             } else if (!profile?.approved) {
               toast({ 
                 title: "Connexion réussie", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 
               });
-              navigate("/en-attente");
+              hasRedirected = true;
+              navigate("/en-attente", { replace: true });
             } else if (profile.role === "coach") {
-              navigate("/coach/programmation");
+              hasRedirected = true;
+              navigate("/coach/programmation", { replace: true });
             } else {
-              navigate("/sportif/seances");
+              hasRedirected = true;
+              navigate("/sportif/seances", { replace: true });
             }
           } else {
-            navigate("/auth");
+            hasRedirected = true;
+            navigate("/auth", { replace: true });
           }
         }
       } catch (error: any) {
@@ -92,7 +111,8 @@ const AuthCallback = () => {
           title: "Erreur de confirmation", 
           description: error.message 
         });
-        navigate("/auth?error=confirmation_failed");
+        hasRedirected = true;
+        navigate("/auth?error=confirmation_failed", { replace: true });
       }
     };
 

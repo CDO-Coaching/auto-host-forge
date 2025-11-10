@@ -155,6 +155,12 @@ export default function Profil() {
   /* Charger les infos du profil */
   useEffect(() => {
     const loadProfile = async () => {
+      // Nettoyer les flags de callback après un court délai
+      setTimeout(() => {
+        sessionStorage.removeItem('from_callback');
+        sessionStorage.removeItem('just_confirmed_email');
+      }, 100);
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
