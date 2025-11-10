@@ -42,9 +42,23 @@ export default function Seances() {
       });
 
       setWeeks(filteredWeeks);
-      if (filteredWeeks && filteredWeeks.length > 0) {
+      
+      // Chercher la semaine actuelle
+      const currentWeek = filteredWeeks.find(
+        (week: any) => week.week_number === currentWeekNumber && week.year === currentYear
+      );
+
+      if (currentWeek) {
+        // La semaine actuelle existe, l'afficher
+        loadWeekSessions(currentWeek.id);
+        setSelectedWeek(currentWeek);
+      } else if (filteredWeeks && filteredWeeks.length > 0) {
+        // La semaine actuelle n'existe pas, afficher la plus récente
         loadWeekSessions(filteredWeeks[0].id);
         setSelectedWeek(filteredWeeks[0]);
+      } else {
+        // Aucune semaine disponible
+        setSelectedWeek(null);
       }
     }
     setLoading(false);
@@ -107,6 +121,13 @@ export default function Seances() {
     );
   }
 
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentWeekNumber = getWeekNumber(now);
+  const isCurrentWeekAvailable = weeks.some(
+    (week) => week.week_number === currentWeekNumber && week.year === currentYear
+  );
+
   return (
     <div className="space-y-4 pb-4">
       <div className="flex items-start justify-between gap-4">
@@ -132,6 +153,24 @@ export default function Seances() {
           </div>
         )}
       </div>
+
+      {!isCurrentWeekAvailable && weeks.length > 0 && (
+        <Card className="border-orange-500 bg-orange-500/10">
+          <CardContent className="p-5">
+            <div className="flex items-start gap-3">
+              <Clock className="h-5 w-5 text-orange-500 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-orange-700 dark:text-orange-400">
+                  Semaine {currentWeekNumber} en cours de création
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {firstName}, ton coach prépare ta semaine de sport. En attendant, tu peux consulter tes semaines précédentes.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {weeks.length === 0 ? (
         <Card>
