@@ -536,15 +536,36 @@ export default function ClientDetail() {
 
   const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Créer un mapping des anciens IDs vers les nouveaux IDs
+    const idMapping: { [key: number]: number } = {};
     const updatedSessions = sessions
       .filter((s) => s.id !== sessionId)
-      .map((s, index) => ({
-        ...s,
-        id: index + 1,
-        name: `Séance ${index + 1}`,
-      }));
+      .map((s, index) => {
+        const newId = index + 1;
+        idMapping[s.id] = newId;
+        return {
+          ...s,
+          id: newId,
+          // Garder le nom original s'il a été personnalisé, sinon mettre un nom par défaut
+          name: s.name.match(/^(Séance|Cardio) \d+$/) 
+            ? (s.session_type === "cardio" ? `Cardio ${newId}` : `Séance ${newId}`)
+            : s.name,
+        };
+      });
+
+    // Mettre à jour sessionExercises avec les nouveaux IDs
+    const updatedSessionExercises: { [key: number]: Exercise[] } = {};
+    Object.keys(sessionExercises).forEach((oldIdStr) => {
+      const oldId = parseInt(oldIdStr);
+      if (idMapping[oldId] !== undefined) {
+        updatedSessionExercises[idMapping[oldId]] = sessionExercises[oldId];
+      }
+    });
 
     setSessions(updatedSessions);
+    setSessionExercises(updatedSessionExercises);
+    
     if (expandedSessionId === sessionId) {
       setExpandedSessionId(null);
     }
