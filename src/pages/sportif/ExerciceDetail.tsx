@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
+import { TimerOverlay } from "@/components/TimerOverlay";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -24,6 +25,7 @@ export default function ExerciceDetail() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -151,6 +153,9 @@ export default function ExerciceDetail() {
             });
           }, 1000);
           setTimerInterval(interval);
+          
+          // Afficher l'overlay
+          setShowTimerOverlay(true);
         }
       }
     }
@@ -294,6 +299,18 @@ export default function ExerciceDetail() {
         message={exercise?.exercice || ""}
         onComplete={handleCelebrationComplete}
         type="exercise"
+      />
+      
+      {/* Timer Overlay */}
+      <TimerOverlay
+        show={showTimerOverlay}
+        onClose={() => setShowTimerOverlay(false)}
+        timeRemaining={timeRemaining}
+        isRunning={isTimerRunning}
+        onStart={startTimer}
+        onPause={pauseTimer}
+        onReset={resetTimer}
+        title="Récupération"
       />
       
       <ExerciseFeedbackDialog

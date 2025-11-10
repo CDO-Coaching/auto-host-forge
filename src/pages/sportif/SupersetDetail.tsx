@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
+import { TimerOverlay } from "@/components/TimerOverlay";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -24,6 +25,8 @@ export default function SupersetDetail() {
   const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showTimerOverlay, setShowTimerOverlay] = useState(false);
+  const [overlayTimerId, setOverlayTimerId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSupersetExercises();
@@ -181,6 +184,9 @@ export default function SupersetDetail() {
         const lastExercise = exercises[exercises.length - 1];
         if (lastExercise.recuperation) {
           startTimer(lastExercise.id, lastExercise.recuperation);
+          // Afficher l'overlay
+          setOverlayTimerId(lastExercise.id);
+          setShowTimerOverlay(true);
         }
       }
     }
@@ -268,6 +274,9 @@ export default function SupersetDetail() {
   }
 
   const maxSets = parseInt(exercises[0]?.series || "0");
+  
+  // Trouver l'exercice de l'overlay
+  const overlayExercise = exercises.find((ex) => ex.id === overlayTimerId);
 
   return (
     <div className="min-h-screen bg-background pb-4">
@@ -277,6 +286,20 @@ export default function SupersetDetail() {
         onComplete={handleCelebrationComplete}
         type="exercise"
       />
+      
+      {/* Timer Overlay */}
+      {overlayTimerId && overlayExercise && (
+        <TimerOverlay
+          show={showTimerOverlay}
+          onClose={() => setShowTimerOverlay(false)}
+          timeRemaining={timers[overlayTimerId] || 0}
+          isRunning={isTimerRunning[overlayTimerId] || false}
+          onStart={() => startTimer(overlayTimerId, overlayExercise.recuperation)}
+          onPause={() => pauseTimer(overlayTimerId)}
+          onReset={() => resetTimer(overlayTimerId)}
+          title="Récup superset"
+        />
+      )}
       
       <ExerciseFeedbackDialog
         open={dialogOpen}
