@@ -159,6 +159,20 @@ export default function ClientDetail() {
     }
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
+  // Scroll automatique vers le bas lors de l'ajout d'exercices
+  useEffect(() => {
+    const totalExercises = Object.values(sessionExercises).reduce((acc, exs) => acc + exs.length, 0);
+    if (totalExercises > 0 && !isValidated) {
+      // Attendre un peu que le DOM soit mis à jour
+      setTimeout(() => {
+        window.scrollTo({
+          top: document.documentElement.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [sessionExercises, isValidated]);
+
   const loadLibraryExercises = async () => {
     const { data, error } = await supabase.from("exercise_library").select("id, name, muscle").order("name");
 

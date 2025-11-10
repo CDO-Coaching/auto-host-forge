@@ -42,6 +42,31 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled }: Exerc
     ? exercises 
     : exercises.filter((ex) => ex.muscle === selectedCategory);
 
+  // Auto-focus le champ de recherche et scroll en haut quand le popover s'ouvre
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        const searchInput = document.querySelector('[cmdk-input]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+        // Scroller la liste en haut
+        const commandList = document.querySelector('[cmdk-list]') as HTMLElement;
+        if (commandList) {
+          commandList.scrollTop = 0;
+        }
+      }, 0);
+    }
+  }, [open]);
+
+  // Scroller en haut à chaque changement de catégorie ou recherche
+  useEffect(() => {
+    const commandList = document.querySelector('[cmdk-list]') as HTMLElement;
+    if (commandList) {
+      commandList.scrollTop = 0;
+    }
+  }, [selectedCategory, filteredExercises]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
