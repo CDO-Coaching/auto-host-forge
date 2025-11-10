@@ -43,11 +43,11 @@ export function ExerciseFilterCombobox({ value, onChange, exercises }: ExerciseF
 
   // Séparer exercices prioritaires et autres
   const priorityExercises = exercises.filter((ex) =>
-    PRIORITY_EXERCISES.some((priority) => ex.name.toUpperCase().includes(priority))
+    PRIORITY_EXERCISES.includes(ex.name.toUpperCase())
   );
 
   const otherExercises = exercises.filter(
-    (ex) => !PRIORITY_EXERCISES.some((priority) => ex.name.toUpperCase().includes(priority))
+    (ex) => !PRIORITY_EXERCISES.includes(ex.name.toUpperCase())
   );
 
   // Trier les autres exercices alphabétiquement
