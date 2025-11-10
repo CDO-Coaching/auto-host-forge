@@ -131,6 +131,27 @@ export default function ExerciceDetail() {
       const totalSets = parseInt(exercise.series);
       if (completedSets < totalSets) {
         setCompletedSets(prev => prev + 1);
+        
+        // Démarrer automatiquement le chrono de récupération
+        if (exercise.recuperation && !isTimerRunning) {
+          // Réinitialiser d'abord le chrono au temps de récupération
+          const recuperationTime = parseRecuperationTime(exercise.recuperation);
+          setTimeRemaining(recuperationTime);
+          
+          // Démarrer le chrono
+          setIsTimerRunning(true);
+          const interval = setInterval(() => {
+            setTimeRemaining(prev => {
+              if (prev <= 1) {
+                setIsTimerRunning(false);
+                clearInterval(interval);
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+          setTimerInterval(interval);
+        }
       }
     }
   };

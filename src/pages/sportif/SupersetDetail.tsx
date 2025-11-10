@@ -175,6 +175,14 @@ export default function SupersetDetail() {
     const maxSets = parseInt(exercises[0]?.series || "0");
     if (globalCompletedSets < maxSets) {
       setGlobalCompletedSets(globalCompletedSets + 1);
+      
+      // Démarrer automatiquement le chrono du dernier exercice (récup superset)
+      if (exercises.length > 0) {
+        const lastExercise = exercises[exercises.length - 1];
+        if (lastExercise.recuperation) {
+          startTimer(lastExercise.id, lastExercise.recuperation);
+        }
+      }
     }
   };
 
