@@ -30,19 +30,32 @@ export default function Messagerie() {
     if (!user) return;
 
     const loadClients = async () => {
-      const { data } = await supabase
+      // Get all relationships first
+      const { data: relationships } = await supabase
         .from("coach_athlete_relationships")
-        .select("athlete_id, user_profiles!coach_athlete_relationships_athlete_id_fkey(id, first_name, last_name)")
+        .select("athlete_id")
         .eq("coach_id", user.id)
         .eq("status", "approved");
 
-      if (data) {
-        const clientsList = data.map((rel: any) => ({
-          id: rel.athlete_id,
-          first_name: rel.user_profiles?.first_name || "Prénom",
-          last_name: rel.user_profiles?.last_name || "Nom",
-        }));
-        setClients(clientsList);
+      if (relationships) {
+        // Get profiles for all athletes
+        const athleteIds = relationships.map((rel) => rel.athlete_id);
+        
+        if (athleteIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from("user_profiles")
+            .select("id, first_name, last_name")
+            .in("id", athleteIds);
+
+          if (profiles) {
+            const clientsList = profiles.map((profile) => ({
+              id: profile.id,
+              first_name: profile.first_name || "Prénom",
+              last_name: profile.last_name || "Nom",
+            }));
+            setClients(clientsList);
+          }
+        }
       }
     };
 

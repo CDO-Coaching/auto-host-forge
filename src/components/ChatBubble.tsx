@@ -24,16 +24,24 @@ export function ChatBubble() {
     if (!user) return;
 
     const loadCoach = async () => {
-      const { data } = await supabase
+      // Get the relationship first
+      const { data: relationship } = await supabase
         .from("coach_athlete_relationships")
-        .select("coach_id, user_profiles!coach_athlete_relationships_coach_id_fkey(first_name, last_name)")
+        .select("coach_id")
         .eq("athlete_id", user.id)
         .eq("status", "approved")
         .single();
 
-      if (data) {
-        setCoachId(data.coach_id);
-        const profile = data.user_profiles as any;
+      if (relationship?.coach_id) {
+        setCoachId(relationship.coach_id);
+        
+        // Then get the coach profile
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("first_name, last_name")
+          .eq("id", relationship.coach_id)
+          .single();
+
         if (profile) {
           setCoachName(`${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Coach");
         }
