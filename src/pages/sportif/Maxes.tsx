@@ -91,7 +91,7 @@ export default function Maxes() {
             .lt("recorded_at", max.recorded_at)
             .order("recorded_at", { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           return {
             id: max.id,

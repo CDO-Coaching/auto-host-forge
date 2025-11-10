@@ -289,7 +289,7 @@ export default function SupersetDetail() {
 
       // Enregistrer uniquement si c'est un nouveau record
       if (!latestMax || theoretical1RM > latestMax.weight_kg) {
-        await supabase
+        const { error: insertError } = await supabase
           .from("exercise_maxes")
           .insert({
             athlete_id: user.id,
@@ -299,6 +299,15 @@ export default function SupersetDetail() {
             recorded_at: new Date().toISOString(),
             notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
           });
+
+        if (insertError) {
+          console.error("Erreur insert max théorique:", insertError);
+          toast({
+            title: "Max non enregistré",
+            description: `Autorisation refusée pour ${exercise.exercice}`,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
       console.error("Erreur lors de l'enregistrement du max théorique:", error);
