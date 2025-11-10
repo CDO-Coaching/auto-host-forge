@@ -287,8 +287,8 @@ export default function SupersetDetail() {
       </div>
 
       <div className="p-3 space-y-3">
-        {/* Compteur de séries global compact */}
-        <Card className="border-2 border-primary">
+        {/* Compteur de séries global */}
+        <Card>
           <CardContent className="p-3">
             <div className="flex items-center justify-between">
               <Label className="text-sm font-semibold">Séries</Label>
@@ -379,43 +379,45 @@ export default function SupersetDetail() {
                 </CardContent>
               </Card>
 
-              {/* Minuteur discret */}
+              {/* Minuteur visible et uniforme */}
               {exercise.recuperation && (
-                <div className={`rounded-lg ${isLastExercise ? "border-2 border-primary bg-primary/10" : "bg-muted/40"} p-3`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <Timer className="h-3 w-3 text-muted-foreground" />
-                      <span className="text-xs text-muted-foreground font-medium">
-                        {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
-                      </span>
-                    </div>
-                    <span className="font-mono text-base font-semibold">{formatTime(timers[exercise.id])}</span>
-                    <div className="flex gap-1">
-                      <Button
-                        variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
-                        size="sm"
-                        className="h-7 text-xs px-3"
-                        onClick={() =>
-                          isTimerRunning[exercise.id]
-                            ? pauseTimer(exercise.id)
-                            : startTimer(exercise.id, exercise.recuperation)
-                        }
-                      >
-                        {isTimerRunning[exercise.id] ? "Pause" : "Start"}
-                      </Button>
-                      {timers[exercise.id] > 0 && (
+                <Card className="border border-muted-foreground/20 bg-muted/50">
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 flex-1">
+                        <Timer className="h-6 w-6 text-primary" />
+                        <span className="text-sm font-medium">
+                          {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
+                        </span>
+                      </div>
+                      <span className="font-mono text-xl font-bold">{formatTime(timers[exercise.id])}</span>
+                      <div className="flex gap-1">
                         <Button
-                          variant="ghost"
+                          variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
                           size="sm"
-                          className="h-7 text-xs px-2"
-                          onClick={() => resetTimer(exercise.id)}
+                          className="h-8 text-xs px-3"
+                          onClick={() =>
+                            isTimerRunning[exercise.id]
+                              ? pauseTimer(exercise.id)
+                              : startTimer(exercise.id, exercise.recuperation)
+                          }
                         >
-                          Reset
+                          {isTimerRunning[exercise.id] ? "Pause" : "Start"}
                         </Button>
-                      )}
+                        {timers[exercise.id] > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 text-xs px-2"
+                            onClick={() => resetTimer(exercise.id)}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
           );
