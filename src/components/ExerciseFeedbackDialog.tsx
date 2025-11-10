@@ -111,7 +111,7 @@ RPE 10 : échec total, tu ne pouvais pas faire plus.
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label htmlFor="rpe">RPE ressenti (0-10)</Label>
+              <Label htmlFor="rpe">RPE ressenti (0-10) <span className="text-muted-foreground text-sm font-normal">(optionnel)</span></Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <button type="button" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -134,7 +134,7 @@ RPE 10 : échec total, tu ne pouvais pas faire plus.
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="comment">Commentaires</Label>
+            <Label htmlFor="comment">Commentaires <span className="text-muted-foreground text-sm font-normal">(optionnel)</span></Label>
             <Textarea
               id="comment"
               placeholder="Comment t'es-tu senti pendant l'exercice ?"
