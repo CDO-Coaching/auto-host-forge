@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
+import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -223,6 +224,15 @@ export default function SupersetDetail() {
         }
       }
 
+      // Calculer et enregistrer les max théoriques pour chaque exercice du superset
+      if (rpeValue) {
+        for (const exercise of exercises) {
+          if (shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
+            await recordTheoreticalMax(exercise, rpeValue);
+          }
+        }
+      }
+
       // Nettoyer les données sauvegardées
       localStorage.removeItem(`superset-progress-${supersetId}`);
 
@@ -238,6 +248,73 @@ export default function SupersetDetail() {
         variant: "destructive",
       });
       throw error;
+    }
+  };
+
+  const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
+    try {
+      const weight = parseWeight(exercise.charge);
+      const repsValue = parseReps(exercise.reps);
+      
+      if (!weight || !repsValue) return;
+
+      // Calculer le 1RM théorique
+      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue);
+
+      // Récupérer l'exercise_id depuis la bibliothèque
+      const { data: libraryData } = await supabase
+        .from("exercise_library")
+        .select("id")
+        .eq("name", exercise.exercice)
+        .maybeSingle();
+
+      if (!libraryData?.id) {
+        console.log("Exercice non trouvé dans la bibliothèque:", exercise.exercice);
+        return;
+      }
+
+      // Récupérer l'athlete_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Vérifier s'il existe déjà un max pour cet exercice à cette date
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existingMax } = await supabase
+        .from("exercise_maxes")
+        .select("id, weight_kg")
+        .eq("athlete_id", user.id)
+        .eq("exercise_id", libraryData.id)
+        .eq("max_type", "Max théorique")
+        .gte("recorded_at", today)
+        .maybeSingle();
+
+      if (existingMax) {
+        // Mettre à jour uniquement si le nouveau max est supérieur
+        if (theoretical1RM > existingMax.weight_kg) {
+          await supabase
+            .from("exercise_maxes")
+            .update({
+              weight_kg: theoretical1RM,
+              notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
+            })
+            .eq("id", existingMax.id);
+        }
+      } else {
+        // Créer un nouveau max
+        await supabase
+          .from("exercise_maxes")
+          .insert({
+            athlete_id: user.id,
+            exercise_id: libraryData.id,
+            max_type: "Max théorique",
+            weight_kg: theoretical1RM,
+            recorded_at: new Date().toISOString(),
+            notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
+          });
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'enregistrement du max théorique:", error);
+      // Ne pas faire échouer la sauvegarde du feedback si l'enregistrement du max échoue
     }
   };
 
