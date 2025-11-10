@@ -324,94 +324,98 @@ export default function SupersetDetail() {
           const isLastExercise = index === exercises.length - 1;
           return (
             <div key={exercise.id} className="space-y-2">
-              {/* Card Exercice compact */}
-              <Card>
-                <CardContent className="p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {index + 1}
-                        </Badge>
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-sm leading-tight">{exercise.exercice}</h4>
-                          {videoUrls[exercise.id] && (
-                            <a
-                              href={videoUrls[exercise.id]}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-yellow-400 hover:text-yellow-200 translate-y-[1px]"
-                            >
-                              🎥
-                            </a>
-                          )}
-                        </div>
+              {/* Card Exercice - Mise en avant */}
+              <Card className="border-2 border-primary/30 bg-card shadow-md">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    {/* En-tête exercice */}
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-sm px-2 py-1">
+                        {index + 1}
+                      </Badge>
+                      <div className="flex items-center gap-2 flex-1">
+                        <h3 className="font-bold text-xl leading-tight">{exercise.exercice}</h3>
+                        {videoUrls[exercise.id] && (
+                          <a
+                            href={videoUrls[exercise.id]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-yellow-400 hover:text-yellow-200 text-2xl"
+                          >
+                            🎥
+                          </a>
+                        )}
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-x-2 text-xs">
-                        {exercise.charge && (
-                          <div>
-                            <span className="text-muted-foreground">Charge:</span>
-                            <span className="ml-1 font-medium">{exercise.charge}</span>
-                          </div>
-                        )}
-                        {exercise.reps && (
-                          <div>
-                            <span className="text-muted-foreground">Reps:</span>
-                            <span className="ml-1 font-medium">{exercise.reps}</span>
-                          </div>
-                        )}
-                        {exercise.rpe && (
-                          <div>
-                            <span className="text-muted-foreground">RPE:</span>
-                            <span className="ml-1 font-medium">{exercise.rpe}</span>
-                          </div>
-                        )}
-                      </div>
+                    {/* Détails exercice - Bien visible */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {exercise.charge && (
+                        <div className="bg-muted/30 rounded-md p-2">
+                          <div className="text-xs text-muted-foreground uppercase">Charge</div>
+                          <div className="text-2xl font-bold text-primary">{exercise.charge}</div>
+                        </div>
+                      )}
+                      {exercise.reps && (
+                        <div className="bg-muted/30 rounded-md p-2">
+                          <div className="text-xs text-muted-foreground uppercase">Reps</div>
+                          <div className="text-2xl font-bold text-primary">{exercise.reps}</div>
+                        </div>
+                      )}
+                      {exercise.rpe && (
+                        <div className="bg-muted/30 rounded-md p-2">
+                          <div className="text-xs text-muted-foreground uppercase">RPE</div>
+                          <div className="text-2xl font-bold text-primary">{exercise.rpe}</div>
+                        </div>
+                      )}
+                      {exercise.tempo && (
+                        <div className="bg-muted/30 rounded-md p-2">
+                          <div className="text-xs text-muted-foreground uppercase">Tempo</div>
+                          <div className="text-2xl font-bold text-primary">{exercise.tempo}</div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Minuteur compact */}
+              {/* Minuteur discret */}
               {exercise.recuperation && (
-                <Card className={isLastExercise ? "border-2 border-primary bg-primary/5" : ""}>
-                  <CardContent className="p-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Timer className="h-4 w-4" />
-                        <span className="text-[10px] text-muted-foreground">
-                          {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
-                        </span>
-                      </div>
-                      <span className="font-mono text-lg font-bold">{formatTime(timers[exercise.id])}</span>
-                      <div className="flex gap-1">
+                <div className={`rounded-lg ${isLastExercise ? "border-2 border-primary bg-primary/10" : "bg-muted/40"} p-3`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-1">
+                      <Timer className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
+                      </span>
+                    </div>
+                    <span className="font-mono text-base font-semibold">{formatTime(timers[exercise.id])}</span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
+                        size="sm"
+                        className="h-7 text-xs px-3"
+                        onClick={() =>
+                          isTimerRunning[exercise.id]
+                            ? pauseTimer(exercise.id)
+                            : startTimer(exercise.id, exercise.recuperation)
+                        }
+                      >
+                        {isTimerRunning[exercise.id] ? "Pause" : "Start"}
+                      </Button>
+                      {timers[exercise.id] > 0 && (
                         <Button
-                          variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
+                          variant="ghost"
                           size="sm"
                           className="h-7 text-xs px-2"
-                          onClick={() =>
-                            isTimerRunning[exercise.id]
-                              ? pauseTimer(exercise.id)
-                              : startTimer(exercise.id, exercise.recuperation)
-                          }
+                          onClick={() => resetTimer(exercise.id)}
                         >
-                          {isTimerRunning[exercise.id] ? "Pause" : "Start"}
+                          Reset
                         </Button>
-                        {timers[exercise.id] > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs px-2"
-                            onClick={() => resetTimer(exercise.id)}
-                          >
-                            Reset
-                          </Button>
-                        )}
-                      </div>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               )}
             </div>
           );
