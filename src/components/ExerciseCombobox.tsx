@@ -15,16 +15,32 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ExerciseComboboxProps {
   value: string;
   onChange: (value: string) => void;
-  exercises: Array<{ id: string; name: string }>;
+  exercises: Array<{ id: string; name: string; muscle?: string | null }>;
   disabled?: boolean;
 }
 
 export function ExerciseCombobox({ value, onChange, exercises, disabled }: ExerciseComboboxProps) {
   const [open, setOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Extraire les catégories uniques des exercices
+  const categories = Array.from(new Set(exercises.map((ex) => ex.muscle).filter(Boolean))).sort();
+
+  // Filtrer les exercices par catégorie
+  const filteredExercises = selectedCategory === "all" 
+    ? exercises 
+    : exercises.filter((ex) => ex.muscle === selectedCategory);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -40,13 +56,28 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled }: Exerc
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent className="w-[350px] p-0" align="start">
         <Command>
+          <div className="p-2 border-b">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Filtrer par catégorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les catégories</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category} value={category!}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <CommandInput placeholder="Rechercher un exercice..." />
           <CommandList>
             <CommandEmpty>Aucun exercice trouvé.</CommandEmpty>
             <CommandGroup>
-              {exercises.map((exercise) => (
+              {filteredExercises.map((exercise) => (
                 <CommandItem
                   key={exercise.id}
                   value={exercise.name}
