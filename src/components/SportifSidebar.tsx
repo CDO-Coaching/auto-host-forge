@@ -15,7 +15,7 @@ import {
 const menuItems = [
   { title: "Mes séances", url: "/sportif/seances", icon: Calendar },
   { title: "Mon suivi fatigue", url: "/sportif/fatigue", icon: Activity },
-  { title: "Mes maxes", url: "/sportif/maxes", icon: TrendingUp },
+  { title: "Mes max", url: "/sportif/maxes", icon: TrendingUp },
   { title: "Mes questions", url: "/sportif/questions", icon: MessageCircle },
   { title: "Mon profil", url: "/sportif/profil", icon: User },
 ];

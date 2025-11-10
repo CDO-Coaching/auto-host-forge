@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CoachMaxesView } from "@/components/CoachMaxesView";
 
 interface AthleteProfile {
   id: string;
@@ -1084,6 +1085,7 @@ export default function ClientDetail() {
       <Tabs defaultValue="programmation" className="w-full">
         <TabsList>
           <TabsTrigger value="programmation">Programmation</TabsTrigger>
+          <TabsTrigger value="max">Max</TabsTrigger>
           <TabsTrigger value="suivi">Suivi</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
         </TabsList>
@@ -2064,6 +2066,13 @@ export default function ClientDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="max" className="space-y-4">
+          <CoachMaxesView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
         </TabsContent>
 
         <TabsContent value="suivi" className="space-y-4">

@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Plus, TrendingUp } from "lucide-react";
-import { MaxDialog } from "@/components/MaxDialog";
-import { MaxesList } from "@/components/MaxesList";
-import { MaxProgressChart } from "@/components/MaxProgressChart";
+import { MaxDialog } from "./MaxDialog";
+import { MaxesList } from "./MaxesList";
+import { MaxProgressChart } from "./MaxProgressChart";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -37,7 +37,12 @@ interface MaxHistory {
   max_type: string;
 }
 
-export default function Maxes() {
+interface CoachMaxesViewProps {
+  athleteId: string;
+  athleteName: string;
+}
+
+export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) {
   const [maxes, setMaxes] = useState<Max[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -50,15 +55,11 @@ export default function Maxes() {
 
   useEffect(() => {
     loadMaxes();
-  }, []);
+  }, [athleteId]);
 
   const loadMaxes = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Récupérer tous les maxes avec les détails des exercices
       const { data: maxesData, error } = await supabase
         .from("exercise_maxes")
         .select(`
@@ -73,19 +74,17 @@ export default function Maxes() {
             muscle
           )
         `)
-        .eq("athlete_id", user.id)
+        .eq("athlete_id", athleteId)
         .order("recorded_at", { ascending: false });
 
       if (error) throw error;
 
-      // Transformer et enrichir les données
       const enrichedMaxes = await Promise.all(
         maxesData.map(async (max: any) => {
-          // Chercher le max précédent pour le même exercice
           const { data: previousMax } = await supabase
             .from("exercise_maxes")
             .select("weight_kg")
-            .eq("athlete_id", user.id)
+            .eq("athlete_id", athleteId)
             .eq("exercise_id", max.exercise_id)
             .eq("max_type", max.max_type)
             .lt("recorded_at", max.recorded_at)
@@ -109,27 +108,23 @@ export default function Maxes() {
 
       setMaxes(enrichedMaxes);
 
-      // Sélectionner automatiquement le premier exercice pour le graphique
       if (enrichedMaxes.length > 0 && !selectedExerciseForChart) {
         setSelectedExerciseForChart(enrichedMaxes[0].exercise_id);
         loadChartData(enrichedMaxes[0].exercise_id);
       }
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors du chargement des maxes");
+      toast.error("Erreur lors du chargement des max");
     } finally {
       setLoading(false);
     }
   };
 
   const loadChartData = async (exerciseId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { data } = await supabase
       .from("exercise_maxes")
       .select("recorded_at, weight_kg, max_type")
-      .eq("athlete_id", user.id)
+      .eq("athlete_id", athleteId)
       .eq("exercise_id", exerciseId)
       .order("recorded_at", { ascending: true });
 
@@ -180,7 +175,6 @@ export default function Maxes() {
     ? maxes 
     : maxes.filter((m) => m.muscle === filterMuscle);
 
-  // Grouper par exercice pour obtenir le max le plus récent de chaque
   const latestMaxes = filteredMaxes.reduce((acc, max) => {
     const key = `${max.exercise_id}-${max.max_type}`;
     if (!acc[key] || new Date(max.recorded_at) > new Date(acc[key].recorded_at)) {
@@ -194,24 +188,26 @@ export default function Maxes() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Mes Max</h1>
-        <Card>
-          <CardContent className="py-8 text-center">
-            Chargement...
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center">
+          Chargement...
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Mes Max</h1>
+        <div>
+          <h3 className="text-lg font-semibold">Max de {athleteName}</h3>
+          <p className="text-sm text-muted-foreground">
+            Suivi des performances maximales
+          </p>
+        </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Nouveau max
+          Ajouter un max
         </Button>
       </div>
 
@@ -231,7 +227,7 @@ export default function Maxes() {
               </div>
               <div>
                 <div className="text-3xl font-bold text-primary">{maxes.length}</div>
-                <div className="text-sm text-muted-foreground">Maxes enregistrés</div>
+                <div className="text-sm text-muted-foreground">Max enregistrés</div>
               </div>
               <div>
                 <div className="text-3xl font-bold text-primary">
@@ -292,17 +288,26 @@ export default function Maxes() {
         </div>
       )}
 
-      <MaxesList
-        maxes={uniqueMaxes}
-        onEdit={handleEditMax}
-        onDelete={handleDeleteMax}
-      />
+      {maxes.length === 0 ? (
+        <Card>
+          <CardContent className="py-8 text-center text-muted-foreground">
+            Aucun max enregistré pour cet athlète.
+          </CardContent>
+        </Card>
+      ) : (
+        <MaxesList
+          maxes={uniqueMaxes}
+          onEdit={handleEditMax}
+          onDelete={handleDeleteMax}
+        />
+      )}
 
       <MaxDialog
         open={dialogOpen}
         onOpenChange={handleDialogClose}
         onSuccess={loadMaxes}
         editMax={editingMax}
+        athleteId={athleteId}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
