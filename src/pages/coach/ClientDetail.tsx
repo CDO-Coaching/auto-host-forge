@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
+import { calculate1RM } from "@/lib/maxCalculations";
 
 interface AthleteProfile {
   id: string;
@@ -826,7 +827,7 @@ export default function ClientDetail() {
     }, 200);
   };
 
-  const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
+  const handleExerciseChange = async (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
 
@@ -844,12 +845,80 @@ export default function ClientDetail() {
         [sessionId]: updatedExercises,
       });
     } else {
-      const updatedExercises = currentExercises.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex));
+      // Créer l'exercice mis à jour avec la nouvelle valeur
+      const updatedExercise = currentExercise ? { ...currentExercise, [field]: value } : null;
+      
+      // Si on modifie l'exercice, le RPE ou les reps, calculer la charge suggérée
+      let suggestedLoad: string | null = null;
+      if ((field === "rpe" || field === "reps" || field === "exercice") && updatedExercise) {
+        suggestedLoad = await calculateSuggestedLoad(updatedExercise);
+      }
+      
+      const updatedExercises = currentExercises.map((ex) => {
+        if (ex.id === exerciseId) {
+          const updates: Partial<Exercise> = { [field]: value };
+          // Si on a calculé une charge suggérée, l'ajouter
+          if (suggestedLoad !== null) {
+            updates.charge = suggestedLoad;
+          }
+          return { ...ex, ...updates };
+        }
+        return ex;
+      });
 
       setSessionExercises({
         ...sessionExercises,
         [sessionId]: updatedExercises,
       });
+    }
+  };
+
+  // Calculer la charge suggérée basée sur le max de l'athlète (retourne null si impossible)
+  const calculateSuggestedLoad = async (exercise: Exercise): Promise<string | null> => {
+    const rpeValue = parseInt(exercise.rpe);
+    const repsValue = parseInt(exercise.reps);
+    
+    if (!exercise.exercice || !repsValue || !rpeValue || isNaN(rpeValue) || isNaN(repsValue)) {
+      return null; // Pas assez de données
+    }
+
+    try {
+      // Récupérer l'exercise_id depuis la bibliothèque
+      const { data: libraryData } = await supabase
+        .from("exercise_library")
+        .select("id")
+        .eq("name", exercise.exercice)
+        .maybeSingle();
+
+      if (!libraryData?.id) return null;
+
+      // Récupérer le max le plus récent pour cet exercice pour cet athlète
+      const { data: maxData } = await supabase
+        .from("exercise_maxes")
+        .select("weight_kg")
+        .eq("athlete_id", athleteId)
+        .eq("exercise_id", libraryData.id)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!maxData?.weight_kg) return null; // Pas de max enregistré
+
+      // Calculer la charge suggérée
+      // Formule inverse de calculate1RM
+      // 1RM = weight * (36 / (37 - effectiveReps))
+      // weight = 1RM * (37 - effectiveReps) / 36
+      const rir = 10 - rpeValue; // Reps in reserve
+      const effectiveReps = repsValue + rir;
+      const suggestedLoad = maxData.weight_kg * (37 - effectiveReps) / 36;
+      
+      // Arrondir à 0.5kg près
+      const roundedLoad = Math.round(suggestedLoad * 2) / 2;
+
+      return roundedLoad.toString();
+    } catch (error) {
+      console.error("Erreur lors du calcul de la charge suggérée:", error);
+      return null;
     }
   };
 
@@ -1010,8 +1079,8 @@ export default function ClientDetail() {
           "recuperation",
           "reps",
           "series",
-          "charge",
           "rpe",
+          "charge",
           "tempo",
           "commentaire",
         ];
@@ -1407,8 +1476,8 @@ export default function ClientDetail() {
                                           <TableHead className="min-w-[120px]">Récupération</TableHead>
                                           <TableHead className="min-w-[100px]">Reps</TableHead>
                                           <TableHead className="min-w-[100px]">Séries</TableHead>
-                                          <TableHead className="min-w-[100px]">Charge</TableHead>
                                           <TableHead className="min-w-[100px]">RPE</TableHead>
+                                          <TableHead className="min-w-[100px]">Charge</TableHead>
                                           <TableHead className="min-w-[100px]">Tempo</TableHead>
                                           <TableHead className="min-w-[200px]">Commentaire</TableHead>
                                           <TableHead className="w-[50px]"></TableHead>
@@ -1587,27 +1656,6 @@ export default function ClientDetail() {
                                                             </TableCell>
                                                             <TableCell>
                                                               <Input
-                                                                value={ex.charge}
-                                                                onChange={(e) =>
-                                                                  handleExerciseChange(
-                                                                    session.id,
-                                                                    ex.id,
-                                                                    "charge",
-                                                                    e.target.value,
-                                                                  )
-                                                                }
-                                                                onKeyDown={(e) =>
-                                                                  handleKeyDown(e, session.id, ex.id, "charge")
-                                                                }
-                                                                placeholder="ex: 80kg"
-                                                                disabled={isValidated}
-                                                                data-session={session.id}
-                                                                data-exercise={ex.id}
-                                                                data-field="charge"
-                                                              />
-                                                            </TableCell>
-                                                            <TableCell>
-                                                              <Input
                                                                 value={ex.rpe}
                                                                 onChange={(e) =>
                                                                   handleExerciseChange(
@@ -1625,6 +1673,27 @@ export default function ClientDetail() {
                                                                 data-session={session.id}
                                                                 data-exercise={ex.id}
                                                                 data-field="rpe"
+                                                              />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <Input
+                                                                value={ex.charge}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "charge",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "charge")
+                                                                }
+                                                                placeholder="ex: 80kg"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="charge"
                                                               />
                                                             </TableCell>
                                                             <TableCell>
@@ -1865,27 +1934,6 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                       <TableCell>
                                                         <Input
-                                                          value={exercise.charge}
-                                                          onChange={(e) =>
-                                                            handleExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "charge",
-                                                              e.target.value,
-                                                            )
-                                                          }
-                                                          onKeyDown={(e) =>
-                                                            handleKeyDown(e, session.id, exercise.id, "charge")
-                                                          }
-                                                          placeholder="ex: 80kg"
-                                                          disabled={isValidated}
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="charge"
-                                                        />
-                                                      </TableCell>
-                                                      <TableCell>
-                                                        <Input
                                                           value={exercise.rpe}
                                                           onChange={(e) =>
                                                             handleExerciseChange(
@@ -1903,6 +1951,27 @@ export default function ClientDetail() {
                                                           data-session={session.id}
                                                           data-exercise={exercise.id}
                                                           data-field="rpe"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.charge}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "charge",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "charge")
+                                                          }
+                                                          placeholder="ex: 80kg"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="charge"
                                                         />
                                                       </TableCell>
                                                       <TableCell>
