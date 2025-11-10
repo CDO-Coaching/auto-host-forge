@@ -267,30 +267,18 @@ export default function ExerciceDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Vérifier s'il existe déjà un max pour cet exercice à cette date
-      const today = new Date().toISOString().split('T')[0];
-      const { data: existingMax } = await supabase
+      // Chercher le max le plus récent pour cet exercice (tous types confondus)
+      const { data: latestMax } = await supabase
         .from("exercise_maxes")
-        .select("id, weight_kg")
+        .select("weight_kg")
         .eq("athlete_id", user.id)
         .eq("exercise_id", libraryData.id)
-        .eq("max_type", "Max théorique")
-        .gte("recorded_at", today)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
-      if (existingMax) {
-        // Mettre à jour uniquement si le nouveau max est supérieur
-        if (theoretical1RM > existingMax.weight_kg) {
-          await supabase
-            .from("exercise_maxes")
-            .update({
-              weight_kg: theoretical1RM,
-              notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
-            })
-            .eq("id", existingMax.id);
-        }
-      } else {
-        // Créer un nouveau max
+      // Enregistrer uniquement si c'est un nouveau record
+      if (!latestMax || theoretical1RM > latestMax.weight_kg) {
         await supabase
           .from("exercise_maxes")
           .insert({
