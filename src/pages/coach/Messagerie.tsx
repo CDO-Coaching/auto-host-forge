@@ -31,14 +31,14 @@ export default function Messagerie() {
 
     const loadClients = async () => {
       const { data } = await supabase
-        .from("coaching_relationships")
-        .select("client_id, user_profiles!coaching_relationships_client_id_fkey(id, first_name, last_name)")
+        .from("coach_athlete_relationships")
+        .select("athlete_id, user_profiles!coach_athlete_relationships_athlete_id_fkey(id, first_name, last_name)")
         .eq("coach_id", user.id)
         .eq("status", "approved");
 
       if (data) {
         const clientsList = data.map((rel: any) => ({
-          id: rel.client_id,
+          id: rel.athlete_id,
           first_name: rel.user_profiles?.first_name || "Prénom",
           last_name: rel.user_profiles?.last_name || "Nom",
         }));

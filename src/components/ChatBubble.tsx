@@ -25,9 +25,9 @@ export function ChatBubble() {
 
     const loadCoach = async () => {
       const { data } = await supabase
-        .from("coaching_relationships")
-        .select("coach_id, user_profiles!coaching_relationships_coach_id_fkey(first_name, last_name)")
-        .eq("client_id", user.id)
+        .from("coach_athlete_relationships")
+        .select("coach_id, user_profiles!coach_athlete_relationships_coach_id_fkey(first_name, last_name)")
+        .eq("athlete_id", user.id)
         .eq("status", "approved")
         .single();
 
