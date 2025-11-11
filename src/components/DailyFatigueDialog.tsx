@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -95,14 +94,6 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
   return (
     <Dialog open={open} onOpenChange={handleSkip}>
       <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0">
-        <button
-          onClick={handleSkip}
-          className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-50"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Passer</span>
-        </button>
-
         <DialogHeader className="pb-2 sm:pb-3 space-y-0.5">
           <DialogTitle className="text-base sm:text-xl">Suivi quotidien</DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
