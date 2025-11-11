@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
+import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { calculate1RM } from "@/lib/maxCalculations";
 
 interface AthleteProfile {
@@ -1155,7 +1156,7 @@ export default function ClientDetail() {
         <TabsList>
           <TabsTrigger value="programmation">Programmation</TabsTrigger>
           <TabsTrigger value="max">Max</TabsTrigger>
-          <TabsTrigger value="suivi">Suivi</TabsTrigger>
+          <TabsTrigger value="suivi">Suivi de fatigue</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
         </TabsList>
 
@@ -2145,17 +2146,10 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="suivi" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Suivi de progression</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Suivi des performances et de la progression de {athlete.first_name}.
-              </p>
-              <p className="mt-4 text-sm text-muted-foreground">Fonctionnalité en cours de développement...</p>
-            </CardContent>
-          </Card>
+          <CoachFatigueView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
         </TabsContent>
 
         <TabsContent value="historique" className="space-y-4">
