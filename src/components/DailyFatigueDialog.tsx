@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Slider } from "@/components/ui/slider";
 import { X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -16,85 +16,37 @@ const questions = [
   {
     id: "fatigue",
     label: "Quel est ton niveau de fatigue aujourd'hui ?",
-    options: [
-      { value: "1", label: "Excellent" },
-      { value: "2", label: "Très bon" },
-      { value: "3", label: "Bon" },
-      { value: "4", label: "Moyen" },
-      { value: "5", label: "Assez élevé" },
-      { value: "6", label: "Important" },
-      { value: "7", label: "Très fort" },
-    ],
+    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Assez élevé", "Important", "Très fort"],
   },
   {
     id: "courbatures",
     label: "Quel est ton niveau de courbatures aujourd'hui ?",
-    options: [
-      { value: "1", label: "Aucun" },
-      { value: "2", label: "Très léger" },
-      { value: "3", label: "Léger" },
-      { value: "4", label: "Moyen" },
-      { value: "5", label: "Assez élevé" },
-      { value: "6", label: "Important" },
-      { value: "7", label: "Très fort" },
-    ],
+    labels: ["Aucun", "Très léger", "Léger", "Moyen", "Assez élevé", "Important", "Très fort"],
   },
   {
     id: "sommeil",
     label: "Comment as-tu dormi cette nuit ?",
-    options: [
-      { value: "1", label: "Excellent" },
-      { value: "2", label: "Très bon" },
-      { value: "3", label: "Bon" },
-      { value: "4", label: "Moyen" },
-      { value: "5", label: "Assez mauvais" },
-      { value: "6", label: "Mauvais" },
-      { value: "7", label: "Très mauvais" },
-    ],
+    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Assez mauvais", "Mauvais", "Très mauvais"],
   },
   {
     id: "stress",
     label: "Comment est ton niveau de stress aujourd'hui ?",
-    options: [
-      { value: "1", label: "Très léger" },
-      { value: "2", label: "Très bon" },
-      { value: "3", label: "Bon" },
-      { value: "4", label: "Moyen" },
-      { value: "5", label: "Assez élevé" },
-      { value: "6", label: "Important" },
-      { value: "7", label: "Très fort" },
-    ],
+    labels: ["Très léger", "Très bon", "Bon", "Moyen", "Assez élevé", "Important", "Très fort"],
   },
 ];
 
 export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, number>>({
+    fatigue: 4,
+    courbatures: 4,
+    sommeil: 4,
+    stress: 4,
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const currentQuestion = questions[currentStep];
-  const isLastQuestion = currentStep === questions.length - 1;
-
-  const handleAnswer = (value: string) => {
-    setAnswers({ ...answers, [currentQuestion.id]: value });
-  };
-
-  const handleNext = () => {
-    if (!answers[currentQuestion.id]) {
-      toast({
-        title: "Sélectionne une réponse",
-        description: "Merci de choisir une option avant de continuer.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (isLastQuestion) {
-      handleSubmit();
-    } else {
-      setCurrentStep(currentStep + 1);
-    }
+  const handleSliderChange = (id: string, value: number[]) => {
+    setAnswers({ ...answers, [id]: value[0] });
   };
 
   const handleSubmit = async () => {
@@ -110,10 +62,10 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
         .insert({
           user_id: user.id,
           date: today,
-          fatigue: parseInt(answers.fatigue),
-          courbatures: parseInt(answers.courbatures),
-          sommeil: parseInt(answers.sommeil),
-          stress: parseInt(answers.stress),
+          fatigue: answers.fatigue,
+          courbatures: answers.courbatures,
+          sommeil: answers.sommeil,
+          stress: answers.stress,
         });
 
       if (error) throw error;
@@ -137,8 +89,6 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
   };
 
   const handleSkip = () => {
-    setAnswers({});
-    setCurrentStep(0);
     onClose();
   };
 
@@ -154,46 +104,60 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
         </button>
 
         <DialogHeader>
-          <DialogTitle>Suivi quotidien</DialogTitle>
+          <DialogTitle>Suivi quotidien de fatigue</DialogTitle>
           <DialogDescription>
-            Question {currentStep + 1} sur {questions.length}
+            Évalue ton état du jour pour optimiser ton entraînement
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          <Label className="text-base font-medium">{currentQuestion.label}</Label>
-          
-          <RadioGroup
-            value={answers[currentQuestion.id]}
-            onValueChange={handleAnswer}
-            className="space-y-3"
-          >
-            {currentQuestion.options.map((option) => (
-              <div key={option.value} className="flex items-center space-x-3">
-                <RadioGroupItem value={option.value} id={`${currentQuestion.id}-${option.value}`} />
-                <Label
-                  htmlFor={`${currentQuestion.id}-${option.value}`}
-                  className="font-normal cursor-pointer"
-                >
-                  {option.label}
-                </Label>
+        <div className="space-y-8 py-6 max-h-[60vh] overflow-y-auto">
+          {questions.map((question) => (
+            <div key={question.id} className="space-y-4">
+              <Label className="text-base font-medium">{question.label}</Label>
+              
+              <div className="space-y-3">
+                <Slider
+                  value={[answers[question.id]]}
+                  onValueChange={(value) => handleSliderChange(question.id, value)}
+                  min={1}
+                  max={7}
+                  step={1}
+                  className="w-full"
+                />
+                
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>1</span>
+                  <span>2</span>
+                  <span>3</span>
+                  <span>4</span>
+                  <span>5</span>
+                  <span>6</span>
+                  <span>7</span>
+                </div>
+                
+                <div className="text-center">
+                  <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-md font-medium">
+                    {question.labels[answers[question.id] - 1]}
+                  </span>
+                </div>
               </div>
-            ))}
-          </RadioGroup>
+            </div>
+          ))}
         </div>
 
-        <div className="flex justify-between items-center pt-4">
+        <div className="flex justify-between items-center pt-4 border-t">
           <Button
             variant="ghost"
             onClick={handleSkip}
+            disabled={isSubmitting}
           >
             Passer
           </Button>
           <Button
-            onClick={handleNext}
-            disabled={!answers[currentQuestion.id] || isSubmitting}
+            onClick={handleSubmit}
+            disabled={isSubmitting}
           >
-            {isSubmitting ? "Enregistrement..." : isLastQuestion ? "Terminer" : "Suivant"}
+            {isSubmitting ? "Enregistrement..." : "Valider"}
           </Button>
         </div>
       </DialogContent>
