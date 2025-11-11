@@ -6,6 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Plus } from "lucide-react";
+import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface FatigueLog {
   id: string;
@@ -22,10 +28,47 @@ export default function Fatigue() {
   const firstName = profile?.first_name || "champion";
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [canAnswerToday, setCanAnswerToday] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     loadFatigueLogs();
+    loadNotificationPreference();
+    checkIfCanAnswerToday();
   }, []);
+
+  const checkIfCanAnswerToday = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      const { data } = await supabase
+        .from("daily_fatigue_log")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("date", today)
+        .maybeSingle();
+
+      setCanAnswerToday(!data);
+    } catch (error) {
+      console.error("Error checking today's log:", error);
+    }
+  };
+
+  const loadNotificationPreference = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const preference = localStorage.getItem(`fatigue_notifications_${user.id}`);
+      setNotificationsEnabled(preference !== 'false');
+    } catch (error) {
+      console.error("Error loading notification preference:", error);
+    }
+  };
 
   const loadFatigueLogs = async () => {
     try {
@@ -47,6 +90,31 @@ export default function Fatigue() {
     }
   };
 
+  const handleNotificationToggle = async (checked: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      localStorage.setItem(`fatigue_notifications_${user.id}`, checked.toString());
+      setNotificationsEnabled(checked);
+      
+      toast({
+        title: checked ? "Notifications activées" : "Notifications désactivées",
+        description: checked 
+          ? "Tu recevras le questionnaire quotidien à ta connexion." 
+          : "Tu ne recevras plus le questionnaire automatiquement.",
+      });
+    } catch (error) {
+      console.error("Error saving notification preference:", error);
+    }
+  };
+
+  const handleDialogClose = () => {
+    setShowDialog(false);
+    loadFatigueLogs();
+    checkIfCanAnswerToday();
+  };
+
   const chartData = [...logs]
     .reverse()
     .map(log => ({
@@ -56,12 +124,45 @@ export default function Fatigue() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Ton suivi fatigue</h1>
-        <p className="text-muted-foreground mt-2">
-          {firstName}, suis ton niveau de fatigue pour optimiser tes performances
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Ton suivi fatigue</h1>
+          <p className="text-muted-foreground mt-2">
+            {firstName}, suis ton niveau de fatigue pour optimiser tes performances
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {canAnswerToday && (
+            <Button onClick={() => setShowDialog(true)} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Répondre aujourd'hui
+            </Button>
+          )}
+        </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Paramètres</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="notifications" className="text-base">
+                Notifications quotidiennes
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Recevoir le questionnaire automatiquement à chaque connexion
+              </p>
+            </div>
+            <Switch
+              id="notifications"
+              checked={notificationsEnabled}
+              onCheckedChange={handleNotificationToggle}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <Card>
@@ -155,6 +256,8 @@ export default function Fatigue() {
           </Card>
         </>
       )}
+
+      <DailyFatigueDialog open={showDialog} onClose={handleDialogClose} />
     </div>
   );
 }

@@ -17,6 +17,13 @@ export function useDailyFatigueCheck() {
         return;
       }
 
+      // Vérifier si les notifications sont activées
+      const notificationPreference = localStorage.getItem(`fatigue_notifications_${user.id}`);
+      if (notificationPreference === 'false') {
+        setIsChecking(false);
+        return;
+      }
+
       const today = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
