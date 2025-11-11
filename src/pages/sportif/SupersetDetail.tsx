@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
+import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -405,7 +406,10 @@ export default function SupersetDetail() {
                       )}
                       {exercise.tempo && (
                         <div className="bg-muted/30 rounded-md p-2">
-                          <div className="text-xs text-muted-foreground uppercase">Tempo</div>
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <div className="text-xs text-muted-foreground uppercase">Tempo</div>
+                            <TempoExplanationDialog />
+                          </div>
                           <div className="text-2xl font-bold text-primary">{exercise.tempo}</div>
                         </div>
                       )}

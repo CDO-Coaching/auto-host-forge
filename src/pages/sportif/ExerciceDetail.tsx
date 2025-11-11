@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
+import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 
 export default function ExerciceDetail() {
@@ -544,9 +545,12 @@ export default function ExerciceDetail() {
           {exercise.tempo && (
             <Card className="border border-purple-500/30 bg-purple-500/5">
               <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Clock className="h-5 w-5 text-purple-600" />
-                  <span className="text-sm font-semibold text-purple-600 uppercase">Tempo</span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-purple-600" />
+                    <span className="text-sm font-semibold text-purple-600 uppercase">Tempo</span>
+                  </div>
+                  <TempoExplanationDialog />
                 </div>
                 <p className="text-3xl font-bold">{exercise.tempo}</p>
               </CardContent>
