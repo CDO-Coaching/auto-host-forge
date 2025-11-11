@@ -662,13 +662,13 @@ export default function ClientDetail() {
         }
       }
 
-      setIsValidated(true);
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
 
       // Réinitialiser pour permettre de programmer une nouvelle semaine
       setSelectedWeekToProgram(null);
       setSessions([]);
       setSessionExercises({});
+      setIsValidated(false);
 
       // Nettoyer les données sauvegardées localement
       localStorage.removeItem(`coach-programming-${athleteId}`);
