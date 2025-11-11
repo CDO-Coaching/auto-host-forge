@@ -10,6 +10,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle, XCircle, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDailyFatigueCheck } from "@/hooks/useDailyFatigueCheck";
+import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
@@ -29,6 +31,7 @@ export default function DashboardSportif() {
   });
   const { profile } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
+  const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -182,6 +185,7 @@ export default function DashboardSportif() {
         </div>
         <ChatBubble />
       </div>
+      <DailyFatigueDialog open={shouldShowDialog && !isChecking} onClose={handleClose} />
     </SidebarProvider>
   );
 }
