@@ -21,6 +21,9 @@ interface FatigueLog {
   sommeil: number;
   stress: number;
   score_total: number;
+  has_injury: boolean | null;
+  injury_level: number | null;
+  injury_location: string | null;
 }
 
 export default function Fatigue() {
@@ -29,6 +32,7 @@ export default function Fatigue() {
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [canAnswerToday, setCanAnswerToday] = useState(false);
   const { toast } = useToast();
@@ -36,6 +40,7 @@ export default function Fatigue() {
   useEffect(() => {
     loadFatigueLogs();
     loadNotificationPreference();
+    loadInjuryTrackingPreference();
     checkIfCanAnswerToday();
   }, []);
 
@@ -67,6 +72,18 @@ export default function Fatigue() {
       setNotificationsEnabled(preference !== 'false');
     } catch (error) {
       console.error("Error loading notification preference:", error);
+    }
+  };
+
+  const loadInjuryTrackingPreference = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const preference = localStorage.getItem(`injury_tracking_${user.id}`);
+      setInjuryTrackingEnabled(preference === 'true');
+    } catch (error) {
+      console.error("Error loading injury tracking preference:", error);
     }
   };
 
@@ -109,6 +126,25 @@ export default function Fatigue() {
     }
   };
 
+  const handleInjuryTrackingToggle = async (checked: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      localStorage.setItem(`injury_tracking_${user.id}`, checked.toString());
+      setInjuryTrackingEnabled(checked);
+      
+      toast({
+        title: checked ? "Suivi blessures activé" : "Suivi blessures désactivé",
+        description: checked 
+          ? "Des questions sur les blessures seront ajoutées au questionnaire." 
+          : "Les questions sur les blessures ne seront plus posées.",
+      });
+    } catch (error) {
+      console.error("Error saving injury tracking preference:", error);
+    }
+  };
+
   const handleDialogClose = () => {
     setShowDialog(false);
     loadFatigueLogs();
@@ -120,7 +156,10 @@ export default function Fatigue() {
     .map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
+      injury: log.has_injury && log.injury_level ? log.injury_level : null,
     }));
+
+  const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
 
   return (
     <div className="space-y-6">
@@ -145,7 +184,7 @@ export default function Fatigue() {
         <CardHeader>
           <CardTitle>Paramètres</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label htmlFor="notifications" className="text-base">
@@ -159,6 +198,22 @@ export default function Fatigue() {
               id="notifications"
               checked={notificationsEnabled}
               onCheckedChange={handleNotificationToggle}
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="space-y-0.5">
+              <Label htmlFor="injury-tracking" className="text-base">
+                Suivi blessures/douleurs
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Ajouter des questions sur les blessures dans le questionnaire
+              </p>
+            </div>
+            <Switch
+              id="injury-tracking"
+              checked={injuryTrackingEnabled}
+              onCheckedChange={handleInjuryTrackingToggle}
             />
           </div>
         </CardContent>
@@ -215,11 +270,68 @@ export default function Fatigue() {
                     stroke="hsl(var(--primary))" 
                     strokeWidth={2}
                     dot={{ fill: 'hsl(var(--primary))' }}
+                    name="Score fatigue"
                   />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {injuryTrackingEnabled && injuryLogs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Suivi des blessures/douleurs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <YAxis 
+                      domain={[0, 7]}
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="injury" 
+                      stroke="hsl(var(--destructive))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--destructive))' }}
+                      name="Niveau de douleur"
+                      connectNulls
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2">
+                  {injuryLogs.slice(0, 5).map((log) => (
+                    <div key={log.id} className="flex justify-between items-start text-sm border-l-2 border-destructive pl-3 py-1">
+                      <div>
+                        <p className="font-medium">
+                          {format(new Date(log.date), "dd MMMM yyyy", { locale: fr })}
+                        </p>
+                        {log.injury_location && (
+                          <p className="text-muted-foreground text-xs">{log.injury_location}</p>
+                        )}
+                      </div>
+                      <span className="text-destructive font-medium">{log.injury_level}/7</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -235,6 +347,7 @@ export default function Fatigue() {
                     <TableHead>Sommeil</TableHead>
                     <TableHead>Stress</TableHead>
                     <TableHead>Score total</TableHead>
+                    {injuryTrackingEnabled && <TableHead>Douleur</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -248,6 +361,15 @@ export default function Fatigue() {
                       <TableCell>{log.sommeil}/7</TableCell>
                       <TableCell>{log.stress}/7</TableCell>
                       <TableCell className="font-bold">{log.score_total}/28</TableCell>
+                      {injuryTrackingEnabled && (
+                        <TableCell>
+                          {log.has_injury ? (
+                            <span className="text-destructive font-medium">{log.injury_level}/7</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
@@ -257,7 +379,11 @@ export default function Fatigue() {
         </>
       )}
 
-      <DailyFatigueDialog open={showDialog} onClose={handleDialogClose} />
+      <DailyFatigueDialog 
+        open={showDialog} 
+        onClose={handleDialogClose}
+        includeInjuryQuestions={injuryTrackingEnabled}
+      />
     </div>
   );
 }

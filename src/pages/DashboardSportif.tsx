@@ -33,6 +33,20 @@ export default function DashboardSportif() {
   const { session, loading: authLoading } = useAuth();
   const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
 
+  // Charger la préférence de suivi des blessures
+  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
+  
+  useEffect(() => {
+    const loadInjuryPref = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const pref = localStorage.getItem(`injury_tracking_${user.id}`);
+        setInjuryTrackingEnabled(pref === 'true');
+      }
+    };
+    loadInjuryPref();
+  }, []);
+
   useEffect(() => {
     // Attendre que l'authentification soit chargée
     if (authLoading) return;
@@ -185,7 +199,11 @@ export default function DashboardSportif() {
         </div>
         <ChatBubble />
       </div>
-      <DailyFatigueDialog open={shouldShowDialog && !isChecking} onClose={handleClose} />
+      <DailyFatigueDialog 
+        open={shouldShowDialog && !isChecking} 
+        onClose={handleClose}
+        includeInjuryQuestions={injuryTrackingEnabled}
+      />
     </SidebarProvider>
   );
 }

@@ -3,12 +3,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface DailyFatigueDialogProps {
   open: boolean;
   onClose: () => void;
+  includeInjuryQuestions?: boolean;
 }
 
 const questions = [
@@ -34,13 +37,18 @@ const questions = [
   },
 ];
 
-export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
+const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
+
+export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false }: DailyFatigueDialogProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({
     fatigue: 4,
     courbatures: 4,
     sommeil: 4,
     stress: 4,
   });
+  const [hasInjury, setHasInjury] = useState(false);
+  const [injuryLevel, setInjuryLevel] = useState(4);
+  const [injuryLocation, setInjuryLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -56,16 +64,24 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
 
       const today = new Date().toISOString().split('T')[0];
 
+      const insertData: any = {
+        user_id: user.id,
+        date: today,
+        fatigue: answers.fatigue,
+        courbatures: answers.courbatures,
+        sommeil: answers.sommeil,
+        stress: answers.stress,
+      };
+
+      if (includeInjuryQuestions) {
+        insertData.has_injury = hasInjury;
+        insertData.injury_level = hasInjury ? injuryLevel : null;
+        insertData.injury_location = hasInjury && injuryLocation ? injuryLocation : null;
+      }
+
       const { error } = await supabase
         .from("daily_fatigue_log")
-        .insert({
-          user_id: user.id,
-          date: today,
-          fatigue: answers.fatigue,
-          courbatures: answers.courbatures,
-          sommeil: answers.sommeil,
-          stress: answers.stress,
-        });
+        .insert(insertData);
 
       if (error) throw error;
 
@@ -93,7 +109,7 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleSkip}>
-      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0">
+      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden">
         <DialogHeader className="pb-2 sm:pb-3 space-y-0.5">
           <DialogTitle className="text-base sm:text-xl">Suivi quotidien</DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
@@ -101,7 +117,7 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 sm:space-y-5 flex-1 overflow-hidden">
+        <div className="space-y-3 sm:space-y-5 flex-1 overflow-y-auto pr-1">
           {questions.map((question) => (
             <div key={question.id} className="space-y-1 sm:space-y-2">
               <Label className="text-xs sm:text-base font-medium block">{question.label}</Label>
@@ -132,9 +148,72 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
               </div>
             </div>
           ))}
+
+          {includeInjuryQuestions && (
+            <>
+              <div className="pt-2 sm:pt-3 border-t space-y-2 sm:space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="has-injury" className="text-xs sm:text-base font-medium">
+                    Blessure ou douleur ?
+                  </Label>
+                  <Switch
+                    id="has-injury"
+                    checked={hasInjury}
+                    onCheckedChange={setHasInjury}
+                  />
+                </div>
+
+                {hasInjury && (
+                  <>
+                    <div className="space-y-1 sm:space-y-2">
+                      <Label className="text-xs sm:text-base font-medium">Niveau de douleur</Label>
+                      
+                      <Slider
+                        value={[injuryLevel]}
+                        onValueChange={(value) => setInjuryLevel(value[0])}
+                        min={1}
+                        max={7}
+                        step={1}
+                        className="w-full"
+                      />
+                      
+                      <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
+                        <span>1</span>
+                        <span>2</span>
+                        <span>3</span>
+                        <span>4</span>
+                        <span>5</span>
+                        <span>6</span>
+                        <span>7</span>
+                      </div>
+                      
+                      <div className="text-center">
+                        <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-destructive/10 text-destructive rounded text-[10px] sm:text-sm font-medium">
+                          {injuryLevelLabels[injuryLevel - 1]}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label htmlFor="injury-location" className="text-xs sm:text-base">
+                        Localisation <span className="text-muted-foreground">(optionnel)</span>
+                      </Label>
+                      <Input
+                        id="injury-location"
+                        placeholder="Ex: Genou droit, épaule gauche..."
+                        value={injuryLocation}
+                        onChange={(e) => setInjuryLocation(e.target.value)}
+                        className="text-xs sm:text-sm"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="flex justify-between items-center pt-2 sm:pt-4 border-t mt-2 sm:mt-3">
+        <div className="flex justify-between items-center pt-2 sm:pt-3 border-t mt-2 flex-shrink-0">
           <Button
             variant="ghost"
             onClick={handleSkip}
