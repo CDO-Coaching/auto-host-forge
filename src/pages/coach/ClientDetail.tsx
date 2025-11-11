@@ -36,6 +36,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
+import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
 
 interface AthleteProfile {
@@ -1161,6 +1162,14 @@ export default function ClientDetail() {
         </TabsList>
 
         <TabsContent value="programmation" className="space-y-4">
+          {/* Alerte de fatigue */}
+          {athlete && (
+            <CoachFatigueAlert 
+              athleteId={athleteId!} 
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+          
           {/* Retours de la semaine précédente */}
           {lastWeekData && (
             <Collapsible open={showLastWeekFeedback} onOpenChange={setShowLastWeekFeedback}>
