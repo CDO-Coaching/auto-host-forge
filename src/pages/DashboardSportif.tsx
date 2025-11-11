@@ -47,6 +47,20 @@ export default function DashboardSportif() {
     loadInjuryPref();
   }, []);
 
+  // Recharger la préférence quand le dialog doit s'ouvrir
+  useEffect(() => {
+    if (shouldShowDialog && !isChecking) {
+      const loadInjuryPref = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const pref = localStorage.getItem(`injury_tracking_${user.id}`);
+          setInjuryTrackingEnabled(pref === 'true');
+        }
+      };
+      loadInjuryPref();
+    }
+  }, [shouldShowDialog, isChecking]);
+
   useEffect(() => {
     // Attendre que l'authentification soit chargée
     if (authLoading) return;

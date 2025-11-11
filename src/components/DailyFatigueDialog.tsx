@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -51,6 +51,21 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [injuryLocation, setInjuryLocation] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+
+  // Réinitialiser les états quand le dialog s'ouvre
+  useEffect(() => {
+    if (open) {
+      setAnswers({
+        fatigue: 4,
+        courbatures: 4,
+        sommeil: 4,
+        stress: 4,
+      });
+      setHasInjury(false);
+      setInjuryLevel(4);
+      setInjuryLocation("");
+    }
+  }, [open]);
 
   const handleSliderChange = (id: string, value: number[]) => {
     setAnswers({ ...answers, [id]: value[0] });
