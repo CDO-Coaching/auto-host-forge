@@ -12,6 +12,7 @@ import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
+import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 
 export default function ExerciceDetail() {
@@ -533,9 +534,12 @@ export default function ExerciceDetail() {
           {exercise.rpe && (
             <Card className="border border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Zap className="h-5 w-5 text-yellow-600" />
-                  <span className="text-sm font-semibold text-yellow-600 uppercase">RPE</span>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-yellow-600" />
+                    <span className="text-sm font-semibold text-yellow-600 uppercase">RPE</span>
+                  </div>
+                  <RPEExplanationDialog />
                 </div>
                 <p className="text-3xl font-bold">{exercise.rpe}</p>
               </CardContent>

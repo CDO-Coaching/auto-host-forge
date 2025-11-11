@@ -11,6 +11,7 @@ import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
+import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -400,7 +401,10 @@ export default function SupersetDetail() {
                       )}
                       {exercise.rpe && (
                         <div className="bg-muted/30 rounded-md p-2">
-                          <div className="text-xs text-muted-foreground uppercase">RPE</div>
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <div className="text-xs text-muted-foreground uppercase">RPE</div>
+                            <RPEExplanationDialog />
+                          </div>
                           <div className="text-2xl font-bold text-primary">{exercise.rpe}</div>
                         </div>
                       )}
