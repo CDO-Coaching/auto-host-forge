@@ -15,23 +15,23 @@ interface DailyFatigueDialogProps {
 const questions = [
   {
     id: "fatigue",
-    label: "Quel est ton niveau de fatigue aujourd'hui ?",
-    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Assez élevé", "Important", "Très fort"],
+    label: "Niveau de fatigue",
+    labels: ["Aucune", "Minime", "Légère", "Modérée", "Importante", "Forte", "Extrême"],
   },
   {
     id: "courbatures",
-    label: "Quel est ton niveau de courbatures aujourd'hui ?",
-    labels: ["Aucun", "Très léger", "Léger", "Moyen", "Assez élevé", "Important", "Très fort"],
+    label: "Niveau de courbatures",
+    labels: ["Aucune", "Très légères", "Légères", "Modérées", "Marquées", "Fortes", "Intenses"],
   },
   {
     id: "sommeil",
-    label: "Comment as-tu dormi cette nuit ?",
-    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Assez mauvais", "Mauvais", "Très mauvais"],
+    label: "Qualité du sommeil",
+    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Agité", "Mauvais", "Très mauvais"],
   },
   {
     id: "stress",
-    label: "Comment est ton niveau de stress aujourd'hui ?",
-    labels: ["Très léger", "Très bon", "Bon", "Moyen", "Assez élevé", "Important", "Très fort"],
+    label: "Niveau de stress",
+    labels: ["Zen", "Calme", "Détendu", "Neutre", "Tendu", "Stressé", "Très stressé"],
   },
 ];
 
@@ -94,28 +94,28 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleSkip}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-4 sm:p-6">
         <button
           onClick={handleSkip}
-          className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-50"
+          className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none z-50"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">Passer</span>
         </button>
 
-        <DialogHeader>
-          <DialogTitle>Suivi quotidien de fatigue</DialogTitle>
-          <DialogDescription>
-            Évalue ton état du jour pour optimiser ton entraînement
+        <DialogHeader className="pb-3">
+          <DialogTitle className="text-lg sm:text-xl">Suivi quotidien</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
+            Évalue ton état du jour
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-8 py-6 max-h-[60vh] overflow-y-auto">
+        <div className="space-y-4 sm:space-y-6 overflow-y-auto flex-1 pr-2">
           {questions.map((question) => (
-            <div key={question.id} className="space-y-4">
-              <Label className="text-base font-medium">{question.label}</Label>
+            <div key={question.id} className="space-y-2">
+              <Label className="text-sm sm:text-base font-medium">{question.label}</Label>
               
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <Slider
                   value={[answers[question.id]]}
                   onValueChange={(value) => handleSliderChange(question.id, value)}
@@ -125,7 +125,7 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
                   className="w-full"
                 />
                 
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground px-1">
                   <span>1</span>
                   <span>2</span>
                   <span>3</span>
@@ -135,8 +135,8 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
                   <span>7</span>
                 </div>
                 
-                <div className="text-center">
-                  <span className="inline-block px-4 py-2 bg-primary/10 text-primary rounded-md font-medium">
+                <div className="text-center pt-1">
+                  <span className="inline-block px-3 py-1 sm:px-4 sm:py-2 bg-primary/10 text-primary rounded-md font-medium text-xs sm:text-sm">
                     {question.labels[answers[question.id] - 1]}
                   </span>
                 </div>
@@ -145,17 +145,19 @@ export function DailyFatigueDialog({ open, onClose }: DailyFatigueDialogProps) {
           ))}
         </div>
 
-        <div className="flex justify-between items-center pt-4 border-t">
+        <div className="flex justify-between items-center pt-3 sm:pt-4 border-t mt-2">
           <Button
             variant="ghost"
             onClick={handleSkip}
             disabled={isSubmitting}
+            size="sm"
           >
             Passer
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting}
+            size="sm"
           >
             {isSubmitting ? "Enregistrement..." : "Valider"}
           </Button>
