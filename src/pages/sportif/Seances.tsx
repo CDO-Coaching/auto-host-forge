@@ -5,6 +5,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { getWeekNumber, formatWeekRangeFromNumber } from "@/lib/weekUtils";
 
 export default function Seances() {
   const { profile } = useUserProfile();
@@ -64,14 +65,6 @@ export default function Seances() {
     setLoading(false);
   };
 
-  const getWeekNumber = (date: Date): number => {
-    const newDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = newDate.getUTCDay() || 7;
-    newDate.setUTCDate(newDate.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(newDate.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil(((newDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-    return weekNo;
-  };
 
   const loadWeekSessions = async (weekId: string) => {
     const { data: sessionsData, error: sessionsError } = await supabase
@@ -146,7 +139,7 @@ export default function Seances() {
             >
               {weeks.map((week) => (
                 <option key={week.id} value={week.id}>
-                  S{week.week_number} - {week.year}
+                  S{week.week_number} - {week.year} ({formatWeekRangeFromNumber(week.week_number, week.year)})
                 </option>
               ))}
             </select>
@@ -186,7 +179,9 @@ export default function Seances() {
       ) : (
         selectedWeek && (
           <div className="space-y-3">
-            <h2 className="text-xl font-semibold">Semaine {selectedWeek.week_number}</h2>
+            <h2 className="text-xl font-semibold">
+              Semaine {selectedWeek.week_number} ({formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)})
+            </h2>
             {sessions.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
             ) : (

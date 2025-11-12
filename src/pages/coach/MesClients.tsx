@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Clock, Check, X, User, ChevronRight, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getWeek } from "date-fns";
+import { getWeekNumber } from "@/lib/weekUtils";
 
 interface Athlete {
   id: string;
@@ -83,7 +83,7 @@ export default function MesClients() {
     }
 
     // 3) Vérifier si la semaine en cours est programmée pour chaque athlète
-    const currentWeek = getWeek(new Date());
+    const currentWeek = getWeekNumber(new Date());
     const currentYear = new Date().getFullYear();
     
     const athleteWeeksMap = new Map<string, boolean>();

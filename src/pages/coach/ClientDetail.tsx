@@ -22,8 +22,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { getWeek } from "date-fns";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
+import { getWeekNumber, getNextWeeks, formatWeekRange } from "@/lib/weekUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -97,25 +97,8 @@ export default function ClientDetail() {
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
 
-  const currentWeekNumber = getWeek(new Date());
-
-  // Générer les 12 prochaines semaines pour la sélection
-  const getNextWeeks = () => {
-    const weeks = [];
-    const now = new Date();
-
-    for (let i = 0; i < 12; i++) {
-      const targetDate = new Date(now);
-      targetDate.setDate(targetDate.getDate() + i * 7);
-      const weekNum = getWeek(targetDate);
-      const year = targetDate.getFullYear();
-      weeks.push({ week: weekNum, year, date: targetDate });
-    }
-
-    return weeks;
-  };
-
-  const availableWeeks = getNextWeeks();
+  const currentWeekNumber = getWeekNumber(new Date());
+  const availableWeeks = getNextWeeks(12);
 
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
@@ -1280,8 +1263,7 @@ export default function ClientDetail() {
                         <option value="">-- Choisir une semaine --</option>
                         {availableWeeks.map((w) => (
                           <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
-                            Semaine {w.week} - {w.year} (du{" "}
-                            {w.date.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })})
+                            Semaine {w.week} - {w.year} ({formatWeekRange(w.monday)})
                           </option>
                         ))}
                       </select>
