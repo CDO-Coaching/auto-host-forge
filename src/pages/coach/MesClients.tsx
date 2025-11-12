@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getWeek } from "date-fns";
 
@@ -35,6 +35,7 @@ export default function MesClients() {
   const [pendingRequests, setPendingRequests] = useState<AthleteRelationship[]>([]);
   const [approvedAthletes, setApprovedAthletes] = useState<AthleteRelationship[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     if (profile?.id) {
@@ -146,157 +147,180 @@ export default function MesClients() {
     }
   };
 
+  // Filtrer les athlètes selon la recherche
+  const filterAthletes = (athletes: AthleteRelationship[]) => {
+    if (!searchQuery.trim()) return athletes;
+    
+    const query = searchQuery.toLowerCase();
+    return athletes.filter((rel) => {
+      const firstName = rel.athlete.first_name?.toLowerCase() || "";
+      const lastName = rel.athlete.last_name?.toLowerCase() || "";
+      return firstName.includes(query) || lastName.includes(query);
+    });
+  };
+
+  const filteredPending = filterAthletes(pendingRequests);
+  const filteredApproved = filterAthletes(approvedAthletes);
+
   if (loading) {
     return <div className="text-center">Chargement...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Mes clients</h1>
-      
-      <Tabs defaultValue="approved" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="approved">
-            Mes athlètes
-            {approvedAthletes.length > 0 && (
-              <Badge className="ml-2 bg-green-600">
-                {approvedAthletes.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="pending">
-            Demandes en attente
-            {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
-                {pendingRequests.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-        </TabsList>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Mes clients</h1>
+        <div className="flex gap-2">
+          {pendingRequests.length > 0 && (
+            <Badge variant="destructive">
+              {pendingRequests.length} en attente
+            </Badge>
+          )}
+          <Badge className="bg-green-600">
+            {approvedAthletes.length} validé{approvedAthletes.length > 1 ? 's' : ''}
+          </Badge>
+        </div>
+      </div>
 
-        <TabsContent value="pending" className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Rechercher par prénom ou nom..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+      
+      <div className="space-y-4">
+        {/* Demandes en attente - toujours en haut */}
+        {filteredPending.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Demandes en attente de validation</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Demandes en attente
+                <Badge variant="destructive">
+                  {filteredPending.length}
+                </Badge>
+              </CardTitle>
               <CardDescription>
                 Ces athlètes aimeraient que tu sois leur coach, {firstName}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {pendingRequests.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Aucune demande en attente
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {pendingRequests.map((request) => (
-                    <div
-                      key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {request.athlete.first_name} {request.athlete.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {request.athlete.email}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <Clock className="h-3 w-3 inline mr-1" />
-                            Demandé le {new Date(request.requested_at).toLocaleDateString()}
-                          </p>
-                        </div>
+              <div className="space-y-4">
+                {filteredPending.map((request) => (
+                  <div
+                    key={request.id}
+                    className="flex items-center justify-between p-4 border rounded-lg bg-destructive/5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                        <User className="h-6 w-6 text-destructive" />
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleResponse(request.id, "approved")}
-                        >
-                          <Check className="h-4 w-4 mr-1" />
-                          Accepter
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleResponse(request.id, "rejected")}
-                        >
-                          <X className="h-4 w-4 mr-1" />
-                          Refuser
-                        </Button>
+                      <div>
+                        <p className="font-medium">
+                          {request.athlete.first_name} {request.athlete.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {request.athlete.email}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <Clock className="h-3 w-3 inline mr-1" />
+                          Demandé le {new Date(request.requested_at).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleResponse(request.id, "approved")}
+                      >
+                        <Check className="h-4 w-4 mr-1" />
+                        Accepter
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleResponse(request.id, "rejected")}
+                      >
+                        <X className="h-4 w-4 mr-1" />
+                        Refuser
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="approved" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Tes athlètes</CardTitle>
-              <CardDescription>
-                Liste des athlètes que tu accompagnes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {approvedAthletes.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
-                  Tu n'as pas encore d'athlètes approuvés
-                </p>
-              ) : (
-                <div className="space-y-4">
-                  {approvedAthletes.map((relationship) => (
-                    <div
-                      key={relationship.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
-                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium">
-                            {relationship.athlete.first_name} {relationship.athlete.last_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {relationship.athlete.email}
-                          </p>
-                          {relationship.athlete.date_of_birth && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
+        {/* Athlètes validés */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Tes athlètes
+              <Badge className="bg-green-600">
+                {filteredApproved.length}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Liste des athlètes que tu accompagnes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filteredApproved.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                {searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {filteredApproved.map((relationship) => (
+                  <div
+                    key={relationship.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
+                    onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
+                        <User className="h-6 w-6 text-green-600" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        {relationship.hasCurrentWeekProgrammed ? (
-                          <Badge className="bg-green-600">
-                            <Check className="h-3 w-3 mr-1" />
-                            Validé
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary">
-                            <X className="h-3 w-3 mr-1" />
-                            Non validé
-                          </Badge>
+                      <div>
+                        <p className="font-medium">
+                          {relationship.athlete.first_name} {relationship.athlete.last_name}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {relationship.athlete.email}
+                        </p>
+                        {relationship.athlete.date_of_birth && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
+                          </p>
                         )}
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    <div className="flex items-center gap-2">
+                      {relationship.hasCurrentWeekProgrammed ? (
+                        <Badge className="bg-green-600">
+                          <Check className="h-3 w-3 mr-1" />
+                          Validé
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">
+                          <X className="h-3 w-3 mr-1" />
+                          Non validé
+                        </Badge>
+                      )}
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
