@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-export type TimerType = 'chrono' | 'countdown' | 'emom' | 'amrap' | 'tabata' | 'interval' | 'circuit';
+export type TimerType = 'chrono' | 'countdown' | 'emom' | 'tabata';
+export type EmomInterval = 30 | 60 | 120 | 180;
 
 export interface TimerSettings {
   type: TimerType;
@@ -8,6 +9,7 @@ export interface TimerSettings {
   workTime: number;
   restTime: number;
   rounds: number;
+  emomInterval: EmomInterval;
   soundEnabled: boolean;
 }
 
@@ -17,6 +19,7 @@ const DEFAULT_SETTINGS: TimerSettings = {
   workTime: 20,
   restTime: 10,
   rounds: 8,
+  emomInterval: 60,
   soundEnabled: true,
 };
 
@@ -59,8 +62,10 @@ export function useUniversalTimer() {
     
     if (settings.type === 'chrono') {
       setTimeRemaining(0);
-    } else if (settings.type === 'tabata' || settings.type === 'interval') {
+    } else if (settings.type === 'tabata') {
       setTimeRemaining(settings.workTime);
+    } else if (settings.type === 'emom') {
+      setTimeRemaining(settings.emomInterval);
     } else {
       setTimeRemaining(settings.duration);
     }
@@ -85,7 +90,7 @@ export function useUniversalTimer() {
 
         // Gestion des différents types de minuteurs
         if (newTime <= 0) {
-          if (settings.type === 'tabata' || settings.type === 'interval') {
+          if (settings.type === 'tabata') {
             setIsWorkPhase((phase) => {
               const nextPhase = !phase;
               
@@ -118,7 +123,7 @@ export function useUniversalTimer() {
             setCurrentRound((round) => {
               const nextRound = round + 1;
               if (nextRound <= settings.rounds) {
-                setTimeRemaining(60);
+                setTimeRemaining(settings.emomInterval);
                 playSound();
                 return nextRound;
               } else {
@@ -128,9 +133,9 @@ export function useUniversalTimer() {
                 return round;
               }
             });
-            return 60;
+            return settings.emomInterval;
           } else {
-            // countdown, amrap terminés
+            // countdown terminé
             setIsRunning(false);
             if (intervalRef.current) clearInterval(intervalRef.current);
             playSound();
@@ -155,12 +160,14 @@ export function useUniversalTimer() {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
       
-      // Réinitialiser le temps en fonction du nouveau type
+      // Réinitialiser le temps seulement si le type change
       if (newSettings.type) {
         if (newSettings.type === 'chrono') {
           setTimeRemaining(0);
-        } else if (newSettings.type === 'tabata' || newSettings.type === 'interval') {
+        } else if (newSettings.type === 'tabata') {
           setTimeRemaining(updated.workTime);
+        } else if (newSettings.type === 'emom') {
+          setTimeRemaining(updated.emomInterval);
         } else {
           setTimeRemaining(updated.duration);
         }
@@ -168,9 +175,24 @@ export function useUniversalTimer() {
         setIsWorkPhase(true);
       }
       
+      // Si on modifie les paramètres pendant l'exécution, mettre à jour le temps restant
+      if (!newSettings.type && isRunning) {
+        if (prev.type === 'countdown' && newSettings.duration !== undefined) {
+          setTimeRemaining(newSettings.duration);
+        } else if (prev.type === 'tabata') {
+          if (isWorkPhase && newSettings.workTime !== undefined) {
+            setTimeRemaining(newSettings.workTime);
+          } else if (!isWorkPhase && newSettings.restTime !== undefined) {
+            setTimeRemaining(newSettings.restTime);
+          }
+        } else if (prev.type === 'emom' && newSettings.emomInterval !== undefined) {
+          setTimeRemaining(newSettings.emomInterval);
+        }
+      }
+      
       return updated;
     });
-  }, []);
+  }, [isRunning, isWorkPhase]);
 
   // Cleanup
   useEffect(() => {

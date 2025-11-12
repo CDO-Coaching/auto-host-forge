@@ -6,16 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { useUniversalTimer, TimerType } from "@/hooks/useUniversalTimer";
+import { useUniversalTimer, TimerType, EmomInterval } from "@/hooks/useUniversalTimer";
 import { useState } from "react";
 
 const TIMER_TYPES: { value: TimerType; label: string }[] = [
   { value: 'chrono', label: 'Chrono simple' },
   { value: 'countdown', label: 'Compte à rebours' },
   { value: 'emom', label: 'EMOM' },
-  { value: 'amrap', label: 'AMRAP' },
   { value: 'tabata', label: 'Tabata' },
-  { value: 'interval', label: 'Intervalle' },
+];
+
+const EMOM_INTERVALS: { value: EmomInterval; label: string }[] = [
+  { value: 30, label: '30 secondes' },
+  { value: 60, label: '1 minute' },
+  { value: 120, label: '2 minutes' },
+  { value: 180, label: '3 minutes' },
 ];
 
 export function UniversalTimer() {
@@ -45,17 +50,20 @@ export function UniversalTimer() {
   const getProgress = (): number => {
     if (settings.type === 'chrono') return 0;
     
-    if (settings.type === 'tabata' || settings.type === 'interval') {
+    if (settings.type === 'tabata') {
       const phaseTime = isWorkPhase ? settings.workTime : settings.restTime;
       return ((phaseTime - timeRemaining) / phaseTime) * 100;
+    }
+    
+    if (settings.type === 'emom') {
+      return ((settings.emomInterval - timeRemaining) / settings.emomInterval) * 100;
     }
     
     return ((settings.duration - timeRemaining) / settings.duration) * 100;
   };
 
   const getTotalRounds = (): number => {
-    if (settings.type === 'tabata') return 8;
-    if (settings.type === 'interval' || settings.type === 'emom') return settings.rounds;
+    if (settings.type === 'tabata' || settings.type === 'emom') return settings.rounds;
     return 0;
   };
 
@@ -106,7 +114,7 @@ export function UniversalTimer() {
               {formatTime(timeRemaining)}
             </div>
 
-            {(settings.type === 'tabata' || settings.type === 'interval' || settings.type === 'emom') && (
+            {(settings.type === 'tabata' || settings.type === 'emom') && (
               <div className="space-y-2">
                 <div className="text-lg font-semibold">
                   {settings.type === 'emom' ? (
@@ -123,12 +131,6 @@ export function UniversalTimer() {
                   )}
                 </div>
                 <Progress value={getProgress()} className="h-3" />
-              </div>
-            )}
-
-            {settings.type === 'amrap' && (
-              <div className="text-sm text-muted-foreground">
-                Le plus de tours/reps possible !
               </div>
             )}
           </div>
@@ -172,36 +174,26 @@ export function UniversalTimer() {
             {settings.type === 'countdown' && (
               <div className="space-y-2">
                 <Label>Durée (minutes:secondes)</Label>
-                <Input
-                  type="text"
-                  value={formatDuration(settings.duration)}
-                  onChange={(e) => {
-                    const [mins, secs] = e.target.value.split(':').map(Number);
-                    if (!isNaN(mins) && !isNaN(secs)) {
-                      updateSettings({ duration: mins * 60 + secs });
-                    }
-                  }}
-                  disabled={isRunning}
-                  placeholder="3:00"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    value={formatDuration(settings.duration)}
+                    onChange={(e) => {
+                      const [mins, secs] = e.target.value.split(':').map(Number);
+                      if (!isNaN(mins) && !isNaN(secs)) {
+                        updateSettings({ duration: mins * 60 + secs });
+                      }
+                    }}
+                    placeholder="3:00"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Les changements s'appliquent immédiatement
+                </p>
               </div>
             )}
 
-            {settings.type === 'amrap' && (
-              <div className="space-y-2">
-                <Label>Durée totale (minutes)</Label>
-                <Input
-                  type="number"
-                  value={Math.floor(settings.duration / 60)}
-                  onChange={(e) => updateSettings({ duration: Number(e.target.value) * 60 })}
-                  disabled={isRunning}
-                  min={1}
-                  max={60}
-                />
-              </div>
-            )}
-
-            {(settings.type === 'tabata' || settings.type === 'interval') && (
+            {settings.type === 'tabata' && (
               <>
                 <div className="space-y-2">
                   <Label>Temps de travail (secondes)</Label>
@@ -209,7 +201,6 @@ export function UniversalTimer() {
                     type="number"
                     value={settings.workTime}
                     onChange={(e) => updateSettings({ workTime: Number(e.target.value) })}
-                    disabled={isRunning}
                     min={5}
                     max={300}
                   />
@@ -220,7 +211,6 @@ export function UniversalTimer() {
                     type="number"
                     value={settings.restTime}
                     onChange={(e) => updateSettings({ restTime: Number(e.target.value) })}
-                    disabled={isRunning}
                     min={5}
                     max={300}
                   />
@@ -231,26 +221,47 @@ export function UniversalTimer() {
                     type="number"
                     value={settings.rounds}
                     onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
-                    disabled={isRunning}
                     min={1}
                     max={50}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Les changements s'appliquent immédiatement
+                </p>
               </>
             )}
 
             {settings.type === 'emom' && (
-              <div className="space-y-2">
-                <Label>Nombre de minutes</Label>
-                <Input
-                  type="number"
-                  value={settings.rounds}
-                  onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
-                  disabled={isRunning}
-                  min={1}
-                  max={60}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label>Intervalle</Label>
+                  <Select
+                    value={settings.emomInterval.toString()}
+                    onValueChange={(value) => updateSettings({ emomInterval: Number(value) as EmomInterval })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EMOM_INTERVALS.map((interval) => (
+                        <SelectItem key={interval.value} value={interval.value.toString()}>
+                          {interval.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nombre de tours</Label>
+                  <Input
+                    type="number"
+                    value={settings.rounds}
+                    onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
+                    min={1}
+                    max={60}
+                  />
+                </div>
+              </>
             )}
 
             <div className="flex items-center justify-between">
