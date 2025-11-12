@@ -28,7 +28,20 @@ const STORAGE_KEY = 'universal-timer-settings';
 export function useUniversalTimer() {
   const [settings, setSettings] = useState<TimerSettings>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : DEFAULT_SETTINGS;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Assurer que tous les champs obligatoires existent avec des valeurs par défaut
+        return {
+          ...DEFAULT_SETTINGS,
+          ...parsed,
+          emomInterval: parsed.emomInterval || DEFAULT_SETTINGS.emomInterval,
+        };
+      } catch {
+        return DEFAULT_SETTINGS;
+      }
+    }
+    return DEFAULT_SETTINGS;
   });
 
   const [isRunning, setIsRunning] = useState(false);

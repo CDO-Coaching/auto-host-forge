@@ -176,15 +176,31 @@ export function UniversalTimer() {
                 <Label>Durée (minutes:secondes)</Label>
                 <div className="flex gap-2">
                   <Input
-                    type="text"
-                    value={formatDuration(settings.duration)}
+                    type="number"
+                    placeholder="Minutes"
+                    value={Math.floor(settings.duration / 60)}
                     onChange={(e) => {
-                      const [mins, secs] = e.target.value.split(':').map(Number);
-                      if (!isNaN(mins) && !isNaN(secs)) {
-                        updateSettings({ duration: mins * 60 + secs });
-                      }
+                      const mins = Number(e.target.value) || 0;
+                      const secs = settings.duration % 60;
+                      updateSettings({ duration: mins * 60 + secs });
                     }}
-                    placeholder="3:00"
+                    min={0}
+                    max={99}
+                    className="w-24"
+                  />
+                  <span className="flex items-center">:</span>
+                  <Input
+                    type="number"
+                    placeholder="Secondes"
+                    value={settings.duration % 60}
+                    onChange={(e) => {
+                      const mins = Math.floor(settings.duration / 60);
+                      const secs = Number(e.target.value) || 0;
+                      updateSettings({ duration: mins * 60 + secs });
+                    }}
+                    min={0}
+                    max={59}
+                    className="w-24"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -200,7 +216,12 @@ export function UniversalTimer() {
                   <Input
                     type="number"
                     value={settings.workTime}
-                    onChange={(e) => updateSettings({ workTime: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (value >= 5 && value <= 300) {
+                        updateSettings({ workTime: value });
+                      }
+                    }}
                     min={5}
                     max={300}
                   />
@@ -210,7 +231,12 @@ export function UniversalTimer() {
                   <Input
                     type="number"
                     value={settings.restTime}
-                    onChange={(e) => updateSettings({ restTime: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (value >= 5 && value <= 300) {
+                        updateSettings({ restTime: value });
+                      }
+                    }}
                     min={5}
                     max={300}
                   />
@@ -220,7 +246,12 @@ export function UniversalTimer() {
                   <Input
                     type="number"
                     value={settings.rounds}
-                    onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (value >= 1 && value <= 50) {
+                        updateSettings({ rounds: value });
+                      }
+                    }}
                     min={1}
                     max={50}
                   />
@@ -236,7 +267,7 @@ export function UniversalTimer() {
                 <div className="space-y-2">
                   <Label>Intervalle</Label>
                   <Select
-                    value={settings.emomInterval.toString()}
+                    value={(settings.emomInterval || 60).toString()}
                     onValueChange={(value) => updateSettings({ emomInterval: Number(value) as EmomInterval })}
                   >
                     <SelectTrigger>
@@ -256,7 +287,12 @@ export function UniversalTimer() {
                   <Input
                     type="number"
                     value={settings.rounds}
-                    onChange={(e) => updateSettings({ rounds: Number(e.target.value) })}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      if (value >= 1 && value <= 60) {
+                        updateSettings({ rounds: value });
+                      }
+                    }}
                     min={1}
                     max={60}
                   />
