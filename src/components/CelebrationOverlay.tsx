@@ -29,21 +29,36 @@ const encouragementMessages = {
 export function CelebrationOverlay({ show, message, onComplete, type = "exercise" }: CelebrationOverlayProps) {
   useEffect(() => {
     if (show) {
-      const timer = setTimeout(() => onComplete(), 2000);
-      return () => clearTimeout(timer);
+      // Utiliser plusieurs méthodes pour garantir la fermeture sur iOS
+      const timer1 = setTimeout(() => onComplete(), 2000);
+      const timer2 = setTimeout(() => onComplete(), 2100);
+      
+      // Backup pour iOS si les timers ne fonctionnent pas
+      const forceClose = setTimeout(() => {
+        console.log("Force closing celebration");
+        onComplete();
+      }, 2500);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(forceClose);
+      };
     }
   }, [show, onComplete]);
 
   const randomMessage = encouragementMessages[type][Math.floor(Math.random() * encouragementMessages[type].length)];
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait" onExitComplete={onComplete}>
       {show && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
           className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 backdrop-blur-sm"
+          onClick={onComplete}
         >
           <motion.div
             initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
