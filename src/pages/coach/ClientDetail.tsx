@@ -1160,12 +1160,12 @@ export default function ClientDetail() {
               <SheetTrigger asChild>
                 <Button
                   variant="default"
-                  size="sm"
-                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-lg rounded-r-none shadow-lg z-50 px-3 py-6 writing-mode-vertical"
+                  size="lg"
+                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-xl rounded-r-none shadow-glow z-50 px-4 py-8 bg-gradient-cta hover:shadow-[0_0_30px_hsl(var(--primary))] transition-all duration-300 border-2 border-primary/50"
                   style={{ writingMode: 'vertical-rl' }}
                 >
-                  <MessageSquare className="h-4 w-4 mb-2" />
-                  Retours semaine {lastWeekData.week.week_number}
+                  <MessageSquare className="h-5 w-5 mb-3" />
+                  <span className="font-bold text-base">Retours S{lastWeekData.week.week_number}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[50vw] overflow-y-auto">
