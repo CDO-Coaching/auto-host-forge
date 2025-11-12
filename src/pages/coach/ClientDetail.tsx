@@ -34,6 +34,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
@@ -91,7 +92,7 @@ export default function ClientDetail() {
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
-  const [showLastWeekFeedback, setShowLastWeekFeedback] = useState(false);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
@@ -1153,83 +1154,81 @@ export default function ClientDetail() {
             />
           )}
           
-          {/* Retours de la semaine précédente */}
+          {/* Bouton flottant pour ouvrir les retours */}
           {lastWeekData && (
-            <Collapsible open={showLastWeekFeedback} onOpenChange={setShowLastWeekFeedback}>
-              <Card className="border-primary/20 bg-primary/5">
-                <CardHeader className="pb-2 pt-3 px-4">
-                  <CollapsibleTrigger className="flex items-center justify-between w-full hover:opacity-80 transition-opacity">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-primary" />
-                      <CardTitle className="text-sm">
-                        Retours de la semaine {lastWeekData.week.week_number} - {lastWeekData.week.year}
-                      </CardTitle>
-                    </div>
-                    {showLastWeekFeedback ? (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </CollapsibleTrigger>
-                </CardHeader>
-                <CollapsibleContent>
-                  <CardContent className="pt-0 px-4 pb-3">
-                    <div className="space-y-2">
-                      {lastWeekData.sessions.map((session: any) => (
-                        <div key={session.id} className="border rounded-lg p-2 bg-background">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="font-semibold text-xs">{session.name}</h4>
-                            <div className="flex gap-2 text-[10px] text-muted-foreground">
-                              {session.completed_at && (
-                                <span>{new Date(session.completed_at).toLocaleDateString()}</span>
-                              )}
-                              {session.duration_minutes && <span>{session.duration_minutes} min</span>}
-                            </div>
-                          </div>
+            <Sheet open={showFeedbackSheet} onOpenChange={setShowFeedbackSheet}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-lg rounded-r-none shadow-lg z-50 px-3 py-6 writing-mode-vertical"
+                  style={{ writingMode: 'vertical-rl' }}
+                >
+                  <MessageSquare className="h-4 w-4 mb-2" />
+                  Retours semaine {lastWeekData.week.week_number}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[50vw] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    Retours de la semaine {lastWeekData.week.week_number} - {lastWeekData.week.year}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-3">
+                  {lastWeekData.sessions.map((session: any) => (
+                    <div key={session.id} className="border rounded-lg p-3 bg-card">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold text-sm">{session.name}</h4>
+                        <div className="flex gap-2 text-xs text-muted-foreground">
+                          {session.completed_at && (
+                            <span>{new Date(session.completed_at).toLocaleDateString()}</span>
+                          )}
+                          {session.duration_minutes && <span>{session.duration_minutes} min</span>}
+                        </div>
+                      </div>
 
-                          {session.session_exercises && session.session_exercises.length > 0 ? (
-                            <div className="space-y-1">
-                              {session.session_exercises
-                                .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment)
-                                .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-                                .map((ex: any) => (
-                                  <div key={ex.id} className="pl-2 border-l-2 border-primary/30 py-1">
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex-1">
-                                        <div className="font-medium text-xs">{ex.exercice}</div>
-                                        <div className="text-[10px] text-muted-foreground mt-0.5">
-                                          Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
-                                        </div>
-                                      </div>
-                                      {ex.sportif_rpe && (
-                                        <Badge variant="secondary" className="shrink-0 text-[10px] h-4">
-                                          RPE: {ex.sportif_rpe}
-                                        </Badge>
-                                      )}
+                      {session.session_exercises && session.session_exercises.length > 0 ? (
+                        <div className="space-y-2">
+                          {session.session_exercises
+                            .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment)
+                            .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+                            .map((ex: any) => (
+                              <div key={ex.id} className="pl-3 border-l-2 border-primary/40 py-2">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1">
+                                    <div className="font-medium text-sm">{ex.exercice}</div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
                                     </div>
-                                    {ex.sportif_comment && (
-                                      <div className="mt-1 text-[10px] italic text-muted-foreground bg-muted/50 p-1.5 rounded">
-                                        "{ex.sportif_comment}"
-                                      </div>
-                                    )}
                                   </div>
-                                ))}
-                              {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment) && (
-                                <p className="text-[10px] text-muted-foreground text-center py-1">
-                                  Aucun retour du sportif pour cette séance
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-[10px] text-muted-foreground text-center py-1">Aucun exercice</p>
+                                  {ex.sportif_rpe && (
+                                    <Badge variant="secondary" className="shrink-0 text-xs">
+                                      RPE: {ex.sportif_rpe}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {ex.sportif_comment && (
+                                  <div className="mt-2 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
+                                    "{ex.sportif_comment}"
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment) && (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                              Aucun retour du sportif pour cette séance
+                            </p>
                           )}
                         </div>
-                      ))}
+                      ) : (
+                        <p className="text-xs text-muted-foreground text-center py-2">Aucun exercice</p>
+                      )}
                     </div>
-                  </CardContent>
-                </CollapsibleContent>
-              </Card>
-            </Collapsible>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
           )}
 
           <Card>
