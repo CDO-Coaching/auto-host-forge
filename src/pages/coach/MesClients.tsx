@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -159,8 +160,14 @@ export default function MesClients() {
     });
   };
 
+  // Trier les athlètes approuvés : non validés en haut, validés en bas
+  const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
+    if (a.hasCurrentWeekProgrammed === b.hasCurrentWeekProgrammed) return 0;
+    return a.hasCurrentWeekProgrammed ? 1 : -1; // false (non validé) avant true (validé)
+  });
+
   const filteredPending = filterAthletes(pendingRequests);
-  const filteredApproved = filterAthletes(approvedAthletes);
+  const filteredApproved = filterAthletes(sortedApprovedAthletes);
 
   if (loading) {
     return <div className="text-center">Chargement...</div>;
@@ -168,159 +175,162 @@ export default function MesClients() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Mes clients</h1>
-        <div className="flex gap-2">
-          {pendingRequests.length > 0 && (
-            <Badge variant="destructive">
-              {pendingRequests.length} en attente
-            </Badge>
-          )}
-          <Badge className="bg-green-600">
-            {approvedAthletes.length} validé{approvedAthletes.length > 1 ? 's' : ''}
-          </Badge>
-        </div>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          type="text"
-          placeholder="Rechercher par prénom ou nom..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
-      </div>
+      <h1 className="text-3xl font-bold">Mes clients</h1>
       
-      <div className="space-y-4">
-        {/* Demandes en attente - toujours en haut */}
-        {filteredPending.length > 0 && (
+      <Tabs defaultValue="approved" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="approved">
+            Mes athlètes
+            {approvedAthletes.length > 0 && (
+              <Badge className="ml-2 bg-green-600">
+                {approvedAthletes.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="pending">
+            Demandes en attente
+            {pendingRequests.length > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {pendingRequests.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <div className="relative mt-4">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Rechercher par prénom ou nom..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+
+        <TabsContent value="pending" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                Demandes en attente
-                <Badge variant="destructive">
-                  {filteredPending.length}
-                </Badge>
-              </CardTitle>
+              <CardTitle>Demandes en attente de validation</CardTitle>
               <CardDescription>
                 Ces athlètes aimeraient que tu sois leur coach, {firstName}
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {filteredPending.map((request) => (
-                  <div
-                    key={request.id}
-                    className="flex items-center justify-between p-4 border rounded-lg bg-destructive/5"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                        <User className="h-6 w-6 text-destructive" />
+              {filteredPending.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchQuery ? "Aucune demande ne correspond à ta recherche" : "Aucune demande en attente"}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredPending.map((request) => (
+                    <div
+                      key={request.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {request.athlete.first_name} {request.athlete.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.athlete.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <Clock className="h-3 w-3 inline mr-1" />
+                            Demandé le {new Date(request.requested_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">
-                          {request.athlete.first_name} {request.athlete.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.athlete.email}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          <Clock className="h-3 w-3 inline mr-1" />
-                          Demandé le {new Date(request.requested_at).toLocaleDateString()}
-                        </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleResponse(request.id, "approved")}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Accepter
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleResponse(request.id, "rejected")}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Refuser
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleResponse(request.id, "approved")}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Accepter
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleResponse(request.id, "rejected")}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Refuser
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
-        )}
+        </TabsContent>
 
-        {/* Athlètes validés */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Tes athlètes
-              <Badge className="bg-green-600">
-                {filteredApproved.length}
-              </Badge>
-            </CardTitle>
-            <CardDescription>
-              Liste des athlètes que tu accompagnes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {filteredApproved.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                {searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {filteredApproved.map((relationship) => (
-                  <div
-                    key={relationship.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
-                    onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
-                        <User className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {relationship.athlete.first_name} {relationship.athlete.last_name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {relationship.athlete.email}
-                        </p>
-                        {relationship.athlete.date_of_birth && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
+        <TabsContent value="approved" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tes athlètes</CardTitle>
+              <CardDescription>
+                Liste des athlètes que tu accompagnes
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredApproved.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredApproved.map((relationship) => (
+                    <div
+                      key={relationship.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
+                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
+                          <User className="h-6 w-6 text-green-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {relationship.athlete.first_name} {relationship.athlete.last_name}
                           </p>
+                          <p className="text-sm text-muted-foreground">
+                            {relationship.athlete.email}
+                          </p>
+                          {relationship.athlete.date_of_birth && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {relationship.hasCurrentWeekProgrammed ? (
+                          <Badge className="bg-green-600">
+                            <Check className="h-3 w-3 mr-1" />
+                            Validé
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">
+                            <X className="h-3 w-3 mr-1" />
+                            Non validé
+                          </Badge>
                         )}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {relationship.hasCurrentWeekProgrammed ? (
-                        <Badge className="bg-green-600">
-                          <Check className="h-3 w-3 mr-1" />
-                          Validé
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">
-                          <X className="h-3 w-3 mr-1" />
-                          Non validé
-                        </Badge>
-                      )}
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
