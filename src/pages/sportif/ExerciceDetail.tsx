@@ -14,6 +14,7 @@ import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
+import { UniversalTimer } from "@/components/UniversalTimer";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -378,7 +379,8 @@ export default function ExerciceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <CelebrationOverlay 
+      <UniversalTimer />
+      <CelebrationOverlay
         show={showCelebration}
         message={exercise?.exercice || ""}
         onComplete={handleCelebrationComplete}

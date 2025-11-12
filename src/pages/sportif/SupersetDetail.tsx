@@ -12,6 +12,7 @@ import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { UniversalTimer } from "@/components/UniversalTimer";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -286,7 +287,8 @@ export default function SupersetDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-4">
-      <CelebrationOverlay 
+      <UniversalTimer />
+      <CelebrationOverlay
         show={showCelebration}
         message="Superset terminé"
         onComplete={handleCelebrationComplete}

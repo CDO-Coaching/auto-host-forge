@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
+import { UniversalTimer } from "@/components/UniversalTimer";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -326,7 +327,8 @@ export default function SeanceDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <CelebrationOverlay 
+      <UniversalTimer />
+      <CelebrationOverlay
         show={showCelebration}
         message={session?.name || ""}
         onComplete={handleCelebrationComplete}
