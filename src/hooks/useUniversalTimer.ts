@@ -5,12 +5,19 @@ export type EmomInterval = 30 | 60 | 120 | 180;
 
 export interface TimerSettings {
   type: TimerType;
-  duration: number; // en secondes
+  duration: number;
   workTime: number;
   restTime: number;
   rounds: number;
   emomInterval: EmomInterval;
   soundEnabled: boolean;
+}
+
+interface TimerState {
+  startTime: number | null;
+  pausedTime: number;
+  currentRound: number;
+  isWorkPhase: boolean;
 }
 
 const DEFAULT_SETTINGS: TimerSettings = {
@@ -23,20 +30,16 @@ const DEFAULT_SETTINGS: TimerSettings = {
   soundEnabled: true,
 };
 
-const STORAGE_KEY = 'universal-timer-settings';
+const SETTINGS_KEY = 'universal-timer-settings';
+const STATE_KEY = 'universal-timer-state';
 
 export function useUniversalTimer() {
   const [settings, setSettings] = useState<TimerSettings>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        // Assurer que tous les champs obligatoires existent avec des valeurs par défaut
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          emomInterval: parsed.emomInterval || DEFAULT_SETTINGS.emomInterval,
-        };
+        return { ...DEFAULT_SETTINGS, ...parsed };
       } catch {
         return DEFAULT_SETTINGS;
       }
@@ -45,34 +48,59 @@ export function useUniversalTimer() {
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(() => {
-    if (settings.type === 'chrono') return 0;
-    if (settings.type === 'tabata') return settings.workTime;
-    if (settings.type === 'emom') return settings.emomInterval;
-    return settings.duration;
-  });
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
   const [isWorkPhase, setIsWorkPhase] = useState(true);
-  const isWorkPhaseRef = useRef(true);
+  
+  const stateRef = useRef<TimerState>({
+    startTime: null,
+    pausedTime: 0,
+    currentRound: 1,
+    isWorkPhase: true,
+  });
+  
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const finalBeepRef = useRef<HTMLAudioElement | null>(null);
+  const lastBeepTimeRef = useRef<number>(0);
 
-  // Sauvegarder les réglages dans localStorage
+  // Sauvegarder les réglages
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 
   // Initialiser les sons
   useEffect(() => {
-    // Son normal (court)
     audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
-    
-    // Son final (plus long et fort)
     finalBeepRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
     if (finalBeepRef.current) {
-      finalBeepRef.current.volume = 1.0; // Volume maximum pour le bip final
+      finalBeepRef.current.volume = 1.0;
     }
+  }, []);
+
+  // Restaurer l'état et gérer la visibilité
+  useEffect(() => {
+    const storedState = localStorage.getItem(STATE_KEY);
+    if (storedState) {
+      try {
+        const state: TimerState = JSON.parse(storedState);
+        if (state.startTime) {
+          stateRef.current = state;
+          setCurrentRound(state.currentRound);
+          setIsWorkPhase(state.isWorkPhase);
+          setIsRunning(true);
+        }
+      } catch {}
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && stateRef.current.startTime) {
+        updateTimerDisplay();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const playSound = useCallback((isFinal = false) => {
@@ -85,11 +113,127 @@ export function useUniversalTimer() {
     }
   }, [settings.soundEnabled]);
 
-  const resetTimer = useCallback(() => {
+  const updateTimerDisplay = useCallback(() => {
+    if (!stateRef.current.startTime) return;
+
+    const now = Date.now();
+    const elapsed = Math.floor((now - stateRef.current.startTime + stateRef.current.pausedTime * 1000) / 1000);
+
+    if (settings.type === 'chrono') {
+      setTimeRemaining(elapsed);
+    } else if (settings.type === 'countdown') {
+      const remaining = Math.max(0, settings.duration - elapsed);
+      setTimeRemaining(remaining);
+
+      const halfTime = Math.floor(settings.duration / 2);
+      if (elapsed === halfTime && elapsed !== lastBeepTimeRef.current) {
+        playSound(false);
+        lastBeepTimeRef.current = elapsed;
+      }
+      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
+        playSound(remaining === 1);
+        lastBeepTimeRef.current = Math.floor(elapsed);
+      }
+
+      if (remaining === 0) {
+        pauseTimer();
+      }
+    } else if (settings.type === 'emom') {
+      const currentInterval = Math.floor(elapsed / settings.emomInterval);
+      const roundNum = Math.min(currentInterval + 1, settings.rounds);
+      const timeInInterval = elapsed % settings.emomInterval;
+      const remaining = settings.emomInterval - timeInInterval;
+
+      setCurrentRound(roundNum);
+      setTimeRemaining(remaining);
+
+      const halfInterval = Math.floor(settings.emomInterval / 2);
+      if (timeInInterval === halfInterval && Math.floor(elapsed) !== lastBeepTimeRef.current) {
+        playSound(false);
+        lastBeepTimeRef.current = Math.floor(elapsed);
+      }
+      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
+        playSound(remaining === 1);
+        lastBeepTimeRef.current = Math.floor(elapsed);
+      }
+
+      if (roundNum >= settings.rounds && remaining === 0) {
+        pauseTimer();
+      }
+    } else if (settings.type === 'tabata') {
+      const totalCycleTime = settings.workTime + settings.restTime;
+      const currentCycle = Math.floor(elapsed / totalCycleTime);
+      const roundNum = Math.min(currentCycle + 1, settings.rounds);
+      const timeInCycle = elapsed % totalCycleTime;
+      
+      const isWork = timeInCycle < settings.workTime;
+      const phaseTime = isWork ? settings.workTime : settings.restTime;
+      const timeInPhase = isWork ? timeInCycle : timeInCycle - settings.workTime;
+      const remaining = phaseTime - timeInPhase;
+
+      setCurrentRound(roundNum);
+      setIsWorkPhase(isWork);
+      setTimeRemaining(remaining);
+      stateRef.current.isWorkPhase = isWork;
+      stateRef.current.currentRound = roundNum;
+
+      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
+        playSound(remaining === 1);
+        lastBeepTimeRef.current = Math.floor(elapsed);
+      }
+
+      if (roundNum >= settings.rounds && remaining === 0 && !isWork) {
+        pauseTimer();
+      }
+    }
+  }, [settings, playSound]);
+
+  const startTimer = useCallback(() => {
+    if (stateRef.current.startTime === null) {
+      stateRef.current.startTime = Date.now();
+      stateRef.current.pausedTime = 0;
+    } else {
+      const pauseDuration = Date.now() - (stateRef.current.startTime + stateRef.current.pausedTime * 1000);
+      stateRef.current.pausedTime += Math.floor(pauseDuration / 1000);
+      stateRef.current.startTime = Date.now() - stateRef.current.pausedTime * 1000;
+    }
+
+    setIsRunning(true);
+    localStorage.setItem(STATE_KEY, JSON.stringify(stateRef.current));
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(updateTimerDisplay, 100);
+    updateTimerDisplay();
+  }, [updateTimerDisplay]);
+
+  const pauseTimer = useCallback(() => {
     setIsRunning(false);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    
+    if (stateRef.current.startTime) {
+      const now = Date.now();
+      stateRef.current.pausedTime = Math.floor((now - stateRef.current.startTime) / 1000);
+    }
+    
+    localStorage.removeItem(STATE_KEY);
+  }, []);
+
+  const resetTimer = useCallback(() => {
+    pauseTimer();
+    
+    stateRef.current = {
+      startTime: null,
+      pausedTime: 0,
+      currentRound: 1,
+      isWorkPhase: true,
+    };
+    
     setCurrentRound(1);
     setIsWorkPhase(true);
-    isWorkPhaseRef.current = true;
+    lastBeepTimeRef.current = 0;
     
     if (settings.type === 'chrono') {
       setTimeRemaining(0);
@@ -100,153 +244,22 @@ export function useUniversalTimer() {
     } else {
       setTimeRemaining(settings.duration);
     }
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, [settings]);
-
-  // Garder une référence à la phase de travail actuelle pour éviter les problèmes de fermeture
-  useEffect(() => {
-    isWorkPhaseRef.current = isWorkPhase;
-  }, [isWorkPhase]);
-
-  const startTimer = useCallback(() => {
-    setIsRunning(true);
-    playSound();
-
-    intervalRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (settings.type === 'chrono') {
-          return prev + 1;
-        }
-
-        const newTime = prev - 1;
-
-        // Signal sonore pour les 3 dernières secondes (dernier bip différent)
-        if (newTime === 1) {
-          playSound(true); // Bip final plus fort
-        } else if (newTime === 2 || newTime === 3) {
-          playSound(false); // Bip normal
-        }
-
-        // Signal sonore à la moitié (countdown et EMOM uniquement)
-        if (settings.type === 'countdown') {
-          const halfTime = Math.floor(settings.duration / 2);
-          if (newTime === halfTime && halfTime > 3) {
-            playSound(false);
-          }
-        }
-        if (settings.type === 'emom') {
-          const halfTime = Math.floor(settings.emomInterval / 2);
-          if (newTime === halfTime && halfTime > 3) {
-            playSound(false);
-          }
-        }
-
-        // Gestion des différents types de minuteurs
-        if (newTime <= 0) {
-          if (settings.type === 'tabata') {
-            if (isWorkPhaseRef.current) {
-              // Fin du travail -> lancer repos
-              setIsWorkPhase(false);
-              isWorkPhaseRef.current = false;
-              playSound(true);
-              return settings.restTime;
-            } else {
-              // Fin du repos -> passer au tour suivant ou terminer
-              let finished = false;
-              setCurrentRound((round) => {
-                const next = round + 1;
-                if (next <= settings.rounds) {
-                  return next;
-                } else {
-                  finished = true;
-                  return round;
-                }
-              });
-              if (finished) {
-                setIsRunning(false);
-                if (intervalRef.current) clearInterval(intervalRef.current);
-                playSound(true);
-                return 0;
-              } else {
-                setIsWorkPhase(true);
-                isWorkPhaseRef.current = true;
-                playSound(false);
-                return settings.workTime;
-              }
-            }
-          } else if (settings.type === 'emom') {
-            setCurrentRound((round) => {
-              const nextRound = round + 1;
-              if (nextRound <= settings.rounds) {
-                playSound(true);
-                return nextRound;
-              } else {
-                setIsRunning(false);
-                if (intervalRef.current) clearInterval(intervalRef.current);
-                playSound(true);
-                return round;
-              }
-            });
-            return settings.emomInterval;
-          } else {
-            // countdown terminé
-            setIsRunning(false);
-            if (intervalRef.current) clearInterval(intervalRef.current);
-            playSound(true);
-            return 0;
-          }
-        }
-
-        return newTime;
-      });
-    }, 1000);
-  }, [settings, playSound]);
-
-  const pauseTimer = useCallback(() => {
-    setIsRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
+    
+    localStorage.removeItem(STATE_KEY);
+  }, [settings, pauseTimer]);
 
   const updateSettings = useCallback((newSettings: Partial<TimerSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
       
-      // Réinitialiser le temps seulement si le type change
-      if (newSettings.type) {
-        if (newSettings.type === 'chrono') {
-          setTimeRemaining(0);
-        } else if (newSettings.type === 'tabata') {
-          setTimeRemaining(updated.workTime);
-        } else if (newSettings.type === 'emom') {
-          setTimeRemaining(updated.emomInterval);
-        } else {
-          setTimeRemaining(updated.duration);
-        }
-        setCurrentRound(1);
-        setIsWorkPhase(true);
-      } else if (!isRunning) {
-        // Si on modifie les paramètres alors que le minuteur n'est pas en cours, mettre à jour le temps
-        if (prev.type === 'countdown' && newSettings.duration !== undefined) {
-          setTimeRemaining(newSettings.duration);
-        } else if (prev.type === 'tabata' && newSettings.workTime !== undefined) {
-          setTimeRemaining(newSettings.workTime);
-        } else if (prev.type === 'emom' && newSettings.emomInterval !== undefined) {
-          setTimeRemaining(newSettings.emomInterval);
-        }
+      if (newSettings.type && newSettings.type !== prev.type) {
+        resetTimer();
       }
       
       return updated;
     });
-  }, [isRunning]);
+  }, [resetTimer]);
 
-  // Cleanup
   useEffect(() => {
     return () => {
       if (intervalRef.current) {
