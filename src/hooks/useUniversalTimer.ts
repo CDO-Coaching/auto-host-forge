@@ -53,6 +53,7 @@ export function useUniversalTimer() {
   });
   const [currentRound, setCurrentRound] = useState(1);
   const [isWorkPhase, setIsWorkPhase] = useState(true);
+  const isWorkPhaseRef = useRef(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const finalBeepRef = useRef<HTMLAudioElement | null>(null);
@@ -88,6 +89,7 @@ export function useUniversalTimer() {
     setIsRunning(false);
     setCurrentRound(1);
     setIsWorkPhase(true);
+    isWorkPhaseRef.current = true;
     
     if (settings.type === 'chrono') {
       setTimeRemaining(0);
@@ -104,6 +106,11 @@ export function useUniversalTimer() {
       intervalRef.current = null;
     }
   }, [settings]);
+
+  // Garder une référence à la phase de travail actuelle pour éviter les problèmes de fermeture
+  useEffect(() => {
+    isWorkPhaseRef.current = isWorkPhase;
+  }, [isWorkPhase]);
 
   const startTimer = useCallback(() => {
     setIsRunning(true);
@@ -141,9 +148,10 @@ export function useUniversalTimer() {
         // Gestion des différents types de minuteurs
         if (newTime <= 0) {
           if (settings.type === 'tabata') {
-            if (isWorkPhase) {
+            if (isWorkPhaseRef.current) {
               // Fin du travail -> lancer repos
               setIsWorkPhase(false);
+              isWorkPhaseRef.current = false;
               playSound(true);
               return settings.restTime;
             } else {
@@ -165,6 +173,7 @@ export function useUniversalTimer() {
                 return 0;
               } else {
                 setIsWorkPhase(true);
+                isWorkPhaseRef.current = true;
                 playSound(false);
                 return settings.workTime;
               }
@@ -195,7 +204,7 @@ export function useUniversalTimer() {
         return newTime;
       });
     }, 1000);
-  }, [settings, playSound, isWorkPhase]);
+  }, [settings, playSound]);
 
   const pauseTimer = useCallback(() => {
     setIsRunning(false);
