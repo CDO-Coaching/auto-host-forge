@@ -106,6 +106,19 @@ export function useUniversalTimer() {
 
         const newTime = prev - 1;
 
+        // Signal sonore pour les 3 dernières secondes
+        if (newTime > 0 && newTime <= 3) {
+          playSound();
+        }
+
+        // Signal sonore à la moitié (countdown et EMOM)
+        if (settings.type === 'countdown' && newTime === Math.floor(settings.duration / 2)) {
+          playSound();
+        }
+        if (settings.type === 'emom' && newTime === Math.floor(settings.emomInterval / 2)) {
+          playSound();
+        }
+
         // Gestion des différents types de minuteurs
         if (newTime <= 0) {
           if (settings.type === 'tabata') {
