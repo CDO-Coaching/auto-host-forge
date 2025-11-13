@@ -141,27 +141,32 @@ export function useUniversalTimer() {
         // Gestion des différents types de minuteurs
         if (newTime <= 0) {
           if (settings.type === 'tabata') {
-            if (isWorkPhase) {
-              // Fin du temps de travail, passage au repos
-              setIsWorkPhase(false);
-              playSound(true);
-              return settings.restTime;
-            } else {
-              // Fin du temps de repos, passage au tour suivant
-              setCurrentRound((round) => {
-                const nextRound = round + 1;
-                if (nextRound > settings.rounds) {
-                  // Fin du circuit complet
-                  setIsRunning(false);
-                  if (intervalRef.current) clearInterval(intervalRef.current);
-                  playSound(true);
-                }
-                return nextRound > settings.rounds ? round : nextRound;
-              });
-              setIsWorkPhase(true);
-              playSound(false);
-              return settings.workTime;
-            }
+            setIsWorkPhase((phase) => {
+              if (phase) {
+                // Fin du temps de travail, passage au repos
+                setTimeRemaining(settings.restTime);
+                playSound(true);
+                return false;
+              } else {
+                // Fin du temps de repos, passage au tour suivant
+                setCurrentRound((round) => {
+                  const nextRound = round + 1;
+                  if (nextRound <= settings.rounds) {
+                    setTimeRemaining(settings.workTime);
+                    playSound(false);
+                    return nextRound;
+                  } else {
+                    // Fin du circuit complet
+                    setIsRunning(false);
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                    playSound(true);
+                    return round;
+                  }
+                });
+                return true;
+              }
+            });
+            return 0;
           } else if (settings.type === 'emom') {
             setCurrentRound((round) => {
               const nextRound = round + 1;
