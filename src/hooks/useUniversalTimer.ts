@@ -14,7 +14,7 @@ export interface TimerSettings {
 }
 
 const DEFAULT_SETTINGS: TimerSettings = {
-  type: 'countdown',
+  type: 'chrono',
   duration: 180,
   workTime: 20,
   restTime: 10,
