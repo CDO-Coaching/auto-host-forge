@@ -144,33 +144,28 @@ export function useUniversalTimer() {
             if (isWorkPhase) {
               // Fin du temps de travail, passage au repos
               setIsWorkPhase(false);
-              setTimeRemaining(settings.restTime);
               playSound(true);
               return settings.restTime;
             } else {
               // Fin du temps de repos, passage au tour suivant
-              setIsWorkPhase(true);
               setCurrentRound((round) => {
                 const nextRound = round + 1;
-                if (nextRound <= settings.rounds) {
-                  setTimeRemaining(settings.workTime);
-                  playSound(false);
-                  return nextRound;
-                } else {
+                if (nextRound > settings.rounds) {
                   // Fin du circuit complet
                   setIsRunning(false);
                   if (intervalRef.current) clearInterval(intervalRef.current);
                   playSound(true);
-                  return round;
                 }
+                return nextRound > settings.rounds ? round : nextRound;
               });
+              setIsWorkPhase(true);
+              playSound(false);
               return settings.workTime;
             }
           } else if (settings.type === 'emom') {
             setCurrentRound((round) => {
               const nextRound = round + 1;
               if (nextRound <= settings.rounds) {
-                setTimeRemaining(settings.emomInterval);
                 playSound(true);
                 return nextRound;
               } else {
