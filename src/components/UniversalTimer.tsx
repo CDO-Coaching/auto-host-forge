@@ -114,7 +114,7 @@ export function UniversalTimer() {
               {formatTime(timeRemaining)}
             </div>
 
-            {(settings.type === 'tabata' || settings.type === 'emom') && (
+            {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
               <div className="space-y-2">
                 <div className="text-lg font-semibold">
                   {settings.type === 'emom' ? (
@@ -132,6 +132,10 @@ export function UniversalTimer() {
                 </div>
                 <Progress value={getProgress()} className="h-3" />
               </div>
+            )}
+
+            {settings.type === 'countdown' && (
+              <Progress value={getProgress()} className="h-3" />
             )}
           </div>
 
