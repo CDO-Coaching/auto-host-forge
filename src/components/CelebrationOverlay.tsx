@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
-import { Trophy, Star, Zap } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { Trophy, Star, X } from "lucide-react";
 
 interface CelebrationOverlayProps {
   show: boolean;
@@ -27,22 +27,29 @@ const encouragementMessages = {
 };
 
 export function CelebrationOverlay({ show, message, onComplete, type = "exercise" }: CelebrationOverlayProps) {
+  const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number>(0);
+
   useEffect(() => {
     if (show) {
-      // Utiliser plusieurs méthodes pour garantir la fermeture sur iOS
-      const timer1 = setTimeout(() => onComplete(), 2000);
-      const timer2 = setTimeout(() => onComplete(), 2100);
+      startTimeRef.current = Date.now();
       
-      // Backup pour iOS si les timers ne fonctionnent pas
-      const forceClose = setTimeout(() => {
-        console.log("Force closing celebration");
-        onComplete();
-      }, 2500);
+      // Utiliser requestAnimationFrame pour plus de fiabilité sur mobile
+      const checkAndClose = () => {
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed >= 2000) {
+          onComplete();
+        } else {
+          timerRef.current = requestAnimationFrame(checkAndClose);
+        }
+      };
+      
+      timerRef.current = requestAnimationFrame(checkAndClose);
       
       return () => {
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-        clearTimeout(forceClose);
+        if (timerRef.current) {
+          cancelAnimationFrame(timerRef.current);
+        }
       };
     }
   }, [show, onComplete]);
@@ -50,7 +57,7 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
   const randomMessage = encouragementMessages[type][Math.floor(Math.random() * encouragementMessages[type].length)];
 
   return (
-    <AnimatePresence mode="wait" onExitComplete={onComplete}>
+    <AnimatePresence mode="wait">
       {show && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -84,6 +91,17 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
             
             {/* Carte principale */}
             <div className="relative bg-gradient-to-br from-yellow-400 via-orange-400 to-red-400 p-8 rounded-3xl shadow-2xl text-center min-w-[280px]">
+              {/* Bouton de fermeture visible */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComplete();
+                }}
+                className="absolute top-2 right-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5 text-white" />
+              </button>
               <motion.div
                 animate={{ 
                   scale: [1, 1.3, 1],
@@ -141,7 +159,7 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
                   className="absolute top-4"
                   style={{ left: `${30 + i * 20}%` }}
                 >
-                  <Zap className="h-6 w-6 text-white" />
+                  <Star className="h-6 w-6 text-white" />
                 </motion.div>
               ))}
             </div>
