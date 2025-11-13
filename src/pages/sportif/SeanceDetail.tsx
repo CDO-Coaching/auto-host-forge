@@ -420,45 +420,75 @@ export default function SeanceDetail() {
                         {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                       </div>
 
-                      {!allCompleted && (
-                        <div className="space-y-1">
-                          {item.exercises.map((ex: any, idx: number) => (
-                            <div key={ex.id} className="text-sm text-muted-foreground">
-                              {idx + 1}. {ex.exercice}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {isCompleted && allCompleted && (
-                        <div className="mt-4 space-y-2 border-t pt-3">
-                          {item.exercises.map((ex: any, exIndex: number) => (
-                            <div key={exIndex} className="bg-muted/30 rounded-lg p-3 space-y-1">
-                              <p className="font-medium text-sm">{ex.exercice}</p>
-                              <div className="flex items-center gap-2 text-xs flex-wrap">
-                                <Badge variant="secondary" className="text-xs">
-                                  RPE: {ex.sportif_rpe || "-"}
-                                </Badge>
-                                {ex.sportif_feedback_at && (
-                                  <span className="text-muted-foreground">
-                                    {new Date(ex.sportif_feedback_at).toLocaleDateString('fr-FR', { 
-                                      day: '2-digit', 
-                                      month: '2-digit',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
-                                  </span>
+                      <div className={`space-y-2 ${allCompleted ? 'mt-4 border-t pt-3' : ''}`}>
+                        {item.exercises.map((ex: any, exIndex: number) => (
+                          <div key={exIndex} className={allCompleted ? "bg-muted/30 rounded-lg p-3 space-y-2" : "space-y-1"}>
+                            <p className={`${allCompleted ? 'font-medium' : 'text-sm text-muted-foreground'}`}>
+                              {!allCompleted && `${exIndex + 1}. `}{ex.exercice}
+                            </p>
+                            
+                            {allCompleted && (
+                              <div className="flex gap-2 flex-wrap">
+                                {ex.series && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {ex.series} séries
+                                  </Badge>
+                                )}
+                                {ex.reps && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {ex.reps} reps
+                                  </Badge>
+                                )}
+                                {ex.charge && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {ex.charge}
+                                  </Badge>
+                                )}
+                                {ex.rpe && (
+                                  <Badge variant="outline" className="text-xs">
+                                    RPE prescrit: {ex.rpe}
+                                  </Badge>
+                                )}
+                                {ex.tempo && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Tempo: {ex.tempo}
+                                  </Badge>
+                                )}
+                                {ex.recuperation && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Récup: {ex.recuperation}
+                                  </Badge>
                                 )}
                               </div>
-                              {ex.sportif_comment && (
-                                <p className="text-xs text-muted-foreground italic mt-1">
-                                  💬 {ex.sportif_comment}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                            )}
+                            
+                            {isCompleted && allCompleted && (
+                              <>
+                                <div className="flex items-center gap-2 text-xs flex-wrap border-t pt-2">
+                                  <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                    RPE ressenti: {ex.sportif_rpe || "-"}
+                                  </Badge>
+                                  {ex.sportif_feedback_at && (
+                                    <span className="text-muted-foreground">
+                                      {new Date(ex.sportif_feedback_at).toLocaleDateString('fr-FR', { 
+                                        day: '2-digit', 
+                                        month: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
+                                {ex.sportif_comment && (
+                                  <p className="text-xs text-muted-foreground italic">
+                                    💬 {ex.sportif_comment}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -481,73 +511,93 @@ export default function SeanceDetail() {
                     }
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                            <p className="font-semibold text-lg">{item.exercice}</p>
-                          </div>
-                          {!isCardio && !allCompleted && (
-                            <div className="flex gap-2 flex-wrap">
-                              {item.series && (
-                                <Badge variant="outline" className="text-xs">
-                                  {item.series} séries
-                                </Badge>
-                              )}
-                              {item.reps && (
-                                <Badge variant="outline" className="text-xs">
-                                  {item.reps} reps
-                                </Badge>
-                              )}
-                              {item.charge && (
-                                <Badge variant="outline" className="text-xs">
-                                  {item.charge}
-                                </Badge>
-                              )}
-                              {item.rpe && (
-                                <Badge variant="outline" className="text-xs">
-                                  RPE {item.rpe}
-                                </Badge>
-                              )}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                              <p className="font-semibold text-lg">{item.exercice}</p>
                             </div>
-                          )}
-                          {isCardio && !allCompleted && (
-                            <div className="flex gap-2 flex-wrap">
-                              {item.cardio_sport && (
-                                <Badge variant="outline" className="text-xs">
-                                  {item.cardio_sport}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
-                      </div>
-
-                      {isCompleted && allCompleted && (
-                        <div className="border-t pt-3 space-y-1">
-                          <div className="flex items-center gap-2 text-xs flex-wrap">
-                            <Badge variant="secondary" className="text-xs">
-                              RPE ressenti: {item.sportif_rpe || "-"}
-                            </Badge>
-                            {item.sportif_feedback_at && (
-                              <span className="text-muted-foreground">
-                                {new Date(item.sportif_feedback_at).toLocaleDateString('fr-FR', { 
-                                  day: '2-digit', 
-                                  month: '2-digit',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </span>
+                            {!isCardio && (
+                              <div className="flex gap-2 flex-wrap">
+                                {item.series && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.series} séries
+                                  </Badge>
+                                )}
+                                {item.reps && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.reps} reps
+                                  </Badge>
+                                )}
+                                {item.charge && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.charge}
+                                  </Badge>
+                                )}
+                                {item.rpe && (
+                                  <Badge variant="outline" className="text-xs">
+                                    RPE prescrit: {item.rpe}
+                                  </Badge>
+                                )}
+                                {item.tempo && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Tempo: {item.tempo}
+                                  </Badge>
+                                )}
+                                {item.recuperation && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Récup: {item.recuperation}
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                            {isCardio && (
+                              <div className="flex gap-2 flex-wrap">
+                                {item.cardio_sport && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.cardio_sport}
+                                  </Badge>
+                                )}
+                                {item.cardio_content && (
+                                  <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>
+                                )}
+                                {item.cardio_pace && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {item.cardio_pace}
+                                  </Badge>
+                                )}
+                              </div>
                             )}
                           </div>
-                          {item.sportif_comment && (
-                            <p className="text-xs text-muted-foreground italic">
-                              💬 {item.sportif_comment}
-                            </p>
-                          )}
+                          {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                         </div>
-                      )}
+
+                        {isCompleted && allCompleted && (
+                          <div className="border-t pt-3 space-y-1">
+                            <div className="flex items-center gap-2 text-xs flex-wrap">
+                              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                RPE ressenti: {item.sportif_rpe || "-"}
+                              </Badge>
+                              {item.sportif_feedback_at && (
+                                <span className="text-muted-foreground">
+                                  {new Date(item.sportif_feedback_at).toLocaleDateString('fr-FR', { 
+                                    day: '2-digit', 
+                                    month: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}
+                                </span>
+                              )}
+                            </div>
+                            {item.sportif_comment && (
+                              <p className="text-xs text-muted-foreground italic">
+                                💬 {item.sportif_comment}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 );
