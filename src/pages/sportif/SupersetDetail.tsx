@@ -13,6 +13,7 @@ import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
 
 export default function SupersetDetail() {
   const { sessionId, supersetId } = useParams();
@@ -21,9 +22,6 @@ export default function SupersetDetail() {
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [globalCompletedSets, setGlobalCompletedSets] = useState(0);
-  const [timers, setTimers] = useState<{ [key: string]: number }>({});
-  const [timerIntervals, setTimerIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
-  const [isTimerRunning, setIsTimerRunning] = useState<{ [key: string]: boolean }>({});
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -31,36 +29,38 @@ export default function SupersetDetail() {
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const [overlayTimerId, setOverlayTimerId] = useState<string | null>(null);
 
+  const {
+    timers,
+    isRunning: isTimerRunning,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    initializeTimer,
+    formatTime,
+  } = useRecoveryTimer();
+
   useEffect(() => {
     loadSupersetExercises();
     
-    // Restaurer les données sauvegardées
     const savedData = localStorage.getItem(`superset-progress-${supersetId}`);
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
         if (parsed.globalCompletedSets !== undefined) setGlobalCompletedSets(parsed.globalCompletedSets);
-        if (parsed.timers) setTimers(parsed.timers);
       } catch (error) {
         console.error("Erreur lors de la restauration:", error);
       }
     }
-    
-    return () => {
-      Object.values(timerIntervals).forEach(clearInterval);
-    };
   }, [supersetId]);
 
-  // Sauvegarder automatiquement la progression
   useEffect(() => {
     if (supersetId) {
       const dataToSave = {
         globalCompletedSets,
-        timers,
       };
       localStorage.setItem(`superset-progress-${supersetId}`, JSON.stringify(dataToSave));
     }
-  }, [globalCompletedSets, timers, supersetId]);
+  }, [globalCompletedSets, supersetId]);
 
   const loadSupersetExercises = async () => {
     setLoading(true);
@@ -91,14 +91,10 @@ export default function SupersetDetail() {
       });
     } else {
       setExercises(data || []);
-      const initialTimers: { [key: string]: number } = {};
-      const initialRunning: { [key: string]: boolean } = {};
-
       (data || []).forEach((ex: any) => {
-        initialTimers[ex.id] = 0;
-        initialRunning[ex.id] = false;
+        initializeTimer(ex.id);
       });
-      // Charger les vidéos depuis la bibliothèque d'exercices
+
       const urls: { [key: string]: string } = {};
       for (const ex of data || []) {
         if (ex.exercice) {
@@ -114,67 +110,9 @@ export default function SupersetDetail() {
         }
       }
       setVideoUrls(urls);
-
-      setTimers(initialTimers);
-      setIsTimerRunning(initialRunning);
     }
 
     setLoading(false);
-  };
-
-  const parseRecuperationTime = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    let totalSeconds = 0;
-    const minMatch = timeStr.match(/(\d+)min/);
-    const secMatch = timeStr.match(/(\d+)s/);
-    if (minMatch) totalSeconds += parseInt(minMatch[1]) * 60;
-    if (secMatch) totalSeconds += parseInt(secMatch[1]);
-    return totalSeconds;
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const startTimer = (exerciseId: string, recuperation: string) => {
-    if (timerIntervals[exerciseId]) {
-      clearInterval(timerIntervals[exerciseId]);
-    }
-
-    const targetSeconds = parseRecuperationTime(recuperation);
-    setTimers({ ...timers, [exerciseId]: targetSeconds });
-    setIsTimerRunning({ ...isTimerRunning, [exerciseId]: true });
-
-    const interval = setInterval(() => {
-      setTimers((prev) => {
-        const newTime = prev[exerciseId] - 1;
-        if (newTime <= 0) {
-          clearInterval(interval);
-          setIsTimerRunning((r) => ({ ...r, [exerciseId]: false }));
-          return { ...prev, [exerciseId]: 0 };
-        }
-        return { ...prev, [exerciseId]: newTime };
-      });
-    }, 1000);
-
-    setTimerIntervals({ ...timerIntervals, [exerciseId]: interval });
-  };
-
-  const pauseTimer = (exerciseId: string) => {
-    if (timerIntervals[exerciseId]) {
-      clearInterval(timerIntervals[exerciseId]);
-      setIsTimerRunning({ ...isTimerRunning, [exerciseId]: false });
-    }
-  };
-
-  const resetTimer = (exerciseId: string) => {
-    if (timerIntervals[exerciseId]) {
-      clearInterval(timerIntervals[exerciseId]);
-    }
-    setTimers({ ...timers, [exerciseId]: 0 });
-    setIsTimerRunning({ ...isTimerRunning, [exerciseId]: false });
   };
 
   const incrementGlobalSet = () => {
@@ -182,12 +120,10 @@ export default function SupersetDetail() {
     if (globalCompletedSets < maxSets) {
       setGlobalCompletedSets(globalCompletedSets + 1);
       
-      // Démarrer automatiquement le chrono du dernier exercice (récup superset)
       if (exercises.length > 0) {
         const lastExercise = exercises[exercises.length - 1];
         if (lastExercise.recuperation) {
           startTimer(lastExercise.id, lastExercise.recuperation);
-          // Afficher l'overlay
           setOverlayTimerId(lastExercise.id);
           setShowTimerOverlay(true);
         }
