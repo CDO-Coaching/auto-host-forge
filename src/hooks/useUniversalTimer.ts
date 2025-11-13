@@ -141,34 +141,31 @@ export function useUniversalTimer() {
         // Gestion des différents types de minuteurs
         if (newTime <= 0) {
           if (settings.type === 'tabata') {
-            setIsWorkPhase((phase) => {
-              const nextPhase = !phase;
-              
-              if (!nextPhase) {
-                // Passage au repos
-                setTimeRemaining(settings.restTime);
-                playSound(true);
-                return false;
-              } else {
-                // Passage au travail
-                setCurrentRound((round) => {
-                  const nextRound = round + 1;
-                  if (nextRound <= settings.rounds) {
-                    setTimeRemaining(settings.workTime);
-                    playSound(false);
-                    return nextRound;
-                  } else {
-                    // Fin du circuit
-                    setIsRunning(false);
-                    if (intervalRef.current) clearInterval(intervalRef.current);
-                    playSound(true);
-                    return round;
-                  }
-                });
-                return true;
-              }
-            });
-            return 0;
+            if (isWorkPhase) {
+              // Fin du temps de travail, passage au repos
+              setIsWorkPhase(false);
+              setTimeRemaining(settings.restTime);
+              playSound(true);
+              return settings.restTime;
+            } else {
+              // Fin du temps de repos, passage au tour suivant
+              setIsWorkPhase(true);
+              setCurrentRound((round) => {
+                const nextRound = round + 1;
+                if (nextRound <= settings.rounds) {
+                  setTimeRemaining(settings.workTime);
+                  playSound(false);
+                  return nextRound;
+                } else {
+                  // Fin du circuit complet
+                  setIsRunning(false);
+                  if (intervalRef.current) clearInterval(intervalRef.current);
+                  playSound(true);
+                  return round;
+                }
+              });
+              return settings.workTime;
+            }
           } else if (settings.type === 'emom') {
             setCurrentRound((round) => {
               const nextRound = round + 1;
@@ -196,7 +193,7 @@ export function useUniversalTimer() {
         return newTime;
       });
     }, 1000);
-  }, [settings, playSound]);
+  }, [settings, playSound, isWorkPhase]);
 
   const pauseTimer = useCallback(() => {
     setIsRunning(false);
