@@ -64,8 +64,9 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 backdrop-blur-sm"
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 px-4"
           onClick={onComplete}
+          style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <motion.div
             initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
@@ -90,14 +91,14 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
             />
             
             {/* Carte principale */}
-            <div className="relative bg-gradient-to-br from-yellow-400 via-orange-400 to-red-400 p-8 rounded-3xl shadow-2xl text-center min-w-[280px]">
+            <div className="relative bg-gradient-to-br from-yellow-400 via-orange-400 to-red-400 p-6 sm:p-8 rounded-3xl shadow-2xl text-center min-w-[260px] max-w-[90vw]">
               {/* Bouton de fermeture visible */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onComplete();
                 }}
-                className="absolute top-2 right-2 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                className="absolute top-2 right-2 p-3 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/40 transition-colors touch-manipulation"
                 aria-label="Fermer"
               >
                 <X className="h-5 w-5 text-white" />
@@ -124,7 +125,7 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.2 }}
-                className="text-3xl font-black text-white mb-2 drop-shadow-lg"
+                className="text-2xl sm:text-3xl font-black text-white mb-2 drop-shadow-lg"
               >
                 {randomMessage}
               </motion.h2>
@@ -134,7 +135,7 @@ export function CelebrationOverlay({ show, message, onComplete, type = "exercise
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-lg font-semibold text-white/90"
+                  className="text-base sm:text-lg font-semibold text-white/90"
                 >
                   {message}
                 </motion.p>
