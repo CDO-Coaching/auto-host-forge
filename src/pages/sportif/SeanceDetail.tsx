@@ -507,7 +507,7 @@ export default function SeanceDetail() {
                         ? undefined 
                         : isCardio
                           ? () => handleCardioClick(item)
-                          : () => navigate(`/sportif/exercice/${sessionId}/${item.id}`)
+                          : () => navigate(`/sportif/exercice/${item.id}`)
                     }
                   >
                     <CardContent className="p-4">
