@@ -212,53 +212,73 @@ export function UniversalTimer() {
             {settings.type === 'tabata' && (
               <>
                 <div className="space-y-2">
-                  <Label>Temps de travail (secondes)</Label>
-                  <Input
-                    type="number"
-                    value={settings.workTime}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (value >= 5 && value <= 300) {
-                        updateSettings({ workTime: value });
-                      }
-                    }}
-                    min={5}
-                    max={300}
-                  />
+                  <Label>Temps de travail</Label>
+                  <Select
+                    value={settings.workTime.toString()}
+                    onValueChange={(value) => updateSettings({ workTime: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {/* 5sec à 55sec par paliers de 5 */}
+                      {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((sec) => (
+                        <SelectItem key={sec} value={sec.toString()}>
+                          {sec} secondes
+                        </SelectItem>
+                      ))}
+                      {/* 1min à 80min par paliers de 30sec */}
+                      {Array.from({ length: 160 }, (_, i) => 60 + i * 30).map((sec) => (
+                        <SelectItem key={sec} value={sec.toString()}>
+                          {Math.floor(sec / 60)}min {sec % 60 > 0 ? `${sec % 60}sec` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Temps de repos (secondes)</Label>
-                  <Input
-                    type="number"
-                    value={settings.restTime}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (value >= 5 && value <= 300) {
-                        updateSettings({ restTime: value });
-                      }
-                    }}
-                    min={5}
-                    max={300}
-                  />
+                  <Label>Temps de repos</Label>
+                  <Select
+                    value={settings.restTime.toString()}
+                    onValueChange={(value) => updateSettings({ restTime: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {/* 5sec à 55sec par paliers de 5 */}
+                      {[5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((sec) => (
+                        <SelectItem key={sec} value={sec.toString()}>
+                          {sec} secondes
+                        </SelectItem>
+                      ))}
+                      {/* 1min à 80min par paliers de 30sec */}
+                      {Array.from({ length: 160 }, (_, i) => 60 + i * 30).map((sec) => (
+                        <SelectItem key={sec} value={sec.toString()}>
+                          {Math.floor(sec / 60)}min {sec % 60 > 0 ? `${sec % 60}sec` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Nombre de tours</Label>
-                  <Input
-                    type="number"
-                    value={settings.rounds}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (value >= 1 && value <= 50) {
-                        updateSettings({ rounds: value });
-                      }
-                    }}
-                    min={1}
-                    max={50}
-                  />
+                  <Select
+                    value={settings.rounds.toString()}
+                    onValueChange={(value) => updateSettings({ rounds: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {Array.from({ length: 50 }, (_, i) => i + 1).map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num} {num === 1 ? 'tour' : 'tours'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Les changements s'appliquent immédiatement
-                </p>
               </>
             )}
 
@@ -284,18 +304,21 @@ export function UniversalTimer() {
                 </div>
                 <div className="space-y-2">
                   <Label>Nombre de tours</Label>
-                  <Input
-                    type="number"
-                    value={settings.rounds}
-                    onChange={(e) => {
-                      const value = Number(e.target.value);
-                      if (value >= 1 && value <= 60) {
-                        updateSettings({ rounds: value });
-                      }
-                    }}
-                    min={1}
-                    max={60}
-                  />
+                  <Select
+                    value={settings.rounds.toString()}
+                    onValueChange={(value) => updateSettings({ rounds: Number(value) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {Array.from({ length: 60 }, (_, i) => i + 1).map((num) => (
+                        <SelectItem key={num} value={num.toString()}>
+                          {num} {num === 1 ? 'tour' : 'tours'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </>
             )}
