@@ -206,6 +206,13 @@ export function useUniversalTimer() {
     });
   }, [isRunning]);
 
+  // S'assurer que le chrono affiche 0:00 lorsqu'il est inactif
+  useEffect(() => {
+    if (!isRunning && settings.type === 'chrono' && timeRemaining !== 0) {
+      setTimeRemaining(0);
+    }
+  }, [isRunning, settings.type, timeRemaining]);
+
   // Cleanup
   useEffect(() => {
     return () => {
