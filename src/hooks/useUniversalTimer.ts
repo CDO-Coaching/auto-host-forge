@@ -45,7 +45,12 @@ export function useUniversalTimer() {
   });
 
   const [isRunning, setIsRunning] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(settings.duration);
+  const [timeRemaining, setTimeRemaining] = useState(() => {
+    if (settings.type === 'chrono') return 0;
+    if (settings.type === 'tabata') return settings.workTime;
+    if (settings.type === 'emom') return settings.emomInterval;
+    return settings.duration;
+  });
   const [currentRound, setCurrentRound] = useState(1);
   const [isWorkPhase, setIsWorkPhase] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -186,18 +191,12 @@ export function useUniversalTimer() {
         }
         setCurrentRound(1);
         setIsWorkPhase(true);
-      }
-      
-      // Si on modifie les paramètres pendant l'exécution, mettre à jour le temps restant
-      if (!newSettings.type && isRunning) {
+      } else if (!isRunning) {
+        // Si on modifie les paramètres alors que le minuteur n'est pas en cours, mettre à jour le temps
         if (prev.type === 'countdown' && newSettings.duration !== undefined) {
           setTimeRemaining(newSettings.duration);
-        } else if (prev.type === 'tabata') {
-          if (isWorkPhase && newSettings.workTime !== undefined) {
-            setTimeRemaining(newSettings.workTime);
-          } else if (!isWorkPhase && newSettings.restTime !== undefined) {
-            setTimeRemaining(newSettings.restTime);
-          }
+        } else if (prev.type === 'tabata' && newSettings.workTime !== undefined) {
+          setTimeRemaining(newSettings.workTime);
         } else if (prev.type === 'emom' && newSettings.emomInterval !== undefined) {
           setTimeRemaining(newSettings.emomInterval);
         }
@@ -205,7 +204,7 @@ export function useUniversalTimer() {
       
       return updated;
     });
-  }, [isRunning, isWorkPhase]);
+  }, [isRunning]);
 
   // Cleanup
   useEffect(() => {
