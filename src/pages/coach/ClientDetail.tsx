@@ -104,15 +104,15 @@ export default function ClientDetail() {
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
     { value: "45s", label: "45 secondes" },
-    { value: "1min", label: "1 minute" },
-    { value: "1min30s", label: "1 min 30 sec" },
-    { value: "2min", label: "2 minutes" },
-    { value: "2min30s", label: "2 min 30 sec" },
-    { value: "3min", label: "3 minutes" },
-    { value: "3min30s", label: "3 min 30 sec" },
-    { value: "4min", label: "4 minutes" },
-    { value: "4min30s", label: "4 min 30 sec" },
-    { value: "5min", label: "5 minutes" },
+    { value: "1min", label: "1 minute EMOM" },
+    { value: "1min30s", label: "1 min 30 sec EMOM" },
+    { value: "2min", label: "2 minutes EMOM" },
+    { value: "2min30s", label: "2 min 30 sec EMOM" },
+    { value: "3min", label: "3 minutes EMOM" },
+    { value: "3min30s", label: "3 min 30 sec EMOM" },
+    { value: "4min", label: "4 minutes EMOM" },
+    { value: "4min30s", label: "4 min 30 sec EMOM" },
+    { value: "5min", label: "5 minutes EMOM" },
   ];
 
   useEffect(() => {
