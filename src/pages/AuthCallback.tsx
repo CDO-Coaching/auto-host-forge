@@ -38,15 +38,8 @@ const AuthCallback = () => {
               .eq("id", session.user.id)
               .single();
 
-            // Vérifier si le profil est complet
-            if (!profile?.first_name || !profile?.last_name) {
-              toast({ 
-                title: "Email confirmé", 
-                description: "Complète ton profil pour continuer." 
-              });
-              hasRedirected = true;
-              navigate("/sportif/profil", { replace: true });
-            } else if (!profile?.approved) {
+            // Vérifier si le profil est approuvé
+            if (!profile?.approved) {
               toast({ 
                 title: "Email confirmé", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 
@@ -78,15 +71,8 @@ const AuthCallback = () => {
               .eq("id", session.user.id)
               .single();
 
-            // Vérifier si le profil est complet
-            if (!profile?.first_name || !profile?.last_name) {
-              toast({ 
-                title: "Bienvenue", 
-                description: "Complète ton profil pour continuer." 
-              });
-              hasRedirected = true;
-              navigate("/sportif/profil", { replace: true });
-            } else if (!profile?.approved) {
+            // Vérifier si le profil est approuvé
+            if (!profile?.approved) {
               toast({ 
                 title: "Connexion réussie", 
                 description: "Votre compte est en attente d'approbation par l'administrateur." 
