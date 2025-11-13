@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, Check } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -108,64 +108,47 @@ export default function SeanceDetail() {
       `,
       )
       .eq("id", sessionId)
-      .single();
+      .maybeSingle();
 
-    if (sessionError) {
+    if (sessionError || !sessionData) {
       console.error("Erreur lors du chargement de la séance:", sessionError);
-    } else {
-      setSession(sessionData);
-      const sortedExercises =
-        sessionData.session_exercises?.sort((a: any, b: any) => a.exercise_order - b.exercise_order) || [];
+      setLoading(false);
+      return;
+    }
 
-      // Debug: vérifier les groupes de super-set chargés
-      try {
-        console.log(
-          "[SeanceDetail] session:",
-          sessionId,
-          "exercises:",
-          sortedExercises.map((e: any) => ({ id: e.id, order: e.exercise_order, super_set_group: e.super_set_group })),
+    setSession(sessionData);
+
+    // Regrouper les exercices par superset
+    const exData = sessionData.session_exercises || [];
+    const grouped: any[] = [];
+    const processedGroups = new Set<string>();
+
+    exData.forEach((exercise: any) => {
+      if (exercise.super_set_group && !processedGroups.has(exercise.super_set_group)) {
+        // C'est un superset
+        processedGroups.add(exercise.super_set_group);
+        const supersetExercises = exData.filter(
+          (ex: any) => ex.super_set_group === exercise.super_set_group,
         );
-      } catch {}
+        grouped.push({
+          isSuperset: true,
+          super_set_group: exercise.super_set_group,
+          exercises: supersetExercises.sort((a: any, b: any) => a.exercise_order - b.exercise_order),
+        });
+      } else if (!exercise.super_set_group) {
+        // Exercice classique
+        grouped.push(exercise);
+      }
+    });
 
-      // Grouper les exercices par superset
-      const groupedExercises: any[] = [];
-      const processedIds = new Set<string>();
+    const sorted = grouped.sort((a: any, b: any) => {
+      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+      return orderA - orderB;
+    });
 
-      sortedExercises.forEach((exercise: any) => {
-        if (processedIds.has(exercise.id)) return;
-
-        if (exercise.super_set_group) {
-          // Trouver tous les exercices du même superset
-          const supersetExercises = sortedExercises.filter((e: any) => e.super_set_group === exercise.super_set_group);
-          groupedExercises.push({
-            isSuperset: true,
-            super_set_group: exercise.super_set_group,
-            exercises: supersetExercises,
-          });
-          supersetExercises.forEach((e: any) => processedIds.add(e.id));
-        } else {
-          groupedExercises.push({
-            isSuperset: false,
-            ...exercise,
-          });
-          processedIds.add(exercise.id);
-        }
-      });
-
-      setExercises(groupedExercises);
-    }
-
+    setExercises(sorted);
     setLoading(false);
-  };
-
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    }
-    return `${minutes}m ${secs}s`;
   };
 
   const startSession = () => {
@@ -173,13 +156,20 @@ export default function SeanceDetail() {
     setSessionStartTime(startTime);
     setIsSessionActive(true);
     setSessionDuration(0);
-
+    
+    // Sauvegarder dans localStorage
+    localStorage.setItem(
+      `session_timer_${sessionId}`,
+      JSON.stringify({ startTime, isActive: true }),
+    );
+    
+    // Démarrer le timer avec recalcul basé sur timestamp
     const interval = setInterval(() => {
-      const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
-      setSessionDuration(currentElapsed);
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setSessionDuration(elapsed);
       
       // Arrêt automatique après 2 heures (7200 secondes)
-      if (currentElapsed >= 7200) {
+      if (elapsed >= 7200) {
         clearInterval(interval);
         setTimerInterval(null);
         setIsSessionActive(false);
@@ -202,18 +192,14 @@ export default function SeanceDetail() {
       }
     }, 1000);
     setTimerInterval(interval);
-
-    toast({
-      title: "Séance démarrée",
-      description: "Bon entraînement !",
-    });
   };
 
   const endSession = async () => {
     if (timerInterval) {
       clearInterval(timerInterval);
-      setTimerInterval(null);
     }
+    
+    setTimerInterval(null);
     setIsSessionActive(false);
     
     // Nettoyer le localStorage
@@ -236,48 +222,60 @@ export default function SeanceDetail() {
         description: "Impossible d'enregistrer la durée de la séance",
         variant: "destructive",
       });
-    } else {
-      // Afficher la célébration
+      return;
+    }
+
+    // Vérifier si TOUS les exercices sont terminés
+    const allExercisesCompleted = exercises.every((ex: any) => {
+      if (ex.isSuperset) {
+        return ex.exercises.every((e: any) => e.sportif_rpe !== null);
+      }
+      return ex.sportif_rpe !== null;
+    });
+
+    if (allExercisesCompleted) {
       setShowCelebration(true);
+    } else {
+      toast({
+        title: "Séance terminée",
+        description: `Durée: ${formatDuration(sessionDuration)}`,
+      });
+      navigate("/sportif/seances");
     }
   };
-  
+
+  const formatDuration = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
     toast({
-      title: "Séance terminée !",
-      description: `Durée totale: ${formatDuration(sessionDuration)}`,
+      title: "Bravo !",
+      description: "Séance complétée avec succès !",
     });
+    navigate("/sportif/seances");
   };
-  
-  // --- Arrêter automatiquement la séance quand tout est terminé ---
-  useEffect(() => {
-    if (isSessionActive && exercises.length > 0) {
-      const allDone = exercises.every((ex: any) => {
-        if (ex.isSuperset) {
-          return ex.exercises.every((e: any) => e.sportif_rpe !== null);
-        }
-        return ex.sportif_rpe !== null;
-      });
 
-      if (allDone) {
-        endSession();
-      }
-    }
-  }, [exercises, isSessionActive]);
-
-  const handleCardioComplete = (exercise: any) => {
+  const handleCardioClick = (exercise: any) => {
     setSelectedCardioExercise(exercise);
     setFeedbackDialogOpen(true);
   };
 
-  const handleValidateCardioFeedback = async (rpe: string, comment: string) => {
+  const handleCardioFeedback = async (rpe: string, comment: string) => {
     if (!selectedCardioExercise) return;
 
     const { error } = await supabase
       .from("session_exercises")
       .update({
-        sportif_rpe: rpe || null,
+        sportif_rpe: rpe ? Number(rpe) : null,
         sportif_comment: comment || null,
         sportif_feedback_at: new Date().toISOString(),
       })
@@ -286,18 +284,20 @@ export default function SeanceDetail() {
     if (error) {
       toast({
         title: "Erreur",
-        description: "Impossible d'enregistrer le feedback",
+        description: "Impossible d'enregistrer ton retour",
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Feedback enregistré",
-        description: "Ton feedback a bien été enregistré",
-      });
-      setFeedbackDialogOpen(false);
-      setSelectedCardioExercise(null);
-      await loadSessionDetail();
+      return;
     }
+
+    toast({
+      title: "Retour enregistré !",
+      description: "Ton RPE a bien été sauvegardé",
+    });
+
+    setFeedbackDialogOpen(false);
+    setSelectedCardioExercise(null);
+    loadSessionDetail();
   };
 
   const handleCancelCardioFeedback = () => {
@@ -324,6 +324,14 @@ export default function SeanceDetail() {
       </div>
     );
   }
+
+  // Check if all exercises are completed
+  const allCompleted = exercises.every((ex: any) => {
+    if (ex.isSuperset) {
+      return ex.exercises.every((e: any) => e.sportif_rpe !== null);
+    }
+    return ex.sportif_rpe !== null;
+  });
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -352,22 +360,29 @@ export default function SeanceDetail() {
                 {formatDuration(sessionDuration)}
               </Badge>
             )}
+            {allCompleted && (
+              <Badge variant="outline" className="border-green-600 text-green-600">
+                Séance terminée
+              </Badge>
+            )}
           </div>
         </div>
 
-        <div className="flex gap-2">
-          {!isSessionActive ? (
-            <Button onClick={startSession} className="flex-1" size="lg">
-              <Play className="h-4 w-4 mr-2" />
-              Démarrer la séance
-            </Button>
-          ) : (
-            <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
-              <Square className="h-4 w-4 mr-2" />
-              Terminer la séance
-            </Button>
-          )}
-        </div>
+        {!allCompleted && (
+          <div className="flex gap-2">
+            {!isSessionActive ? (
+              <Button onClick={startSession} className="flex-1" size="lg">
+                <Play className="h-4 w-4 mr-2" />
+                Démarrer la séance
+              </Button>
+            ) : (
+              <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
+                <Square className="h-4 w-4 mr-2" />
+                Terminer la séance
+              </Button>
+            )}
+          </div>
+        )}
 
         <div className="space-y-2">
           {exercises.length === 0 ? (
@@ -379,140 +394,160 @@ export default function SeanceDetail() {
           ) : (
             exercises.map((item, index) => {
               if (item.isSuperset) {
-                // Vérifier si tous les exercices du superset sont terminés
                 const isCompleted = item.exercises.every((ex: any) => ex.sportif_rpe !== null);
 
                 return (
                   <Card
                     key={item.super_set_group}
-                    className={`cursor-pointer hover:border-primary transition-colors border-2 ${
+                    className={`${allCompleted ? '' : 'cursor-pointer hover:border-primary'} transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
-                    onClick={() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
+                    onClick={allCompleted ? undefined : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <Badge className={isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}>
                               Superset
                             </Badge>
                             {isCompleted && (
-                              <Badge variant="outline" className="border-green-600 text-green-600">
-                                Terminé
-                              </Badge>
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
                             )}
-                            <span className="font-semibold">{item.exercises.length} exercices</span>
                           </div>
-                          <div className="mt-2 space-y-1">
-                            {item.exercises.map((ex: any, idx: number) => (
-                              <div key={ex.id} className="text-sm text-muted-foreground">
-                                {idx + 1}. {ex.exercice}
-                              </div>
-                            ))}
-                          </div>
+                          <p className="text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                       </div>
+
+                      {!allCompleted && (
+                        <div className="space-y-1">
+                          {item.exercises.map((ex: any, idx: number) => (
+                            <div key={ex.id} className="text-sm text-muted-foreground">
+                              {idx + 1}. {ex.exercice}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {isCompleted && allCompleted && (
+                        <div className="mt-4 space-y-2 border-t pt-3">
+                          {item.exercises.map((ex: any, exIndex: number) => (
+                            <div key={exIndex} className="bg-muted/30 rounded-lg p-3 space-y-1">
+                              <p className="font-medium text-sm">{ex.exercice}</p>
+                              <div className="flex items-center gap-2 text-xs flex-wrap">
+                                <Badge variant="secondary" className="text-xs">
+                                  RPE: {ex.sportif_rpe || "-"}
+                                </Badge>
+                                {ex.sportif_feedback_at && (
+                                  <span className="text-muted-foreground">
+                                    {new Date(ex.sportif_feedback_at).toLocaleDateString('fr-FR', { 
+                                      day: '2-digit', 
+                                      month: '2-digit',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              {ex.sportif_comment && (
+                                <p className="text-xs text-muted-foreground italic mt-1">
+                                  💬 {ex.sportif_comment}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
               } else {
-                // Vérifier si l'exercice est terminé
                 const isCompleted = item.sportif_rpe !== null;
                 const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
 
-                // Affichage cardio en ligne
-                if (isCardio) {
-                  return (
-                    <Card
-                      key={item.id}
-                      className={`${
-                        isCompleted ? "border-green-500/30 bg-green-500/5" : ""
-                      }`}
-                    >
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-xs">
-                              {index + 1}
-                            </Badge>
-                            <h3 className="font-semibold">{item.exercice}</h3>
-                            {isCompleted && (
-                              <Badge variant="outline" className="border-green-600 text-green-600 text-xs">
-                                Terminé
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          {item.cardio_sport && (
-                            <div>
-                              <span className="font-medium text-muted-foreground">Sport: </span>
-                              <span>{item.cardio_sport}</span>
-                            </div>
-                          )}
-                          {item.cardio_content && (
-                            <div>
-                              <span className="font-medium text-muted-foreground">Contenu: </span>
-                              <span className="whitespace-pre-wrap">{item.cardio_content}</span>
-                            </div>
-                          )}
-                          {item.cardio_pace && (
-                            <div>
-                              <span className="font-medium text-muted-foreground">Allure: </span>
-                              <span>{item.cardio_pace}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {!isCompleted && (
-                          <Button 
-                            onClick={() => handleCardioComplete(item)}
-                            className="w-full"
-                            size="lg"
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Exercice terminé
-                          </Button>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                }
-
-                // Affichage renfo classique
                 return (
                   <Card
                     key={item.id}
-                    className={`cursor-pointer hover:border-primary transition-colors ${
-                      isCompleted ? "border-green-500/30 bg-green-500/5" : ""
+                    className={`${allCompleted ? '' : 'cursor-pointer hover:border-primary'} transition-colors border-2 ${
+                      isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
-                    onClick={() => navigate(`/sportif/exercice/${item.id}`)}
+                    onClick={
+                      allCompleted 
+                        ? undefined 
+                        : isCardio
+                          ? () => handleCardioClick(item)
+                          : () => navigate(`/sportif/exercice/${sessionId}/${item.id}`)
+                    }
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-2">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                            <p className="font-semibold text-lg">{item.exercice}</p>
+                          </div>
+                          {!isCardio && !allCompleted && (
+                            <div className="flex gap-2 flex-wrap">
+                              {item.series && (
+                                <Badge variant="outline" className="text-xs">
+                                  {item.series} séries
+                                </Badge>
+                              )}
+                              {item.reps && (
+                                <Badge variant="outline" className="text-xs">
+                                  {item.reps} reps
+                                </Badge>
+                              )}
+                              {item.charge && (
+                                <Badge variant="outline" className="text-xs">
+                                  {item.charge}
+                                </Badge>
+                              )}
+                              {item.rpe && (
+                                <Badge variant="outline" className="text-xs">
+                                  RPE {item.rpe}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                          {isCardio && !allCompleted && (
+                            <div className="flex gap-2 flex-wrap">
+                              {item.cardio_sport && (
+                                <Badge variant="outline" className="text-xs">
+                                  {item.cardio_sport}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                      </div>
+
+                      {isCompleted && allCompleted && (
+                        <div className="border-t pt-3 space-y-1">
+                          <div className="flex items-center gap-2 text-xs flex-wrap">
                             <Badge variant="secondary" className="text-xs">
-                              {index + 1}
+                              RPE ressenti: {item.sportif_rpe || "-"}
                             </Badge>
-                            <h3 className="font-semibold">{item.exercice}</h3>
-                            {isCompleted && (
-                              <Badge variant="outline" className="border-green-600 text-green-600 text-xs">
-                                Terminé
-                              </Badge>
+                            {item.sportif_feedback_at && (
+                              <span className="text-muted-foreground">
+                                {new Date(item.sportif_feedback_at).toLocaleDateString('fr-FR', { 
+                                  day: '2-digit', 
+                                  month: '2-digit',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </span>
                             )}
                           </div>
-                          <div className="flex gap-2 mt-2 text-sm text-muted-foreground">
-                            {item.series && <span>{item.series} séries</span>}
-                            {item.reps && <span>• {item.reps} reps</span>}
-                            {item.charge && <span>• {item.charge}</span>}
-                          </div>
+                          {item.sportif_comment && (
+                            <p className="text-xs text-muted-foreground italic">
+                              💬 {item.sportif_comment}
+                            </p>
+                          )}
                         </div>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -525,10 +560,9 @@ export default function SeanceDetail() {
       <ExerciseFeedbackDialog
         open={feedbackDialogOpen}
         onOpenChange={setFeedbackDialogOpen}
-        onValidate={handleValidateCardioFeedback}
+        exerciseName={selectedCardioExercise?.exercice || ""}
+        onValidate={handleCardioFeedback}
         onCancel={handleCancelCardioFeedback}
-        exerciseName={selectedCardioExercise?.exercice}
-        exerciseType="cardio"
       />
     </div>
   );
