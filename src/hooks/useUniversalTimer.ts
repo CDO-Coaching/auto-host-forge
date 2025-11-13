@@ -55,21 +55,32 @@ export function useUniversalTimer() {
   const [isWorkPhase, setIsWorkPhase] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const finalBeepRef = useRef<HTMLAudioElement | null>(null);
 
   // Sauvegarder les réglages dans localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  // Initialiser l'audio
+  // Initialiser les sons
   useEffect(() => {
+    // Son normal (court)
     audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
+    
+    // Son final (plus long et fort)
+    finalBeepRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
+    if (finalBeepRef.current) {
+      finalBeepRef.current.volume = 1.0; // Volume maximum pour le bip final
+    }
   }, []);
 
-  const playSound = useCallback(() => {
-    if (settings.soundEnabled && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+  const playSound = useCallback((isFinal = false) => {
+    if (settings.soundEnabled) {
+      const audio = isFinal ? finalBeepRef.current : audioRef.current;
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
     }
   }, [settings.soundEnabled]);
 
@@ -106,17 +117,25 @@ export function useUniversalTimer() {
 
         const newTime = prev - 1;
 
-        // Signal sonore pour les 3 dernières secondes
-        if (newTime > 0 && newTime <= 3) {
-          playSound();
+        // Signal sonore pour les 3 dernières secondes (dernier bip différent)
+        if (newTime === 1) {
+          playSound(true); // Bip final plus fort
+        } else if (newTime === 2 || newTime === 3) {
+          playSound(false); // Bip normal
         }
 
-        // Signal sonore à la moitié (countdown et EMOM)
-        if (settings.type === 'countdown' && newTime === Math.floor(settings.duration / 2)) {
-          playSound();
+        // Signal sonore à la moitié (countdown et EMOM uniquement)
+        if (settings.type === 'countdown') {
+          const halfTime = Math.floor(settings.duration / 2);
+          if (newTime === halfTime && halfTime > 3) {
+            playSound(false);
+          }
         }
-        if (settings.type === 'emom' && newTime === Math.floor(settings.emomInterval / 2)) {
-          playSound();
+        if (settings.type === 'emom') {
+          const halfTime = Math.floor(settings.emomInterval / 2);
+          if (newTime === halfTime && halfTime > 3) {
+            playSound(false);
+          }
         }
 
         // Gestion des différents types de minuteurs
@@ -128,7 +147,7 @@ export function useUniversalTimer() {
               if (!nextPhase) {
                 // Passage au repos
                 setTimeRemaining(settings.restTime);
-                playSound();
+                playSound(true);
                 return false;
               } else {
                 // Passage au travail
@@ -136,13 +155,13 @@ export function useUniversalTimer() {
                   const nextRound = round + 1;
                   if (nextRound <= settings.rounds) {
                     setTimeRemaining(settings.workTime);
-                    playSound();
+                    playSound(false);
                     return nextRound;
                   } else {
                     // Fin du circuit
                     setIsRunning(false);
                     if (intervalRef.current) clearInterval(intervalRef.current);
-                    playSound();
+                    playSound(true);
                     return round;
                   }
                 });
@@ -155,12 +174,12 @@ export function useUniversalTimer() {
               const nextRound = round + 1;
               if (nextRound <= settings.rounds) {
                 setTimeRemaining(settings.emomInterval);
-                playSound();
+                playSound(true);
                 return nextRound;
               } else {
                 setIsRunning(false);
                 if (intervalRef.current) clearInterval(intervalRef.current);
-                playSound();
+                playSound(true);
                 return round;
               }
             });
@@ -169,7 +188,7 @@ export function useUniversalTimer() {
             // countdown terminé
             setIsRunning(false);
             if (intervalRef.current) clearInterval(intervalRef.current);
-            playSound();
+            playSound(true);
             return 0;
           }
         }
