@@ -23,7 +23,12 @@ const menuItems = [
 ];
 
 export function SportifSidebar() {
-  const { open } = useSidebar();
+  const { open, setOpen } = useSidebar();
+
+  const handleLinkClick = (e: React.MouseEvent) => {
+    // Ne pas fermer la sidebar automatiquement
+    e.stopPropagation();
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -37,6 +42,7 @@ export function SportifSidebar() {
                   <SidebarMenuButton asChild className="h-10 sm:h-auto">
                     <NavLink 
                       to={item.url}
+                      onClick={handleLinkClick}
                       className={({ isActive }) => 
                         isActive ? "bg-primary/10 text-primary font-medium" : ""
                       }
