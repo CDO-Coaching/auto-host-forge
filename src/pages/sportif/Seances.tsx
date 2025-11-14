@@ -15,10 +15,12 @@ export default function Seances() {
   const [weeks, setWeeks] = useState<any[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadWeeks();
+    loadCustomSessions();
   }, []);
 
   const loadWeeks = async () => {
@@ -66,6 +68,27 @@ export default function Seances() {
     setLoading(false);
   };
 
+
+  const loadCustomSessions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("custom_sessions")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("completed_at", { ascending: false });
+
+      if (error) {
+        console.error("Erreur lors du chargement des séances perso:", error);
+      } else {
+        setCustomSessions(data || []);
+      }
+    } catch (error) {
+      console.error("Erreur:", error);
+    }
+  };
 
   const loadWeekSessions = async (weekId: string) => {
     const { data: sessionsData, error: sessionsError } = await supabase
@@ -131,7 +154,7 @@ export default function Seances() {
         </div>
 
         <div className="flex items-center gap-3">
-          <CustomSessionDialog onSessionCreated={loadWeeks} />
+          <CustomSessionDialog onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} />
           {weeks.length > 0 && (
             <div className="flex flex-col items-end gap-1 min-w-[140px]">
               <label className="text-xs text-muted-foreground">Semaine</label>
@@ -246,6 +269,59 @@ export default function Seances() {
                   </Card>
                 );
               })
+            )}
+
+            {/* Séances perso de la semaine */}
+            {selectedWeek && customSessions.filter(cs => {
+              const sessionDate = new Date(cs.completed_at);
+              const weekStart = new Date(selectedWeek.year, 0, 1 + (selectedWeek.week_number - 1) * 7);
+              const weekEnd = new Date(weekStart);
+              weekEnd.setDate(weekStart.getDate() + 6);
+              return sessionDate >= weekStart && sessionDate <= weekEnd;
+            }).length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3">Séances perso</h3>
+                <div className="space-y-3">
+                  {customSessions
+                    .filter(cs => {
+                      const sessionDate = new Date(cs.completed_at);
+                      const weekStart = new Date(selectedWeek.year, 0, 1 + (selectedWeek.week_number - 1) * 7);
+                      const weekEnd = new Date(weekStart);
+                      weekEnd.setDate(weekStart.getDate() + 6);
+                      return sessionDate >= weekStart && sessionDate <= weekEnd;
+                    })
+                    .map((customSession) => (
+                      <Card key={customSession.id} className="border-primary/30 bg-primary/5">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-bold text-xl">{customSession.session_name}</h3>
+                                <Badge variant="secondary">Perso</Badge>
+                              </div>
+                              <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+                                <Clock className="h-4 w-4" />
+                                <span>{customSession.duration_minutes} min</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(customSession.completed_at).toLocaleDateString('fr-FR', {
+                                  weekday: 'long',
+                                  day: 'numeric',
+                                  month: 'long',
+                                })}
+                              </p>
+                              {customSession.description && (
+                                <p className="text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
+                                  {customSession.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              </div>
             )}
           </div>
         )
