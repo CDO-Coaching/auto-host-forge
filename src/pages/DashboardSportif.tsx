@@ -16,6 +16,7 @@ import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
 import Maxes from "./sportif/Maxes";
+import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 
@@ -124,6 +125,7 @@ export default function DashboardSportif() {
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/maxes" element={<Maxes />} />
+              <Route path="/poids" element={<Poids />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
             </Routes>
