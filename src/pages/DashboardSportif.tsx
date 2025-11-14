@@ -20,6 +20,7 @@ import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 import MesSeances from "./sportif/MesSeances";
+import Install from "./sportif/Install";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -108,16 +109,16 @@ export default function DashboardSportif() {
       <div className="min-h-screen flex w-full">
         <SportifSidebar />
         <div className="flex-1 flex flex-col">
-          <header className="h-14 border-b flex items-center px-4 bg-background justify-between">
-            <div className="flex items-center gap-4">
+          <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
               <SidebarTrigger />
-              <h2 className="font-semibold">Salut {firstName} 👋</h2>
+              <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">
               Prêt à donner le meilleur de toi-même aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 sm:pb-6">
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
@@ -130,6 +131,7 @@ export default function DashboardSportif() {
               <Route path="/poids" element={<Poids />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
+              <Route path="/installer" element={<Install />} />
             </Routes>
           </main>
         </div>

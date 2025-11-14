@@ -1,4 +1,4 @@
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, Download } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -19,29 +19,30 @@ const menuItems = [
   { title: "Mes max", url: "/sportif/maxes", icon: TrendingUp },
   { title: "Mon poids", url: "/sportif/poids", icon: Scale },
   { title: "Mon profil", url: "/sportif/profil", icon: User },
+  { title: "Installer", url: "/sportif/installer", icon: Download },
 ];
 
 export function SportifSidebar() {
   const { open } = useSidebar();
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Sportif</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs sm:text-sm">Menu Sportif</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="h-10 sm:h-auto">
                     <NavLink 
                       to={item.url}
                       className={({ isActive }) => 
                         isActive ? "bg-primary/10 text-primary font-medium" : ""
                       }
                     >
-                      <item.icon className="h-4 w-4" />
-                      {open && <span>{item.title}</span>}
+                      <item.icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      {open && <span className="text-sm sm:text-base">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
