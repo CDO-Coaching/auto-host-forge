@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Scale, Trash2 } from "lucide-react";
+import { Plus, Scale, Trash2, Bell } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   LineChart,
   Line,
@@ -26,6 +37,7 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useWeeklyWeightReminder } from "@/hooks/useWeeklyWeightReminder";
 
 interface WeightEntry {
   id: string;
@@ -41,10 +53,34 @@ export default function Poids() {
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const { shouldShowReminder, isChecking, handleDismiss } = useWeeklyWeightReminder();
 
   useEffect(() => {
     loadWeightEntries();
+    loadReminderPreference();
   }, []);
+
+  const loadReminderPreference = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const enabled = localStorage.getItem(`weight_reminder_${user.id}`) === 'true';
+      setReminderEnabled(enabled);
+    }
+  };
+
+  const handleReminderToggle = async (checked: boolean) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      localStorage.setItem(`weight_reminder_${user.id}`, checked.toString());
+      setReminderEnabled(checked);
+      if (checked) {
+        toast.success("Rappels hebdomadaires activés");
+      } else {
+        toast.info("Rappels hebdomadaires désactivés");
+      }
+    }
+  };
 
   const loadWeightEntries = async () => {
     try {
@@ -145,6 +181,35 @@ export default function Poids() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Rappel hebdomadaire */}
+      <AlertDialog open={shouldShowReminder && !isChecking}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              Rappel hebdomadaire
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              C'est le moment de peser et d'enregistrer ton poids pour cette semaine ! 
+              Cela ne prend que quelques secondes. 📊
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleDismiss}>
+              Plus tard
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleDismiss();
+                setDialogOpen(true);
+              }}
+            >
+              Enregistrer maintenant
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Scale className="h-8 w-8 text-primary" />
@@ -196,6 +261,30 @@ export default function Poids() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Option de rappel */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" />
+                <Label htmlFor="reminder-toggle" className="text-base font-medium cursor-pointer">
+                  Rappel hebdomadaire
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Reçois un rappel chaque lundi pour enregistrer ton poids
+              </p>
+            </div>
+            <Switch
+              id="reminder-toggle"
+              checked={reminderEnabled}
+              onCheckedChange={handleReminderToggle}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {latestWeight && (
         <Card>
