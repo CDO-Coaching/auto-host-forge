@@ -2614,7 +2614,7 @@ export default function ClientDetail() {
                           </div>
                         ))}
 
-                        {/* Séances personnalisées */}
+                        {/* Séances perso */}
                         {customSessions.filter(cs => {
                           const sessionDate = new Date(cs.completed_at);
                           const weekStart = new Date(selectedHistoricalWeek.year, 0, 1 + (selectedHistoricalWeek.week_number - 1) * 7);
@@ -2623,7 +2623,7 @@ export default function ClientDetail() {
                           return sessionDate >= weekStart && sessionDate <= weekEnd;
                         }).length > 0 && (
                           <div className="mt-6">
-                            <h4 className="font-semibold mb-3 text-lg">Séances personnalisées</h4>
+                            <h4 className="font-semibold mb-3 text-lg">Séances perso</h4>
                             <div className="space-y-3">
                               {customSessions
                                 .filter(cs => {

@@ -54,7 +54,7 @@ export default function MesSeances() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-3xl font-bold">Mes séances personnalisées</h1>
+        <h1 className="text-3xl font-bold">Mes séances perso</h1>
         <p className="text-muted-foreground mt-2">
           Historique de toutes tes séances supplémentaires
         </p>
@@ -65,7 +65,7 @@ export default function MesSeances() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Clock className="h-12 w-12 text-muted-foreground mb-4" />
             <p className="text-muted-foreground text-center">
-              Aucune séance personnalisée enregistrée pour le moment.
+              Aucune séance perso enregistrée pour le moment.
             </p>
             <p className="text-sm text-muted-foreground text-center mt-2">
               Retourne sur la page "Séances" pour ajouter une séance perso.

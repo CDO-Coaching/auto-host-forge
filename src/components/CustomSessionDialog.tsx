@@ -56,7 +56,7 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
 
       if (error) throw error;
 
-      toast.success("Séance personnalisée enregistrée !");
+      toast.success("Séance perso enregistrée !");
       setSessionName("");
       setDescription("");
       setDuration("");
@@ -80,9 +80,9 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Créer une séance personnalisée</DialogTitle>
+          <DialogTitle>Créer une séance perso</DialogTitle>
           <DialogDescription>
-            Enregistrez une séance supplémentaire que vous avez réalisée en dehors du programme
+            Enregistre une séance supplémentaire que tu as réalisée en dehors du programme
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
