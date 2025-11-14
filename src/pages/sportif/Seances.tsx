@@ -146,20 +146,20 @@ export default function Seances() {
   );
 
   return (
-    <div className="space-y-4 pb-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold">Tes séances</h1>
-          <p className="text-muted-foreground mt-2">{firstName}, voici ton programme personnalisé</p>
+    <div className="space-y-3 sm:space-y-4 pb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold">Tes séances</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">{firstName}, voici ton programme personnalisé</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <CustomSessionDialog onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} />
           {weeks.length > 0 && (
-            <div className="flex flex-col items-end gap-1 min-w-[140px]">
+            <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[140px]">
               <label className="text-xs text-muted-foreground">Semaine</label>
               <select
-                className="text-sm p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-1 focus:ring-ring"
+                className="text-sm p-2.5 sm:p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring w-full"
                 value={selectedWeek?.id || ""}
                 onChange={(e) => handleWeekChange(e.target.value)}
               >
@@ -176,14 +176,14 @@ export default function Seances() {
 
       {!isCurrentWeekAvailable && weeks.length > 0 && (
         <Card className="border-orange-500 bg-orange-500/10">
-          <CardContent className="p-5">
-            <div className="flex items-start gap-3">
-              <Clock className="h-5 w-5 text-orange-500 mt-0.5" />
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-start gap-2 sm:gap-3">
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-orange-700 dark:text-orange-400">
+                <h3 className="font-semibold text-sm sm:text-base text-orange-700 dark:text-orange-400">
                   Semaine {currentWeekNumber} en cours de création
                 </h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                   {firstName}, ton coach prépare ta semaine de sport. En attendant, tu peux consulter tes semaines précédentes.
                 </p>
               </div>
@@ -206,11 +206,11 @@ export default function Seances() {
       ) : (
         selectedWeek && (
           <div className="space-y-3">
-            <h2 className="text-xl font-semibold">
+            <h2 className="text-lg sm:text-xl font-semibold">
               Semaine {selectedWeek.week_number} ({formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)})
             </h2>
             {sessions.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">Aucune séance pour cette semaine.</p>
+              <p className="text-sm sm:text-base text-muted-foreground text-center py-6 sm:py-8">Aucune séance pour cette semaine.</p>
             ) : (
               sessions.map((session, index) => {
                 const completed = isSessionCompleted(session);
@@ -219,7 +219,7 @@ export default function Seances() {
                 return (
                   <Card
                     key={session.id}
-                    className={`cursor-pointer transition-all ${
+                    className={`cursor-pointer transition-all active:scale-[0.98] ${
                       completed
                         ? "border-green-500 bg-green-500/10"
                         : isFirstToDo
@@ -228,18 +228,18 @@ export default function Seances() {
                     }`}
                     onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
                   >
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-bold text-2xl flex items-center gap-2">
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+                            <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
                               {session.name}
                               {completed && (
-                                <div className="flex items-center gap-1 text-green-500 text-sm font-normal">
-                                  <CheckCircle2 className="h-5 w-5" />
+                                <div className="flex items-center gap-1 text-green-500 text-xs sm:text-sm font-normal">
+                                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
                                   {session.duration_minutes && (
-                                    <span className="flex items-center gap-1 text-green-400 text-xs">
-                                      <Clock className="h-4 w-4" />
+                                    <span className="flex items-center gap-1 text-green-400">
+                                      <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                                       {session.duration_minutes} min
                                     </span>
                                   )}
@@ -248,19 +248,19 @@ export default function Seances() {
                             </h3>
 
                             {isFirstToDo && (
-                              <Badge variant="default" className="bg-primary text-primary-foreground animate-bounce">
+                              <Badge variant="default" className="bg-primary text-primary-foreground animate-bounce text-xs">
                                 À faire
                               </Badge>
                             )}
                           </div>
 
-                          <Badge variant={completed ? "secondary" : "outline"} className="text-sm px-3 py-1">
+                          <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1">
                             {session.session_exercises?.length || 0} exercices
                           </Badge>
                         </div>
 
                         <ChevronRight
-                          className={`h-7 w-7 ${
+                          className={`h-5 w-5 sm:h-7 sm:w-7 flex-shrink-0 ${
                             completed ? "text-green-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
                           }`}
                         />
@@ -279,9 +279,9 @@ export default function Seances() {
               weekEnd.setDate(weekStart.getDate() + 6);
               return sessionDate >= weekStart && sessionDate <= weekEnd;
             }).length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-3">Séances perso</h3>
-                <div className="space-y-3">
+              <div className="mt-4 sm:mt-6">
+                <h3 className="text-base sm:text-lg font-semibold mb-3">Séances perso</h3>
+                <div className="space-y-2 sm:space-y-3">
                   {customSessions
                     .filter(cs => {
                       const sessionDate = new Date(cs.completed_at);
@@ -292,15 +292,15 @@ export default function Seances() {
                     })
                     .map((customSession) => (
                       <Card key={customSession.id} className="border-primary/30 bg-primary/5">
-                        <CardContent className="p-5">
+                        <CardContent className="p-4 sm:p-5">
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h3 className="font-bold text-xl">{customSession.session_name}</h3>
-                                <Badge variant="secondary">Perso</Badge>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
+                                <Badge variant="secondary" className="text-xs">Perso</Badge>
                               </div>
-                              <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                                <Clock className="h-4 w-4" />
+                              <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-2">
+                                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                                 <span>{customSession.duration_minutes} min</span>
                               </div>
                               <p className="text-xs text-muted-foreground">
@@ -311,7 +311,7 @@ export default function Seances() {
                                 })}
                               </p>
                               {customSession.description && (
-                                <p className="text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
+                                <p className="text-xs sm:text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
                                   {customSession.description}
                                 </p>
                               )}

@@ -73,12 +73,12 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className="gap-2 w-full sm:w-auto text-sm sm:text-base">
           <Plus className="h-4 w-4" />
           Ajouter une séance perso
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto mx-4">
         <DialogHeader>
           <DialogTitle>Créer une séance perso</DialogTitle>
           <DialogDescription>
