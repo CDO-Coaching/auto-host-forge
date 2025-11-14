@@ -336,7 +336,7 @@ export default function Profil() {
                       <SelectContent>
                         <SelectItem value="male">Homme</SelectItem>
                         <SelectItem value="female">Femme</SelectItem>
-                        <SelectItem value="other">Autre</SelectItem>
+                        <SelectItem value="other">Non genré</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
