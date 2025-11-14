@@ -105,7 +105,7 @@ export default function DashboardSportif() {
   const firstName = profile?.first_name || "Sportif";
 
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider>
       <div className="min-h-screen flex w-full">
         <SportifSidebar />
         <div className="flex-1 flex flex-col">

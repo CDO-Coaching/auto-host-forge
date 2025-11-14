@@ -36,7 +36,7 @@ export function CoachSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="offcanvas">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Menu Coach</SidebarGroupLabel>
@@ -53,7 +53,7 @@ export function CoachSidebar() {
                       }
                     >
                       <item.icon className="h-4 w-4" />
-                      {open && <span>{item.title}</span>}
+                      <span>{item.title}</span>
                       {item.showBadge && unreadCount > 0 && (
                         <Badge variant="destructive" className="ml-auto">
                           {unreadCount}
