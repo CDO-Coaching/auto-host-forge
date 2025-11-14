@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { getWeekNumber, formatWeekRangeFromNumber } from "@/lib/weekUtils";
+import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 
 export default function Seances() {
   const { profile } = useUserProfile();
@@ -129,22 +130,25 @@ export default function Seances() {
           <p className="text-muted-foreground mt-2">{firstName}, voici ton programme personnalisé</p>
         </div>
 
-        {weeks.length > 0 && (
-          <div className="flex flex-col items-end gap-1 min-w-[140px]">
-            <label className="text-xs text-muted-foreground">Semaine</label>
-            <select
-              className="text-sm p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-1 focus:ring-ring"
-              value={selectedWeek?.id || ""}
-              onChange={(e) => handleWeekChange(e.target.value)}
-            >
-              {weeks.map((week) => (
-                <option key={week.id} value={week.id}>
-                  S{week.week_number} - {week.year} ({formatWeekRangeFromNumber(week.week_number, week.year)})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <CustomSessionDialog onSessionCreated={loadWeeks} />
+          {weeks.length > 0 && (
+            <div className="flex flex-col items-end gap-1 min-w-[140px]">
+              <label className="text-xs text-muted-foreground">Semaine</label>
+              <select
+                className="text-sm p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-1 focus:ring-ring"
+                value={selectedWeek?.id || ""}
+                onChange={(e) => handleWeekChange(e.target.value)}
+              >
+                {weeks.map((week) => (
+                  <option key={week.id} value={week.id}>
+                    S{week.week_number} - {week.year} ({formatWeekRangeFromNumber(week.week_number, week.year)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       {!isCurrentWeekAvailable && weeks.length > 0 && (
