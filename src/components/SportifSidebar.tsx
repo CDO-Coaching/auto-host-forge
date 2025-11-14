@@ -1,5 +1,6 @@
 import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, Download } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sidebar,
   SidebarContent,
@@ -24,10 +25,13 @@ const menuItems = [
 
 export function SportifSidebar() {
   const { open, setOpen } = useSidebar();
+  const isMobile = useIsMobile();
 
-  const handleLinkClick = (e: React.MouseEvent) => {
-    // Ne pas fermer la sidebar automatiquement
-    e.stopPropagation();
+  const handleLinkClick = () => {
+    // Sur mobile, fermer la sidebar après un clic
+    if (isMobile) {
+      setOpen(false);
+    }
   };
 
   return (

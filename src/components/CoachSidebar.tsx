@@ -2,6 +2,7 @@ import { Calendar, Users, User, BookOpen, MessageCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sidebar,
   SidebarContent,
@@ -23,8 +24,16 @@ const menuItems = [
 ];
 
 export function CoachSidebar() {
-  const { open } = useSidebar();
+  const { open, setOpen } = useSidebar();
   const { unreadCount } = useMessages();
+  const isMobile = useIsMobile();
+
+  const handleLinkClick = () => {
+    // Sur mobile, fermer la sidebar après un clic
+    if (isMobile) {
+      setOpen(false);
+    }
+  };
 
   return (
     <Sidebar collapsible="icon">
@@ -38,6 +47,7 @@ export function CoachSidebar() {
                   <SidebarMenuButton asChild>
                     <NavLink 
                       to={item.url}
+                      onClick={handleLinkClick}
                       className={({ isActive }) => 
                         isActive ? "bg-primary/10 text-primary font-medium" : ""
                       }
