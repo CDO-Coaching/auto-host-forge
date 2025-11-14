@@ -1,4 +1,4 @@
-import { Calendar, Activity, User, TrendingUp, Scale } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -14,6 +14,7 @@ import {
 
 const menuItems = [
   { title: "Mes séances", url: "/sportif/seances", icon: Calendar },
+  { title: "Séances perso", url: "/sportif/mes-seances", icon: ListChecks },
   { title: "Mon suivi fatigue", url: "/sportif/fatigue", icon: Activity },
   { title: "Mes max", url: "/sportif/maxes", icon: TrendingUp },
   { title: "Mon poids", url: "/sportif/poids", icon: Scale },

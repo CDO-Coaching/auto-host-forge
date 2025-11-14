@@ -87,6 +87,7 @@ export default function ClientDetail() {
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
+  const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
@@ -121,6 +122,7 @@ export default function ClientDetail() {
     loadAthleteData();
     loadLibraryExercises();
     loadHistoricalWeeks();
+    loadCustomSessions();
     loadLastWeekFeedback();
     
     // Restaurer les données sauvegardées localement
@@ -174,6 +176,22 @@ export default function ClientDetail() {
       console.error("Erreur lors du chargement de l'historique:", error);
     } else {
       setHistoricalWeeks(data || []);
+    }
+  };
+
+  const loadCustomSessions = async () => {
+    if (!athleteId) return;
+
+    const { data, error } = await supabase
+      .from("custom_sessions")
+      .select("*")
+      .eq("user_id", athleteId)
+      .order("completed_at", { ascending: false });
+
+    if (error) {
+      console.error("Erreur lors du chargement des séances personnalisées:", error);
+    } else {
+      setCustomSessions(data || []);
     }
   };
 
@@ -663,6 +681,7 @@ export default function ClientDetail() {
 
       // Recharger l'historique et les retours
       await loadHistoricalWeeks();
+      await loadCustomSessions();
       await loadLastWeekFeedback();
     } catch (error) {
       console.error("Erreur lors de la validation:", error);
@@ -2594,6 +2613,59 @@ export default function ClientDetail() {
                             )}
                           </div>
                         ))}
+
+                        {/* Séances personnalisées */}
+                        {customSessions.filter(cs => {
+                          const sessionDate = new Date(cs.completed_at);
+                          const weekStart = new Date(selectedHistoricalWeek.year, 0, 1 + (selectedHistoricalWeek.week_number - 1) * 7);
+                          const weekEnd = new Date(weekStart);
+                          weekEnd.setDate(weekStart.getDate() + 6);
+                          return sessionDate >= weekStart && sessionDate <= weekEnd;
+                        }).length > 0 && (
+                          <div className="mt-6">
+                            <h4 className="font-semibold mb-3 text-lg">Séances personnalisées</h4>
+                            <div className="space-y-3">
+                              {customSessions
+                                .filter(cs => {
+                                  const sessionDate = new Date(cs.completed_at);
+                                  const weekStart = new Date(selectedHistoricalWeek.year, 0, 1 + (selectedHistoricalWeek.week_number - 1) * 7);
+                                  const weekEnd = new Date(weekStart);
+                                  weekEnd.setDate(weekStart.getDate() + 6);
+                                  return sessionDate >= weekStart && sessionDate <= weekEnd;
+                                })
+                                .map((customSession) => (
+                                  <Card key={customSession.id} className="border-primary/30 bg-primary/5">
+                                    <CardContent className="p-4">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <div className="flex-1">
+                                          <div className="flex items-center gap-2 mb-1">
+                                            <h5 className="font-semibold">{customSession.session_name}</h5>
+                                            <Badge variant="secondary">Perso</Badge>
+                                          </div>
+                                          <p className="text-sm text-muted-foreground">
+                                            Durée: {customSession.duration_minutes} min
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {new Date(customSession.completed_at).toLocaleDateString('fr-FR', {
+                                              weekday: 'long',
+                                              year: 'numeric',
+                                              month: 'long',
+                                              day: 'numeric',
+                                            })}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      {customSession.description && (
+                                        <p className="text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
+                                          {customSession.description}
+                                        </p>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

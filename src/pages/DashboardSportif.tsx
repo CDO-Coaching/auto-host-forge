@@ -19,6 +19,7 @@ import Maxes from "./sportif/Maxes";
 import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
+import MesSeances from "./sportif/MesSeances";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -120,6 +121,7 @@ export default function DashboardSportif() {
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
+              <Route path="/mes-seances" element={<MesSeances />} />
               <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
               <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
