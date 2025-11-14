@@ -35,7 +35,7 @@ export function SportifSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar collapsible="offcanvas" className="border-r">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs sm:text-sm">Menu Sportif</SidebarGroupLabel>
@@ -52,7 +52,7 @@ export function SportifSidebar() {
                       }
                     >
                       <item.icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-                      {open && <span className="text-sm sm:text-base">{item.title}</span>}
+                      <span className="text-sm sm:text-base">{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
