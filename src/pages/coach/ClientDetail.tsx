@@ -38,6 +38,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { CoachMaxesView } from "@/components/CoachMaxesView";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
+import { CoachWeightView } from "@/components/CoachWeightView";
 import { calculate1RM } from "@/lib/maxCalculations";
 
 interface AthleteProfile {
@@ -1143,6 +1144,7 @@ export default function ClientDetail() {
           <TabsTrigger value="programmation">Programmation</TabsTrigger>
           <TabsTrigger value="max">Max</TabsTrigger>
           <TabsTrigger value="suivi">Suivi de fatigue</TabsTrigger>
+          <TabsTrigger value="poids">Poids</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
         </TabsList>
 
@@ -2139,6 +2141,13 @@ export default function ClientDetail() {
 
         <TabsContent value="suivi" className="space-y-4">
           <CoachFatigueView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
+        </TabsContent>
+
+        <TabsContent value="poids" className="space-y-4">
+          <CoachWeightView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
           />
