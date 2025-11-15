@@ -151,234 +151,266 @@ export default function Fatigue() {
     checkIfCanAnswerToday();
   };
 
-  const chartData = [...logs]
-    .reverse()
-    .map(log => ({
-      date: format(new Date(log.date), "dd/MM", { locale: fr }),
+  // Limiter les données du graphique pour mobile (7 derniers jours sur petit écran)
+  const getChartData = () => {
+    const reversedLogs = [...logs].reverse();
+    const isMobile = window.innerWidth < 640;
+    const dataToShow = isMobile ? reversedLogs.slice(-7) : reversedLogs;
+    
+    return dataToShow.map(log => ({
+      date: format(new Date(log.date), isMobile ? "dd/MM" : "dd/MM", { locale: fr }),
       score: log.score_total,
       injury: log.has_injury && log.injury_level ? log.injury_level : null,
     }));
+  };
 
+  const chartData = getChartData();
   const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 overflow-x-hidden">
-      <div className="flex flex-col gap-3 sm:gap-4">
+    <div className="space-y-4 pb-6 max-w-full overflow-hidden">
+      <div className="flex flex-col gap-3 px-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Ton suivi fatigue</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Ton suivi fatigue</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {firstName}, suis ton niveau de fatigue pour optimiser tes performances
           </p>
         </div>
         {canAnswerToday && (
-          <Button onClick={() => setShowDialog(true)} size="sm" className="w-full sm:w-auto">
+          <Button onClick={() => setShowDialog(true)} size="sm" className="w-full">
             <Plus className="h-4 w-4 mr-2" />
             Répondre aujourd'hui
           </Button>
         )}
       </div>
 
-      <Card>
-        <CardHeader className="px-4 sm:px-6">
-          <CardTitle className="text-lg sm:text-xl">Paramètres</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="space-y-0.5 flex-1">
-              <Label htmlFor="notifications" className="text-sm sm:text-base">
-                Notifications quotidiennes
-              </Label>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Recevoir le questionnaire automatiquement à chaque connexion
-              </p>
+      <div className="px-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Paramètres</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="notifications" className="text-sm font-medium">
+                  Notifications quotidiennes
+                </Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Recevoir le questionnaire à chaque connexion
+                </p>
+              </div>
+              <Switch
+                id="notifications"
+                checked={notificationsEnabled}
+                onCheckedChange={handleNotificationToggle}
+                className="shrink-0"
+              />
             </div>
-            <Switch
-              id="notifications"
-              checked={notificationsEnabled}
-              onCheckedChange={handleNotificationToggle}
-              className="self-start sm:self-auto"
-            />
-          </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t">
-            <div className="space-y-0.5 flex-1">
-              <Label htmlFor="injury-tracking" className="text-sm sm:text-base">
-                Suivi blessures/douleurs
-              </Label>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Ajouter des questions sur les blessures dans le questionnaire
-              </p>
+            <div className="flex items-start justify-between gap-3 pt-3 border-t">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="injury-tracking" className="text-sm font-medium">
+                  Suivi blessures/douleurs
+                </Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Ajouter des questions sur les blessures
+                </p>
+              </div>
+              <Switch
+                id="injury-tracking"
+                checked={injuryTrackingEnabled}
+                onCheckedChange={handleInjuryTrackingToggle}
+                className="shrink-0"
+              />
             </div>
-            <Switch
-              id="injury-tracking"
-              checked={injuryTrackingEnabled}
-              onCheckedChange={handleInjuryTrackingToggle}
-              className="self-start sm:self-auto"
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
 
       {loading ? (
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-muted-foreground text-center">Chargement...</p>
-          </CardContent>
-        </Card>
-      ) : logs.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Aucune donnée</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              {firstName}, commence à enregistrer tes données de fatigue pour que ton coach 
-              puisse adapter ton programme. L'écoute de ton corps est essentielle ! 🎯
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
+        <div className="px-4">
           <Card>
-            <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
-              <CardTitle className="text-base sm:text-lg md:text-xl">Évolution du score total</CardTitle>
-            </CardHeader>
-            <CardContent className="px-2 sm:px-6">
-              <div className="w-full h-[220px] sm:h-[280px] md:h-[320px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ left: 0, right: 8, top: 5, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                      height={30}
-                      interval="preserveStartEnd"
-                    />
-                    <YAxis 
-                      domain={[4, 28]}
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                      width={28}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: 'hsl(var(--card))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        padding: '8px',
-                      }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="score" 
-                      stroke="hsl(var(--primary))" 
-                      strokeWidth={2}
-                      dot={{ fill: 'hsl(var(--primary))', r: 3 }}
-                      name="Score fatigue"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <CardContent className="py-8">
+              <p className="text-muted-foreground text-center text-sm">Chargement...</p>
             </CardContent>
           </Card>
-
-          {injuryTrackingEnabled && injuryLogs.length > 0 && (
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="px-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base sm:text-lg">Aucune donnée</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                {firstName}, commence à enregistrer tes données de fatigue pour que ton coach 
+                puisse adapter ton programme. L'écoute de ton corps est essentielle ! 🎯
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <>
+          <div className="px-4">
             <Card>
-              <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
-                <CardTitle className="text-base sm:text-lg md:text-xl">Suivi des blessures/douleurs</CardTitle>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Évolution du score total</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
+                </p>
               </CardHeader>
-              <CardContent className="px-2 sm:px-6">
-                <div className="w-full h-[220px] sm:h-[280px] md:h-[320px]">
+              <CardContent className="px-2 pb-4">
+                <div className="w-full h-[200px] sm:h-[250px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ left: 0, right: 8, top: 5, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <LineChart data={chartData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                       <XAxis 
                         dataKey="date" 
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                        height={30}
-                        interval="preserveStartEnd"
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                        height={25}
+                        tickMargin={5}
                       />
                       <YAxis 
-                        domain={[0, 7]}
-                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                        width={28}
+                        domain={[4, 28]}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                        width={35}
+                        tickMargin={5}
                       />
                       <Tooltip 
                         contentStyle={{
                           backgroundColor: 'hsl(var(--card))',
                           border: '1px solid hsl(var(--border))',
                           borderRadius: '6px',
-                          fontSize: '11px',
-                          padding: '8px',
+                          fontSize: '10px',
+                          padding: '6px 8px',
                         }}
                       />
                       <Line 
                         type="monotone" 
-                        dataKey="injury" 
-                        stroke="hsl(var(--destructive))" 
-                        strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--destructive))', r: 3 }}
-                        name="Niveau de douleur"
-                        connectNulls
+                        dataKey="score" 
+                        stroke="hsl(var(--primary))" 
+                        strokeWidth={2.5}
+                        dot={{ fill: 'hsl(var(--primary))', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                        activeDot={{ r: 6 }}
+                        name="Score"
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="mt-4 px-3 sm:px-0 space-y-2">
-                  {injuryLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="flex justify-between items-start text-xs sm:text-sm border-l-2 border-destructive pl-2 sm:pl-3 py-1">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium">
-                          <span className="sm:hidden">{format(new Date(log.date), "dd/MM/yy", { locale: fr })}</span>
-                          <span className="hidden sm:inline">{format(new Date(log.date), "dd MMMM yyyy", { locale: fr })}</span>
-                        </p>
-                        {log.injury_location && (
-                          <p className="text-muted-foreground text-[10px] sm:text-xs truncate">{log.injury_location}</p>
-                        )}
-                      </div>
-                      <span className="text-destructive font-medium ml-2 flex-shrink-0 text-xs sm:text-sm">{log.injury_level}/7</span>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
+          </div>
+
+          {injuryTrackingEnabled && injuryLogs.length > 0 && (
+            <div className="px-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base sm:text-lg">Suivi des blessures</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
+                  </p>
+                </CardHeader>
+                <CardContent className="px-2 pb-4">
+                  <div className="w-full h-[200px] sm:h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                          height={25}
+                          tickMargin={5}
+                        />
+                        <YAxis 
+                          domain={[0, 7]}
+                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
+                          width={35}
+                          tickMargin={5}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                            fontSize: '10px',
+                            padding: '6px 8px',
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="injury" 
+                          stroke="hsl(var(--destructive))" 
+                          strokeWidth={2.5}
+                          dot={{ fill: 'hsl(var(--destructive))', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                          activeDot={{ r: 6 }}
+                          name="Douleur"
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 space-y-2 px-2">
+                    {injuryLogs.slice(0, 3).map((log) => (
+                      <div key={log.id} className="flex justify-between items-start text-xs border-l-3 border-destructive pl-2 py-1.5 bg-destructive/5 rounded-r">
+                        <div className="flex-1 min-w-0 pr-2">
+                          <p className="font-medium text-[11px]">
+                            {format(new Date(log.date), "dd/MM/yy", { locale: fr })}
+                          </p>
+                          {log.injury_location && (
+                            <p className="text-muted-foreground text-[10px] truncate mt-0.5">
+                              {log.injury_location}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-destructive font-bold shrink-0 text-xs">
+                          {log.injury_level}/7
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
-          <Card>
-            <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
-              <CardTitle className="text-base sm:text-lg md:text-xl">Historique</CardTitle>
-            </CardHeader>
-            <CardContent className="px-0 sm:px-6">
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] px-3 sm:px-0">
+          <div className="px-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Historique</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Date</TableHead>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Fatigue</TableHead>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Courbatures</TableHead>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Sommeil</TableHead>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Stress</TableHead>
-                        <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Score total</TableHead>
-                        {injuryTrackingEnabled && <TableHead className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">Douleur</TableHead>}
+                      <TableRow className="border-b">
+                        <TableHead className="text-[10px] px-2 py-2 sticky left-0 bg-card z-10 min-w-[70px]">Date</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[55px]">Fatigue</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[65px]">Courbat.</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[60px]">Sommeil</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[50px]">Stress</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 text-center font-bold min-w-[55px]">Total</TableHead>
+                        {injuryTrackingEnabled && (
+                          <TableHead className="text-[10px] px-2 py-2 text-center min-w-[60px]">Douleur</TableHead>
+                        )}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {logs.map((log) => (
-                        <TableRow key={log.id}>
-                          <TableCell className="font-medium text-[10px] sm:text-xs md:text-sm px-2 sm:px-4 whitespace-nowrap">
-                            <span className="sm:hidden">{format(new Date(log.date), "dd/MM/yy", { locale: fr })}</span>
-                            <span className="hidden sm:inline">{format(new Date(log.date), "dd MMMM yyyy", { locale: fr })}</span>
+                        <TableRow key={log.id} className="border-b">
+                          <TableCell className="text-[10px] px-2 py-2 font-medium sticky left-0 bg-card z-10 whitespace-nowrap">
+                            {format(new Date(log.date), "dd/MM/yy", { locale: fr })}
                           </TableCell>
-                          <TableCell className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">{log.fatigue}/7</TableCell>
-                          <TableCell className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">{log.courbatures}/7</TableCell>
-                          <TableCell className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">{log.sommeil}/7</TableCell>
-                          <TableCell className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">{log.stress}/7</TableCell>
-                          <TableCell className="font-bold text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">{log.score_total}/28</TableCell>
+                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.fatigue}/7</TableCell>
+                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.courbatures}/7</TableCell>
+                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.sommeil}/7</TableCell>
+                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.stress}/7</TableCell>
+                          <TableCell className="text-[10px] px-2 py-2 text-center font-bold">
+                            {log.score_total}/28
+                          </TableCell>
                           {injuryTrackingEnabled && (
-                            <TableCell className="text-[10px] sm:text-xs md:text-sm px-2 sm:px-4">
+                            <TableCell className="text-[10px] px-2 py-2 text-center">
                               {log.has_injury ? (
-                                <span className="text-destructive font-medium">{log.injury_level}/7</span>
+                                <span className="text-destructive font-bold">{log.injury_level}/7</span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
@@ -389,9 +421,9 @@ export default function Fatigue() {
                     </TableBody>
                   </Table>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
 
