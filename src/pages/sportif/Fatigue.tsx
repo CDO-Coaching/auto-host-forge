@@ -129,7 +129,43 @@ export default function Fatigue() {
       date: format(new Date(log.date), isMobile ? "dd/MM" : "dd/MM", { locale: fr }),
       score: log.score_total,
       injury: log.has_injury && log.injury_level ? log.injury_level : null,
+      injuryLocation: log.injury_location || null,
     }));
+  };
+
+  // Tooltip personnalisé pour le graphique des blessures
+  const CustomInjuryTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div 
+          style={{
+            backgroundColor: 'hsl(var(--card))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: '6px',
+            padding: '8px 10px',
+            fontSize: '11px',
+          }}
+        >
+          <p style={{ fontWeight: 600, marginBottom: '4px' }}>{data.date}</p>
+          {data.injury !== null ? (
+            <>
+              <p style={{ color: 'hsl(var(--destructive))', fontWeight: 600 }}>
+                Douleur: {data.injury}/7
+              </p>
+              {data.injuryLocation && (
+                <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px', marginTop: '4px' }}>
+                  {data.injuryLocation}
+                </p>
+              )}
+            </>
+          ) : (
+            <p style={{ color: 'hsl(var(--muted-foreground))' }}>Aucune douleur</p>
+          )}
+        </div>
+      );
+    }
+    return null;
   };
 
   const chartData = getChartData();
@@ -221,7 +257,7 @@ export default function Fatigue() {
               </CardContent>
             </Card>
 
-            {injuryTrackingEnabled && injuryLogs.length > 0 && (
+            {injuryLogs.length > 0 && (
               <Card className="w-full">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base sm:text-lg">Suivi des blessures</CardTitle>
@@ -306,9 +342,7 @@ export default function Fatigue() {
                         <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Som.</TableHead>
                         <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Str.</TableHead>
                         <TableHead className="text-[10px] px-1 py-2 text-center font-bold w-[50px]">Total</TableHead>
-                        {injuryTrackingEnabled && (
-                          <TableHead className="text-[10px] px-1 py-2 text-center w-[50px]">Doul.</TableHead>
-                        )}
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[50px]">Doul.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -324,15 +358,13 @@ export default function Fatigue() {
                           <TableCell className="text-[10px] px-1 py-2 text-center font-bold">
                             {log.score_total}
                           </TableCell>
-                          {injuryTrackingEnabled && (
-                            <TableCell className="text-[10px] px-1 py-2 text-center">
-                              {log.has_injury ? (
-                                <span className="text-destructive font-bold">{log.injury_level}</span>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                          )}
+                          <TableCell className="text-[10px] px-1 py-2 text-center">
+                            {log.has_injury ? (
+                              <span className="text-destructive font-bold">{log.injury_level}</span>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -370,7 +402,7 @@ export default function Fatigue() {
         <DailyFatigueDialog 
           open={showDialog} 
           onClose={handleDialogClose}
-          includeInjuryQuestions={injuryTrackingEnabled}
+          includeInjuryQuestions={true}
         />
       </div>
     </div>
