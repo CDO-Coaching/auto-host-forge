@@ -168,24 +168,24 @@ export default function Fatigue() {
   const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
 
   return (
-    <div className="space-y-4 pb-6 max-w-full overflow-hidden">
-      <div className="flex flex-col gap-3 px-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Ton suivi fatigue</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            {firstName}, suis ton niveau de fatigue pour optimiser tes performances
-          </p>
+    <div className="w-full min-h-screen overflow-x-hidden">
+      <div className="space-y-4 pb-6 px-3 sm:px-4">
+        <div className="flex flex-col gap-3">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Ton suivi fatigue</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {firstName}, suis ton niveau de fatigue pour optimiser tes performances
+            </p>
+          </div>
+          {canAnswerToday && (
+            <Button onClick={() => setShowDialog(true)} size="sm" className="w-full">
+              <Plus className="h-4 w-4 mr-2" />
+              Répondre aujourd'hui
+            </Button>
+          )}
         </div>
-        {canAnswerToday && (
-          <Button onClick={() => setShowDialog(true)} size="sm" className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Répondre aujourd'hui
-          </Button>
-        )}
-      </div>
 
-      <div className="px-4">
-        <Card>
+        <Card className="w-full">
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg">Paramètres</CardTitle>
           </CardHeader>
@@ -225,19 +225,15 @@ export default function Fatigue() {
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      {loading ? (
-        <div className="px-4">
-          <Card>
+        {loading ? (
+          <Card className="w-full">
             <CardContent className="py-8">
               <p className="text-muted-foreground text-center text-sm">Chargement...</p>
             </CardContent>
           </Card>
-        </div>
-      ) : logs.length === 0 ? (
-        <div className="px-4">
-          <Card>
+        ) : logs.length === 0 ? (
+          <Card className="w-full">
             <CardHeader>
               <CardTitle className="text-base sm:text-lg">Aucune donnée</CardTitle>
             </CardHeader>
@@ -248,21 +244,19 @@ export default function Fatigue() {
               </p>
             </CardContent>
           </Card>
-        </div>
-      ) : (
-        <>
-          <div className="px-4">
-            <Card>
+        ) : (
+          <>
+            <Card className="w-full">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base sm:text-lg">Évolution du score total</CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
                   {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
                 </p>
               </CardHeader>
-              <CardContent className="px-2 pb-4">
-                <div className="w-full h-[200px] sm:h-[250px]">
+              <CardContent className="pb-4" style={{ width: '100%', padding: '0 8px 16px 8px' }}>
+                <div style={{ width: '100%', height: '200px', maxWidth: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ left: -25, right: 5, top: 10, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                       <XAxis 
                         dataKey="date" 
@@ -273,7 +267,7 @@ export default function Fatigue() {
                       <YAxis 
                         domain={[4, 28]}
                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
-                        width={35}
+                        width={30}
                         tickMargin={5}
                       />
                       <Tooltip 
@@ -299,21 +293,19 @@ export default function Fatigue() {
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {injuryTrackingEnabled && injuryLogs.length > 0 && (
-            <div className="px-4">
-              <Card>
+            {injuryTrackingEnabled && injuryLogs.length > 0 && (
+              <Card className="w-full">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base sm:text-lg">Suivi des blessures</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
                     {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
                   </p>
                 </CardHeader>
-                <CardContent className="px-2 pb-4">
-                  <div className="w-full h-[200px] sm:h-[250px]">
+                <CardContent className="pb-4" style={{ width: '100%', padding: '0 8px 16px 8px' }}>
+                  <div style={{ width: '100%', height: '200px', maxWidth: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ left: -20, right: 10, top: 10, bottom: 5 }}>
+                      <LineChart data={chartData} margin={{ left: -25, right: 5, top: 10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                         <XAxis 
                           dataKey="date" 
@@ -324,7 +316,7 @@ export default function Fatigue() {
                         <YAxis 
                           domain={[0, 7]}
                           tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
-                          width={35}
+                          width={30}
                           tickMargin={5}
                         />
                         <Tooltip 
@@ -349,7 +341,7 @@ export default function Fatigue() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="mt-3 space-y-2 px-2">
+                  <div className="mt-3 space-y-2" style={{ padding: '0 8px' }}>
                     {injuryLogs.slice(0, 3).map((log) => (
                       <div key={log.id} className="flex justify-between items-start text-xs border-l-3 border-destructive pl-2 py-1.5 bg-destructive/5 rounded-r">
                         <div className="flex-1 min-w-0 pr-2">
@@ -370,27 +362,25 @@ export default function Fatigue() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
-          )}
+            )}
 
-          <div className="px-4">
-            <Card>
+            <Card className="w-full">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Historique</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="w-full overflow-x-auto" style={{ maxWidth: '100%' }}>
+                  <Table style={{ minWidth: '100%' }}>
                     <TableHeader>
                       <TableRow className="border-b">
-                        <TableHead className="text-[10px] px-2 py-2 sticky left-0 bg-card z-10 min-w-[70px]">Date</TableHead>
-                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[55px]">Fatigue</TableHead>
-                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[65px]">Courbat.</TableHead>
-                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[60px]">Sommeil</TableHead>
-                        <TableHead className="text-[10px] px-2 py-2 text-center min-w-[50px]">Stress</TableHead>
-                        <TableHead className="text-[10px] px-2 py-2 text-center font-bold min-w-[55px]">Total</TableHead>
+                        <TableHead className="text-[10px] px-2 py-2 sticky left-0 bg-card z-10 w-[60px]">Date</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Fat.</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Cou.</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Som.</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Str.</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center font-bold w-[50px]">Total</TableHead>
                         {injuryTrackingEnabled && (
-                          <TableHead className="text-[10px] px-2 py-2 text-center min-w-[60px]">Douleur</TableHead>
+                          <TableHead className="text-[10px] px-1 py-2 text-center w-[50px]">Doul.</TableHead>
                         )}
                       </TableRow>
                     </TableHeader>
@@ -398,19 +388,19 @@ export default function Fatigue() {
                       {logs.map((log) => (
                         <TableRow key={log.id} className="border-b">
                           <TableCell className="text-[10px] px-2 py-2 font-medium sticky left-0 bg-card z-10 whitespace-nowrap">
-                            {format(new Date(log.date), "dd/MM/yy", { locale: fr })}
+                            {format(new Date(log.date), "dd/MM", { locale: fr })}
                           </TableCell>
-                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.fatigue}/7</TableCell>
-                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.courbatures}/7</TableCell>
-                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.sommeil}/7</TableCell>
-                          <TableCell className="text-[10px] px-2 py-2 text-center">{log.stress}/7</TableCell>
-                          <TableCell className="text-[10px] px-2 py-2 text-center font-bold">
-                            {log.score_total}/28
+                          <TableCell className="text-[10px] px-1 py-2 text-center">{log.fatigue}</TableCell>
+                          <TableCell className="text-[10px] px-1 py-2 text-center">{log.courbatures}</TableCell>
+                          <TableCell className="text-[10px] px-1 py-2 text-center">{log.sommeil}</TableCell>
+                          <TableCell className="text-[10px] px-1 py-2 text-center">{log.stress}</TableCell>
+                          <TableCell className="text-[10px] px-1 py-2 text-center font-bold">
+                            {log.score_total}
                           </TableCell>
                           {injuryTrackingEnabled && (
-                            <TableCell className="text-[10px] px-2 py-2 text-center">
+                            <TableCell className="text-[10px] px-1 py-2 text-center">
                               {log.has_injury ? (
-                                <span className="text-destructive font-bold">{log.injury_level}/7</span>
+                                <span className="text-destructive font-bold">{log.injury_level}</span>
                               ) : (
                                 <span className="text-muted-foreground">-</span>
                               )}
@@ -423,15 +413,15 @@ export default function Fatigue() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      <DailyFatigueDialog 
-        open={showDialog} 
-        onClose={handleDialogClose}
-        includeInjuryQuestions={injuryTrackingEnabled}
-      />
+        <DailyFatigueDialog 
+          open={showDialog} 
+          onClose={handleDialogClose}
+          includeInjuryQuestions={injuryTrackingEnabled}
+        />
+      </div>
     </div>
   );
 }
