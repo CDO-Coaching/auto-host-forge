@@ -12,7 +12,6 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FatigueLog {
   id: string;
@@ -163,7 +162,7 @@ export default function Fatigue() {
   const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
 
   return (
-    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Ton suivi fatigue</h1>
@@ -244,21 +243,65 @@ export default function Fatigue() {
             <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
               <CardTitle className="text-base sm:text-lg md:text-xl">Évolution du score total</CardTitle>
             </CardHeader>
-            <CardContent className="p-0 sm:px-6 sm:pb-6">
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[320px] h-[220px] sm:h-[280px] md:h-[320px]">
+            <CardContent className="px-2 sm:px-6">
+              <div className="w-full h-[220px] sm:h-[280px] md:h-[320px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ left: 0, right: 8, top: 5, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      height={30}
+                      interval="preserveStartEnd"
+                    />
+                    <YAxis 
+                      domain={[4, 28]}
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                      width={28}
+                    />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        padding: '8px',
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="score" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      dot={{ fill: 'hsl(var(--primary))', r: 3 }}
+                      name="Score fatigue"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          {injuryTrackingEnabled && injuryLogs.length > 0 && (
+            <Card>
+              <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
+                <CardTitle className="text-base sm:text-lg md:text-xl">Suivi des blessures/douleurs</CardTitle>
+              </CardHeader>
+              <CardContent className="px-2 sm:px-6">
+                <div className="w-full h-[220px] sm:h-[280px] md:h-[320px]">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ left: 5, right: 15, top: 5, bottom: 5 }}>
+                    <LineChart data={chartData} margin={{ left: 0, right: 8, top: 5, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis 
                         dataKey="date" 
                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                         height={30}
+                        interval="preserveStartEnd"
                       />
                       <YAxis 
-                        domain={[4, 28]}
+                        domain={[0, 7]}
                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                        width={35}
+                        width={28}
                       />
                       <Tooltip 
                         contentStyle={{
@@ -271,61 +314,15 @@ export default function Fatigue() {
                       />
                       <Line 
                         type="monotone" 
-                        dataKey="score" 
-                        stroke="hsl(var(--primary))" 
+                        dataKey="injury" 
+                        stroke="hsl(var(--destructive))" 
                         strokeWidth={2}
-                        dot={{ fill: 'hsl(var(--primary))', r: 3 }}
-                        name="Score fatigue"
+                        dot={{ fill: 'hsl(var(--destructive))', r: 3 }}
+                        name="Niveau de douleur"
+                        connectNulls
                       />
                     </LineChart>
                   </ResponsiveContainer>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {injuryTrackingEnabled && injuryLogs.length > 0 && (
-            <Card>
-              <CardHeader className="px-3 py-4 sm:px-6 sm:py-6">
-                <CardTitle className="text-base sm:text-lg md:text-xl">Suivi des blessures/douleurs</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 sm:px-6 sm:pb-6">
-                <div className="w-full overflow-x-auto">
-                  <div className="min-w-[320px] h-[220px] sm:h-[280px] md:h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ left: 5, right: 15, top: 5, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis 
-                          dataKey="date" 
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                          height={30}
-                        />
-                        <YAxis 
-                          domain={[0, 7]}
-                          tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                          width={35}
-                        />
-                        <Tooltip 
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            padding: '8px',
-                          }}
-                        />
-                        <Line 
-                          type="monotone" 
-                          dataKey="injury" 
-                          stroke="hsl(var(--destructive))" 
-                          strokeWidth={2}
-                          dot={{ fill: 'hsl(var(--destructive))', r: 3 }}
-                          name="Niveau de douleur"
-                          connectNulls
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
                 </div>
                 <div className="mt-4 px-3 sm:px-0 space-y-2">
                   {injuryLogs.slice(0, 5).map((log) => (
