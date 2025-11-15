@@ -32,7 +32,7 @@ export default function Fatigue() {
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
+  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [canAnswerToday, setCanAnswerToday] = useState(false);
   const { toast } = useToast();
@@ -40,7 +40,6 @@ export default function Fatigue() {
   useEffect(() => {
     loadFatigueLogs();
     loadNotificationPreference();
-    loadInjuryTrackingPreference();
     checkIfCanAnswerToday();
   }, []);
 
@@ -72,18 +71,6 @@ export default function Fatigue() {
       setNotificationsEnabled(preference !== 'false');
     } catch (error) {
       console.error("Error loading notification preference:", error);
-    }
-  };
-
-  const loadInjuryTrackingPreference = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const preference = localStorage.getItem(`injury_tracking_${user.id}`);
-      setInjuryTrackingEnabled(preference === 'true');
-    } catch (error) {
-      console.error("Error loading injury tracking preference:", error);
     }
   };
 
@@ -126,25 +113,6 @@ export default function Fatigue() {
     }
   };
 
-  const handleInjuryTrackingToggle = async (checked: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      localStorage.setItem(`injury_tracking_${user.id}`, checked.toString());
-      setInjuryTrackingEnabled(checked);
-      
-      toast({
-        title: checked ? "Suivi blessures activé" : "Suivi blessures désactivé",
-        description: checked 
-          ? "Des questions sur les blessures seront ajoutées au questionnaire." 
-          : "Les questions sur les blessures ne seront plus posées.",
-      });
-    } catch (error) {
-      console.error("Error saving injury tracking preference:", error);
-    }
-  };
-
   const handleDialogClose = () => {
     setShowDialog(false);
     loadFatigueLogs();
@@ -184,47 +152,6 @@ export default function Fatigue() {
             </Button>
           )}
         </div>
-
-        <Card className="w-full">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg">Paramètres</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <Label htmlFor="notifications" className="text-sm font-medium">
-                  Notifications quotidiennes
-                </Label>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Recevoir le questionnaire à chaque connexion
-                </p>
-              </div>
-              <Switch
-                id="notifications"
-                checked={notificationsEnabled}
-                onCheckedChange={handleNotificationToggle}
-                className="shrink-0"
-              />
-            </div>
-
-            <div className="flex items-start justify-between gap-3 pt-3 border-t">
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <Label htmlFor="injury-tracking" className="text-sm font-medium">
-                  Suivi blessures/douleurs
-                </Label>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Ajouter des questions sur les blessures
-                </p>
-              </div>
-              <Switch
-                id="injury-tracking"
-                checked={injuryTrackingEnabled}
-                onCheckedChange={handleInjuryTrackingToggle}
-                className="shrink-0"
-              />
-            </div>
-          </CardContent>
-        </Card>
 
         {loading ? (
           <Card className="w-full">
@@ -415,6 +342,30 @@ export default function Fatigue() {
             </Card>
           </>
         )}
+
+        <Card className="w-full">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Paramètres</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="notifications" className="text-sm font-medium">
+                  Notifications quotidiennes
+                </Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Recevoir le questionnaire à chaque connexion
+                </p>
+              </div>
+              <Switch
+                id="notifications"
+                checked={notificationsEnabled}
+                onCheckedChange={handleNotificationToggle}
+                className="shrink-0"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         <DailyFatigueDialog 
           open={showDialog} 
