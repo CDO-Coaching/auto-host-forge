@@ -26,15 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useWeeklyWeightReminder } from "@/hooks/useWeeklyWeightReminder";
@@ -62,15 +54,19 @@ export default function Poids() {
   }, []);
 
   const loadReminderPreference = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
-      const enabled = localStorage.getItem(`weight_reminder_${user.id}`) === 'true';
+      const enabled = localStorage.getItem(`weight_reminder_${user.id}`) === "true";
       setReminderEnabled(enabled);
     }
   };
 
   const handleReminderToggle = async (checked: boolean) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       localStorage.setItem(`weight_reminder_${user.id}`, checked.toString());
       setReminderEnabled(checked);
@@ -84,7 +80,9 @@ export default function Poids() {
 
   const loadWeightEntries = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -106,7 +104,7 @@ export default function Poids() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const weightValue = parseFloat(weight);
     if (isNaN(weightValue) || weightValue <= 0 || weightValue >= 500) {
       toast.error("Veuillez entrer un poids valide (entre 0 et 500 kg)");
@@ -115,17 +113,17 @@ export default function Poids() {
 
     setSubmitting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
-      const { error } = await supabase
-        .from("weight_tracking")
-        .insert({
-          user_id: user.id,
-          weight_kg: weightValue,
-          recorded_at: new Date().toISOString(),
-          notes: notes.trim() || null,
-        });
+      const { error } = await supabase.from("weight_tracking").insert({
+        user_id: user.id,
+        weight_kg: weightValue,
+        recorded_at: new Date().toISOString(),
+        notes: notes.trim() || null,
+      });
 
       if (error) throw error;
 
@@ -146,10 +144,7 @@ export default function Poids() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette entrée ?")) return;
 
     try {
-      const { error } = await supabase
-        .from("weight_tracking")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("weight_tracking").delete().eq("id", id);
 
       if (error) throw error;
 
@@ -162,12 +157,10 @@ export default function Poids() {
   };
 
   // Préparer les données pour le graphique (ordre chronologique)
-  const chartData = [...weightEntries]
-    .reverse()
-    .map((entry) => ({
-      date: format(new Date(entry.recorded_at), "dd/MM", { locale: fr }),
-      poids: entry.weight_kg,
-    }));
+  const chartData = [...weightEntries].reverse().map((entry) => ({
+    date: format(new Date(entry.recorded_at), "dd/MM", { locale: fr }),
+    poids: entry.weight_kg,
+  }));
 
   if (loading) {
     return (
@@ -190,14 +183,12 @@ export default function Poids() {
               Rappel hebdomadaire
             </AlertDialogTitle>
             <AlertDialogDescription>
-              C'est le moment de peser et d'enregistrer ton poids pour cette semaine ! 
-              Cela ne prend que quelques secondes. 📊
+              C'est le moment de peser et d'enregistrer ton poids pour cette semaine ! Cela ne prend que quelques
+              secondes. 📊
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDismiss}>
-              Plus tard
-            </AlertDialogCancel>
+            <AlertDialogCancel onClick={handleDismiss}>Plus tard</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 handleDismiss();
@@ -225,9 +216,7 @@ export default function Poids() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Enregistrer mon poids</DialogTitle>
-              <DialogDescription>
-                La date est automatiquement celle d'aujourd'hui
-              </DialogDescription>
+              <DialogDescription>La date est automatiquement celle d'aujourd'hui</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
@@ -262,30 +251,6 @@ export default function Poids() {
         </Dialog>
       </div>
 
-      {/* Option de rappel */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" />
-                <Label htmlFor="reminder-toggle" className="text-base font-medium cursor-pointer">
-                  Rappel hebdomadaire
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Reçois un rappel chaque lundi pour enregistrer ton poids
-              </p>
-            </div>
-            <Switch
-              id="reminder-toggle"
-              checked={reminderEnabled}
-              onCheckedChange={handleReminderToggle}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       {latestWeight && (
         <Card>
           <CardHeader>
@@ -293,17 +258,13 @@ export default function Poids() {
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-primary">
-                {latestWeight.weight_kg}
-              </span>
+              <span className="text-4xl font-bold text-primary">{latestWeight.weight_kg}</span>
               <span className="text-xl text-muted-foreground">kg</span>
               <span className="text-sm text-muted-foreground ml-4">
                 le {format(new Date(latestWeight.recorded_at), "dd MMMM yyyy", { locale: fr })}
               </span>
             </div>
-            {latestWeight.notes && (
-              <p className="mt-2 text-sm text-muted-foreground">{latestWeight.notes}</p>
-            )}
+            {latestWeight.notes && <p className="mt-2 text-sm text-muted-foreground">{latestWeight.notes}</p>}
           </CardContent>
         </Card>
       )}
@@ -317,27 +278,21 @@ export default function Poids() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fill: 'hsl(var(--foreground))' }}
-                />
-                <YAxis 
-                  domain={['dataMin - 2', 'dataMax + 2']}
-                  tick={{ fill: 'hsl(var(--foreground))' }}
-                />
-                <Tooltip 
+                <XAxis dataKey="date" tick={{ fill: "hsl(var(--foreground))" }} />
+                <YAxis domain={["dataMin - 2", "dataMax + 2"]} tick={{ fill: "hsl(var(--foreground))" }} />
+                <Tooltip
                   contentStyle={{
-                    backgroundColor: 'hsl(var(--background))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px',
+                    backgroundColor: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "6px",
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="poids" 
-                  stroke="hsl(var(--primary))" 
+                <Line
+                  type="monotone"
+                  dataKey="poids"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))' }}
+                  dot={{ fill: "hsl(var(--primary))" }}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -368,21 +323,33 @@ export default function Poids() {
                         {format(new Date(entry.recorded_at), "dd MMMM yyyy", { locale: fr })}
                       </span>
                     </div>
-                    {entry.notes && (
-                      <p className="text-sm text-muted-foreground mt-1">{entry.notes}</p>
-                    )}
+                    {entry.notes && <p className="text-sm text-muted-foreground mt-1">{entry.notes}</p>}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(entry.id)}
-                  >
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               ))}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Option de rappel déplacée en bas */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Bell className="h-4 w-4 text-primary" />
+                <Label htmlFor="reminder-toggle" className="text-base font-medium cursor-pointer">
+                  Rappel hebdomadaire
+                </Label>
+              </div>
+              <p className="text-sm text-muted-foreground">Reçois un rappel chaque lundi pour enregistrer ton poids</p>
+            </div>
+            <Switch id="reminder-toggle" checked={reminderEnabled} onCheckedChange={handleReminderToggle} />
+          </div>
         </CardContent>
       </Card>
     </div>
