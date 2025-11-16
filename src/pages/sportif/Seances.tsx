@@ -154,7 +154,6 @@ export default function Seances() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          <CustomSessionDialog onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} />
           {weeks.length > 0 && (
             <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[140px]">
               <label className="text-xs text-muted-foreground">Semaine</label>
@@ -270,6 +269,11 @@ export default function Seances() {
                 );
               })
             )}
+
+            {/* Bouton pour ajouter une séance perso */}
+            <div className="mt-4 sm:mt-6">
+              <CustomSessionDialog onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} />
+            </div>
 
             {/* Séances perso de la semaine */}
             {selectedWeek && customSessions.filter(cs => {
