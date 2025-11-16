@@ -18,26 +18,26 @@ const questions = [
   {
     id: "fatigue",
     label: "Niveau de fatigue",
-    labels: ["Aucune", "Minime", "Légère", "Modérée", "Importante", "Forte", "Extrême"],
+    labels: ["Extrême", "Forte", "Importante", "Modérée", "Légère", "Minime", "Aucune"],
   },
   {
     id: "courbatures",
     label: "Niveau de courbatures",
-    labels: ["Aucune", "Très légères", "Légères", "Modérées", "Marquées", "Fortes", "Intenses"],
+    labels: ["Intenses", "Fortes", "Marquées", "Modérées", "Légères", "Très légères", "Aucune"],
   },
   {
     id: "sommeil",
     label: "Qualité du sommeil",
-    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Agité", "Mauvais", "Très mauvais"],
+    labels: ["Très mauvais", "Mauvais", "Agité", "Moyen", "Bon", "Très bon", "Excellent"],
   },
   {
     id: "stress",
     label: "Niveau de stress",
-    labels: ["Zen", "Calme", "Détendu", "Neutre", "Tendu", "Stressé", "Très stressé"],
+    labels: ["Très stressé", "Stressé", "Tendu", "Neutre", "Détendu", "Calme", "Zen"],
   },
 ];
 
-const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
+const injuryLevelLabels = ["Très forte", "Importante", "Gênante", "Modérée", "Légère", "Très légère", "Aucune"];
 
 export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false }: DailyFatigueDialogProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({
@@ -79,18 +79,19 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       const today = new Date().toISOString().split('T')[0];
 
+      // Inverser les valeurs pour le calcul (1 affiché = 7 en base, 7 affiché = 1 en base)
       const insertData: any = {
         user_id: user.id,
         date: today,
-        fatigue: answers.fatigue,
-        courbatures: answers.courbatures,
-        sommeil: answers.sommeil,
-        stress: answers.stress,
+        fatigue: 8 - answers.fatigue,
+        courbatures: 8 - answers.courbatures,
+        sommeil: 8 - answers.sommeil,
+        stress: 8 - answers.stress,
       };
 
       if (includeInjuryQuestions) {
         insertData.has_injury = hasInjury;
-        insertData.injury_level = hasInjury ? injuryLevel : null;
+        insertData.injury_level = hasInjury ? (8 - injuryLevel) : null;
         insertData.injury_location = hasInjury && injuryLocation ? injuryLocation : null;
       }
 
