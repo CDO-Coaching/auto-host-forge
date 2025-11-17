@@ -57,10 +57,12 @@ export default function SuiviCourse() {
           id,
           name,
           week_id,
-          user_id
+          weeks!inner(
+            user_id
+          )
         )
       `)
-      .eq("training_sessions.user_id", user.id)
+      .eq("training_sessions.weeks.user_id", user.id)
       .not("sportif_rpe", "is", null)
       .not("cardio_content", "is", null)
       .order("sportif_feedback_at", { ascending: true });
