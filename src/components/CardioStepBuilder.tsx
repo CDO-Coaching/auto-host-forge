@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Link2, Unlink } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export interface CardioStep {
   id: number;
@@ -14,6 +15,13 @@ export interface CardioStep {
   distance_unit?: "m" | "km";
   vma_percentage?: number; // pourcentage de VMA (ex: 65)
   target_heart_rate?: string; // ex: "150" ou "Zone 3"
+  block_id?: number; // ID du bloc auquel appartient cette étape
+}
+
+export interface CardioBlock {
+  id: number;
+  repetitions: number;
+  steps: CardioStep[];
 }
 
 interface CardioStepBuilderProps {
@@ -24,6 +32,9 @@ interface CardioStepBuilderProps {
 }
 
 export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
+  const [blocks, setBlocks] = useState<CardioBlock[]>([]);
+  const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
+
   // Calcule l'allure en min/km à partir du pourcentage de VMA
   const calculatePace = (vmaPercentage: number | undefined): string => {
     if (!vmaPercentage || !athleteVma) return "-";
@@ -94,29 +105,150 @@ export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = fals
     return parseInt(value) * 60 || 0;
   };
 
+  const toggleStepSelection = (stepId: number) => {
+    setSelectedSteps(prev => 
+      prev.includes(stepId) 
+        ? prev.filter(id => id !== stepId)
+        : [...prev, stepId]
+    );
+  };
+
+  const createBlockFromSelected = () => {
+    if (selectedSteps.length < 2) return;
+
+    const newBlockId = blocks.length > 0 ? Math.max(...blocks.map(b => b.id)) + 1 : 1;
+    const selectedStepsData = steps.filter(s => selectedSteps.includes(s.id));
+    
+    // Mettre à jour les étapes pour les lier au bloc
+    const updatedSteps = steps.map(step => 
+      selectedSteps.includes(step.id) 
+        ? { ...step, block_id: newBlockId }
+        : step
+    );
+
+    const newBlock: CardioBlock = {
+      id: newBlockId,
+      repetitions: 1,
+      steps: selectedStepsData,
+    };
+
+    setBlocks([...blocks, newBlock]);
+    onChange(updatedSteps);
+    setSelectedSteps([]);
+  };
+
+  const removeBlock = (blockId: number) => {
+    // Retirer le block_id des étapes
+    const updatedSteps = steps.map(step =>
+      step.block_id === blockId 
+        ? { ...step, block_id: undefined }
+        : step
+    );
+    
+    setBlocks(blocks.filter(b => b.id !== blockId));
+    onChange(updatedSteps);
+  };
+
+  const updateBlockRepetitions = (blockId: number, repetitions: number) => {
+    setBlocks(blocks.map(b => 
+      b.id === blockId ? { ...b, repetitions } : b
+    ));
+  };
+
+  const getStepBlock = (stepId: number): CardioBlock | undefined => {
+    const step = steps.find(s => s.id === stepId);
+    if (!step?.block_id) return undefined;
+    return blocks.find(b => b.id === step.block_id);
+  };
+
   return (
     <div className="space-y-4">
+      {selectedSteps.length >= 2 && !disabled && (
+        <div className="flex gap-2 items-center p-3 bg-primary/10 rounded-lg border border-primary/20">
+          <Badge variant="secondary">{selectedSteps.length} étapes sélectionnées</Badge>
+          <Button size="sm" onClick={createBlockFromSelected}>
+            <Link2 className="h-4 w-4 mr-2" />
+            Créer un bloc répété
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedSteps([])}>
+            Annuler
+          </Button>
+        </div>
+      )}
+
       {steps.length === 0 ? (
         <div className="text-center text-muted-foreground py-8">
           Aucune étape ajoutée. Clique sur "Ajouter une étape" pour commencer.
         </div>
       ) : (
-        steps.map((step, index) => (
-          <Card key={step.id}>
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="font-medium">Étape {index + 1}</h4>
-                {!disabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteStep(step.id)}
+        steps.map((step, index) => {
+          const stepBlock = getStepBlock(step.id);
+          const isFirstInBlock = stepBlock && stepBlock.steps[0]?.id === step.id;
+          
+          return (
+            <div key={step.id}>
+              {isFirstInBlock && stepBlock && (
+                <div className="mb-2 p-3 bg-accent/50 rounded-t-lg border border-border flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-primary">Bloc répété</Badge>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">Répétitions:</span>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={stepBlock.repetitions}
+                        onChange={(e) => updateBlockRepetitions(stepBlock.id, parseInt(e.target.value) || 1)}
+                        className="w-16 h-8"
+                        disabled={disabled}
+                      />
+                    </div>
+                  </div>
+                  {!disabled && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeBlock(stepBlock.id)}
+                    >
+                      <Unlink className="h-4 w-4 mr-1" />
+                      Délier le bloc
+                    </Button>
+                  )}
+                </div>
+              )}
+              
+              <Card className={stepBlock ? "rounded-t-none" : ""}>
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      {!disabled && !step.block_id && (
+                        <input
+                          type="checkbox"
+                          checked={selectedSteps.includes(step.id)}
+                          onChange={() => toggleStepSelection(step.id)}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                      )}
+                      <h4 className="font-medium">
+                        Étape {index + 1}
+                        {stepBlock && (
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            Dans bloc {stepBlock.id}
+                          </Badge>
+                        )}
+                      </h4>
+                    </div>
+                    {!disabled && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteStep(step.id)}
                     className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+                      </Button>
+                    )}
+                  </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Type de mouvement */}
