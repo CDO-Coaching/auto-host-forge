@@ -7,6 +7,7 @@ import { MaxDialog } from "@/components/MaxDialog";
 import { MaxesList } from "@/components/MaxesList";
 import { MaxProgressChart } from "@/components/MaxProgressChart";
 import { ExerciseFilterCombobox } from "@/components/ExerciseFilterCombobox";
+import { VmaCard } from "@/components/VmaCard";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -48,8 +49,14 @@ export default function Maxes() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [maxToDelete, setMaxToDelete] = useState<string | null>(null);
   const [exercisesList, setExercisesList] = useState<Array<{ id: string; name: string }>>([]);
+  const [userId, setUserId] = useState<string>("");
 
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUserId();
     loadMaxes();
     loadExercisesList();
   }, []);
@@ -258,6 +265,8 @@ export default function Maxes() {
 
   return (
     <div className="space-y-6">
+      {userId && <VmaCard athleteId={userId} />}
+      
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Mes Max</h1>
         <Button onClick={() => setDialogOpen(true)}>
