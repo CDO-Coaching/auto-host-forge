@@ -24,15 +24,21 @@ export interface CardioBlock {
   steps: CardioStep[];
 }
 
+export interface CardioData {
+  steps: CardioStep[];
+  blocks: CardioBlock[];
+}
+
 interface CardioStepBuilderProps {
   steps: CardioStep[];
-  onChange: (steps: CardioStep[]) => void;
+  blocks?: CardioBlock[];
+  onChange: (data: CardioData) => void;
   athleteVma?: number | null;
   disabled?: boolean;
 }
 
-export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
-  const [blocks, setBlocks] = useState<CardioBlock[]>([]);
+export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
+  const [blocks, setBlocks] = useState<CardioBlock[]>(initialBlocks);
   const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
 
   // Calcule l'allure en min/km à partir du pourcentage de VMA
@@ -56,37 +62,36 @@ export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = fals
       vma_percentage: 70,
       target_heart_rate: "",
     };
-    onChange([...steps, newStep]);
+    onChange({ steps: [...steps, newStep], blocks });
   };
 
   const handleDeleteStep = (stepId: number) => {
-    onChange(steps.filter(s => s.id !== stepId));
+    onChange({ steps: steps.filter(s => s.id !== stepId), blocks });
   };
 
   const handleStepChange = (stepId: number, field: keyof CardioStep, value: any) => {
-    onChange(
-      steps.map(step => {
-        if (step.id === stepId) {
-          const updatedStep = { ...step, [field]: value };
-          
-          // Si on change le type d'effort, réinitialiser les champs appropriés
-          if (field === "effort_type") {
-            if (value === "duration") {
-              updatedStep.duration = 600;
-              delete updatedStep.distance;
-              delete updatedStep.distance_unit;
-            } else {
-              updatedStep.distance = 1000;
-              updatedStep.distance_unit = "m";
-              delete updatedStep.duration;
-            }
+    const updatedSteps = steps.map(step => {
+      if (step.id === stepId) {
+        const updatedStep = { ...step, [field]: value };
+        
+        // Si on change le type d'effort, réinitialiser les champs appropriés
+        if (field === "effort_type") {
+          if (value === "duration") {
+            updatedStep.duration = 600;
+            delete updatedStep.distance;
+            delete updatedStep.distance_unit;
+          } else {
+            updatedStep.distance = 1000;
+            updatedStep.distance_unit = "m";
+            delete updatedStep.duration;
           }
-          
-          return updatedStep;
         }
-        return step;
-      })
-    );
+        
+        return updatedStep;
+      }
+      return step;
+    });
+    onChange({ steps: updatedSteps, blocks });
   };
 
   const formatDuration = (seconds: number) => {
@@ -132,8 +137,9 @@ export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = fals
       steps: selectedStepsData,
     };
 
-    setBlocks([...blocks, newBlock]);
-    onChange(updatedSteps);
+    const newBlocks = [...blocks, newBlock];
+    setBlocks(newBlocks);
+    onChange({ steps: updatedSteps, blocks: newBlocks });
     setSelectedSteps([]);
   };
 
@@ -145,14 +151,17 @@ export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = fals
         : step
     );
     
-    setBlocks(blocks.filter(b => b.id !== blockId));
-    onChange(updatedSteps);
+    const newBlocks = blocks.filter(b => b.id !== blockId);
+    setBlocks(newBlocks);
+    onChange({ steps: updatedSteps, blocks: newBlocks });
   };
 
   const updateBlockRepetitions = (blockId: number, repetitions: number) => {
-    setBlocks(blocks.map(b => 
+    const newBlocks = blocks.map(b => 
       b.id === blockId ? { ...b, repetitions } : b
-    ));
+    );
+    setBlocks(newBlocks);
+    onChange({ steps, blocks: newBlocks });
   };
 
   const getStepBlock = (stepId: number): CardioBlock | undefined => {
