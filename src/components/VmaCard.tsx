@@ -10,9 +10,10 @@ import { Edit2, Save, X } from "lucide-react";
 interface VmaCardProps {
   athleteId: string;
   isCoachView?: boolean;
+  onVmaUpdate?: (vma: number) => void;
 }
 
-export function VmaCard({ athleteId, isCoachView = false }: VmaCardProps) {
+export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCardProps) {
   const [vma, setVma] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -66,6 +67,11 @@ export function VmaCard({ athleteId, isCoachView = false }: VmaCardProps) {
       setVma(vmaValue);
       setIsEditing(false);
       toast.success("VMA mise à jour !");
+      
+      // Notifier le parent de la mise à jour
+      if (onVmaUpdate) {
+        onVmaUpdate(vmaValue);
+      }
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la mise à jour");
