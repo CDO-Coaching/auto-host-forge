@@ -2426,205 +2426,281 @@ export default function ClientDetail() {
                                     <TableBody>
                                       {editedHistoricalExercises[session.id] &&
                                       editedHistoricalExercises[session.id].length > 0 ? (
-                                        editedHistoricalExercises[session.id].map((exercise: any) => (
-                                          <TableRow key={exercise.id}>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <ExerciseCombobox
-                                                  value={exercise.exercice}
-                                                  onChange={(value) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "exercice",
-                                                      value,
-                                                    )
-                                                  }
-                                                  exercises={libraryExercises}
-                                                />
-                                              ) : (
-                                                <span className="font-medium">{exercise.exercice}</span>
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Select
-                                                  value={exercise.recuperation}
-                                                  onValueChange={(value) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "recuperation",
-                                                      value,
-                                                    )
-                                                  }
-                                                >
-                                                  <SelectTrigger>
-                                                    <SelectValue placeholder="Récup" />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    {recuperationOptions.map((option) => (
-                                                      <SelectItem key={option.value} value={option.value}>
-                                                        {option.label}
-                                                      </SelectItem>
-                                                    ))}
-                                                  </SelectContent>
-                                                </Select>
-                                              ) : (
-                                                exercise.recuperation || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.reps}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "reps",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="ex: 10"
-                                                />
-                                              ) : (
-                                                exercise.reps || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.series}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "series",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="ex: 3"
-                                                />
-                                              ) : (
-                                                exercise.series || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.charge}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "charge",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="ex: 80kg"
-                                                />
-                                              ) : (
-                                                exercise.charge || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.rpe}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "rpe",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="ex: 7"
-                                                />
-                                              ) : (
-                                                exercise.rpe || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              <div className="space-y-1">
-                                                <div
-                                                  className={
-                                                    exercise.sportif_rpe
-                                                      ? "font-medium text-primary"
-                                                      : "text-muted-foreground"
-                                                  }
-                                                >
-                                                  {exercise.sportif_rpe || "-"}
-                                                </div>
-                                                {exercise.sportif_feedback_at && (
-                                                  <div className="text-xs text-muted-foreground">
-                                                    {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
+                                        editedHistoricalExercises[session.id].map((exercise: any) => {
+                                          const isCardioExercise = exercise.cardio_sport || exercise.cardio_content;
+                                          
+                                          if (isCardioExercise) {
+                                            // Affichage pour exercices cardio
+                                            let cardioSteps: CardioStep[] = [];
+                                            try {
+                                              cardioSteps = exercise.cardio_content ? JSON.parse(exercise.cardio_content) : [];
+                                            } catch (e) {
+                                              console.error("Error parsing cardio content:", e);
+                                            }
+
+                                            return (
+                                              <TableRow key={exercise.id}>
+                                                <TableCell colSpan={isEditingHistorical ? 11 : 10}>
+                                                  <div className="space-y-3 p-3 bg-muted/30 rounded-md">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                      <span className="font-medium text-lg">{exercise.exercice}</span>
+                                                      {exercise.cardio_sport && (
+                                                        <Badge variant="outline" className="capitalize">
+                                                          {exercise.cardio_sport}
+                                                        </Badge>
+                                                      )}
+                                                    </div>
+                                                    
+                                                    {cardioSteps.length > 0 ? (
+                                                      <div className="space-y-2">
+                                                        {cardioSteps.map((step, idx) => (
+                                                          <div key={idx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
+                                                            <span className="font-medium text-muted-foreground">Étape {idx + 1}:</span>
+                                                            <span className="capitalize">{step.movement_type}</span>
+                                                            {step.effort_type === "duration" && step.duration && (
+                                                              <span>
+                                                                {Math.floor(step.duration / 60)}:{(step.duration % 60).toString().padStart(2, '0')}
+                                                              </span>
+                                                            )}
+                                                            {step.effort_type === "distance" && step.distance && (
+                                                              <span>
+                                                                {step.distance} {step.distance_unit}
+                                                              </span>
+                                                            )}
+                                                            {step.vma_percentage && (
+                                                              <span className="text-primary">{step.vma_percentage}% VMA</span>
+                                                            )}
+                                                            {step.target_heart_rate && (
+                                                              <span className="text-orange-600">FC: {step.target_heart_rate}</span>
+                                                            )}
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : (
+                                                      <p className="text-sm text-muted-foreground">{exercise.cardio_content || "Pas de détails"}</p>
+                                                    )}
+                                                    
+                                                    <div className="flex gap-4 pt-2 border-t">
+                                                      <div>
+                                                        <span className="text-sm text-muted-foreground">RPE ressenti: </span>
+                                                        <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
+                                                          {exercise.sportif_rpe || "-"}
+                                                        </span>
+                                                      </div>
+                                                      {exercise.sportif_comment && (
+                                                        <div>
+                                                          <span className="text-sm text-muted-foreground">Retour: </span>
+                                                          <span className="text-sm">{exercise.sportif_comment}</span>
+                                                        </div>
+                                                      )}
+                                                    </div>
                                                   </div>
-                                                )}
-                                              </div>
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.tempo}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "tempo",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="ex: 3010"
-                                                />
-                                              ) : (
-                                                exercise.tempo || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {isEditingHistorical ? (
-                                                <Input
-                                                  value={exercise.commentaire}
-                                                  onChange={(e) =>
-                                                    handleHistoricalExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "commentaire",
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="Notes..."
-                                                />
-                                              ) : (
-                                                exercise.commentaire || "-"
-                                              )}
-                                            </TableCell>
-                                            <TableCell>
-                                              {exercise.sportif_comment ? (
-                                                <div className="max-w-xs">
-                                                  <p className="text-sm whitespace-pre-wrap">
-                                                    {exercise.sportif_comment}
-                                                  </p>
-                                                </div>
-                                              ) : (
-                                                <span className="text-muted-foreground">-</span>
-                                              )}
-                                            </TableCell>
-                                            {isEditingHistorical && (
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          }
+
+                                          // Affichage standard pour exercices renfo
+                                          return (
+                                            <TableRow key={exercise.id}>
                                               <TableCell>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  onClick={() => handleDeleteHistoricalExercise(exercise.id)}
-                                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                >
-                                                  <X className="h-4 w-4" />
-                                                </Button>
+                                                {isEditingHistorical ? (
+                                                  <ExerciseCombobox
+                                                    value={exercise.exercice}
+                                                    onChange={(value) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "exercice",
+                                                        value,
+                                                      )
+                                                    }
+                                                    exercises={libraryExercises}
+                                                  />
+                                                ) : (
+                                                  <span className="font-medium">{exercise.exercice}</span>
+                                                )}
                                               </TableCell>
-                                            )}
-                                          </TableRow>
-                                        ))
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Select
+                                                    value={exercise.recuperation}
+                                                    onValueChange={(value) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "recuperation",
+                                                        value,
+                                                      )
+                                                    }
+                                                  >
+                                                    <SelectTrigger>
+                                                      <SelectValue placeholder="Récup" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                      {recuperationOptions.map((option) => (
+                                                        <SelectItem key={option.value} value={option.value}>
+                                                          {option.label}
+                                                        </SelectItem>
+                                                      ))}
+                                                    </SelectContent>
+                                                  </Select>
+                                                ) : (
+                                                  exercise.recuperation || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.reps}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "reps",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 10"
+                                                  />
+                                                ) : (
+                                                  exercise.reps || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.series}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "series",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 3"
+                                                  />
+                                                ) : (
+                                                  exercise.series || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.charge}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "charge",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 80kg"
+                                                  />
+                                                ) : (
+                                                  exercise.charge || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.rpe}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "rpe",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 7"
+                                                  />
+                                                ) : (
+                                                  exercise.rpe || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                <div className="space-y-1">
+                                                  <div
+                                                    className={
+                                                      exercise.sportif_rpe
+                                                        ? "font-medium text-primary"
+                                                        : "text-muted-foreground"
+                                                    }
+                                                  >
+                                                    {exercise.sportif_rpe || "-"}
+                                                  </div>
+                                                  {exercise.sportif_feedback_at && (
+                                                    <div className="text-xs text-muted-foreground">
+                                                      {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.tempo}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "tempo",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 3010"
+                                                  />
+                                                ) : (
+                                                  exercise.tempo || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <Input
+                                                    value={exercise.commentaire}
+                                                    onChange={(e) =>
+                                                      handleHistoricalExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "commentaire",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="Notes..."
+                                                  />
+                                                ) : (
+                                                  exercise.commentaire || "-"
+                                                )}
+                                              </TableCell>
+                                              <TableCell>
+                                                {exercise.sportif_comment ? (
+                                                  <div className="max-w-xs">
+                                                    <p className="text-sm whitespace-pre-wrap">
+                                                      {exercise.sportif_comment}
+                                                    </p>
+                                                  </div>
+                                                ) : (
+                                                  <span className="text-muted-foreground">-</span>
+                                                )}
+                                              </TableCell>
+                                              {isEditingHistorical && (
+                                                <TableCell>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteHistoricalExercise(exercise.id)}
+                                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                  >
+                                                    <X className="h-4 w-4" />
+                                                  </Button>
+                                                </TableCell>
+                                              )}
+                                            </TableRow>
+                                          );
+                                        })
                                       ) : (
                                         <TableRow>
                                           <TableCell
