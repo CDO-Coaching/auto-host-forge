@@ -10,6 +10,7 @@ interface Exercise {
   series: string;
   tempo: string;
   session_type?: "renfo" | "cardio";
+  super_set_group?: string | null;
 }
 
 /**
@@ -106,21 +107,77 @@ function calculateExerciseDuration(exercise: Exercise): number {
 }
 
 /**
+ * Calcule la durée d'un superset (plusieurs exercices enchaînés)
+ */
+function calculateSupersetDuration(supersetExercises: Exercise[]): number {
+  if (supersetExercises.length === 0) return 0;
+  
+  // Le nombre de séries est commun à tous les exercices du superset
+  const seriesMatch = supersetExercises[0].series?.match(/(\d+)/);
+  if (!seriesMatch) return 0;
+  
+  const numSeries = parseInt(seriesMatch[1]);
+  
+  // Durée d'une série du superset = somme des durées de reps de chaque exercice
+  let singleSupersetRoundDuration = 0;
+  supersetExercises.forEach(exercise => {
+    const repsDuration = parseRepsDuration(exercise.reps, exercise.tempo);
+    singleSupersetRoundDuration += repsDuration;
+  });
+  
+  // Temps de récupération après le superset (on prend la récup du premier exercice)
+  const recuperationTime = parseRecuperationSeconds(supersetExercises[0].recuperation);
+  
+  // Durée totale du superset = (durée d'un round × nombre de séries) + temps de récupération après chaque série
+  const supersetDuration = (singleSupersetRoundDuration + recuperationTime) * numSeries;
+  
+  // Ajouter 60 secondes de temps d'installation pour le superset
+  return supersetDuration + 60;
+}
+
+/**
  * Calcule la durée totale d'une séance
  */
 export function calculateSessionDuration(exercises: Exercise[]): number {
   if (!exercises || exercises.length === 0) return 0;
   
-  // Calculer la durée de chaque exercice
   let totalSeconds = 0;
+  let processedIndices = new Set<number>();
+  let blockCount = 0; // Nombre de blocs (exercices individuels ou supersets)
   
-  exercises.forEach(exercise => {
-    totalSeconds += calculateExerciseDuration(exercise);
-  });
+  // Parcourir tous les exercices
+  for (let i = 0; i < exercises.length; i++) {
+    if (processedIndices.has(i)) continue;
+    
+    const exercise = exercises[i];
+    
+    // Si l'exercice fait partie d'un superset
+    if (exercise.super_set_group) {
+      // Trouver tous les exercices du même superset
+      const supersetExercises = [];
+      for (let j = i; j < exercises.length; j++) {
+        if (exercises[j].super_set_group === exercise.super_set_group) {
+          supersetExercises.push(exercises[j]);
+          processedIndices.add(j);
+        } else if (supersetExercises.length > 0) {
+          // On a quitté le groupe de superset
+          break;
+        }
+      }
+      
+      totalSeconds += calculateSupersetDuration(supersetExercises);
+      blockCount++;
+    } else {
+      // Exercice individuel
+      totalSeconds += calculateExerciseDuration(exercise);
+      processedIndices.add(i);
+      blockCount++;
+    }
+  }
   
-  // Ajouter un temps de transition entre exercices (45 secondes par exercice)
-  if (exercises.length > 1) {
-    totalSeconds += (exercises.length - 1) * 45;
+  // Ajouter un temps de transition entre les blocs (45 secondes par transition)
+  if (blockCount > 1) {
+    totalSeconds += (blockCount - 1) * 45;
   }
   
   // Ajouter une marge de sécurité de +15%
