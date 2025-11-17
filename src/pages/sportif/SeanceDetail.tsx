@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -11,6 +11,17 @@ import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
 import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -326,6 +337,43 @@ export default function SeanceDetail() {
     setSelectedCardioExercise(null);
   };
 
+  const handleInvalidateSession = async () => {
+    // Récupérer tous les IDs des exercices de la séance
+    const exerciseIds = exercises.flatMap((item: any) => {
+      if (item.isSuperset) {
+        return item.exercises.map((ex: any) => ex.id);
+      }
+      return [item.id];
+    });
+
+    // Réinitialiser tous les feedbacks à null
+    const { error } = await supabase
+      .from("session_exercises")
+      .update({
+        sportif_rpe: null,
+        sportif_comment: null,
+        sportif_feedback_at: null,
+      })
+      .in("id", exerciseIds);
+
+    if (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible d'invalider la séance",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Séance invalidée",
+      description: "La séance a été remise à zéro",
+    });
+
+    // Recharger les données
+    loadSessionDetail();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -374,7 +422,7 @@ export default function SeanceDetail() {
       <div className="p-4 space-y-4">
         <div>
           <h1 className="text-2xl font-bold">{session.name}</h1>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant="outline">{exercises.length} exercices</Badge>
             {isSessionActive && (
               <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30">
@@ -389,7 +437,7 @@ export default function SeanceDetail() {
           </div>
         </div>
 
-        {!allCompleted && (
+        {!allCompleted ? (
           <div className="flex gap-2">
             {!isSessionActive ? (
               <Button onClick={startSession} className="flex-1" size="lg">
@@ -403,6 +451,30 @@ export default function SeanceDetail() {
               </Button>
             )}
           </div>
+        ) : (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="lg" className="w-full">
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Invalider la séance
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Invalider cette séance ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. 
+                  Tu pourras la refaire comme si tu ne l'avais jamais complétée.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={handleInvalidateSession}>
+                  Confirmer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
 
         <div className="space-y-2">
