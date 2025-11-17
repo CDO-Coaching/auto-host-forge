@@ -93,6 +93,9 @@ export default function SuiviCourse() {
         blocks.forEach((block) => {
           const blockSteps = steps.filter(s => s.block_id === block.id);
           blockSteps.forEach((step) => {
+            // Ignorer les étapes de marche
+            if (step.movement_type === 'marche') return;
+            
             for (let i = 0; i < block.repetitions; i++) {
               if (step.effort_type === 'distance') {
                 totalDistance += step.distance || 0;
@@ -105,6 +108,13 @@ export default function SuiviCourse() {
                 }
               } else if (step.effort_type === 'duration') {
                 totalDuration += step.duration || 0;
+                // Estimer la distance basée sur la VMA et la durée
+                if (athleteVma && step.vma_percentage) {
+                  const speed = athleteVma * (step.vma_percentage / 100); // km/h
+                  const durationHours = (step.duration || 0) / 3600;
+                  const distance = speed * durationHours * 1000; // en mètres
+                  totalDistance += distance;
+                }
               }
               if (step.vma_percentage) {
                 totalVmaPercent += step.vma_percentage;
@@ -116,6 +126,9 @@ export default function SuiviCourse() {
 
         // Calculer pour les étapes individuelles
         steps.filter(s => !s.block_id).forEach((step) => {
+          // Ignorer les étapes de marche
+          if (step.movement_type === 'marche') return;
+          
           if (step.effort_type === 'distance') {
             totalDistance += step.distance || 0;
             if (athleteVma && step.vma_percentage) {
@@ -126,6 +139,13 @@ export default function SuiviCourse() {
             }
           } else if (step.effort_type === 'duration') {
             totalDuration += step.duration || 0;
+            // Estimer la distance basée sur la VMA et la durée
+            if (athleteVma && step.vma_percentage) {
+              const speed = athleteVma * (step.vma_percentage / 100); // km/h
+              const durationHours = (step.duration || 0) / 3600;
+              const distance = speed * durationHours * 1000; // en mètres
+              totalDistance += distance;
+            }
           }
           if (step.vma_percentage) {
             totalVmaPercent += step.vma_percentage;
@@ -236,36 +256,39 @@ export default function SuiviCourse() {
       {/* Graphique Distance */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center justify-between">
             <span>Distance par séance</span>
-            <Badge variant="outline">km</Badge>
+            <Badge variant="outline" className="ml-2">km</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={cardioSessions}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
                 dataKey="date" 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
               <YAxis 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                label={{ value: 'km', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
+                  backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                 }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
+                formatter={(value: number) => [`${value.toFixed(2)} km`, 'Distance']}
               />
               <Bar 
                 dataKey="distanceKm" 
                 fill="hsl(var(--primary))" 
-                name="Distance (km)"
+                name="Distance"
                 radius={[8, 8, 0, 0]}
               />
             </BarChart>
@@ -276,36 +299,39 @@ export default function SuiviCourse() {
       {/* Graphique Durée */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center justify-between">
             <span>Durée par séance</span>
-            <Badge variant="outline">min</Badge>
+            <Badge variant="outline" className="ml-2">min</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={cardioSessions}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
                 dataKey="date" 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
               <YAxis 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                label={{ value: 'min', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
+                  backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                 }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
+                formatter={(value: number) => [`${value} min`, 'Durée']}
               />
               <Bar 
                 dataKey="durationMinutes" 
                 fill="hsl(var(--chart-2))" 
-                name="Durée (min)"
+                name="Durée"
                 radius={[8, 8, 0, 0]}
               />
             </BarChart>
@@ -316,41 +342,44 @@ export default function SuiviCourse() {
       {/* Graphique Intensité */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center justify-between">
             <span>Intensité moyenne par séance</span>
-            <Badge variant="outline">% VMA</Badge>
+            <Badge variant="outline" className="ml-2">% VMA</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={cardioSessions}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <LineChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
                 dataKey="date" 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
               <YAxis 
                 className="text-xs"
-                tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                 domain={[0, 100]}
+                label={{ value: '% VMA', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
               />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: 'hsl(var(--background))',
+                  backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
-                  borderRadius: '8px'
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                 }}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 'bold' }}
+                formatter={(value: number) => [`${value}% VMA`, 'Intensité']}
               />
               <Line 
                 type="monotone" 
                 dataKey="averageIntensity" 
                 stroke="hsl(var(--chart-3))" 
                 strokeWidth={3}
-                name="Intensité (% VMA)"
-                dot={{ fill: 'hsl(var(--chart-3))', r: 5 }}
-                activeDot={{ r: 7 }}
+                name="Intensité"
+                dot={{ fill: 'hsl(var(--chart-3))', r: 5, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                activeDot={{ r: 7, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
               />
             </LineChart>
           </ResponsiveContainer>
