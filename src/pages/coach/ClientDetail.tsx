@@ -198,26 +198,18 @@ export default function ClientDetail() {
   const loadLastWeekFeedback = async () => {
     if (!athleteId) return;
 
-    // Trouver toutes les semaines validées avec des sessions complétées par le sportif
+    // Trouver la dernière semaine validée (même si toutes les séances ne sont pas terminées)
     const { data: weeks, error: weeksError } = await supabase
       .from("training_weeks")
-      .select(
-        `
-        *,
-        training_sessions!inner(
-          id,
-          completed_at
-        )
-      `,
-      )
+      .select("*")
       .eq("athlete_id", athleteId)
       .eq("validated", true)
-      .not("training_sessions.completed_at", "is", null)
       .order("year", { ascending: false })
-      .order("week_number", { ascending: false });
+      .order("week_number", { ascending: false })
+      .limit(1);
 
     if (weeksError || !weeks || weeks.length === 0) {
-      console.error("Pas de semaine avec feedback:", weeksError);
+      console.error("Pas de semaine validée:", weeksError);
       setLastWeekData(null);
       return;
     }
@@ -225,6 +217,7 @@ export default function ClientDetail() {
     // Prendre la première semaine (la plus récente)
     const lastWeek = weeks[0];
 
+    // Charger toutes les sessions de cette semaine (complétées ou non)
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
       .select(
