@@ -302,7 +302,7 @@ export default function SuiviCourse() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
                 dataKey="week" 
@@ -345,7 +345,7 @@ export default function SuiviCourse() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
                 dataKey="week" 
