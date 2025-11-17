@@ -24,6 +24,48 @@ export default function SeanceDetail() {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [athleteVma, setAthleteVma] = useState<number | null>(null);
+
+  // Charger la VMA de l'athlète
+  useEffect(() => {
+    const loadVma = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("user_profiles")
+          .select("vma")
+          .eq("id", user.id)
+          .single();
+        if (data?.vma) {
+          setAthleteVma(data.vma);
+        }
+      }
+    };
+    loadVma();
+  }, []);
+
+  // Formater la durée
+  const formatCardioTime = (seconds: number) => {
+    if (seconds < 60) {
+      return `${seconds}sec`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    if (remainingSeconds === 0) {
+      return `${minutes}min`;
+    }
+    return `${minutes}min${remainingSeconds}sec`;
+  };
+
+  // Calculer l'allure en min/km à partir du % VMA
+  const calculatePace = (vmaPercentage: number) => {
+    if (!athleteVma || vmaPercentage === 0) return null;
+    const speed = athleteVma * (vmaPercentage / 100); // km/h
+    const paceMinPerKm = 60 / speed; // min/km
+    const minutes = Math.floor(paceMinPerKm);
+    const seconds = Math.round((paceMinPerKm - minutes) * 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+  };
   
   // --- Restaurer l'état du timer depuis localStorage ---
   useEffect(() => {
@@ -575,60 +617,66 @@ export default function SeanceDetail() {
                                                 Bloc {block.name} - {block.repetitions}x
                                               </div>
                                               <div className="space-y-1.5">
-                                                {blockSteps.map((step: any) => (
-                                                  <div key={step.id} className="text-xs space-y-1 pl-2 border-l-2 border-primary/30">
-                                                    <div className="flex gap-2 flex-wrap items-center">
-                                                      <span className="font-medium capitalize">{step.movement_type}</span>
-                                                      <span className="text-muted-foreground">•</span>
-                                                      {step.effort_type === 'duration' ? (
-                                                        <span>{step.duration}sec</span>
-                                                      ) : (
-                                                        <span>{step.distance}m</span>
-                                                      )}
-                                                      {step.vma_percentage > 0 && (
-                                                        <>
-                                                          <span className="text-muted-foreground">•</span>
-                                                          <span>{step.vma_percentage}% VMA</span>
-                                                        </>
-                                                      )}
-                                                      {step.target_heart_rate && (
-                                                        <>
-                                                          <span className="text-muted-foreground">•</span>
-                                                          <span>FC: {step.target_heart_rate}</span>
-                                                        </>
-                                                      )}
+                                                {blockSteps.map((step: any) => {
+                                                  const pace = calculatePace(step.vma_percentage);
+                                                  return (
+                                                    <div key={step.id} className="text-xs space-y-1 pl-2 border-l-2 border-primary/30">
+                                                      <div className="flex gap-2 flex-wrap items-center">
+                                                        <span className="font-medium capitalize">{step.movement_type}</span>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        {step.effort_type === 'duration' ? (
+                                                          <span>{formatCardioTime(step.duration)}</span>
+                                                        ) : (
+                                                          <span>{step.distance >= 1000 ? `${step.distance / 1000}km` : `${step.distance}m`}</span>
+                                                        )}
+                                                        {pace && (
+                                                          <>
+                                                            <span className="text-muted-foreground">•</span>
+                                                            <span className="text-primary font-medium">{pace}</span>
+                                                          </>
+                                                        )}
+                                                        {step.target_heart_rate && (
+                                                          <>
+                                                            <span className="text-muted-foreground">•</span>
+                                                            <span>FC: {step.target_heart_rate}</span>
+                                                          </>
+                                                        )}
+                                                      </div>
                                                     </div>
-                                                  </div>
-                                                ))}
+                                                  );
+                                                })}
                                               </div>
                                             </div>
                                           );
                                         })}
-                                        {steps.filter((s: any) => !s.block_id).map((step: any) => (
-                                          <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
-                                            <div className="flex gap-2 flex-wrap items-center">
-                                              <span className="font-medium capitalize">{step.movement_type}</span>
-                                              <span className="text-muted-foreground">•</span>
-                                              {step.effort_type === 'duration' ? (
-                                                <span>{step.duration}sec</span>
-                                              ) : (
-                                                <span>{step.distance}m</span>
-                                              )}
-                                              {step.vma_percentage > 0 && (
-                                                <>
-                                                  <span className="text-muted-foreground">•</span>
-                                                  <span>{step.vma_percentage}% VMA</span>
-                                                </>
-                                              )}
-                                              {step.target_heart_rate && (
-                                                <>
-                                                  <span className="text-muted-foreground">•</span>
-                                                  <span>FC: {step.target_heart_rate}</span>
-                                                </>
-                                              )}
+                                        {steps.filter((s: any) => !s.block_id).map((step: any) => {
+                                          const pace = calculatePace(step.vma_percentage);
+                                          return (
+                                            <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
+                                              <div className="flex gap-2 flex-wrap items-center">
+                                                <span className="font-medium capitalize">{step.movement_type}</span>
+                                                <span className="text-muted-foreground">•</span>
+                                                {step.effort_type === 'duration' ? (
+                                                  <span>{formatCardioTime(step.duration)}</span>
+                                                ) : (
+                                                  <span>{step.distance >= 1000 ? `${step.distance / 1000}km` : `${step.distance}m`}</span>
+                                                )}
+                                                {pace && (
+                                                  <>
+                                                    <span className="text-muted-foreground">•</span>
+                                                    <span className="text-primary font-medium">{pace}</span>
+                                                  </>
+                                                )}
+                                                {step.target_heart_rate && (
+                                                  <>
+                                                    <span className="text-muted-foreground">•</span>
+                                                    <span>FC: {step.target_heart_rate}</span>
+                                                  </>
+                                                )}
+                                              </div>
                                             </div>
-                                          </div>
-                                        ))}
+                                          );
+                                        })}
                                       </div>
                                     );
                                   } catch (e) {
