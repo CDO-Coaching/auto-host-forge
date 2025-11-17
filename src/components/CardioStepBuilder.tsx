@@ -378,7 +378,9 @@ export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = fals
               </div>
             </CardContent>
           </Card>
-        ))
+            </div>
+          );
+        })
       )}
 
       {!disabled && (
