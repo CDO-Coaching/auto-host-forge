@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration } from "@/lib/cardioCalculations";
+import { CardioData } from "@/components/CardioStepBuilder";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -43,29 +45,6 @@ export default function SeanceDetail() {
     };
     loadVma();
   }, []);
-
-  // Formater la durée
-  const formatCardioTime = (seconds: number) => {
-    if (seconds < 60) {
-      return `${seconds}sec`;
-    }
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    if (remainingSeconds === 0) {
-      return `${minutes}min`;
-    }
-    return `${minutes}min${remainingSeconds}sec`;
-  };
-
-  // Calculer l'allure en min/km à partir du % VMA
-  const calculatePace = (vmaPercentage: number) => {
-    if (!athleteVma || vmaPercentage === 0) return null;
-    const speed = athleteVma * (vmaPercentage / 100); // km/h
-    const paceMinPerKm = 60 / speed; // min/km
-    const minutes = Math.floor(paceMinPerKm);
-    const seconds = Math.round((paceMinPerKm - minutes) * 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
-  };
   
   // --- Restaurer l'état du timer depuis localStorage ---
   useEffect(() => {
@@ -603,12 +582,18 @@ export default function SeanceDetail() {
                                 )}
                                 {item.cardio_content && (() => {
                                   try {
-                                    const cardioData = JSON.parse(item.cardio_content);
+                                    const cardioData: CardioData = JSON.parse(item.cardio_content);
                                     const steps = cardioData.steps || [];
                                     const blocks = cardioData.blocks || [];
+                                    const estimatedDuration = calculateCardioSessionDuration(cardioData, athleteVma);
                                     
                                     return (
                                       <div className="space-y-2 mt-2">
+                                        {estimatedDuration > 0 && (
+                                          <Badge variant="secondary" className="text-xs">
+                                            Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
+                                          </Badge>
+                                        )}
                                         {blocks.map((block: any) => {
                                           const blockSteps = steps.filter((s: any) => s.block_id === block.id);
                                           return (
@@ -618,7 +603,7 @@ export default function SeanceDetail() {
                                               </div>
                                               <div className="space-y-1.5">
                                                 {blockSteps.map((step: any) => {
-                                                  const pace = calculatePace(step.vma_percentage);
+                                                  const pace = calculatePace(step.vma_percentage, athleteVma);
                                                   return (
                                                     <div key={step.id} className="text-xs space-y-1 pl-2 border-l-2 border-primary/30">
                                                       <div className="flex gap-2 flex-wrap items-center">
@@ -627,7 +612,7 @@ export default function SeanceDetail() {
                                                         {step.effort_type === 'duration' ? (
                                                           <span>{formatCardioTime(step.duration)}</span>
                                                         ) : (
-                                                          <span>{step.distance >= 1000 ? `${step.distance / 1000}km` : `${step.distance}m`}</span>
+                                                          <span>{formatCardioDistance(step.distance)}</span>
                                                         )}
                                                         {pace && (
                                                           <>
@@ -650,7 +635,7 @@ export default function SeanceDetail() {
                                           );
                                         })}
                                         {steps.filter((s: any) => !s.block_id).map((step: any) => {
-                                          const pace = calculatePace(step.vma_percentage);
+                                          const pace = calculatePace(step.vma_percentage, athleteVma);
                                           return (
                                             <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
                                               <div className="flex gap-2 flex-wrap items-center">
@@ -659,7 +644,7 @@ export default function SeanceDetail() {
                                                 {step.effort_type === 'duration' ? (
                                                   <span>{formatCardioTime(step.duration)}</span>
                                                 ) : (
-                                                  <span>{step.distance >= 1000 ? `${step.distance / 1000}km` : `${step.distance}m`}</span>
+                                                  <span>{formatCardioDistance(step.distance)}</span>
                                                 )}
                                                 {pace && (
                                                   <>
