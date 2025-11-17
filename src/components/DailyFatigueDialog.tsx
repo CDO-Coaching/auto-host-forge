@@ -28,7 +28,7 @@ const questions = [
   {
     id: "sommeil",
     label: "Qualité du sommeil",
-    labels: ["Excellent", "Très bon", "Bon", "Moyen", "Agité", "Mauvais", "Très mauvais"],
+    labels: ["Très mauvais", "Mauvais", "Agité", "Moyen", "Bon", "Très bon", "Excellent"],
   },
   {
     id: "stress",
@@ -84,7 +84,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
         date: today,
         fatigue: answers.fatigue,
         courbatures: answers.courbatures,
-        sommeil: answers.sommeil,
+        sommeil: 8 - answers.sommeil, // Inversé : 7/7 = très bonne nuit = 1 point
         stress: answers.stress,
       };
 
