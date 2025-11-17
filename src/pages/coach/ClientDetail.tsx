@@ -41,6 +41,8 @@ import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
+import RunningSessionEditor from "@/components/RunningSessionEditor";
+import type { RunningStep } from "@/lib/vmaCalculations";
 
 interface AthleteProfile {
   id: string;
@@ -72,6 +74,7 @@ interface Exercise {
   cardio_sport?: "course" | "natation" | "vélo" | "yoga" | "hiit" | "";
   cardio_content?: string;
   cardio_pace?: string;
+  vma?: number; // VMA pour les séances de course
   super_set_group?: string | null;
 }
 
@@ -1401,72 +1404,101 @@ export default function ClientDetail() {
                                               <option value="hiit">HIIT</option>
                                             </select>
                                           </div>
-                                          {exercise.cardio_sport === "course" && (
-                                            <div>
-                                              <label className="text-sm font-medium mb-1 block">Allure</label>
+                                        </div>
+                                        
+                                        {/* Interface spécifique pour la course */}
+                                        {exercise.cardio_sport === "course" ? (
+                                          <div className="space-y-4 border-t pt-4">
+                                            <div className="max-w-xs">
+                                              <label className="text-sm font-medium mb-1 block">VMA de l'athlète (km/h)</label>
                                               <Input
-                                                value={exercise.cardio_pace || ""}
+                                                type="number"
+                                                min="8"
+                                                max="25"
+                                                step="0.5"
+                                                value={exercise.vma || ""}
                                                 onChange={(e) =>
                                                   handleExerciseChange(
                                                     session.id,
                                                     exercise.id,
-                                                    "cardio_pace",
-                                                    e.target.value,
+                                                    "vma",
+                                                    parseFloat(e.target.value) || 0,
                                                   )
                                                 }
-                                                placeholder="ex: 5:30/km"
+                                                placeholder="ex: 14.5"
                                                 disabled={isValidated}
                                               />
                                             </div>
-                                          )}
-                                        </div>
-                                        <div>
-                                          <label className="text-sm font-medium mb-1 block">Contenu</label>
-                                          <textarea
-                                            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            value={exercise.cardio_content || ""}
-                                            onChange={(e) =>
-                                              handleExerciseChange(
-                                                session.id,
-                                                exercise.id,
-                                                "cardio_content",
-                                                e.target.value,
-                                              )
-                                            }
-                                            placeholder="Décris le contenu de la séance..."
-                                            disabled={isValidated}
-                                          />
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">RPE</label>
-                                            <Input
-                                              value={exercise.rpe || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)
-                                              }
-                                              placeholder="ex: 7"
-                                              disabled={isValidated}
-                                            />
+                                            
+                                            {exercise.vma && exercise.vma > 0 ? (
+                                              <RunningSessionEditor
+                                                vma={exercise.vma}
+                                                onStepsChange={(steps) => {
+                                                  handleExerciseChange(
+                                                    session.id,
+                                                    exercise.id,
+                                                    "cardio_content",
+                                                    JSON.stringify(steps),
+                                                  );
+                                                }}
+                                              />
+                                            ) : (
+                                              <div className="text-sm text-muted-foreground bg-muted/50 p-4 rounded">
+                                                Renseigne la VMA de l'athlète pour créer une séance de course avec calcul automatique des allures.
+                                              </div>
+                                            )}
                                           </div>
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">Commentaire</label>
-                                            <Input
-                                              value={exercise.commentaire || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(
-                                                  session.id,
-                                                  exercise.id,
-                                                  "commentaire",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              placeholder="Notes..."
-                                              disabled={isValidated}
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
+                                        ) : (
+                                          /* Interface classique pour les autres sports */
+                                          <>
+                                            <div>
+                                              <label className="text-sm font-medium mb-1 block">Contenu</label>
+                                              <textarea
+                                                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                value={exercise.cardio_content || ""}
+                                                onChange={(e) =>
+                                                  handleExerciseChange(
+                                                    session.id,
+                                                    exercise.id,
+                                                    "cardio_content",
+                                                    e.target.value,
+                                                  )
+                                                }
+                                                placeholder="Décris le contenu de la séance..."
+                                                disabled={isValidated}
+                                              />
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                              <div>
+                                                <label className="text-sm font-medium mb-1 block">RPE</label>
+                                                <Input
+                                                  value={exercise.rpe || ""}
+                                                  onChange={(e) =>
+                                                    handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)
+                                                  }
+                                                  placeholder="ex: 7"
+                                                  disabled={isValidated}
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className="text-sm font-medium mb-1 block">Commentaire</label>
+                                                <Input
+                                                  value={exercise.commentaire || ""}
+                                                  onChange={(e) =>
+                                                    handleExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "commentaire",
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  placeholder="Notes..."
+                                                  disabled={isValidated}
+                                                />
+                                              </div>
+                                            </div>
+                                          </>
+                                        )}
                                     ))
                                   )}
                                   {!isValidated && (
