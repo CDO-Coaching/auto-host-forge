@@ -80,6 +80,7 @@ export default function ClientDetail() {
   const { athleteId } = useParams();
   const navigate = useNavigate();
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
+  const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
@@ -484,6 +485,7 @@ export default function ClientDetail() {
       navigate("/coach/mes-clients");
     } else {
       setAthlete(data);
+      setAthleteVma(data.vma || null);
     }
 
     setLoading(false);
@@ -1414,6 +1416,7 @@ export default function ClientDetail() {
                                                     return [];
                                                   }
                                                 })()}
+                                                athleteVma={athleteVma}
                                                 onChange={(steps) =>
                                                   handleExerciseChange(
                                                     session.id,
