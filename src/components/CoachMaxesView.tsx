@@ -224,7 +224,14 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
 
   return (
     <div className="space-y-4">
-      <VmaCard athleteId={athleteId} isCoachView={true} />
+      <VmaCard 
+        athleteId={athleteId} 
+        isCoachView={true} 
+        onVmaUpdate={(vma) => {
+          // Force un reload des données
+          window.location.reload();
+        }}
+      />
       
       <div className="flex items-center justify-between">
         <div>
