@@ -7,6 +7,7 @@ import { MaxDialog } from "./MaxDialog";
 import { MaxesList } from "./MaxesList";
 import { MaxProgressChart } from "./MaxProgressChart";
 import { ExerciseFilterCombobox } from "./ExerciseFilterCombobox";
+import { VmaCard } from "./VmaCard";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -223,6 +224,8 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
 
   return (
     <div className="space-y-4">
+      <VmaCard athleteId={athleteId} isCoachView={true} />
+      
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Max de {athleteName}</h3>
