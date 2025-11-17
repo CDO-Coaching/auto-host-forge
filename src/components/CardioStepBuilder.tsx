@@ -12,24 +12,37 @@ export interface CardioStep {
   duration?: number; // en secondes
   distance?: number; // en nombre (selon l'unité)
   distance_unit?: "m" | "km";
-  target_pace?: string; // ex: "5:30"
+  vma_percentage?: number; // pourcentage de VMA (ex: 65)
   target_heart_rate?: string; // ex: "150" ou "Zone 3"
 }
 
 interface CardioStepBuilderProps {
   steps: CardioStep[];
   onChange: (steps: CardioStep[]) => void;
+  athleteVma?: number | null;
   disabled?: boolean;
 }
 
-export function CardioStepBuilder({ steps, onChange, disabled = false }: CardioStepBuilderProps) {
+export function CardioStepBuilder({ steps, onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
+  // Calcule l'allure en min/km à partir du pourcentage de VMA
+  const calculatePace = (vmaPercentage: number | undefined): string => {
+    if (!vmaPercentage || !athleteVma) return "-";
+    
+    const speed = athleteVma * (vmaPercentage / 100); // vitesse en km/h
+    const paceInMinutes = 60 / speed; // allure en min/km
+    const minutes = Math.floor(paceInMinutes);
+    const seconds = Math.round((paceInMinutes - minutes) * 60);
+    
+    return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+  };
+
   const handleAddStep = () => {
     const newStep: CardioStep = {
       id: steps.length > 0 ? Math.max(...steps.map(s => s.id)) + 1 : 1,
       movement_type: "course",
       effort_type: "duration",
       duration: 600, // 10 minutes par défaut
-      target_pace: "",
+      vma_percentage: 70,
       target_heart_rate: "",
     };
     onChange([...steps, newStep]);
@@ -187,16 +200,36 @@ export function CardioStepBuilder({ steps, onChange, disabled = false }: CardioS
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Objectif d'allure */}
+                {/* Objectif % VMA */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Objectif d'allure</label>
-                  <Input
-                    type="text"
-                    value={step.target_pace || ""}
-                    onChange={(e) => handleStepChange(step.id, "target_pace", e.target.value)}
-                    placeholder="ex: 5:30/km"
-                    disabled={disabled}
-                  />
+                  <label className="text-sm font-medium mb-2 block">
+                    Objectif (% VMA)
+                    {athleteVma && (
+                      <span className="text-xs text-muted-foreground ml-2">
+                        VMA: {athleteVma} km/h
+                      </span>
+                    )}
+                  </label>
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      min="30"
+                      max="120"
+                      value={step.vma_percentage || ""}
+                      onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
+                      placeholder="ex: 65"
+                      disabled={disabled || !athleteVma}
+                    />
+                    {athleteVma ? (
+                      <div className="text-sm text-muted-foreground">
+                        Allure calculée: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-destructive">
+                        VMA non renseignée dans les max
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Objectif de fréquence cardiaque */}
