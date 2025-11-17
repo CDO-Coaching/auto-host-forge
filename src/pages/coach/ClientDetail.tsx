@@ -41,6 +41,7 @@ import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
+import { CardioStepBuilder, CardioStep } from "@/components/CardioStepBuilder";
 
 interface AthleteProfile {
   id: string;
@@ -1402,41 +1403,71 @@ export default function ClientDetail() {
                                             </select>
                                           </div>
                                           {exercise.cardio_sport === "course" && (
-                                            <div>
-                                              <label className="text-sm font-medium mb-1 block">Allure</label>
-                                              <Input
-                                                value={exercise.cardio_pace || ""}
-                                                onChange={(e) =>
+                                            <div className="col-span-full">
+                                              <CardioStepBuilder
+                                                steps={(() => {
+                                                  try {
+                                                    return exercise.cardio_content 
+                                                      ? JSON.parse(exercise.cardio_content) 
+                                                      : [];
+                                                  } catch {
+                                                    return [];
+                                                  }
+                                                })()}
+                                                onChange={(steps) =>
                                                   handleExerciseChange(
                                                     session.id,
                                                     exercise.id,
-                                                    "cardio_pace",
-                                                    e.target.value,
+                                                    "cardio_content",
+                                                    JSON.stringify(steps),
                                                   )
                                                 }
-                                                placeholder="ex: 5:30/km"
                                                 disabled={isValidated}
                                               />
                                             </div>
                                           )}
+                                          {exercise.cardio_sport !== "course" && (
+                                            <>
+                                              {exercise.cardio_sport && (
+                                                <div>
+                                                  <label className="text-sm font-medium mb-1 block">Allure</label>
+                                                  <Input
+                                                    value={exercise.cardio_pace || ""}
+                                                    onChange={(e) =>
+                                                      handleExerciseChange(
+                                                        session.id,
+                                                        exercise.id,
+                                                        "cardio_pace",
+                                                        e.target.value,
+                                                      )
+                                                    }
+                                                    placeholder="ex: 5:30/km"
+                                                    disabled={isValidated}
+                                                  />
+                                                </div>
+                                              )}
+                                            </>
+                                          )}
                                         </div>
-                                        <div>
-                                          <label className="text-sm font-medium mb-1 block">Contenu</label>
-                                          <textarea
-                                            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            value={exercise.cardio_content || ""}
-                                            onChange={(e) =>
-                                              handleExerciseChange(
-                                                session.id,
-                                                exercise.id,
-                                                "cardio_content",
-                                                e.target.value,
-                                              )
-                                            }
-                                            placeholder="Décris le contenu de la séance..."
-                                            disabled={isValidated}
-                                          />
-                                        </div>
+                                        {exercise.cardio_sport !== "course" && (
+                                          <div>
+                                            <label className="text-sm font-medium mb-1 block">Contenu</label>
+                                            <textarea
+                                              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                              value={exercise.cardio_content || ""}
+                                              onChange={(e) =>
+                                                handleExerciseChange(
+                                                  session.id,
+                                                  exercise.id,
+                                                  "cardio_content",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Décris le contenu de la séance..."
+                                              disabled={isValidated}
+                                            />
+                                          </div>
+                                        )}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                           <div>
                                             <label className="text-sm font-medium mb-1 block">RPE</label>
