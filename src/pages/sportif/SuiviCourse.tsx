@@ -7,11 +7,13 @@ import { formatCardioTime, formatCardioDistance, calculateCardioSessionDuration 
 import { CardioData } from "@/components/CardioStepBuilder";
 
 interface CardioSessionData {
-  date: string;
-  sessionName: string;
+  week: string;
+  weekNumber: number;
+  year: number;
   durationMinutes: number;
   distanceKm: number;
   averageIntensity: number; // Pourcentage VMA moyen
+  sessionCount: number;
 }
 
 export default function SuiviCourse() {
@@ -73,8 +75,8 @@ export default function SuiviCourse() {
       return;
     }
 
-    // Traiter les données
-    const processedData: CardioSessionData[] = [];
+    // Traiter les données et grouper par semaine
+    const weeklyData = new Map<string, CardioSessionData>();
     
     sessions?.forEach((session: any) => {
       if (!session.cardio_content || session.cardio_sport !== "course") return;
@@ -154,21 +156,58 @@ export default function SuiviCourse() {
         });
 
         const avgIntensity = stepCount > 0 ? totalVmaPercent / stepCount : 0;
-        const date = session.sportif_feedback_at 
-          ? new Date(session.sportif_feedback_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-          : new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+        
+        // Calculer le numéro de semaine
+        const feedbackDate = session.sportif_feedback_at 
+          ? new Date(session.sportif_feedback_at)
+          : new Date();
+        
+        // Fonction pour obtenir le numéro de semaine ISO
+        const getISOWeek = (date: Date) => {
+          const target = new Date(date.valueOf());
+          const dayNumber = (date.getDay() + 6) % 7;
+          target.setDate(target.getDate() - dayNumber + 3);
+          const firstThursday = target.valueOf();
+          target.setMonth(0, 1);
+          if (target.getDay() !== 4) {
+            target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+          }
+          return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+        };
 
-        processedData.push({
-          date,
-          sessionName: session.training_sessions.name || session.exercice,
-          durationMinutes: Math.round(totalDuration / 60),
-          distanceKm: Number((totalDistance / 1000).toFixed(2)),
-          averageIntensity: Math.round(avgIntensity),
-        });
+        const weekNumber = getISOWeek(feedbackDate);
+        const year = feedbackDate.getFullYear();
+        const weekKey = `${year}-W${weekNumber}`;
+
+        // Ajouter ou mettre à jour les données de la semaine
+        const existingWeek = weeklyData.get(weekKey);
+        if (existingWeek) {
+          existingWeek.durationMinutes += Math.round(totalDuration / 60);
+          existingWeek.distanceKm += Number((totalDistance / 1000).toFixed(2));
+          existingWeek.averageIntensity = ((existingWeek.averageIntensity * existingWeek.sessionCount) + avgIntensity) / (existingWeek.sessionCount + 1);
+          existingWeek.sessionCount += 1;
+        } else {
+          weeklyData.set(weekKey, {
+            week: `S${weekNumber}`,
+            weekNumber,
+            year,
+            durationMinutes: Math.round(totalDuration / 60),
+            distanceKm: Number((totalDistance / 1000).toFixed(2)),
+            averageIntensity: avgIntensity,
+            sessionCount: 1,
+          });
+        }
       } catch (e) {
         console.error("Error parsing cardio data:", e);
       }
     });
+
+    // Convertir la Map en array et trier par année puis semaine
+    const processedData = Array.from(weeklyData.values())
+      .sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.weekNumber - b.weekNumber;
+      });
 
     setCardioSessions(processedData);
     setLoading(false);
@@ -226,7 +265,7 @@ export default function SuiviCourse() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{totalDistance.toFixed(1)} km</div>
-            <p className="text-xs text-muted-foreground mt-1">Sur {cardioSessions.length} séances</p>
+            <p className="text-xs text-muted-foreground mt-1">Sur {cardioSessions.length} semaines</p>
           </CardContent>
         </Card>
 
@@ -257,7 +296,7 @@ export default function SuiviCourse() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Distance par séance</span>
+            <span>Distance par semaine</span>
             <Badge variant="outline" className="ml-2">km</Badge>
           </CardTitle>
         </CardHeader>
@@ -266,7 +305,7 @@ export default function SuiviCourse() {
             <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
-                dataKey="date" 
+                dataKey="week" 
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
@@ -300,7 +339,7 @@ export default function SuiviCourse() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Durée par séance</span>
+            <span>Durée par semaine</span>
             <Badge variant="outline" className="ml-2">min</Badge>
           </CardTitle>
         </CardHeader>
@@ -309,7 +348,7 @@ export default function SuiviCourse() {
             <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
-                dataKey="date" 
+                dataKey="week" 
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
@@ -343,7 +382,7 @@ export default function SuiviCourse() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span>Intensité moyenne par séance</span>
+            <span>Intensité moyenne par semaine</span>
             <Badge variant="outline" className="ml-2">% VMA</Badge>
           </CardTitle>
         </CardHeader>
@@ -352,7 +391,7 @@ export default function SuiviCourse() {
             <LineChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" opacity={0.3} />
               <XAxis 
-                dataKey="date" 
+                dataKey="week" 
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
               />
