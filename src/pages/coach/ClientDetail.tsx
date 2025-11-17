@@ -2465,8 +2465,10 @@ export default function ClientDetail() {
                                                     
                                                     {cardioData.steps.length > 0 ? (
                                                       <div className="space-y-3">
+                                                        {/* Afficher les blocs avec leurs étapes */}
                                                         {cardioData.blocks && cardioData.blocks.length > 0 && (
                                                           <div className="space-y-2">
+                                                            <p className="text-sm font-medium">Blocs répétés:</p>
                                                             {cardioData.blocks.map((block, blockIdx) => (
                                                               <div key={blockIdx} className="p-3 bg-primary/10 rounded-md border border-primary/20">
                                                                 <div className="flex items-center gap-2 mb-2">
@@ -2474,53 +2476,61 @@ export default function ClientDetail() {
                                                                   <span className="text-sm font-medium">{block.repetitions}x</span>
                                                                 </div>
                                                                 <div className="space-y-1 ml-4">
-                                                                  {block.steps.map((step, stepIdx) => (
-                                                                    <div key={stepIdx} className="flex items-center gap-3 text-sm p-1.5 bg-background/50 rounded">
-                                                                      <span className="text-muted-foreground">#{stepIdx + 1}</span>
-                                                                      <span className="capitalize">{step.movement_type}</span>
-                                                                      {step.effort_type === "duration" && step.duration && (
-                                                                        <span>{Math.floor(step.duration / 60)}:{(step.duration % 60).toString().padStart(2, '0')}</span>
-                                                                      )}
-                                                                      {step.effort_type === "distance" && step.distance && (
-                                                                        <span>{step.distance} {step.distance_unit}</span>
-                                                                      )}
-                                                                      {step.vma_percentage && (
-                                                                        <span className="text-primary">{step.vma_percentage}% VMA</span>
-                                                                      )}
-                                                                    </div>
-                                                                  ))}
+                                                                  {cardioData.steps
+                                                                    .filter(s => s.block_id === block.id)
+                                                                    .map((step, stepIdx) => (
+                                                                      <div key={stepIdx} className="flex items-center gap-3 text-sm p-1.5 bg-background/50 rounded">
+                                                                        <span className="text-muted-foreground">#{stepIdx + 1}</span>
+                                                                        <span className="capitalize">{step.movement_type}</span>
+                                                                        {step.effort_type === "duration" && step.duration && (
+                                                                          <span>{Math.floor(step.duration / 60)}:{(step.duration % 60).toString().padStart(2, '0')}</span>
+                                                                        )}
+                                                                        {step.effort_type === "distance" && step.distance && (
+                                                                          <span>{step.distance} {step.distance_unit}</span>
+                                                                        )}
+                                                                        {step.vma_percentage && (
+                                                                          <span className="text-primary">{step.vma_percentage}% VMA</span>
+                                                                        )}
+                                                                        {step.target_heart_rate && (
+                                                                          <span className="text-orange-600">FC: {step.target_heart_rate}</span>
+                                                                        )}
+                                                                      </div>
+                                                                    ))}
                                                                 </div>
                                                               </div>
                                                             ))}
                                                           </div>
                                                         )}
                                                         
+                                                        {/* Afficher les étapes individuelles (pas dans un bloc) */}
                                                         {cardioData.steps.filter(s => !s.block_id).length > 0 && (
                                                           <div className="space-y-2">
-                                                            <p className="text-sm font-medium text-muted-foreground">Étapes individuelles:</p>
-                                                            {cardioData.steps.filter(s => !s.block_id).map((step, idx) => (
-                                                              <div key={idx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
-                                                                <span className="font-medium text-muted-foreground">Étape {idx + 1}:</span>
-                                                                <span className="capitalize">{step.movement_type}</span>
-                                                                {step.effort_type === "duration" && step.duration && (
-                                                                  <span>{Math.floor(step.duration / 60)}:{(step.duration % 60).toString().padStart(2, '0')}</span>
-                                                                )}
-                                                                {step.effort_type === "distance" && step.distance && (
-                                                                  <span>{step.distance} {step.distance_unit}</span>
-                                                                )}
-                                                                {step.vma_percentage && (
-                                                                  <span className="text-primary">{step.vma_percentage}% VMA</span>
-                                                                )}
-                                                                {step.target_heart_rate && (
-                                                                  <span className="text-orange-600">FC: {step.target_heart_rate}</span>
-                                                                )}
-                                                              </div>
-                                                            ))}
+                                                            <p className="text-sm font-medium">Étapes individuelles:</p>
+                                                            {cardioData.steps
+                                                              .filter(s => !s.block_id)
+                                                              .map((step, idx) => (
+                                                                <div key={idx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
+                                                                  <span className="font-medium text-muted-foreground">Étape {idx + 1}:</span>
+                                                                  <span className="capitalize">{step.movement_type}</span>
+                                                                  {step.effort_type === "duration" && step.duration && (
+                                                                    <span>{Math.floor(step.duration / 60)}:{(step.duration % 60).toString().padStart(2, '0')}</span>
+                                                                  )}
+                                                                  {step.effort_type === "distance" && step.distance && (
+                                                                    <span>{step.distance} {step.distance_unit}</span>
+                                                                  )}
+                                                                  {step.vma_percentage && (
+                                                                    <span className="text-primary">{step.vma_percentage}% VMA</span>
+                                                                  )}
+                                                                  {step.target_heart_rate && (
+                                                                    <span className="text-orange-600">FC: {step.target_heart_rate}</span>
+                                                                  )}
+                                                                </div>
+                                                              ))}
                                                           </div>
                                                         )}
                                                       </div>
                                                     ) : (
-                                                      <p className="text-sm text-muted-foreground">{exercise.cardio_content || "Pas de détails"}</p>
+                                                      <p className="text-sm text-muted-foreground">Aucune donnée cardio enregistrée</p>
                                                     )}
                                                     
                                                     <div className="flex gap-4 pt-2 border-t">
