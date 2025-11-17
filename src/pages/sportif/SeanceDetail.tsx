@@ -553,15 +553,88 @@ export default function SeanceDetail() {
                               </div>
                             )}
                             {isCardio && (
-                              <div className="flex gap-2 flex-wrap">
+                              <div className="space-y-3">
                                 {item.cardio_sport && (
                                   <Badge variant="outline" className="text-xs">
                                     {item.cardio_sport}
                                   </Badge>
                                 )}
-                                {item.cardio_content && (
-                                  <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>
-                                )}
+                                {item.cardio_content && (() => {
+                                  try {
+                                    const cardioData = JSON.parse(item.cardio_content);
+                                    const steps = cardioData.steps || [];
+                                    const blocks = cardioData.blocks || [];
+                                    
+                                    return (
+                                      <div className="space-y-2 mt-2">
+                                        {blocks.map((block: any) => {
+                                          const blockSteps = steps.filter((s: any) => s.block_id === block.id);
+                                          return (
+                                            <div key={block.id} className="border rounded-lg p-3 bg-muted/30">
+                                              <div className="font-medium text-sm mb-2 text-primary">
+                                                Bloc {block.name} - {block.repetitions}x
+                                              </div>
+                                              <div className="space-y-1.5">
+                                                {blockSteps.map((step: any) => (
+                                                  <div key={step.id} className="text-xs space-y-1 pl-2 border-l-2 border-primary/30">
+                                                    <div className="flex gap-2 flex-wrap items-center">
+                                                      <span className="font-medium capitalize">{step.movement_type}</span>
+                                                      <span className="text-muted-foreground">•</span>
+                                                      {step.effort_type === 'duration' ? (
+                                                        <span>{step.duration}sec</span>
+                                                      ) : (
+                                                        <span>{step.distance}m</span>
+                                                      )}
+                                                      {step.vma_percentage > 0 && (
+                                                        <>
+                                                          <span className="text-muted-foreground">•</span>
+                                                          <span>{step.vma_percentage}% VMA</span>
+                                                        </>
+                                                      )}
+                                                      {step.target_heart_rate && (
+                                                        <>
+                                                          <span className="text-muted-foreground">•</span>
+                                                          <span>FC: {step.target_heart_rate}</span>
+                                                        </>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                        {steps.filter((s: any) => !s.block_id).map((step: any) => (
+                                          <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
+                                            <div className="flex gap-2 flex-wrap items-center">
+                                              <span className="font-medium capitalize">{step.movement_type}</span>
+                                              <span className="text-muted-foreground">•</span>
+                                              {step.effort_type === 'duration' ? (
+                                                <span>{step.duration}sec</span>
+                                              ) : (
+                                                <span>{step.distance}m</span>
+                                              )}
+                                              {step.vma_percentage > 0 && (
+                                                <>
+                                                  <span className="text-muted-foreground">•</span>
+                                                  <span>{step.vma_percentage}% VMA</span>
+                                                </>
+                                              )}
+                                              {step.target_heart_rate && (
+                                                <>
+                                                  <span className="text-muted-foreground">•</span>
+                                                  <span>FC: {step.target_heart_rate}</span>
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  } catch (e) {
+                                    return <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>;
+                                  }
+                                })()}
                                 {item.cardio_pace && (
                                   <Badge variant="outline" className="text-xs">
                                     {item.cardio_pace}
