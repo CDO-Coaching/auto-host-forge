@@ -40,6 +40,7 @@ import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { calculate1RM } from "@/lib/maxCalculations";
+import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 
 interface AthleteProfile {
   id: string;
@@ -1322,7 +1323,14 @@ export default function ClientDetail() {
                             ) : (
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             )}
-                            <span className="font-medium">{session.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{session.name}</span>
+                              {session.session_type === "renfo" && sessionExercises[session.id]?.length > 0 && (
+                                <span className="text-sm text-muted-foreground">
+                                  ({formatSessionDuration(calculateSessionDuration(sessionExercises[session.id]))})
+                                </span>
+                              )}
+                            </div>
                             <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
                               {session.session_type === "cardio" ? "Cardio" : "Renfo"}
                             </Badge>
@@ -2298,7 +2306,14 @@ export default function ClientDetail() {
                                 ) : (
                                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                                 )}
-                                <span className="font-medium">{session.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{session.name}</span>
+                                  {session.session_type === "renfo" && session.session_exercises?.length > 0 && (
+                                    <span className="text-sm text-muted-foreground">
+                                      ({formatSessionDuration(calculateSessionDuration(session.session_exercises))})
+                                    </span>
+                                  )}
+                                </div>
                                 <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
                                   {session.session_type === "cardio" ? "Cardio" : "Renfo"}
                                 </Badge>
