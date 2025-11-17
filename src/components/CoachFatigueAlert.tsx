@@ -69,19 +69,12 @@ export function CoachFatigueAlert({ athleteId, athleteName }: CoachFatigueAlertP
           continue;
         }
 
-        // Identifier les notes élevées
-        const highScoresList: string[] = [];
-        if (entry.fatigue > 4) highScoresList.push(`Fatigue: ${entry.fatigue}/7`);
-        if (entry.courbatures > 4) highScoresList.push(`Courbatures: ${entry.courbatures}/7`);
-        if (entry.sommeil > 4) highScoresList.push(`Sommeil: ${entry.sommeil}/7`);
-        if (entry.stress > 4) highScoresList.push(`Stress: ${entry.stress}/7`);
-
-        // Ajouter à la liste si au moins une condition est remplie
-        if (highScoresList.length > 0 || entry.score_total > 15) {
+        // Ajouter à la liste si le score total est > 18
+        if (entry.score_total > 18) {
           alertsToShow.push({
             date: entry.date,
             data: entry,
-            highScores: highScoresList,
+            highScores: [],
           });
         }
       }
@@ -136,30 +129,14 @@ export function CoachFatigueAlert({ athleteId, athleteName }: CoachFatigueAlertP
                           </p>
                         </div>
                         
-                        {alert.highScores.length > 0 && (
-                          <div className="bg-orange-50 dark:bg-orange-950/30 p-3 rounded-md border border-orange-200 dark:border-orange-800">
-                            <p className="font-medium text-sm mb-2">Notes individuelles élevées (&gt; 4) :</p>
-                            <ul className="space-y-1">
-                              {alert.highScores.map((score, scoreIndex) => (
-                                <li key={scoreIndex} className="text-sm flex items-center gap-2">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                                  {score}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        {alert.data.score_total > 15 && (
-                          <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-800">
-                            <p className="font-medium text-sm">
-                              Score global élevé : <span className="text-lg font-bold">{alert.data.score_total}/28</span>
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              (Seuil d'alerte : &gt; 15)
-                            </p>
-                          </div>
-                        )}
+                        <div className="bg-red-50 dark:bg-red-950/30 p-3 rounded-md border border-red-200 dark:border-red-800">
+                          <p className="font-medium text-sm">
+                            Score global élevé : <span className="text-lg font-bold">{alert.data.score_total}/28</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            (Seuil d'alerte : &gt; 18)
+                          </p>
+                        </div>
                       </div>
                       
                       {index < fatigueAlerts.length - 1 && (
