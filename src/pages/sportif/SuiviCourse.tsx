@@ -45,29 +45,33 @@ export default function SuiviCourse() {
       setAthleteVma(profileData.vma);
     }
 
-    // Charger toutes les séances cardio validées
+    // Charger toutes les séances cardio validées avec les métriques pré-calculées
     const { data: sessions, error } = await supabase
-      .from("session_exercises")
+      .from("training_sessions")
       .select(`
         id,
-        exercice,
-        cardio_sport,
-        cardio_content,
-        sportif_rpe,
-        sportif_feedback_at,
-        training_sessions!inner(
+        name,
+        cardio_total_distance_km,
+        cardio_total_duration_minutes,
+        cardio_average_intensity,
+        week_id,
+        session_exercises!inner(
           id,
-          name,
-          week_id,
-          training_weeks!inner(
-            athlete_id
-          )
+          cardio_sport,
+          sportif_rpe,
+          sportif_feedback_at
+        ),
+        training_weeks!inner(
+          athlete_id,
+          week_number,
+          year
         )
       `)
-      .eq("training_sessions.training_weeks.athlete_id", user.id)
-      .not("sportif_rpe", "is", null)
-      .not("cardio_content", "is", null)
-      .order("sportif_feedback_at", { ascending: true });
+      .eq("training_weeks.athlete_id", user.id)
+      .eq("session_exercises.cardio_sport", "course")
+      .not("session_exercises.sportif_rpe", "is", null)
+      .not("cardio_total_distance_km", "is", null)
+      .order("session_exercises.sportif_feedback_at", { foreignTable: "session_exercises", ascending: true });
 
     if (error) {
       console.error("Error loading cardio sessions:", error);
@@ -79,137 +83,44 @@ export default function SuiviCourse() {
     const weeklyData = new Map<string, CardioSessionData>();
     
     sessions?.forEach((session: any) => {
-      if (!session.cardio_content || session.cardio_sport !== "course") return;
+      const weekNumber = session.training_weeks.week_number;
+      const year = session.training_weeks.year;
+      const weekKey = `${year}-W${weekNumber}`;
 
-      try {
-        const cardioData: CardioData = JSON.parse(session.cardio_content);
-        const steps = cardioData.steps || [];
-        const blocks = cardioData.blocks || [];
-
-        let totalDistance = 0;
-        let totalDuration = 0;
-        let totalVmaPercent = 0;
-        let stepCount = 0;
-
-        // Calculer pour les blocs
-        blocks.forEach((block) => {
-          const blockSteps = steps.filter(s => s.block_id === block.id);
-          blockSteps.forEach((step) => {
-            // Ignorer les étapes de marche
-            if (step.movement_type === 'marche') return;
-            
-            for (let i = 0; i < block.repetitions; i++) {
-              if (step.effort_type === 'distance') {
-                totalDistance += step.distance || 0;
-                // Estimer la durée basée sur la VMA
-                if (athleteVma && step.vma_percentage) {
-                  const distanceKm = (step.distance || 0) / 1000;
-                  const speed = athleteVma * (step.vma_percentage / 100);
-                  const durationHours = distanceKm / speed;
-                  totalDuration += durationHours * 3600;
-                }
-              } else if (step.effort_type === 'duration') {
-                totalDuration += step.duration || 0;
-                // Estimer la distance basée sur la VMA et la durée
-                if (athleteVma && step.vma_percentage) {
-                  const speed = athleteVma * (step.vma_percentage / 100); // km/h
-                  const durationHours = (step.duration || 0) / 3600;
-                  const distance = speed * durationHours * 1000; // en mètres
-                  totalDistance += distance;
-                }
-              }
-              if (step.vma_percentage) {
-                totalVmaPercent += step.vma_percentage;
-                stepCount++;
-              }
-            }
-          });
-        });
-
-        // Calculer pour les étapes individuelles
-        steps.filter(s => !s.block_id).forEach((step) => {
-          // Ignorer les étapes de marche
-          if (step.movement_type === 'marche') return;
-          
-          if (step.effort_type === 'distance') {
-            totalDistance += step.distance || 0;
-            if (athleteVma && step.vma_percentage) {
-              const distanceKm = (step.distance || 0) / 1000;
-              const speed = athleteVma * (step.vma_percentage / 100);
-              const durationHours = distanceKm / speed;
-              totalDuration += durationHours * 3600;
-            }
-          } else if (step.effort_type === 'duration') {
-            totalDuration += step.duration || 0;
-            // Estimer la distance basée sur la VMA et la durée
-            if (athleteVma && step.vma_percentage) {
-              const speed = athleteVma * (step.vma_percentage / 100); // km/h
-              const durationHours = (step.duration || 0) / 3600;
-              const distance = speed * durationHours * 1000; // en mètres
-              totalDistance += distance;
-            }
-          }
-          if (step.vma_percentage) {
-            totalVmaPercent += step.vma_percentage;
-            stepCount++;
-          }
-        });
-
-        const avgIntensity = stepCount > 0 ? totalVmaPercent / stepCount : 0;
+      if (weeklyData.has(weekKey)) {
+        const existing = weeklyData.get(weekKey)!;
+        existing.distanceKm += session.cardio_total_distance_km || 0;
+        existing.durationMinutes += session.cardio_total_duration_minutes || 0;
         
-        // Calculer le numéro de semaine
-        const feedbackDate = session.sportif_feedback_at 
-          ? new Date(session.sportif_feedback_at)
-          : new Date();
+        // Calculer la moyenne pondérée de l'intensité
+        const totalDuration = existing.durationMinutes;
+        const newIntensity = session.cardio_average_intensity || 0;
+        const newDuration = session.cardio_total_duration_minutes || 0;
         
-        // Fonction pour obtenir le numéro de semaine ISO
-        const getISOWeek = (date: Date) => {
-          const target = new Date(date.valueOf());
-          const dayNumber = (date.getDay() + 6) % 7;
-          target.setDate(target.getDate() - dayNumber + 3);
-          const firstThursday = target.valueOf();
-          target.setMonth(0, 1);
-          if (target.getDay() !== 4) {
-            target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
-          }
-          return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
-        };
-
-        const weekNumber = getISOWeek(feedbackDate);
-        const year = feedbackDate.getFullYear();
-        const weekKey = `${year}-W${weekNumber}`;
-
-        // Ajouter ou mettre à jour les données de la semaine
-        const existingWeek = weeklyData.get(weekKey);
-        if (existingWeek) {
-          existingWeek.durationMinutes += Math.round(totalDuration / 60);
-          existingWeek.distanceKm += Number((totalDistance / 1000).toFixed(2));
-          existingWeek.averageIntensity = ((existingWeek.averageIntensity * existingWeek.sessionCount) + avgIntensity) / (existingWeek.sessionCount + 1);
-          existingWeek.sessionCount += 1;
-        } else {
-          weeklyData.set(weekKey, {
-            week: `S${weekNumber}`,
-            weekNumber,
-            year,
-            durationMinutes: Math.round(totalDuration / 60),
-            distanceKm: Number((totalDistance / 1000).toFixed(2)),
-            averageIntensity: avgIntensity,
-            sessionCount: 1,
-          });
-        }
-      } catch (e) {
-        console.error("Error parsing cardio data:", e);
+        existing.averageIntensity = Math.round(
+          ((existing.averageIntensity * (totalDuration - newDuration)) + (newIntensity * newDuration)) / totalDuration
+        );
+        existing.sessionCount++;
+      } else {
+        weeklyData.set(weekKey, {
+          week: weekKey,
+          weekNumber,
+          year,
+          distanceKm: session.cardio_total_distance_km || 0,
+          durationMinutes: session.cardio_total_duration_minutes || 0,
+          averageIntensity: session.cardio_average_intensity || 0,
+          sessionCount: 1
+        });
       }
     });
 
-    // Convertir la Map en array et trier par année puis semaine
-    const processedData = Array.from(weeklyData.values())
-      .sort((a, b) => {
-        if (a.year !== b.year) return a.year - b.year;
-        return a.weekNumber - b.weekNumber;
-      });
+    // Convertir en tableau et trier par date
+    const sortedSessions = Array.from(weeklyData.values()).sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      return a.weekNumber - b.weekNumber;
+    });
 
-    setCardioSessions(processedData);
+    setCardioSessions(sortedSessions);
     setLoading(false);
   };
 
