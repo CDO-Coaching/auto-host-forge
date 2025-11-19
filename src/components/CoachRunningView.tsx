@@ -378,23 +378,27 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Séances</p>
-                <p className="text-2xl font-bold">{plannedVolume.sessionCount}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Distance totale</p>
-                <p className="text-2xl font-bold">{plannedVolume.distanceKm.toFixed(1)} km</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Durée totale</p>
-                <p className="text-2xl font-bold">{Math.floor(plannedVolume.durationMinutes / 60)}h{(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Intensité moyenne</p>
-                <p className="text-2xl font-bold">{plannedVolume.averageIntensity}% VMA</p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-medium text-sm">Séances</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Distance totale</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Durée totale</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Intensité moyenne</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.sessionCount}</td>
+                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.distanceKm.toFixed(1)} km</td>
+                    <td className="py-3 px-4 text-lg font-bold">
+                      {Math.floor(plannedVolume.durationMinutes / 60)}h{(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}
+                    </td>
+                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.averageIntensity}% VMA</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
