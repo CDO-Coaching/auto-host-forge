@@ -100,13 +100,106 @@ export const formatCardioSessionDuration = (seconds: number): string => {
     }
     return `${hours}h`;
   }
-  
-  if (minutes > 0) {
-    if (secs > 0) {
-      return `${minutes}min${secs}sec`;
-    }
-    return `${minutes}min`;
+  if (secs > 0) {
+    return `${minutes}min${secs}sec`;
   }
+  return `${minutes}min`;
+};
+
+/**
+ * Interface pour les métriques cardio calculées
+ */
+export interface CardioMetrics {
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  averageIntensity: number;
+}
+
+/**
+ * Calcule les métriques complètes d'une séance cardio
+ * Prend en compte la marche à 4 km/h et la course basée sur VMA
+ */
+export const calculateCardioMetrics = (cardioData: CardioData, athleteVma: number | null): CardioMetrics => {
+  let totalDistanceMeters = 0;
+  let totalDurationSeconds = 0;
+  let totalIntensityWeighted = 0; // Somme (intensité * durée) pour moyenne pondérée
+  let totalRunningDuration = 0; // Durée de course uniquement pour la moyenne d'intensité
   
-  return `${secs}sec`;
+  const steps = cardioData.steps || [];
+  const blocks = cardioData.blocks || [];
+  
+  // Vitesse de marche moyenne : 4 km/h
+  const WALKING_SPEED_KMH = 4;
+
+  // Fonction helper pour calculer les métriques d'un step
+  const calculateStepMetrics = (step: CardioStep) => {
+    const isWalking = step.movement_type === 'marche';
+    let stepDuration = 0;
+    let stepDistance = 0;
+    
+    if (step.effort_type === 'duration') {
+      // Durée fixe
+      stepDuration = step.duration || 0;
+      // Calculer la distance basée sur la vitesse
+      if (isWalking) {
+        stepDistance = (WALKING_SPEED_KMH * (stepDuration / 3600)) * 1000; // en mètres
+      } else if (athleteVma && step.vma_percentage) {
+        const speed = athleteVma * (step.vma_percentage / 100); // km/h
+        stepDistance = (speed * (stepDuration / 3600)) * 1000; // en mètres
+      }
+    } else if (step.effort_type === 'distance') {
+      // Distance fixe
+      stepDistance = step.distance || 0;
+      // Calculer la durée basée sur la vitesse
+      if (isWalking) {
+        stepDuration = (stepDistance / 1000 / WALKING_SPEED_KMH) * 3600; // en secondes
+      } else if (athleteVma && step.vma_percentage) {
+        const speed = athleteVma * (step.vma_percentage / 100); // km/h
+        stepDuration = (stepDistance / 1000 / speed) * 3600; // en secondes
+      }
+    }
+    
+    // Ajouter à l'intensité pondérée (seulement pour la course)
+    if (!isWalking && step.vma_percentage) {
+      totalIntensityWeighted += step.vma_percentage * stepDuration;
+      totalRunningDuration += stepDuration;
+    }
+    
+    return { stepDuration, stepDistance };
+  };
+
+  // Calculer les métriques des blocs
+  blocks.forEach((block: CardioBlock) => {
+    const blockSteps = steps.filter((s: CardioStep) => s.block_id === block.id);
+    let blockDuration = 0;
+    let blockDistance = 0;
+    
+    blockSteps.forEach((step: CardioStep) => {
+      const { stepDuration, stepDistance } = calculateStepMetrics(step);
+      blockDuration += stepDuration;
+      blockDistance += stepDistance;
+    });
+    
+    // Multiplier par le nombre de répétitions
+    totalDurationSeconds += blockDuration * block.repetitions;
+    totalDistanceMeters += blockDistance * block.repetitions;
+  });
+
+  // Calculer les métriques des étapes individuelles (sans bloc)
+  steps.filter((s: CardioStep) => !s.block_id).forEach((step: CardioStep) => {
+    const { stepDuration, stepDistance } = calculateStepMetrics(step);
+    totalDurationSeconds += stepDuration;
+    totalDistanceMeters += stepDistance;
+  });
+
+  // Calculer l'intensité moyenne pondérée par la durée (seulement pour les steps de course)
+  const averageIntensity = totalRunningDuration > 0 
+    ? Math.round(totalIntensityWeighted / totalRunningDuration) 
+    : 0;
+
+  return {
+    totalDistanceKm: Number((totalDistanceMeters / 1000).toFixed(2)),
+    totalDurationMinutes: Number((totalDurationSeconds / 60).toFixed(2)),
+    averageIntensity
+  };
 };
