@@ -43,7 +43,7 @@ import { CoachRunningView } from "@/components/CoachRunningView";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
-import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration } from "@/lib/cardioCalculations";
+import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics } from "@/lib/cardioCalculations";
 
 interface AthleteProfile {
   id: string;
@@ -629,13 +629,32 @@ export default function ClientDetail() {
 
       // 2. Pour chaque séance, créer l'entrée et ses exercices
       for (const session of sessions) {
+        // Préparer les données de la séance
+        const sessionInsertData: any = {
+          week_id: weekData.id,
+          session_number: session.id,
+          name: session.name,
+        };
+
+        // Si c'est une séance cardio, calculer et ajouter les métriques
+        if (session.session_type === 'cardio') {
+          const exercises = sessionExercises[session.id] || [];
+          if (exercises.length > 0 && exercises[0].cardio_content) {
+            try {
+              const cardioData = JSON.parse(exercises[0].cardio_content);
+              const metrics = calculateCardioMetrics(cardioData, athleteVma);
+              sessionInsertData.cardio_total_distance_km = metrics.totalDistanceKm;
+              sessionInsertData.cardio_total_duration_minutes = metrics.totalDurationMinutes;
+              sessionInsertData.cardio_average_intensity = metrics.averageIntensity;
+            } catch (error) {
+              console.error("Erreur lors du calcul des métriques cardio:", error);
+            }
+          }
+        }
+
         const { data: sessionData, error: sessionError } = await supabase
           .from("training_sessions")
-          .insert({
-            week_id: weekData.id,
-            session_number: session.id,
-            name: session.name,
-          })
+          .insert(sessionInsertData)
           .select()
           .single();
 
