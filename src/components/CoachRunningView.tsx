@@ -153,9 +153,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       `)
       .eq("training_weeks.athlete_id", athleteId)
       .eq("session_exercises.cardio_sport", "course")
-      .not("cardio_total_distance_km", "is", null)
-      .order("training_weeks.year", { ascending: true })
-      .order("training_weeks.week_number", { ascending: true });
+      .not("cardio_total_distance_km", "is", null);
 
     if (error) {
       console.error("Error loading cardio sessions:", error);

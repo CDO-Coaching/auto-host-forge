@@ -634,6 +634,7 @@ export default function ClientDetail() {
           week_id: weekData.id,
           session_number: session.id,
           name: session.name,
+          session_type: session.session_type, // Ajouter le type de session
         };
 
         // Si c'est une séance cardio, calculer et ajouter les métriques
