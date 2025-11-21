@@ -1,418 +1,264 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
-import { Timer, Minus, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
-import { CelebrationOverlay } from "@/components/CelebrationOverlay";
-import { TimerOverlay } from "@/components/TimerOverlay";
-import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
-import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
-import { UniversalTimer } from "@/components/UniversalTimer";
-import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
+import { useState, useEffect, useCallback, useRef } from "react";
 
-export default function SupersetDetail() {
-  const { sessionId, supersetId } = useParams();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [globalCompletedSets, setGlobalCompletedSets] = useState(0);
-  const [weekId, setWeekId] = useState<string | null>(null);
-  const [videoUrls, setVideoUrls] = useState<{ [key: string]: string }>({});
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [showTimerOverlay, setShowTimerOverlay] = useState(false);
-  const [overlayTimerId, setOverlayTimerId] = useState<string | null>(null);
+interface TimerState {
+  remainingSeconds: number;
+  startTimestamp: number | null;
+  targetDuration: number;
+  isRunning: boolean;
+}
 
-  const {
+export function useRecoveryTimer() {
+  const [timers, setTimers] = useState<{ [key: string]: number }>({});
+  const [isRunning, setIsRunning] = useState<{ [key: string]: boolean }>({});
+  const timerStatesRef = useRef<{ [key: string]: TimerState }>({});
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Charger les états sauvegardés au démarrage
+  useEffect(() => {
+    const savedStates = localStorage.getItem("recovery-timers");
+    if (savedStates) {
+      try {
+        const parsed = JSON.parse(savedStates);
+        timerStatesRef.current = parsed;
+
+        // Recalculer les temps restants basés sur le timestamp actuel
+        const now = Date.now();
+        const newTimers: { [key: string]: number } = {};
+        const newIsRunning: { [key: string]: boolean } = {};
+
+        Object.keys(parsed).forEach((key) => {
+          const state = parsed[key];
+          if (state.isRunning && state.startTimestamp) {
+            const elapsedSeconds = Math.floor((now - state.startTimestamp) / 1000);
+            const remaining = Math.max(0, state.targetDuration - elapsedSeconds);
+            newTimers[key] = remaining;
+            newIsRunning[key] = remaining > 0;
+
+            // Si le timer est terminé, le marquer comme non actif
+            if (remaining === 0) {
+              timerStatesRef.current[key].isRunning = false;
+            }
+          } else {
+            newTimers[key] = state.remainingSeconds;
+            newIsRunning[key] = false;
+          }
+        });
+
+        setTimers(newTimers);
+        setIsRunning(newIsRunning);
+      } catch (error) {
+        console.error("Erreur lors de la restauration des timers:", error);
+      }
+    }
+  }, []);
+
+  // Sauvegarder les états dans localStorage
+  const saveStates = useCallback(() => {
+    localStorage.setItem("recovery-timers", JSON.stringify(timerStatesRef.current));
+  }, []);
+
+  // Boucle de mise à jour basée sur les timestamps
+  useEffect(() => {
+    const updateTimers = () => {
+      const now = Date.now();
+      let hasActiveTimer = false;
+
+      setTimers((prev) => {
+        const updated = { ...prev };
+
+        Object.keys(timerStatesRef.current).forEach((key) => {
+          const state = timerStatesRef.current[key];
+
+          if (state.isRunning && state.startTimestamp) {
+            const elapsedSeconds = Math.floor((now - state.startTimestamp) / 1000);
+            const remaining = Math.max(0, state.targetDuration - elapsedSeconds);
+
+            updated[key] = remaining;
+
+            if (remaining > 0) {
+              hasActiveTimer = true;
+            } else {
+              // Timer terminé
+              timerStatesRef.current[key].isRunning = false;
+              timerStatesRef.current[key].remainingSeconds = 0;
+              setIsRunning((prev) => ({ ...prev, [key]: false }));
+            }
+          }
+        });
+
+        return updated;
+      });
+
+      // Arrêter l'interval si aucun timer n'est actif
+      if (!hasActiveTimer && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+
+      saveStates();
+    };
+
+    // Démarrer l'interval seulement si au moins un timer est actif
+    const hasActiveTimer = Object.values(timerStatesRef.current).some((state) => state.isRunning);
+
+    if (hasActiveTimer && !intervalRef.current) {
+      intervalRef.current = setInterval(updateTimers, 100); // Mise à jour toutes les 100ms pour plus de précision
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [saveStates]);
+
+  const initializeTimer = useCallback(
+    (id: string) => {
+      if (!timerStatesRef.current[id]) {
+        timerStatesRef.current[id] = {
+          remainingSeconds: 0,
+          startTimestamp: null,
+          targetDuration: 0,
+          isRunning: false,
+        };
+        setTimers((prev) => ({ ...prev, [id]: 0 }));
+        setIsRunning((prev) => ({ ...prev, [id]: false }));
+        saveStates();
+      }
+    },
+    [saveStates],
+  );
+
+  const startTimer = useCallback(
+    (id: string, recoveryTime?: string) => {
+      if (!timerStatesRef.current[id]) {
+        initializeTimer(id);
+      }
+
+      const state = timerStatesRef.current[id];
+
+      // Si le timer est à 0 ou on fournit un nouveau temps de récup, on le réinitialise
+      if (state.remainingSeconds === 0 || recoveryTime) {
+        const seconds = recoveryTime ? parseRecoveryTime(recoveryTime) : state.targetDuration;
+        const now = Date.now();
+
+        timerStatesRef.current[id] = {
+          remainingSeconds: seconds,
+          startTimestamp: now,
+          targetDuration: seconds,
+          isRunning: true,
+        };
+
+        setTimers((prev) => ({ ...prev, [id]: seconds }));
+        setIsRunning((prev) => ({ ...prev, [id]: true }));
+      } else {
+        // Reprendre depuis le temps restant
+        const now = Date.now();
+        timerStatesRef.current[id] = {
+          ...state,
+          startTimestamp: now,
+          targetDuration: state.remainingSeconds,
+          isRunning: true,
+        };
+        setIsRunning((prev) => ({ ...prev, [id]: true }));
+      }
+
+      saveStates();
+
+      // Forcer une mise à jour immédiate
+      if (!intervalRef.current) {
+        intervalRef.current = setInterval(() => {
+          const now = Date.now();
+          setTimers((prev) => {
+            const updated = { ...prev };
+
+            Object.keys(timerStatesRef.current).forEach((key) => {
+              const st = timerStatesRef.current[key];
+              if (st.isRunning && st.startTimestamp) {
+                const elapsedSeconds = Math.floor((now - st.startTimestamp) / 1000);
+                const remaining = Math.max(0, st.targetDuration - elapsedSeconds);
+                updated[key] = remaining;
+
+                if (remaining === 0) {
+                  timerStatesRef.current[key].isRunning = false;
+                  setIsRunning((prev) => ({ ...prev, [key]: false }));
+                }
+              }
+            });
+
+            return updated;
+          });
+          saveStates();
+        }, 100);
+      }
+    },
+    [initializeTimer, saveStates],
+  );
+
+  const pauseTimer = useCallback(
+    (id: string) => {
+      const state = timerStatesRef.current[id];
+      if (state && state.isRunning) {
+        const now = Date.now();
+        const elapsedSeconds = Math.floor((now - (state.startTimestamp || now)) / 1000);
+        const remaining = Math.max(0, state.targetDuration - elapsedSeconds);
+
+        timerStatesRef.current[id] = {
+          remainingSeconds: remaining,
+          startTimestamp: null,
+          targetDuration: remaining,
+          isRunning: false,
+        };
+
+        setTimers((prev) => ({ ...prev, [id]: remaining }));
+        setIsRunning((prev) => ({ ...prev, [id]: false }));
+        saveStates();
+      }
+    },
+    [saveStates],
+  );
+
+  const resetTimer = useCallback(
+    (id: string) => {
+      timerStatesRef.current[id] = {
+        remainingSeconds: 0,
+        startTimestamp: null,
+        targetDuration: 0,
+        isRunning: false,
+      };
+      setTimers((prev) => ({ ...prev, [id]: 0 }));
+      setIsRunning((prev) => ({ ...prev, [id]: false }));
+      saveStates();
+    },
+    [saveStates],
+  );
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  return {
     timers,
-    isRunning: isTimerRunning,
+    isRunning,
     startTimer,
     pauseTimer,
     resetTimer,
     initializeTimer,
     formatTime,
-  } = useRecoveryTimer();
-
-  useEffect(() => {
-    loadSupersetExercises();
-    
-    const savedData = localStorage.getItem(`superset-progress-${supersetId}`);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.globalCompletedSets !== undefined) setGlobalCompletedSets(parsed.globalCompletedSets);
-      } catch (error) {
-        console.error("Erreur lors de la restauration:", error);
-      }
-    }
-  }, [supersetId]);
-
-  useEffect(() => {
-    if (supersetId) {
-      const dataToSave = {
-        globalCompletedSets,
-      };
-      localStorage.setItem(`superset-progress-${supersetId}`, JSON.stringify(dataToSave));
-    }
-  }, [globalCompletedSets, supersetId]);
-
-  const loadSupersetExercises = async () => {
-    setLoading(true);
-
-    // Charger le weekId depuis la session
-    if (sessionId) {
-      const { data: sessionData } = await supabase
-        .from("training_sessions")
-        .select("week_id")
-        .eq("id", sessionId)
-        .maybeSingle();
-      if (sessionData?.week_id) setWeekId(sessionData.week_id);
-    }
-
-    const { data, error } = await supabase
-      .from("session_exercises")
-      .select("*")
-      .eq("session_id", sessionId)
-      .eq("super_set_group", supersetId)
-      .order("exercise_order");
-
-    if (error) {
-      console.error("Erreur lors du chargement des exercices:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les exercices",
-        variant: "destructive",
-      });
-    } else {
-      setExercises(data || []);
-      (data || []).forEach((ex: any) => {
-        initializeTimer(ex.id);
-      });
-
-      const urls: { [key: string]: string } = {};
-      for (const ex of data || []) {
-        if (ex.exercice) {
-          const { data: libraryData } = await supabase
-            .from("exercise_library")
-            .select("video_url")
-            .eq("name", ex.exercice)
-            .maybeSingle();
-
-          if (libraryData?.video_url) {
-            urls[ex.id] = libraryData.video_url;
-          }
-        }
-      }
-      setVideoUrls(urls);
-    }
-
-    setLoading(false);
   };
+}
 
-  const incrementGlobalSet = () => {
-    const maxSets = parseInt(exercises[0]?.series || "0");
-    if (globalCompletedSets < maxSets) {
-      setGlobalCompletedSets(globalCompletedSets + 1);
-      
-      if (exercises.length > 0) {
-        const lastExercise = exercises[exercises.length - 1];
-        if (lastExercise.recuperation) {
-          startTimer(lastExercise.id, lastExercise.recuperation);
-          setOverlayTimerId(lastExercise.id);
-          setShowTimerOverlay(true);
-        }
-      }
-    }
-  };
+function parseRecoveryTime(timeStr: string): number {
+  // Format attendu: "1min30", "2min", "45s", etc.
+  const minMatch = timeStr.match(/(\d+)\s*min/);
+  const secMatch = timeStr.match(/(\d+)\s*s/);
 
-  const decrementGlobalSet = () => {
-    if (globalCompletedSets > 0) {
-      setGlobalCompletedSets(globalCompletedSets - 1);
-    }
-  };
+  let totalSeconds = 0;
+  if (minMatch) totalSeconds += parseInt(minMatch[1]) * 60;
+  if (secMatch) totalSeconds += parseInt(secMatch[1]);
 
-  const handleValidateFeedback = async (rpe: string, comment: string) => {
-    const rpeValue = rpe ? Number(rpe) : null;
-
-    try {
-      // Sauvegarder le même feedback pour chaque exercice du superset
-      for (const exercise of exercises) {
-        const { error } = await supabase
-          .from("session_exercises")
-          .update({
-            sportif_rpe: rpeValue,
-            sportif_comment: comment.trim() || null,
-          })
-          .eq("id", exercise.id);
-
-        if (error) {
-          console.error("Erreur lors de la sauvegarde pour l'exercice", exercise.id, error);
-          toast({
-            title: "Erreur",
-            description: `Impossible de sauvegarder le retour: ${error.message}`,
-            variant: "destructive",
-          });
-          throw error;
-        }
-      }
-
-      // Ne pas enregistrer les max théoriques pour les supersets
-      // Les max théoriques ne sont enregistrés que pour les exercices solo
-
-      // Nettoyer les données sauvegardées
-      localStorage.removeItem(`superset-progress-${supersetId}`);
-
-      setDialogOpen(false);
-      
-      // Afficher la célébration
-      setShowCelebration(true);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de la sauvegarde",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-
-
-  const handleCelebrationComplete = () => {
-    setShowCelebration(false);
-    
-    toast({
-      title: "Retour enregistré",
-      description: "Ton retour a été sauvegardé pour tous les exercices du superset",
-    });
-
-    // Rediriger vers la page de la séance
-    setTimeout(() => {
-      if (weekId && sessionId) {
-        navigate(`/sportif/seance/${weekId}/${sessionId}`);
-      } else if (sessionId) {
-        navigate(`/sportif/seance/${sessionId}`);
-      } else {
-        navigate("/sportif/seances");
-      }
-    }, 300);
-  };
-
-  const handleCancelFeedback = () => {
-    setDialogOpen(false);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Chargement...</p>
-      </div>
-    );
-  }
-
-  const maxSets = parseInt(exercises[0]?.series || "0");
-  
-  // Trouver l'exercice de l'overlay
-  const overlayExercise = exercises.find((ex) => ex.id === overlayTimerId);
-
-  return (
-    <div className="min-h-screen bg-background pb-4">
-      <UniversalTimer />
-      <CelebrationOverlay
-        show={showCelebration}
-        message="Superset terminé"
-        onComplete={handleCelebrationComplete}
-        type="exercise"
-      />
-      
-      {/* Timer Overlay */}
-      {overlayTimerId && overlayExercise && (
-        <TimerOverlay
-          show={showTimerOverlay}
-          onClose={() => setShowTimerOverlay(false)}
-          timeRemaining={timers[overlayTimerId] || 0}
-          isRunning={isTimerRunning[overlayTimerId] || false}
-          onStart={() => startTimer(overlayTimerId, overlayExercise.recuperation)}
-          onPause={() => pauseTimer(overlayTimerId)}
-          onReset={() => resetTimer(overlayTimerId)}
-          title="Récup superset"
-        />
-      )}
-      
-      <ExerciseFeedbackDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onValidate={handleValidateFeedback}
-        onCancel={handleCancelFeedback}
-        exerciseName="ce superset"
-        exerciseType="renfo"
-      />
-
-      {/* Header compact */}
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="p-2 flex justify-center">
-          <Badge className="bg-orange-500 text-white">Superset</Badge>
-        </div>
-      </div>
-
-      <div className="p-3 space-y-3">
-        {/* Compteur de séries global */}
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-semibold">Séries</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={decrementGlobalSet}
-                  disabled={globalCompletedSets === 0}
-                >
-                  <Minus className="h-3 w-3" />
-                </Button>
-                <span className="font-mono text-xl font-bold min-w-[60px] text-center">
-                  {globalCompletedSets}/{maxSets}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={incrementGlobalSet}
-                  disabled={globalCompletedSets >= maxSets}
-                >
-                  <Plus className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Exercices en vertical */}
-        {exercises.map((exercise, index) => {
-          const isLastExercise = index === exercises.length - 1;
-          return (
-            <div key={exercise.id} className="space-y-2">
-              {/* Card Exercice - Mise en avant */}
-              <Card className="border-2 border-primary/30 bg-card shadow-md">
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    {/* En-tête exercice */}
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-sm px-2 py-1">
-                        {index + 1}
-                      </Badge>
-                      <div className="flex items-center gap-2 flex-1">
-                        <h3 className="font-bold text-xl leading-tight">{exercise.exercice}</h3>
-                        {videoUrls[exercise.id] && (
-                          <a
-                            href={videoUrls[exercise.id]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-yellow-400 hover:text-yellow-200 text-2xl"
-                          >
-                            🎥
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Détails exercice - Bien visible */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {exercise.charge && (
-                        <div className="bg-muted/30 rounded-md p-2">
-                          <div className="text-xs text-muted-foreground uppercase">Charge</div>
-                          <div className="text-2xl font-bold text-primary">{exercise.charge}</div>
-                        </div>
-                      )}
-                      {exercise.reps && (
-                        <div className="bg-muted/30 rounded-md p-2">
-                          <div className="text-xs text-muted-foreground uppercase">Reps</div>
-                          <div className="text-2xl font-bold text-primary">{exercise.reps}</div>
-                        </div>
-                      )}
-                      {exercise.rpe && (
-                        <div className="bg-muted/30 rounded-md p-2">
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <div className="text-xs text-muted-foreground uppercase">RPE</div>
-                            <RPEExplanationDialog />
-                          </div>
-                          <div className="text-2xl font-bold text-primary">{exercise.rpe}</div>
-                        </div>
-                      )}
-                      {exercise.tempo && (
-                        <div className="bg-muted/30 rounded-md p-2">
-                          <div className="flex items-center justify-between gap-1 mb-1">
-                            <div className="text-xs text-muted-foreground uppercase">Tempo</div>
-                            <TempoExplanationDialog />
-                          </div>
-                          <div className="text-2xl font-bold text-primary">{exercise.tempo}</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Minuteur visible et uniforme */}
-              {exercise.recuperation && (
-                <Card className="border border-muted-foreground/20 bg-muted/50">
-                  <CardContent className="p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3 flex-1">
-                        <Timer className="h-6 w-6 text-primary" />
-                        <span className="text-sm font-medium">
-                          {isLastExercise ? "Récup superset" : `Avant ex. ${index + 2}`}
-                        </span>
-                      </div>
-                      <span className="font-mono text-xl font-bold">{formatTime(timers[exercise.id])}</span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant={isTimerRunning[exercise.id] ? "secondary" : "default"}
-                          size="sm"
-                          className="h-8 text-xs px-3"
-                          onClick={() =>
-                            isTimerRunning[exercise.id]
-                              ? pauseTimer(exercise.id)
-                              : startTimer(exercise.id, exercise.recuperation)
-                          }
-                        >
-                          {isTimerRunning[exercise.id] ? "Pause" : "Start"}
-                        </Button>
-                        {timers[exercise.id] > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs px-2"
-                            onClick={() => resetTimer(exercise.id)}
-                          >
-                            Reset
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          );
-        })}
-
-        {/* Bouton superset terminé */}
-        <Button 
-          onClick={() => setDialogOpen(true)}
-          size="lg"
-          className="w-full"
-        >
-          Superset terminé
-        </Button>
-      </div>
-    </div>
-  );
+  return totalSeconds;
 }
