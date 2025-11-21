@@ -24,6 +24,8 @@ export default function ExerciceDetail() {
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timerStartTimestamp, setTimerStartTimestamp] = useState<number | null>(null);
+  const [targetDuration, setTargetDuration] = useState(0);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [weekId, setWeekId] = useState<string | null>(null);
@@ -35,19 +37,49 @@ export default function ExerciceDetail() {
 
   useEffect(() => {
     loadExerciseDetail();
-    
+
     // Restaurer les données sauvegardées
     const savedData = localStorage.getItem(`exercise-progress-${exerciceId}`);
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
         if (parsed.completedSets !== undefined) setCompletedSets(parsed.completedSets);
-        if (parsed.timeRemaining !== undefined) setTimeRemaining(parsed.timeRemaining);
+
+        // Restaurer le timer avec recalcul basé sur timestamp
+        if (parsed.isTimerRunning && parsed.timerStartTimestamp && parsed.targetDuration) {
+          const now = Date.now();
+          const elapsedSeconds = Math.floor((now - parsed.timerStartTimestamp) / 1000);
+          const remaining = Math.max(0, parsed.targetDuration - elapsedSeconds);
+
+          if (remaining > 0) {
+            setTimeRemaining(remaining);
+            setTimerStartTimestamp(parsed.timerStartTimestamp);
+            setTargetDuration(parsed.targetDuration);
+            setIsTimerRunning(true);
+
+            // Relancer le timer
+            const interval = setInterval(() => {
+              const currentElapsed = Math.floor((Date.now() - parsed.timerStartTimestamp) / 1000);
+              const currentRemaining = Math.max(0, parsed.targetDuration - currentElapsed);
+
+              setTimeRemaining(currentRemaining);
+
+              if (currentRemaining === 0) {
+                clearInterval(interval);
+                setIsTimerRunning(false);
+                setTimerStartTimestamp(null);
+              }
+            }, 100);
+            setTimerInterval(interval);
+          }
+        } else if (parsed.timeRemaining !== undefined) {
+          setTimeRemaining(parsed.timeRemaining);
+        }
       } catch (error) {
         console.error("Erreur lors de la restauration:", error);
       }
     }
-    
+
     return () => {
       if (timerInterval) clearInterval(timerInterval);
     };
@@ -59,27 +91,26 @@ export default function ExerciceDetail() {
       const dataToSave = {
         completedSets,
         timeRemaining,
+        isTimerRunning,
+        timerStartTimestamp,
+        targetDuration,
       };
       localStorage.setItem(`exercise-progress-${exerciceId}`, JSON.stringify(dataToSave));
     }
-  }, [completedSets, timeRemaining, exerciceId]);
+  }, [completedSets, timeRemaining, isTimerRunning, timerStartTimestamp, targetDuration, exerciceId]);
 
   useEffect(() => {
     if (timeRemaining <= 0 && isTimerRunning) {
       setIsTimerRunning(false);
+      setTimerStartTimestamp(null);
       if (timerInterval) clearInterval(timerInterval);
-      // Jouer un son ou vibration ici si souhaité
     }
   }, [timeRemaining, isTimerRunning]);
 
   const loadExerciseDetail = async () => {
     setLoading(true);
-    
-    const { data, error } = await supabase
-      .from("session_exercises")
-      .select("*")
-      .eq("id", exerciceId)
-      .single();
+
+    const { data, error } = await supabase.from("session_exercises").select("*").eq("id", exerciceId).single();
 
     if (error) {
       console.error("Erreur lors du chargement de l'exercice:", error);
@@ -96,10 +127,11 @@ export default function ExerciceDetail() {
         if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
       }
       // Initialiser le timer avec le temps de récupération
-      if (data.recuperation) {
+      if (data.recuperation && timeRemaining === 0) {
         setTimeRemaining(parseRecuperationTime(data.recuperation));
+        setTargetDuration(parseRecuperationTime(data.recuperation));
       }
-      
+
       // Récupérer la vidéo depuis la bibliothèque d'exercices
       if (data.exercice) {
         const { data: libraryData } = await supabase
@@ -107,58 +139,64 @@ export default function ExerciceDetail() {
           .select("video_url")
           .eq("name", data.exercice)
           .maybeSingle();
-        
+
         if (libraryData?.video_url) {
           setVideoUrl(libraryData.video_url);
         }
       }
     }
-    
+
     setLoading(false);
   };
+
   const parseRecuperationTime = (recup: string): number => {
     // Parse "1min30s" => 90 secondes, "2min" => 120 secondes, etc.
     const minMatch = recup.match(/(\d+)min/);
     const secMatch = recup.match(/(\d+)s/);
-    
+
     const minutes = minMatch ? parseInt(minMatch[1]) : 0;
     const seconds = secMatch ? parseInt(secMatch[1]) : 0;
-    
+
     return minutes * 60 + seconds;
   };
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   const incrementSet = () => {
     if (exercise?.series) {
       const totalSets = parseInt(exercise.series);
       if (completedSets < totalSets) {
-        setCompletedSets(prev => prev + 1);
-        
+        setCompletedSets((prev) => prev + 1);
+
         // Démarrer automatiquement le chrono de récupération
         if (exercise.recuperation && !isTimerRunning) {
-          // Réinitialiser d'abord le chrono au temps de récupération
           const recuperationTime = parseRecuperationTime(exercise.recuperation);
+          const now = Date.now();
+
           setTimeRemaining(recuperationTime);
-          
-          // Démarrer le chrono
+          setTargetDuration(recuperationTime);
+          setTimerStartTimestamp(now);
           setIsTimerRunning(true);
+
+          // Démarrer le timer avec calcul basé sur timestamp
           const interval = setInterval(() => {
-            setTimeRemaining(prev => {
-              if (prev <= 1) {
-                setIsTimerRunning(false);
-                clearInterval(interval);
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
+            const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
+            const remaining = Math.max(0, recuperationTime - elapsedSeconds);
+
+            setTimeRemaining(remaining);
+
+            if (remaining === 0) {
+              setIsTimerRunning(false);
+              setTimerStartTimestamp(null);
+              clearInterval(interval);
+            }
+          }, 100);
           setTimerInterval(interval);
-          
+
           // Afficher l'overlay
           setShowTimerOverlay(true);
         }
@@ -168,43 +206,61 @@ export default function ExerciceDetail() {
 
   const decrementSet = () => {
     if (completedSets > 0) {
-      setCompletedSets(prev => prev - 1);
+      setCompletedSets((prev) => prev - 1);
     }
   };
 
   const startTimer = () => {
     if (!isTimerRunning && timeRemaining > 0) {
+      const now = Date.now();
+      setTimerStartTimestamp(now);
+      setTargetDuration(timeRemaining);
       setIsTimerRunning(true);
+
       const interval = setInterval(() => {
-        setTimeRemaining(prev => {
-          if (prev <= 1) {
-            setIsTimerRunning(false);
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+        const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
+        const remaining = Math.max(0, timeRemaining - elapsedSeconds);
+
+        setTimeRemaining(remaining);
+
+        if (remaining === 0) {
+          setIsTimerRunning(false);
+          setTimerStartTimestamp(null);
+          clearInterval(interval);
+        }
+      }, 100);
       setTimerInterval(interval);
     }
   };
 
   const pauseTimer = () => {
-    setIsTimerRunning(false);
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
+
+    // Calculer le temps restant réel avant la pause
+    if (timerStartTimestamp && targetDuration) {
+      const elapsedSeconds = Math.floor((Date.now() - timerStartTimestamp) / 1000);
+      const remaining = Math.max(0, targetDuration - elapsedSeconds);
+      setTimeRemaining(remaining);
+    }
+
+    setIsTimerRunning(false);
+    setTimerStartTimestamp(null);
   };
 
   const resetTimer = () => {
     setIsTimerRunning(false);
+    setTimerStartTimestamp(null);
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
     if (exercise?.recuperation) {
-      setTimeRemaining(parseRecuperationTime(exercise.recuperation));
+      const recupTime = parseRecuperationTime(exercise.recuperation);
+      setTimeRemaining(recupTime);
+      setTargetDuration(recupTime);
     }
   };
 
@@ -234,12 +290,12 @@ export default function ExerciceDetail() {
     if (exercise && rpeValue && shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
       await recordTheoreticalMax(exercise, rpeValue);
     }
-    
+
     // Nettoyer les données sauvegardées
     localStorage.removeItem(`exercise-progress-${exerciceId}`);
-    
+
     setDialogOpen(false);
-    
+
     // Afficher la célébration
     setShowCelebration(true);
   };
@@ -254,7 +310,7 @@ export default function ExerciceDetail() {
 
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
-      
+
       if (!weight || !repsValue) return;
 
       // Calculer le 1RM théorique
@@ -273,7 +329,9 @@ export default function ExerciceDetail() {
       }
 
       // Récupérer l'athlete_id
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       // Chercher le max le plus récent pour cet exercice (tous types confondus)
@@ -288,16 +346,14 @@ export default function ExerciceDetail() {
 
       // Enregistrer uniquement si c'est un nouveau record
       if (!latestMax || theoretical1RM > latestMax.weight_kg) {
-        const { error: insertError } = await supabase
-          .from("exercise_maxes")
-          .insert({
-            athlete_id: user.id,
-            exercise_id: libraryData.id,
-            max_type: "max_theorique",
-            weight_kg: theoretical1RM,
-            recorded_at: new Date().toISOString(),
-            notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
-          });
+        const { error: insertError } = await supabase.from("exercise_maxes").insert({
+          athlete_id: user.id,
+          exercise_id: libraryData.id,
+          max_type: "max_theorique",
+          weight_kg: theoretical1RM,
+          recorded_at: new Date().toISOString(),
+          notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
+        });
 
         if (insertError) {
           console.error("Erreur insert max théorique:", insertError);
@@ -321,12 +377,12 @@ export default function ExerciceDetail() {
 
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
-    
+
     toast({
       title: "Enregistré !",
       description: "Ton retour a été sauvegardé",
     });
-    
+
     // Rediriger vers la page de la séance
     setTimeout(() => {
       if (weekId && sessionId) {
@@ -355,9 +411,10 @@ export default function ExerciceDetail() {
     if (weekId && sessionId) {
       navigate(`/sportif/seance/${weekId}/${sessionId}`);
     } else {
-      navigate('/sportif/seances');
+      navigate("/sportif/seances");
     }
   };
+
   if (!exercise) {
     return (
       <div className="min-h-screen p-4">
@@ -368,7 +425,7 @@ export default function ExerciceDetail() {
 
   const InfoItem = ({ label, value }: { label: string; value: string | null }) => {
     if (!value) return null;
-    
+
     return (
       <div className="py-2">
         <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -386,7 +443,7 @@ export default function ExerciceDetail() {
         onComplete={handleCelebrationComplete}
         type="exercise"
       />
-      
+
       {/* Timer Overlay */}
       <TimerOverlay
         show={showTimerOverlay}
@@ -398,7 +455,7 @@ export default function ExerciceDetail() {
         onReset={resetTimer}
         title="Récupération"
       />
-      
+
       <ExerciseFeedbackDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
@@ -440,11 +497,12 @@ export default function ExerciceDetail() {
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
-                  
+
                   <div className="text-4xl font-bold min-w-[100px] text-center">
-                    {completedSets}<span className="text-2xl text-muted-foreground">/{exercise.series}</span>
+                    {completedSets}
+                    <span className="text-2xl text-muted-foreground">/{exercise.series}</span>
                   </div>
-                  
+
                   <Button
                     size="icon"
                     onClick={incrementSet}
@@ -468,37 +526,24 @@ export default function ExerciceDetail() {
                   <Clock className="h-6 w-6 text-primary" />
                   <Label className="text-base font-semibold">Récupération</Label>
                 </div>
-                <div className={`text-3xl font-bold font-mono ${timeRemaining === 0 ? 'text-green-500' : 'text-foreground'}`}>
+                <div
+                  className={`text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
+                >
                   {formatTime(timeRemaining)}
                 </div>
                 <div className="flex gap-2">
                   {!isTimerRunning ? (
-                    <Button
-                      size="sm"
-                      onClick={startTimer}
-                      disabled={timeRemaining === 0}
-                      className="h-9 px-4"
-                    >
+                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="h-9 px-4">
                       <Play className="h-4 w-4 mr-1" />
                       Start
                     </Button>
                   ) : (
-                    <Button
-                      size="sm"
-                      onClick={pauseTimer}
-                      variant="secondary"
-                      className="h-9 px-4"
-                    >
+                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="h-9 px-4">
                       <Pause className="h-4 w-4 mr-1" />
                       Pause
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={resetTimer}
-                    variant="outline"
-                    className="h-9 w-9 p-0"
-                  >
+                  <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
                     <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
@@ -520,7 +565,7 @@ export default function ExerciceDetail() {
               </CardContent>
             </Card>
           )}
-          
+
           {exercise.reps && (
             <Card className="border border-orange-500/30 bg-orange-500/5">
               <CardContent className="p-3">
@@ -532,7 +577,7 @@ export default function ExerciceDetail() {
               </CardContent>
             </Card>
           )}
-          
+
           {exercise.rpe && (
             <Card className="border border-yellow-500/30 bg-yellow-500/5">
               <CardContent className="p-3">
@@ -547,7 +592,7 @@ export default function ExerciceDetail() {
               </CardContent>
             </Card>
           )}
-          
+
           {exercise.tempo && (
             <Card className="border border-purple-500/30 bg-purple-500/5">
               <CardContent className="p-3">
@@ -563,7 +608,7 @@ export default function ExerciceDetail() {
             </Card>
           )}
         </div>
-        
+
         {/* Notes du coach */}
         {exercise.commentaire && (
           <Card className="border-2 border-primary/20">
@@ -580,11 +625,7 @@ export default function ExerciceDetail() {
         )}
 
         {/* Bouton exercice terminé */}
-        <Button 
-          onClick={() => setDialogOpen(true)}
-          size="lg"
-          className="w-full"
-        >
+        <Button onClick={() => setDialogOpen(true)} size="lg" className="w-full">
           Exercice terminé
         </Button>
       </div>
