@@ -128,45 +128,6 @@ export default function SeanceDetail() {
     }
   }, [sessionStartTime, isSessionActive, sessionId]);
 
-  // Fonction helper pour vérifier si un exercice est complété
-  const isExerciseCompleted = (item: any) => {
-    if (item.isSuperset) {
-      return item.exercises.every((ex: any) => ex.sportif_rpe !== null);
-    }
-    return item.sportif_rpe !== null;
-  };
-
-  // Fonction pour trier les exercices
-  const getSortedExercises = (exercisesList: any[]) => {
-    // Vérifier si tous les exercices sont complétés
-    const allCompleted = exercisesList.every(isExerciseCompleted);
-    
-    // Si tous complétés, retourner l'ordre d'origine
-    if (allCompleted) {
-      return [...exercisesList].sort((a: any, b: any) => {
-        const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-        const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
-        return orderA - orderB;
-      });
-    }
-    
-    // Sinon, mettre les non complétés en premier
-    return [...exercisesList].sort((a: any, b: any) => {
-      const aCompleted = isExerciseCompleted(a);
-      const bCompleted = isExerciseCompleted(b);
-      
-      // Si l'un est complété et l'autre non, le non complété passe en premier
-      if (aCompleted !== bCompleted) {
-        return aCompleted ? 1 : -1;
-      }
-      
-      // Sinon, garder l'ordre d'origine
-      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
-      return orderA - orderB;
-    });
-  };
-
   const loadSessionDetail = async () => {
     setLoading(true);
 
@@ -297,7 +258,12 @@ export default function SeanceDetail() {
     }
 
     // Vérifier si TOUS les exercices sont terminés
-    const allExercisesCompleted = exercises.every(isExerciseCompleted);
+    const allExercisesCompleted = exercises.every((ex: any) => {
+      if (ex.isSuperset) {
+        return ex.exercises.every((e: any) => e.sportif_rpe !== null);
+      }
+      return ex.sportif_rpe !== null;
+    });
 
     if (allExercisesCompleted) {
       setShowCelebration(true);
@@ -429,10 +395,12 @@ export default function SeanceDetail() {
   }
 
   // Check if all exercises are completed
-  const allCompleted = exercises.every(isExerciseCompleted);
-  
-  // Trier les exercices en fonction de leur état de complétion
-  const sortedExercises = getSortedExercises(exercises);
+  const allCompleted = exercises.every((ex: any) => {
+    if (ex.isSuperset) {
+      return ex.exercises.every((e: any) => e.sportif_rpe !== null);
+    }
+    return ex.sportif_rpe !== null;
+  });
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -510,16 +478,16 @@ export default function SeanceDetail() {
         )}
 
         <div className="space-y-2">
-          {sortedExercises.length === 0 ? (
+          {exercises.length === 0 ? (
             <Card>
               <CardContent className="py-8">
                 <p className="text-center text-muted-foreground">Aucun exercice pour cette séance</p>
               </CardContent>
             </Card>
           ) : (
-            sortedExercises.map((item, index) => {
+            exercises.map((item, index) => {
               if (item.isSuperset) {
-                const isCompleted = isExerciseCompleted(item);
+                const isCompleted = item.exercises.every((ex: any) => ex.sportif_rpe !== null);
 
                 return (
                   <Card
@@ -618,7 +586,7 @@ export default function SeanceDetail() {
                   </Card>
                 );
               } else {
-                const isCompleted = isExerciseCompleted(item);
+                const isCompleted = item.sportif_rpe !== null;
                 const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
 
                 return (
@@ -714,7 +682,41 @@ export default function SeanceDetail() {
                                                         <span className="font-medium capitalize">{step.movement_type}</span>
                                                         <span className="text-muted-foreground">•</span>
                                                         {step.effort_type === 'duration' ? (
+                                                          <span>{formatCardioTime(step.duration)}</span>
+                                                        ) : (
                                                           <span>{formatCardioDistance(step.distance)}</span>
+                                                        )}
+                                                        {pace && (
+                                                          <>
+                                                            <span className="text-muted-foreground">•</span>
+                                                            <span className="text-primary font-medium">{pace}</span>
+                                                          </>
+                                                        )}
+                                                        {step.target_heart_rate && (
+                                                          <>
+                                                            <span className="text-muted-foreground">•</span>
+                                                            <span>FC: {step.target_heart_rate}</span>
+                                                          </>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                        {steps.filter((s: any) => !s.block_id).map((step: any) => {
+                                          const pace = calculatePace(step.vma_percentage, athleteVma);
+                                          return (
+                                            <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
+                                              <div className="flex gap-2 flex-wrap items-center">
+                                                <span className="font-medium capitalize">{step.movement_type}</span>
+                                                <span className="text-muted-foreground">•</span>
+                                                {step.effort_type === 'duration' ? (
+                                                  <span>{formatCardioTime(step.duration)}</span>
+                                                ) : (
+                                                  <span>{formatCardioDistance(step.distance)}</span>
                                                 )}
                                                 {pace && (
                                                   <>
@@ -792,38 +794,4 @@ export default function SeanceDetail() {
       />
     </div>
   );
-}Time(step.duration)}</span>
-                                                        ) : (
-                                                          <span>{formatCardioDistance(step.distance)}</span>
-                                                        )}
-                                                        {pace && (
-                                                          <>
-                                                            <span className="text-muted-foreground">•</span>
-                                                            <span className="text-primary font-medium">{pace}</span>
-                                                          </>
-                                                        )}
-                                                        {step.target_heart_rate && (
-                                                          <>
-                                                            <span className="text-muted-foreground">•</span>
-                                                            <span>FC: {step.target_heart_rate}</span>
-                                                          </>
-                                                        )}
-                                                      </div>
-                                                    </div>
-                                                  );
-                                                })}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                        {steps.filter((s: any) => !s.block_id).map((step: any) => {
-                                          const pace = calculatePace(step.vma_percentage, athleteVma);
-                                          return (
-                                            <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
-                                              <div className="flex gap-2 flex-wrap items-center">
-                                                <span className="font-medium capitalize">{step.movement_type}</span>
-                                                <span className="text-muted-foreground">•</span>
-                                                {step.effort_type === 'duration' ? (
-                                                  <span>{formatCardioTime(step.duration)}</span>
-                                                ) : (
-                                                  <span>{formatCardio
+}
