@@ -129,7 +129,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     // Charger le volume prévu pour la semaine en cours
     await loadPlannedVolume(athleteId, profileData?.vma || null);
 
-    // Charger toutes les séances cardio validées avec les métriques pré-calculées
+    // Charger toutes les séances cardio de course avec les métriques pré-calculées
     const { data: sessions, error } = await supabase
       .from("training_sessions")
       .select(`
@@ -153,9 +153,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       `)
       .eq("training_weeks.athlete_id", athleteId)
       .eq("session_exercises.cardio_sport", "course")
-      .not("session_exercises.sportif_rpe", "is", null)
       .not("cardio_total_distance_km", "is", null)
-      .order("session_exercises.sportif_feedback_at", { foreignTable: "session_exercises", ascending: true });
+      .order("training_weeks.year", { ascending: true })
+      .order("training_weeks.week_number", { ascending: true });
 
     if (error) {
       console.error("Error loading cardio sessions:", error);
@@ -220,9 +220,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center">
         <Activity className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium">Aucune séance de course validée</p>
+        <p className="text-lg font-medium">Aucune séance de course à pied</p>
         <p className="text-sm text-muted-foreground mt-2">
-          Les séances de course validées par {athleteName} apparaîtront ici
+          Les séances de course de {athleteName} apparaîtront ici
         </p>
       </div>
     );
