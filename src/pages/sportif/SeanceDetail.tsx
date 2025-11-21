@@ -9,7 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
-import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration } from "@/lib/cardioCalculations";
+import {
+  formatCardioTime,
+  formatCardioDistance,
+  calculatePace,
+  calculateCardioSessionDuration,
+  formatCardioSessionDuration,
+} from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import {
   AlertDialog,
@@ -42,13 +48,11 @@ export default function SeanceDetail() {
   // Charger la VMA de l'athlète
   useEffect(() => {
     const loadVma = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase
-          .from("user_profiles")
-          .select("vma")
-          .eq("id", user.id)
-          .single();
+        const { data } = await supabase.from("user_profiles").select("vma").eq("id", user.id).single();
         if (data?.vma) {
           setAthleteVma(data.vma);
         }
@@ -56,7 +60,7 @@ export default function SeanceDetail() {
     };
     loadVma();
   }, []);
-  
+
   // --- Restaurer l'état du timer depuis localStorage ---
   useEffect(() => {
     const savedTimer = localStorage.getItem(`session_timer_${sessionId}`);
@@ -74,14 +78,14 @@ export default function SeanceDetail() {
         const interval = setInterval(() => {
           const currentElapsed = Math.floor((Date.now() - startTime) / 1000);
           setSessionDuration(currentElapsed);
-          
+
           // Arrêt automatique après 2 heures (7200 secondes)
           if (currentElapsed >= 7200) {
             clearInterval(interval);
             setTimerInterval(null);
             setIsSessionActive(false);
             localStorage.removeItem(`session_timer_${sessionId}`);
-            
+
             // Enregistrer dans la base
             supabase
               .from("training_sessions")
@@ -128,6 +132,45 @@ export default function SeanceDetail() {
     }
   }, [sessionStartTime, isSessionActive, sessionId]);
 
+  // Fonction helper pour vérifier si un exercice est complété
+  const isExerciseCompleted = (item: any) => {
+    if (item.isSuperset) {
+      return item.exercises.every((ex: any) => ex.sportif_rpe !== null);
+    }
+    return item.sportif_rpe !== null;
+  };
+
+  // Fonction pour trier les exercices
+  const getSortedExercises = (exercisesList: any[]) => {
+    // Vérifier si tous les exercices sont complétés
+    const allCompleted = exercisesList.every(isExerciseCompleted);
+
+    // Si tous complétés, retourner l'ordre d'origine
+    if (allCompleted) {
+      return [...exercisesList].sort((a: any, b: any) => {
+        const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+        const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+        return orderA - orderB;
+      });
+    }
+
+    // Sinon, mettre les non complétés en premier
+    return [...exercisesList].sort((a: any, b: any) => {
+      const aCompleted = isExerciseCompleted(a);
+      const bCompleted = isExerciseCompleted(b);
+
+      // Si l'un est complété et l'autre non, le non complété passe en premier
+      if (aCompleted !== bCompleted) {
+        return aCompleted ? 1 : -1;
+      }
+
+      // Sinon, garder l'ordre d'origine
+      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+      return orderA - orderB;
+    });
+  };
+
   const loadSessionDetail = async () => {
     setLoading(true);
 
@@ -159,9 +202,7 @@ export default function SeanceDetail() {
       if (exercise.super_set_group && !processedGroups.has(exercise.super_set_group)) {
         // C'est un superset
         processedGroups.add(exercise.super_set_group);
-        const supersetExercises = exData.filter(
-          (ex: any) => ex.super_set_group === exercise.super_set_group,
-        );
+        const supersetExercises = exData.filter((ex: any) => ex.super_set_group === exercise.super_set_group);
         grouped.push({
           isSuperset: true,
           super_set_group: exercise.super_set_group,
@@ -188,25 +229,22 @@ export default function SeanceDetail() {
     setSessionStartTime(startTime);
     setIsSessionActive(true);
     setSessionDuration(0);
-    
+
     // Sauvegarder dans localStorage
-    localStorage.setItem(
-      `session_timer_${sessionId}`,
-      JSON.stringify({ startTime, isActive: true }),
-    );
-    
+    localStorage.setItem(`session_timer_${sessionId}`, JSON.stringify({ startTime, isActive: true }));
+
     // Démarrer le timer avec recalcul basé sur timestamp
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
       setSessionDuration(elapsed);
-      
+
       // Arrêt automatique après 2 heures (7200 secondes)
       if (elapsed >= 7200) {
         clearInterval(interval);
         setTimerInterval(null);
         setIsSessionActive(false);
         localStorage.removeItem(`session_timer_${sessionId}`);
-        
+
         // Enregistrer dans la base
         supabase
           .from("training_sessions")
@@ -230,10 +268,10 @@ export default function SeanceDetail() {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
-    
+
     setTimerInterval(null);
     setIsSessionActive(false);
-    
+
     // Nettoyer le localStorage
     localStorage.removeItem(`session_timer_${sessionId}`);
 
@@ -258,12 +296,7 @@ export default function SeanceDetail() {
     }
 
     // Vérifier si TOUS les exercices sont terminés
-    const allExercisesCompleted = exercises.every((ex: any) => {
-      if (ex.isSuperset) {
-        return ex.exercises.every((e: any) => e.sportif_rpe !== null);
-      }
-      return ex.sportif_rpe !== null;
-    });
+    const allExercisesCompleted = exercises.every(isExerciseCompleted);
 
     if (allExercisesCompleted) {
       setShowCelebration(true);
@@ -280,11 +313,11 @@ export default function SeanceDetail() {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    
+
     if (hours > 0) {
-      return `${hours}h ${minutes.toString().padStart(2, '0')}min`;
+      return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
     }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    return `${minutes}:${secs.toString().padStart(2, "0")}`;
   };
 
   const handleCelebrationComplete = () => {
@@ -395,12 +428,10 @@ export default function SeanceDetail() {
   }
 
   // Check if all exercises are completed
-  const allCompleted = exercises.every((ex: any) => {
-    if (ex.isSuperset) {
-      return ex.exercises.every((e: any) => e.sportif_rpe !== null);
-    }
-    return ex.sportif_rpe !== null;
-  });
+  const allCompleted = exercises.every(isExerciseCompleted);
+
+  // Trier les exercices en fonction de leur état de complétion
+  const sortedExercises = getSortedExercises(exercises);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -411,7 +442,7 @@ export default function SeanceDetail() {
         onComplete={handleCelebrationComplete}
         type="session"
       />
-      
+
       <div className="sticky top-0 z-10 bg-background border-b p-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -463,39 +494,41 @@ export default function SeanceDetail() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Invalider cette séance ?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. 
-                  Tu pourras la refaire comme si tu ne l'avais jamais complétée.
+                  Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. Tu pourras la
+                  refaire comme si tu ne l'avais jamais complétée.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleInvalidateSession}>
-                  Confirmer
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleInvalidateSession}>Confirmer</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         )}
 
         <div className="space-y-2">
-          {exercises.length === 0 ? (
+          {sortedExercises.length === 0 ? (
             <Card>
               <CardContent className="py-8">
                 <p className="text-center text-muted-foreground">Aucun exercice pour cette séance</p>
               </CardContent>
             </Card>
           ) : (
-            exercises.map((item, index) => {
+            sortedExercises.map((item, index) => {
               if (item.isSuperset) {
-                const isCompleted = item.exercises.every((ex: any) => ex.sportif_rpe !== null);
+                const isCompleted = isExerciseCompleted(item);
 
                 return (
                   <Card
                     key={item.super_set_group}
-                    className={`${allCompleted ? '' : 'cursor-pointer hover:border-primary'} transition-colors border-2 ${
+                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
-                    onClick={allCompleted ? undefined : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)}
+                    onClick={
+                      allCompleted
+                        ? undefined
+                        : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)
+                    }
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between mb-2">
@@ -504,22 +537,24 @@ export default function SeanceDetail() {
                             <Badge className={isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}>
                               Superset
                             </Badge>
-                            {isCompleted && (
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
-                            )}
+                            {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
                           </div>
                           <p className="text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
                         </div>
                         {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                       </div>
 
-                      <div className={`space-y-2 ${allCompleted ? 'mt-4 border-t pt-3' : ''}`}>
+                      <div className={`space-y-2 ${allCompleted ? "mt-4 border-t pt-3" : ""}`}>
                         {item.exercises.map((ex: any, exIndex: number) => (
-                          <div key={exIndex} className={allCompleted ? "bg-muted/30 rounded-lg p-3 space-y-2" : "space-y-1"}>
-                            <p className={`${allCompleted ? 'font-medium' : 'text-sm text-muted-foreground'}`}>
-                              {!allCompleted && `${exIndex + 1}. `}{ex.exercice}
+                          <div
+                            key={exIndex}
+                            className={allCompleted ? "bg-muted/30 rounded-lg p-3 space-y-2" : "space-y-1"}
+                          >
+                            <p className={`${allCompleted ? "font-medium" : "text-sm text-muted-foreground"}`}>
+                              {!allCompleted && `${exIndex + 1}. `}
+                              {ex.exercice}
                             </p>
-                            
+
                             {allCompleted && (
                               <div className="flex gap-2 flex-wrap">
                                 {ex.series && (
@@ -554,7 +589,7 @@ export default function SeanceDetail() {
                                 )}
                               </div>
                             )}
-                            
+
                             {isCompleted && allCompleted && (
                               <>
                                 <div className="flex items-center gap-2 text-xs flex-wrap border-t pt-2">
@@ -563,19 +598,17 @@ export default function SeanceDetail() {
                                   </Badge>
                                   {ex.sportif_feedback_at && (
                                     <span className="text-muted-foreground">
-                                      {new Date(ex.sportif_feedback_at).toLocaleDateString('fr-FR', { 
-                                        day: '2-digit', 
-                                        month: '2-digit',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
+                                      {new Date(ex.sportif_feedback_at).toLocaleDateString("fr-FR", {
+                                        day: "2-digit",
+                                        month: "2-digit",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
                                       })}
                                     </span>
                                   )}
                                 </div>
                                 {ex.sportif_comment && (
-                                  <p className="text-xs text-muted-foreground italic">
-                                    💬 {ex.sportif_comment}
-                                  </p>
+                                  <p className="text-xs text-muted-foreground italic">💬 {ex.sportif_comment}</p>
                                 )}
                               </>
                             )}
@@ -586,18 +619,18 @@ export default function SeanceDetail() {
                   </Card>
                 );
               } else {
-                const isCompleted = item.sportif_rpe !== null;
+                const isCompleted = isExerciseCompleted(item);
                 const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
 
                 return (
                   <Card
                     key={item.id}
-                    className={`${allCompleted ? '' : 'cursor-pointer hover:border-primary'} transition-colors border-2 ${
+                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
                     onClick={
-                      allCompleted 
-                        ? undefined 
+                      allCompleted
+                        ? undefined
                         : isCardio
                           ? () => handleCardioClick(item)
                           : () => navigate(`/sportif/exercice/${item.id}`)
@@ -652,94 +685,107 @@ export default function SeanceDetail() {
                                     {item.cardio_sport}
                                   </Badge>
                                 )}
-                                {item.cardio_content && (() => {
-                                  try {
-                                    const cardioData: CardioData = JSON.parse(item.cardio_content);
-                                    const steps = cardioData.steps || [];
-                                    const blocks = cardioData.blocks || [];
-                                    const estimatedDuration = calculateCardioSessionDuration(cardioData, athleteVma);
-                                    
-                                    return (
-                                      <div className="space-y-2 mt-2">
-                                        {estimatedDuration > 0 && (
-                                          <Badge variant="secondary" className="text-xs">
-                                            Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
-                                          </Badge>
-                                        )}
-                                        {blocks.map((block: any) => {
-                                          const blockSteps = steps.filter((s: any) => s.block_id === block.id);
-                                          return (
-                                            <div key={block.id} className="border rounded-lg p-3 bg-muted/30">
-                                              <div className="font-medium text-sm mb-2 text-primary">
-                                                Bloc {block.name} - {block.repetitions}x
-                                              </div>
-                                              <div className="space-y-1.5">
-                                                {blockSteps.map((step: any) => {
-                                                  const pace = calculatePace(step.vma_percentage, athleteVma);
-                                                  return (
-                                                    <div key={step.id} className="text-xs space-y-1 pl-2 border-l-2 border-primary/30">
-                                                      <div className="flex gap-2 flex-wrap items-center">
-                                                        <span className="font-medium capitalize">{step.movement_type}</span>
-                                                        <span className="text-muted-foreground">•</span>
-                                                        {step.effort_type === 'duration' ? (
-                                                          <span>{formatCardioTime(step.duration)}</span>
-                                                        ) : (
-                                                          <span>{formatCardioDistance(step.distance)}</span>
-                                                        )}
-                                                        {pace && (
-                                                          <>
-                                                            <span className="text-muted-foreground">•</span>
-                                                            <span className="text-primary font-medium">{pace}</span>
-                                                          </>
-                                                        )}
-                                                        {step.target_heart_rate && (
-                                                          <>
-                                                            <span className="text-muted-foreground">•</span>
-                                                            <span>FC: {step.target_heart_rate}</span>
-                                                          </>
-                                                        )}
+                                {item.cardio_content &&
+                                  (() => {
+                                    try {
+                                      const cardioData: CardioData = JSON.parse(item.cardio_content);
+                                      const steps = cardioData.steps || [];
+                                      const blocks = cardioData.blocks || [];
+                                      const estimatedDuration = calculateCardioSessionDuration(cardioData, athleteVma);
+
+                                      return (
+                                        <div className="space-y-2 mt-2">
+                                          {estimatedDuration > 0 && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
+                                            </Badge>
+                                          )}
+                                          {blocks.map((block: any) => {
+                                            const blockSteps = steps.filter((s: any) => s.block_id === block.id);
+                                            return (
+                                              <div key={block.id} className="border rounded-lg p-3 bg-muted/30">
+                                                <div className="font-medium text-sm mb-2 text-primary">
+                                                  Bloc {block.name} - {block.repetitions}x
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                  {blockSteps.map((step: any) => {
+                                                    const pace = calculatePace(step.vma_percentage, athleteVma);
+                                                    return (
+                                                      <div
+                                                        key={step.id}
+                                                        className="text-xs space-y-1 pl-2 border-l-2 border-primary/30"
+                                                      >
+                                                        <div className="flex gap-2 flex-wrap items-center">
+                                                          <span className="font-medium capitalize">
+                                                            {step.movement_type}
+                                                          </span>
+                                                          <span className="text-muted-foreground">•</span>
+                                                          {step.effort_type === "duration" ? (
+                                                            <span>{formatCardioTime(step.duration)}</span>
+                                                          ) : (
+                                                            <span>{formatCardioDistance(step.distance)}</span>
+                                                          )}
+                                                          {pace && (
+                                                            <>
+                                                              <span className="text-muted-foreground">•</span>
+                                                              <span className="text-primary font-medium">{pace}</span>
+                                                            </>
+                                                          )}
+                                                          {step.target_heart_rate && (
+                                                            <>
+                                                              <span className="text-muted-foreground">•</span>
+                                                              <span>FC: {step.target_heart_rate}</span>
+                                                            </>
+                                                          )}
+                                                        </div>
                                                       </div>
-                                                    </div>
-                                                  );
-                                                })}
+                                                    );
+                                                  })}
+                                                </div>
                                               </div>
-                                            </div>
-                                          );
-                                        })}
-                                        {steps.filter((s: any) => !s.block_id).map((step: any) => {
-                                          const pace = calculatePace(step.vma_percentage, athleteVma);
-                                          return (
-                                            <div key={step.id} className="text-xs space-y-1 border-l-2 border-border pl-2">
-                                              <div className="flex gap-2 flex-wrap items-center">
-                                                <span className="font-medium capitalize">{step.movement_type}</span>
-                                                <span className="text-muted-foreground">•</span>
-                                                {step.effort_type === 'duration' ? (
-                                                  <span>{formatCardioTime(step.duration)}</span>
-                                                ) : (
-                                                  <span>{formatCardioDistance(step.distance)}</span>
-                                                )}
-                                                {pace && (
-                                                  <>
+                                            );
+                                          })}
+                                          {steps
+                                            .filter((s: any) => !s.block_id)
+                                            .map((step: any) => {
+                                              const pace = calculatePace(step.vma_percentage, athleteVma);
+                                              return (
+                                                <div
+                                                  key={step.id}
+                                                  className="text-xs space-y-1 border-l-2 border-border pl-2"
+                                                >
+                                                  <div className="flex gap-2 flex-wrap items-center">
+                                                    <span className="font-medium capitalize">{step.movement_type}</span>
                                                     <span className="text-muted-foreground">•</span>
-                                                    <span className="text-primary font-medium">{pace}</span>
-                                                  </>
-                                                )}
-                                                {step.target_heart_rate && (
-                                                  <>
-                                                    <span className="text-muted-foreground">•</span>
-                                                    <span>FC: {step.target_heart_rate}</span>
-                                                  </>
-                                                )}
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    );
-                                  } catch (e) {
-                                    return <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>;
-                                  }
-                                })()}
+                                                    {step.effort_type === "duration" ? (
+                                                      <span>{formatCardioTime(step.duration)}</span>
+                                                    ) : (
+                                                      <span>{formatCardioDistance(step.distance)}</span>
+                                                    )}
+                                                    {pace && (
+                                                      <>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span className="text-primary font-medium">{pace}</span>
+                                                      </>
+                                                    )}
+                                                    {step.target_heart_rate && (
+                                                      <>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span>FC: {step.target_heart_rate}</span>
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                        </div>
+                                      );
+                                    } catch (e) {
+                                      return (
+                                        <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>
+                                      );
+                                    }
+                                  })()}
                                 {item.cardio_pace && (
                                   <Badge variant="outline" className="text-xs">
                                     {item.cardio_pace}
@@ -759,19 +805,17 @@ export default function SeanceDetail() {
                               </Badge>
                               {item.sportif_feedback_at && (
                                 <span className="text-muted-foreground">
-                                  {new Date(item.sportif_feedback_at).toLocaleDateString('fr-FR', { 
-                                    day: '2-digit', 
-                                    month: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
+                                  {new Date(item.sportif_feedback_at).toLocaleDateString("fr-FR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
                                   })}
                                 </span>
                               )}
                             </div>
                             {item.sportif_comment && (
-                              <p className="text-xs text-muted-foreground italic">
-                                💬 {item.sportif_comment}
-                              </p>
+                              <p className="text-xs text-muted-foreground italic">💬 {item.sportif_comment}</p>
                             )}
                           </div>
                         )}
