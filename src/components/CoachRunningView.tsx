@@ -231,6 +231,20 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
   const totalWeeks = cardioSessions.length;
   const avgIntensity = cardioSessions.reduce((sum, s) => sum + s.averageIntensity, 0) / totalWeeks;
 
+  // Calculer les métriques de la semaine précédente pour comparaison
+  const lastWeek = cardioSessions[cardioSessions.length - 1];
+  const previousWeek = cardioSessions[cardioSessions.length - 2];
+  
+  const calculatePercentChange = (current: number, previous: number): { value: number; isIncrease: boolean } => {
+    if (!previous || previous === 0) return { value: 0, isIncrease: true };
+    const percentChange = ((current - previous) / previous) * 100;
+    return { value: Math.abs(percentChange), isIncrease: percentChange >= 0 };
+  };
+
+  const distanceChange = previousWeek ? calculatePercentChange(lastWeek.distanceKm, previousWeek.distanceKm) : null;
+  const durationChange = previousWeek ? calculatePercentChange(lastWeek.durationMinutes, previousWeek.durationMinutes) : null;
+  const intensityChange = previousWeek ? calculatePercentChange(lastWeek.averageIntensity, previousWeek.averageIntensity) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -335,6 +349,14 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card>
           <CardHeader>
             <CardTitle>Distance par semaine</CardTitle>
+            {lastWeek && previousWeek && distanceChange && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Semaine précédente : {previousWeek.distanceKm.toFixed(1)} km
+                <span className={distanceChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                  {distanceChange.isIncrease ? "↑" : "↓"} {distanceChange.value.toFixed(1)}%
+                </span>
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -373,6 +395,14 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card>
           <CardHeader>
             <CardTitle>Durée par semaine</CardTitle>
+            {lastWeek && previousWeek && durationChange && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Semaine précédente : {Math.floor(previousWeek.durationMinutes / 60)}h{(previousWeek.durationMinutes % 60).toString().padStart(2, '0')}
+                <span className={durationChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                  {durationChange.isIncrease ? "↑" : "↓"} {durationChange.value.toFixed(1)}%
+                </span>
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -412,10 +442,18 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Intensité moyenne par semaine</CardTitle>
+            {lastWeek && previousWeek && intensityChange && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Semaine précédente : {previousWeek.averageIntensity}% VMA
+                <span className={intensityChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                  {intensityChange.isIncrease ? "↑" : "↓"} {intensityChange.value.toFixed(1)}%
+                </span>
+              </p>
+            )}
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -441,14 +479,12 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Line 
-                  type="monotone" 
+                <Bar 
                   dataKey="averageIntensity" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
+                  fill="hsl(var(--primary))" 
                   name="Intensité (% VMA)"
                 />
-              </LineChart>
+              </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
