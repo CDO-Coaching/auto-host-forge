@@ -64,7 +64,7 @@ interface Session {
   id: number;
   name: string;
   isExpanded: boolean;
-  session_type: "renfo" | "cardio";
+  session_type: "renfo" | "cardio" | "recup";
 }
 
 interface Exercise {
@@ -95,7 +95,7 @@ export default function ClientDetail() {
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
-  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean }>>([]);
+  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean; category?: string }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
@@ -109,7 +109,7 @@ export default function ClientDetail() {
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
-  const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
+  const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
   const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
   const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
@@ -170,7 +170,7 @@ export default function ClientDetail() {
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
   const loadLibraryExercises = async () => {
-    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral").order("name");
+    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral, category").order("name");
 
     if (error) {
       console.error("Erreur lors du chargement des exercices:", error);
@@ -551,6 +551,7 @@ export default function ClientDetail() {
     try {
       const currentExercises = editedHistoricalExercises[sessionId] || [];
       const isCardio = session.session_type === "cardio";
+      const isRecup = session.session_type === "recup";
 
       const { data, error } = await supabase
         .from("session_exercises")
@@ -633,20 +634,26 @@ export default function ClientDetail() {
     setLoading(false);
   };
 
-  const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio">("renfo");
+  const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
 
   const handleCreateSession = () => {
     const nextSessionNumber = sessions.length + 1;
+    const sessionName = newSessionType === "cardio" 
+      ? `Cardio ${nextSessionNumber}` 
+      : newSessionType === "recup" 
+      ? `Récup/Mobilité ${nextSessionNumber}`
+      : `Séance ${nextSessionNumber}`;
+      
     const newSession: Session = {
       id: nextSessionNumber,
-      name: newSessionType === "cardio" ? `Cardio ${nextSessionNumber}` : `Séance ${nextSessionNumber}`,
+      name: sessionName,
       isExpanded: false,
       session_type: newSessionType,
     };
 
     setSessions([...sessions, newSession]);
 
-    // Si c'est une séance cardio, ajouter automatiquement un exercice cardio
+    // Si c'est une séance cardio ou recup, ajouter automatiquement un exercice
     if (newSessionType === "cardio") {
       const newExercise: Exercise = {
         id: 1,
@@ -661,6 +668,23 @@ export default function ClientDetail() {
         cardio_sport: "",
         cardio_content: "",
         cardio_pace: "",
+      };
+
+      setSessionExercises({
+        ...sessionExercises,
+        [nextSessionNumber]: [newExercise],
+      });
+    } else if (newSessionType === "recup") {
+      const newExercise: Exercise = {
+        id: 1,
+        exercice: "",
+        recuperation: "",
+        reps: "",
+        series: "",
+        charge: "",
+        rpe: "",
+        tempo: "",
+        commentaire: "",
       };
 
       setSessionExercises({
@@ -953,6 +977,7 @@ export default function ClientDetail() {
     const currentExercises = sessionExercises[sessionId] || [];
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
+    const isRecup = session?.session_type === "recup";
 
     const newExerciseId = currentExercises.length + 1;
     const newExercise: Exercise = {
@@ -1753,150 +1778,7 @@ export default function ClientDetail() {
                                   ) : (
                                     (sessionExercises[session.id] || []).map((exercise) => (
                                       <div key={exercise.id} className="border rounded-lg p-4 bg-background space-y-3">
-                                        <div className="flex justify-between items-center">
-                                          <h4 className="font-medium">Séance Cardio {exercise.id}</h4>
-                                          {!isValidated && (
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => handleDeleteExercise(session.id, exercise.id)}
-                                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">Sport</label>
-                                            <select
-                                              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                              value={exercise.cardio_sport || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(
-                                                  session.id,
-                                                  exercise.id,
-                                                  "cardio_sport",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              disabled={isValidated}
-                                            >
-                                              <option value="">Sélectionner...</option>
-                                              <option value="course">Course</option>
-                                              <option value="natation">Natation</option>
-                                              <option value="vélo">Vélo</option>
-                                              <option value="yoga">Yoga (balance)</option>
-                                              <option value="hiit">HIIT</option>
-                                            </select>
-                                          </div>
-                                          {exercise.cardio_sport === "course" && (
-                                            <div className="col-span-full">
-                                              <CardioStepBuilder
-                                                steps={(() => {
-                                                  try {
-                                                    const data = exercise.cardio_content 
-                                                      ? JSON.parse(exercise.cardio_content) 
-                                                      : { steps: [], blocks: [] };
-                                                    return Array.isArray(data) ? data : data.steps || [];
-                                                  } catch {
-                                                    return [];
-                                                  }
-                                                })()}
-                                                blocks={(() => {
-                                                  try {
-                                                    const data = exercise.cardio_content 
-                                                      ? JSON.parse(exercise.cardio_content) 
-                                                      : { steps: [], blocks: [] };
-                                                    return Array.isArray(data) ? [] : data.blocks || [];
-                                                  } catch {
-                                                    return [];
-                                                  }
-                                                })()}
-                                                athleteVma={athleteVma}
-                                                onChange={(cardioData) =>
-                                                  handleExerciseChange(
-                                                    session.id,
-                                                    exercise.id,
-                                                    "cardio_content",
-                                                    JSON.stringify(cardioData),
-                                                  )
-                                                }
-                                                disabled={isValidated}
-                                              />
-                                            </div>
-                                          )}
-                                          {exercise.cardio_sport !== "course" && (
-                                            <>
-                                              {exercise.cardio_sport && (
-                                                <div>
-                                                  <label className="text-sm font-medium mb-1 block">Allure</label>
-                                                  <Input
-                                                    value={exercise.cardio_pace || ""}
-                                                    onChange={(e) =>
-                                                      handleExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "cardio_pace",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 5:30/km"
-                                                    disabled={isValidated}
-                                                  />
-                                                </div>
-                                              )}
-                                            </>
-                                          )}
-                                        </div>
-                                        {exercise.cardio_sport !== "course" && (
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">Contenu</label>
-                                            <textarea
-                                              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                              value={exercise.cardio_content || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(
-                                                  session.id,
-                                                  exercise.id,
-                                                  "cardio_content",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              placeholder="Décris le contenu de la séance..."
-                                              disabled={isValidated}
-                                            />
-                                          </div>
-                                        )}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">RPE</label>
-                                            <Input
-                                              value={exercise.rpe || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)
-                                              }
-                                              placeholder="ex: 7"
-                                              disabled={isValidated}
-                                            />
-                                          </div>
-                                          <div>
-                                            <label className="text-sm font-medium mb-1 block">Commentaire</label>
-                                            <Input
-                                              value={exercise.commentaire || ""}
-                                              onChange={(e) =>
-                                                handleExerciseChange(
-                                                  session.id,
-                                                  exercise.id,
-                                                  "commentaire",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              placeholder="Notes..."
-                                              disabled={isValidated}
-                                            />
-                                          </div>
-                                        </div>
+...
                                       </div>
                                     ))
                                   )}
@@ -1911,6 +1793,92 @@ export default function ClientDetail() {
                                     </Button>
                                   )}
                                 </div>
+                              ) : session.session_type === "recup" ? (
+                                // Interface Récup/Mobilité
+                                <>
+                                  <div className="overflow-x-auto">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="min-w-[200px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[150px]">Durée/Répétitions</TableHead>
+                                          <TableHead className="min-w-[250px]">Commentaire</TableHead>
+                                          <TableHead className="w-[50px]"></TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(sessionExercises[session.id] || []).length === 0 ? (
+                                          <TableRow>
+                                            <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                                              Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                            </TableCell>
+                                          </TableRow>
+                                        ) : (
+                                          (sessionExercises[session.id] || []).map((exercise) => (
+                                            <TableRow key={exercise.id}>
+                                              <TableCell>
+                                                <ExerciseCombobox
+                                                  value={exercise.exercice}
+                                                  onChange={(value) =>
+                                                    handleExerciseChange(session.id, exercise.id, "exercice", value)
+                                                  }
+                                                  exercises={libraryExercises.filter(
+                                                    (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
+                                                  )}
+                                                  disabled={isValidated}
+                                                />
+                                              </TableCell>
+                                              <TableCell>
+                                                <Input
+                                                  value={exercise.reps}
+                                                  onChange={(e) =>
+                                                    handleExerciseChange(session.id, exercise.id, "reps", e.target.value)
+                                                  }
+                                                  placeholder="ex: 3x30sec ou 10 reps"
+                                                  disabled={isValidated}
+                                                />
+                                              </TableCell>
+                                              <TableCell>
+                                                <Input
+                                                  value={exercise.commentaire}
+                                                  onChange={(e) =>
+                                                    handleExerciseChange(
+                                                      session.id,
+                                                      exercise.id,
+                                                      "commentaire",
+                                                      e.target.value,
+                                                    )
+                                                  }
+                                                  placeholder="Notes..."
+                                                  disabled={isValidated}
+                                                />
+                                              </TableCell>
+                                              <TableCell>
+                                                {!isValidated && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                  >
+                                                    <X className="h-4 w-4" />
+                                                  </Button>
+                                                )}
+                                              </TableCell>
+                                            </TableRow>
+                                          ))
+                                        )}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+
+                                  {!isValidated && (
+                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm">
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Ajouter une ligne
+                                    </Button>
+                                  )}
+                                </>
                               ) : (
                                 // Interface Renfo (existante)
                                 <>
@@ -2622,6 +2590,14 @@ export default function ClientDetail() {
                     >
                       Cardio
                     </Button>
+                    <Button
+                      size="sm"
+                      variant={newSessionType === "recup" ? "default" : "outline"}
+                      onClick={() => setNewSessionType("recup")}
+                      disabled={!selectedWeekToProgram}
+                    >
+                      Récup/Mobilité
+                    </Button>
                     <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
                       <Plus className="h-4 w-4 mr-2" />
                       Créer
@@ -2775,6 +2751,13 @@ export default function ClientDetail() {
                                   >
                                     Cardio
                                   </Button>
+                                  <Button
+                                    variant={newHistoricalSessionType === "recup" ? "default" : "outline"}
+                                    onClick={() => setNewHistoricalSessionType("recup")}
+                                    size="sm"
+                                  >
+                                    Récup/Mobilité
+                                  </Button>
                                 </div>
                                 <div className="flex gap-2">
                                   <Input
@@ -2813,8 +2796,8 @@ export default function ClientDetail() {
                                     </span>
                                   )}
                                 </div>
-                                <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
-                                  {session.session_type === "cardio" ? "Cardio" : "Renfo"}
+                                <Badge variant={session.session_type === "cardio" ? "secondary" : session.session_type === "recup" ? "outline" : "outline"}>
+                                  {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
                                 </Badge>
                                 {(() => {
                                   const exercises = session.session_exercises || [];
@@ -2881,17 +2864,28 @@ export default function ClientDetail() {
                                   <Table>
                                     <TableHeader>
                                       <TableRow>
-                                        <TableHead>Exercice</TableHead>
-                                        <TableHead>Récup</TableHead>
-                                        <TableHead>Reps</TableHead>
-                                        <TableHead>Séries</TableHead>
-                                        <TableHead>Charge</TableHead>
-                                        <TableHead>RPE prescrit</TableHead>
-                                        <TableHead>RPE ressenti</TableHead>
-                                        <TableHead>Tempo</TableHead>
-                                        <TableHead>Commentaire coach</TableHead>
-                                        <TableHead>Retour sportif</TableHead>
-                                        {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                        {session.session_type === "recup" ? (
+                                          <>
+                                            <TableHead>Exercice</TableHead>
+                                            <TableHead>Durée/Répétitions</TableHead>
+                                            <TableHead>Commentaire</TableHead>
+                                            {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <TableHead>Exercice</TableHead>
+                                            <TableHead>Récup</TableHead>
+                                            <TableHead>Reps</TableHead>
+                                            <TableHead>Séries</TableHead>
+                                            <TableHead>Charge</TableHead>
+                                            <TableHead>RPE prescrit</TableHead>
+                                            <TableHead>RPE ressenti</TableHead>
+                                            <TableHead>Tempo</TableHead>
+                                            <TableHead>Commentaire coach</TableHead>
+                                            <TableHead>Retour sportif</TableHead>
+                                            {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                          </>
+                                        )}
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -2899,6 +2893,83 @@ export default function ClientDetail() {
                                       editedHistoricalExercises[session.id].length > 0 ? (
                                         editedHistoricalExercises[session.id].map((exercise: any) => {
                                           const isCardioExercise = exercise.cardio_sport || exercise.cardio_content;
+                                          const isRecupSession = session.session_type === "recup";
+                                          
+                                          if (isRecupSession) {
+                                            // Affichage simplifié pour séances récup/mobilité
+                                            return (
+                                              <TableRow key={exercise.id}>
+                                                <TableCell>
+                                                  {isEditingHistorical ? (
+                                                    <ExerciseCombobox
+                                                      value={exercise.exercice}
+                                                      onChange={(value) =>
+                                                        handleHistoricalExerciseChange(
+                                                          session.id,
+                                                          exercise.id,
+                                                          "exercice",
+                                                          value,
+                                                        )
+                                                      }
+                                                      exercises={libraryExercises.filter(
+                                                        (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
+                                                      )}
+                                                    />
+                                                  ) : (
+                                                    <span className="font-medium">{exercise.exercice}</span>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {isEditingHistorical ? (
+                                                    <Input
+                                                      value={exercise.reps}
+                                                      onChange={(e) =>
+                                                        handleHistoricalExerciseChange(
+                                                          session.id,
+                                                          exercise.id,
+                                                          "reps",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      placeholder="ex: 3x30sec"
+                                                    />
+                                                  ) : (
+                                                    exercise.reps || "-"
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>
+                                                  {isEditingHistorical ? (
+                                                    <Input
+                                                      value={exercise.commentaire}
+                                                      onChange={(e) =>
+                                                        handleHistoricalExerciseChange(
+                                                          session.id,
+                                                          exercise.id,
+                                                          "commentaire",
+                                                          e.target.value,
+                                                        )
+                                                      }
+                                                      placeholder="Notes..."
+                                                    />
+                                                  ) : (
+                                                    exercise.commentaire || "-"
+                                                  )}
+                                                </TableCell>
+                                                {isEditingHistorical && (
+                                                  <TableCell>
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleDeleteHistoricalExercise(exercise.id)}
+                                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    >
+                                                      <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                  </TableCell>
+                                                )}
+                                              </TableRow>
+                                            );
+                                          }
                                           
                                           if (isCardioExercise) {
                                             // Affichage pour exercices cardio
