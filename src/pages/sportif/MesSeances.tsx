@@ -52,43 +52,43 @@ export default function MesSeances() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4 px-3 sm:px-0">
       <div>
-        <h1 className="text-3xl font-bold">Mes séances perso</h1>
-        <p className="text-muted-foreground mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold">Mes séances perso</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-2">
           Historique de toutes tes séances supplémentaires
         </p>
       </div>
 
       {customSessions.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Clock className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
+          <CardContent className="flex flex-col items-center justify-center py-10 sm:py-12 px-4">
+            <Clock className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+            <p className="text-sm sm:text-base text-muted-foreground text-center">
               Aucune séance perso enregistrée pour le moment.
             </p>
-            <p className="text-sm text-muted-foreground text-center mt-2">
+            <p className="text-xs sm:text-sm text-muted-foreground text-center mt-2">
               Retourne sur la page "Séances" pour ajouter une séance perso.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {customSessions.map((session) => (
             <Card key={session.id} className="border-primary/30 bg-primary/5">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CardTitle className="text-xl">{session.session_name}</CardTitle>
-                      <Badge variant="secondary">Perso</Badge>
+              <CardHeader className="pb-2 sm:pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <CardTitle className="text-base sm:text-xl break-words">{session.session_name}</CardTitle>
+                      <Badge variant="secondary" className="text-xs shrink-0">Perso</Badge>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm text-muted-foreground mt-2">
                       <div className="flex items-center gap-1">
-                        <Clock className="h-4 w-4" />
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
                         <span>{session.duration_minutes} min</span>
                       </div>
-                      <span>
+                      <span className="text-xs sm:text-sm">
                         {format(new Date(session.completed_at), "EEEE d MMMM yyyy 'à' HH:mm", {
                           locale: fr,
                         })}
@@ -98,8 +98,8 @@ export default function MesSeances() {
                 </div>
               </CardHeader>
               {session.description && (
-                <CardContent>
-                  <p className="text-foreground/80 italic border-l-2 border-primary/30 pl-3">
+                <CardContent className="pt-0">
+                  <p className="text-xs sm:text-sm text-foreground/80 italic border-l-2 border-primary/30 pl-3">
                     {session.description}
                   </p>
                 </CardContent>
