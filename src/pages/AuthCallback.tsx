@@ -48,7 +48,7 @@ const AuthCallback = () => {
               navigate("/en-attente", { replace: true });
             } else if (profile.role === "coach") {
               hasRedirected = true;
-              navigate("/coach/programmation", { replace: true });
+              navigate("/coach/mes-clients", { replace: true });
             } else {
               hasRedirected = true;
               navigate("/sportif/seances", { replace: true });
@@ -81,7 +81,7 @@ const AuthCallback = () => {
               navigate("/en-attente", { replace: true });
             } else if (profile.role === "coach") {
               hasRedirected = true;
-              navigate("/coach/programmation", { replace: true });
+              navigate("/coach/mes-clients", { replace: true });
             } else {
               hasRedirected = true;
               navigate("/sportif/seances", { replace: true });
