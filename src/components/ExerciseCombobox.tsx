@@ -26,7 +26,7 @@ import {
 interface ExerciseComboboxProps {
   value: string;
   onChange: (value: string) => void;
-  exercises: Array<{ id: string; name: string; muscle?: string | null }>;
+  exercises: Array<{ id: string; name: string; muscle_principal?: string | null }>;
   disabled?: boolean;
 }
 
@@ -35,12 +35,12 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled }: Exerc
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Extraire les catégories uniques des exercices
-  const categories = Array.from(new Set(exercises.map((ex) => ex.muscle).filter(Boolean))).sort();
+  const categories = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort();
 
   // Filtrer les exercices par catégorie
   const filteredExercises = selectedCategory === "all" 
     ? exercises 
-    : exercises.filter((ex) => ex.muscle === selectedCategory);
+    : exercises.filter((ex) => ex.muscle_principal === selectedCategory);
 
   // Auto-focus le champ de recherche et scroll en haut quand le popover s'ouvre
   useEffect(() => {

@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 interface Exercise {
   id: string;
   name: string;
-  muscle: string;
+  muscle_principal: string;
 }
 
 interface MaxDialogProps {
@@ -58,7 +58,7 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
   const loadExercises = async () => {
     const { data } = await supabase
       .from("exercise_library")
-      .select("id, name, muscle")
+      .select("id, name, muscle_principal")
       .order("name");
     
     if (data) setExercises(data);
@@ -149,7 +149,7 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
               <SelectContent>
                 {exercises.map((ex) => (
                   <SelectItem key={ex.id} value={ex.id}>
-                    {ex.name} <span className="text-muted-foreground">({ex.muscle})</span>
+                    {ex.name} <span className="text-muted-foreground">({ex.muscle_principal})</span>
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -157,7 +157,7 @@ export default function ClientDetail() {
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
   const loadLibraryExercises = async () => {
-    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle").order("name");
+    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal").order("name");
 
     if (error) {
       console.error("Erreur lors du chargement des exercices:", error);
