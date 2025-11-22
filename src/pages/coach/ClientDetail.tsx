@@ -108,6 +108,7 @@ export default function ClientDetail() {
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
   const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
+  const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1236,85 +1237,193 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* Affichage des objectifs */}
-          {athleteObjectives && (
-            <Card className="bg-primary/5 border-primary/20">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5 text-primary" />
-                  Objectifs de {athlete?.first_name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Objectif Principal */}
-                {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
-                  <div className="space-y-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <p className="font-semibold text-sm">Objectif Principal</p>
-                        <p className="text-sm">{athleteObjectives.main_objective}</p>
-                      </div>
-                      <Badge variant="default" className="whitespace-nowrap">
+          {/* Bouton flottant pour les objectifs */}
+          {athleteObjectives && (athleteObjectives.main_objective || athleteObjectives.secondary_objective || athleteMilestones.length > 0) && (
+            <Sheet open={showObjectivesSheet} onOpenChange={setShowObjectivesSheet}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="default"
+                  className="fixed right-0 top-1/3 -translate-y-1/2 rounded-l-xl rounded-r-none shadow-glow z-50 px-3 py-6 bg-primary hover:shadow-[0_0_30px_hsl(var(--primary))] transition-all duration-300 border-2 border-primary/50 flex flex-col items-center gap-2 h-auto"
+                >
+                  <Target className="h-5 w-5" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="font-bold text-xs whitespace-nowrap">Objectifs</span>
+                    {athleteObjectives.main_objective_deadline && (
+                      <span className="font-bold text-xs whitespace-nowrap">
                         {(() => {
                           const today = new Date();
                           const deadline = new Date(athleteObjectives.main_objective_deadline);
                           const diffTime = deadline.getTime() - today.getTime();
                           const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-                          return diffWeeks > 0 ? `S-${diffWeeks}` : diffWeeks === 0 ? "Cette semaine" : "Dépassé";
+                          return diffWeeks > 0 ? `S-${diffWeeks}` : "Dépassé";
                         })()}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Date cible: {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR", { 
-                        weekday: "long", 
-                        day: "numeric", 
-                        month: "long", 
-                        year: "numeric" 
-                      })}
-                    </p>
+                      </span>
+                    )}
                   </div>
-                )}
-
-                {/* Objectif Secondaire */}
-                {athleteObjectives.secondary_objective && (
-                  <div className="space-y-1 pt-2 border-t border-primary/10">
-                    <p className="font-semibold text-sm">Objectif Secondaire</p>
-                    <p className="text-sm">{athleteObjectives.secondary_objective}</p>
-                  </div>
-                )}
-
-                {/* Milestones proches */}
-                {athleteMilestones.length > 0 && (
-                  <div className="space-y-2 pt-2 border-t border-primary/10">
-                    <p className="font-semibold text-sm">Dates d'objectifs proches</p>
-                    {athleteMilestones
-                      .filter(milestone => {
-                        const daysUntil = Math.ceil((new Date(milestone.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                        return !milestone.completed && daysUntil >= -7 && daysUntil <= 30;
-                      })
-                      .slice(0, 3)
-                      .map(milestone => {
-                        const daysUntil = Math.ceil((new Date(milestone.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                        const weeksUntil = Math.ceil(daysUntil / 7);
-                        return (
-                          <div key={milestone.id} className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground">{milestone.label}</span>
-                            <Badge variant={daysUntil <= 7 ? "destructive" : "secondary"} className="text-xs">
-                              {daysUntil < 0 
-                                ? `J+${Math.abs(daysUntil)}` 
-                                : daysUntil === 0 
-                                ? "Aujourd'hui" 
-                                : weeksUntil === 1
-                                ? `S-${weeksUntil}`
-                                : `S-${weeksUntil}`}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
+                    Objectifs de {athlete?.first_name}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-6">
+                  {/* Objectif Principal */}
+                  {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Target className="h-4 w-4 text-primary" />
+                          Objectif Principal
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm">{athleteObjectives.main_objective}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Progression</span>
+                            <Badge variant="default" className="text-sm font-semibold">
+                              {(() => {
+                                const today = new Date();
+                                const deadline = new Date(athleteObjectives.main_objective_deadline);
+                                const createdAt = athleteObjectives.created_at 
+                                  ? new Date(athleteObjectives.created_at)
+                                  : new Date();
+                                
+                                const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
+                                
+                                return `Semaine ${currentWeek} / ${totalWeeks}`;
+                              })()}
                             </Badge>
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div 
+                              className="h-full bg-primary transition-all duration-300"
+                              style={{
+                                width: `${(() => {
+                                  const today = new Date();
+                                  const deadline = new Date(athleteObjectives.main_objective_deadline);
+                                  const createdAt = athleteObjectives.created_at 
+                                    ? new Date(athleteObjectives.created_at)
+                                    : new Date();
+                                  
+                                  const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                  const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                  
+                                  return Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100));
+                                })()}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground pt-2 border-t">
+                          <p>Date cible: {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR", { 
+                            weekday: "long", 
+                            day: "numeric", 
+                            month: "long", 
+                            year: "numeric" 
+                          })}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Objectif Secondaire */}
+                  {athleteObjectives.secondary_objective && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Target className="h-4 w-4 text-secondary" />
+                          Objectif Secondaire
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm">{athleteObjectives.secondary_objective}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Dates d'objectifs */}
+                  {athleteMilestones.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-primary" />
+                          Dates d'objectifs ({athleteMilestones.filter(m => !m.completed).length} restantes)
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {athleteMilestones.map(milestone => {
+                          const today = new Date();
+                          const targetDate = new Date(milestone.target_date);
+                          const createdAt = milestone.created_at 
+                            ? new Date(milestone.created_at)
+                            : new Date();
+                          
+                          const totalWeeks = Math.ceil((targetDate.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                          const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                          const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
+                          const remainingWeeks = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                          
+                          return (
+                            <div key={milestone.id} className={`p-3 rounded-lg border ${milestone.completed ? 'bg-muted/50' : 'bg-background'}`}>
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm">{milestone.label}</p>
+                                  {milestone.notes && (
+                                    <p className="text-xs text-muted-foreground mt-1">{milestone.notes}</p>
+                                  )}
+                                </div>
+                                <Badge 
+                                  variant={
+                                    milestone.completed 
+                                      ? "default" 
+                                      : remainingWeeks <= 1 
+                                      ? "destructive" 
+                                      : remainingWeeks <= 2 
+                                      ? "secondary" 
+                                      : "outline"
+                                  }
+                                  className="whitespace-nowrap"
+                                >
+                                  {milestone.completed 
+                                    ? "Atteint" 
+                                    : `Semaine ${currentWeek} / ${totalWeeks}`}
+                                </Badge>
+                              </div>
+                              {!milestone.completed && (
+                                <div className="space-y-1">
+                                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div 
+                                      className="h-full bg-primary transition-all duration-300"
+                                      style={{
+                                        width: `${Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100))}%`
+                                      }}
+                                    />
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    {targetDate.toLocaleDateString("fr-FR", { 
+                                      day: "numeric", 
+                                      month: "long", 
+                                      year: "numeric" 
+                                    })}
+                                    {remainingWeeks > 0 && ` • ${remainingWeeks} semaine${remainingWeeks > 1 ? 's' : ''} restante${remainingWeeks > 1 ? 's' : ''}`}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
           )}
           
           {/* Bouton flottant pour ouvrir les retours */}
