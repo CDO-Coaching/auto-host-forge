@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Dumbbell, ExternalLink } from "lucide-react";
+import { Plus, Search, Dumbbell, ExternalLink, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Exercise {
   id: string;
@@ -23,6 +25,26 @@ interface Exercise {
   created_at: string;
 }
 
+const MUSCLE_GROUPS = [
+  'TRICEPS',
+  'BICEPS',
+  'AVANT-BRAS',
+  'DELTOÏDES',
+  'TRAPÈZES',
+  'DOS',
+  'LOMBAIRES',
+  'PEC',
+  'ABDOS',
+  'OBLIQUES',
+  'FESSIERS',
+  'QUADRICEPS',
+  'ISCHIOS',
+  'MOLLETS',
+  'HIP',
+  'HALTÉRO',
+  'CORE'
+] as const;
+
 export default function BibliothequeExercices() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
@@ -30,14 +52,16 @@ export default function BibliothequeExercices() {
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [newExercise, setNewExercise] = useState({
     name: "",
     category: "",
-    sub_category: "",
+    muscle_principal: "",
+    muscles_second: [] as string[],
     video_url: "",
     description: "",
     equipment: "",
-    muscle: "",
   });
 
   useEffect(() => {
@@ -92,7 +116,15 @@ export default function BibliothequeExercices() {
       return;
     }
 
-    const { error } = await supabase.from("exercise_library").insert([newExercise]);
+    if (!newExercise.muscle_principal) {
+      toast.error("Le muscle principal est obligatoire");
+      return;
+    }
+
+    const { error } = await supabase.from("exercise_library").insert([{
+      ...newExercise,
+      muscles_second: newExercise.muscles_second.length > 0 ? newExercise.muscles_second : null
+    }]);
 
     if (error) {
       toast.error("Erreur lors de l'ajout de l'exercice");
@@ -103,13 +135,73 @@ export default function BibliothequeExercices() {
       setNewExercise({
         name: "",
         category: "",
-        sub_category: "",
+        muscle_principal: "",
+        muscles_second: [],
         video_url: "",
         description: "",
         equipment: "",
-        muscle: "",
       });
       loadExercises();
+    }
+  };
+
+  const handleEditExercise = async () => {
+    if (!editingExercise) return;
+
+    if (!editingExercise.name) {
+      toast.error("Le nom de l'exercice est obligatoire");
+      return;
+    }
+
+    if (!editingExercise.muscle_principal) {
+      toast.error("Le muscle principal est obligatoire");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("exercise_library")
+      .update({
+        name: editingExercise.name,
+        category: editingExercise.category,
+        muscle_principal: editingExercise.muscle_principal,
+        muscles_second: editingExercise.muscles_second && editingExercise.muscles_second.length > 0 
+          ? editingExercise.muscles_second 
+          : null,
+        video_url: editingExercise.video_url,
+        description: editingExercise.description,
+        equipment: editingExercise.equipment,
+      })
+      .eq("id", editingExercise.id);
+
+    if (error) {
+      toast.error("Erreur lors de la modification de l'exercice");
+      console.error(error);
+    } else {
+      toast.success("Exercice modifié avec succès");
+      setEditDialogOpen(false);
+      setEditingExercise(null);
+      loadExercises();
+    }
+  };
+
+  const openEditDialog = (exercise: Exercise) => {
+    setEditingExercise({...exercise});
+    setEditDialogOpen(true);
+  };
+
+  const toggleSecondaryMuscle = (muscle: string, isEditing: boolean = false) => {
+    if (isEditing && editingExercise) {
+      const current = editingExercise.muscles_second || [];
+      const updated = current.includes(muscle)
+        ? current.filter(m => m !== muscle)
+        : [...current, muscle];
+      setEditingExercise({ ...editingExercise, muscles_second: updated });
+    } else {
+      const current = newExercise.muscles_second || [];
+      const updated = current.includes(muscle)
+        ? current.filter(m => m !== muscle)
+        : [...current, muscle];
+      setNewExercise({ ...newExercise, muscles_second: updated });
     }
   };
 
@@ -140,34 +232,53 @@ export default function BibliothequeExercices() {
                   placeholder="Ex: Squat"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="category">Catégorie</Label>
-                  <Input
-                    id="category"
-                    value={newExercise.category}
-                    onChange={(e) => setNewExercise({ ...newExercise, category: e.target.value })}
-                    placeholder="Ex: Force"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="sub_category">Sous-catégorie</Label>
-                  <Input
-                    id="sub_category"
-                    value={newExercise.sub_category}
-                    onChange={(e) => setNewExercise({ ...newExercise, sub_category: e.target.value })}
-                    placeholder="Ex: Jambes"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="category">Catégorie</Label>
+                <Input
+                  id="category"
+                  value={newExercise.category}
+                  onChange={(e) => setNewExercise({ ...newExercise, category: e.target.value })}
+                  placeholder="Ex: Force, Mobilité, Cardio..."
+                />
               </div>
               <div>
-                <Label htmlFor="muscle">Muscle principal</Label>
-                <Input
-                  id="muscle"
-                  value={newExercise.muscle}
-                  onChange={(e) => setNewExercise({ ...newExercise, muscle: e.target.value })}
-                  placeholder="Ex: Quadriceps"
-                />
+                <Label htmlFor="muscle_principal">Muscle principal *</Label>
+                <Select
+                  value={newExercise.muscle_principal}
+                  onValueChange={(value) => setNewExercise({ ...newExercise, muscle_principal: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un muscle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MUSCLE_GROUPS.map((muscle) => (
+                      <SelectItem key={muscle} value={muscle}>
+                        {muscle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Muscles secondaires</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 max-h-48 overflow-y-auto p-3 border rounded-md">
+                  {MUSCLE_GROUPS.map((muscle) => (
+                    <div key={muscle} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`muscle-${muscle}`}
+                        checked={newExercise.muscles_second.includes(muscle)}
+                        onCheckedChange={() => toggleSecondaryMuscle(muscle, false)}
+                        disabled={newExercise.muscle_principal === muscle}
+                      />
+                      <label
+                        htmlFor={`muscle-${muscle}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
+                        {muscle}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="equipment">Équipement</Label>
@@ -293,24 +404,33 @@ export default function BibliothequeExercices() {
                     </TableCell>
                     <TableCell>{exercise.category || "-"}</TableCell>
                     <TableCell>
-                      {exercise.video_url ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          asChild
-                        >
-                          <a 
-                            href={exercise.video_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
+                      <div className="flex items-center gap-2">
+                        {exercise.video_url ? (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            asChild
                           >
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Voir la vidéo
-                          </a>
+                            <a 
+                              href={exercise.video_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Voir
+                            </a>
+                          </Button>
+                        ) : (
+                          "-"
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(exercise)}
+                        >
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      ) : (
-                        "-"
-                      )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -319,6 +439,107 @@ export default function BibliothequeExercices() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de modification */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Modifier l'exercice</DialogTitle>
+          </DialogHeader>
+          {editingExercise && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Nom de l'exercice *</Label>
+                <Input
+                  id="edit-name"
+                  value={editingExercise.name}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+                  placeholder="Ex: Squat"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-category">Catégorie</Label>
+                <Input
+                  id="edit-category"
+                  value={editingExercise.category || ""}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, category: e.target.value })}
+                  placeholder="Ex: Force, Mobilité, Cardio..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-muscle-principal">Muscle principal *</Label>
+                <Select
+                  value={editingExercise.muscle_principal || ""}
+                  onValueChange={(value) => setEditingExercise({ ...editingExercise, muscle_principal: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un muscle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MUSCLE_GROUPS.map((muscle) => (
+                      <SelectItem key={muscle} value={muscle}>
+                        {muscle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Muscles secondaires</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 max-h-48 overflow-y-auto p-3 border rounded-md">
+                  {MUSCLE_GROUPS.map((muscle) => (
+                    <div key={muscle} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-muscle-${muscle}`}
+                        checked={(editingExercise.muscles_second || []).includes(muscle)}
+                        onCheckedChange={() => toggleSecondaryMuscle(muscle, true)}
+                        disabled={editingExercise.muscle_principal === muscle}
+                      />
+                      <label
+                        htmlFor={`edit-muscle-${muscle}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
+                        {muscle}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-equipment">Équipement</Label>
+                <Input
+                  id="edit-equipment"
+                  value={editingExercise.equipment || ""}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, equipment: e.target.value })}
+                  placeholder="Ex: Barre, Poids du corps"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-video-url">URL de la vidéo</Label>
+                <Input
+                  id="edit-video-url"
+                  value={editingExercise.video_url || ""}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, video_url: e.target.value })}
+                  placeholder="https://..."
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-description">Description</Label>
+                <Textarea
+                  id="edit-description"
+                  value={editingExercise.description || ""}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, description: e.target.value })}
+                  placeholder="Décris l'exercice, les points techniques..."
+                  rows={4}
+                />
+              </div>
+              <Button onClick={handleEditExercise} className="w-full">
+                Enregistrer les modifications
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
