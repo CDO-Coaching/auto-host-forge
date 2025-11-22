@@ -265,22 +265,29 @@ export default function BibliothequeExercices() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="muscle_principal">Muscle principal *</Label>
-                <Select
-                  value={newExercise.muscle_principal}
-                  onValueChange={(value) => setNewExercise({ ...newExercise, muscle_principal: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un muscle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MUSCLE_GROUPS.map((muscle) => (
-                      <SelectItem key={muscle} value={muscle}>
+                <Label>Muscle principal *</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 max-h-48 overflow-y-auto p-3 border rounded-md">
+                  {MUSCLE_GROUPS.map((muscle) => (
+                    <div key={muscle} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`principal-${muscle}`}
+                        checked={newExercise.muscle_principal === muscle}
+                        onCheckedChange={(checked) => {
+                          setNewExercise({ 
+                            ...newExercise, 
+                            muscle_principal: checked ? muscle : "" 
+                          });
+                        }}
+                      />
+                      <label
+                        htmlFor={`principal-${muscle}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
                         {muscle}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label>Muscles secondaires</Label>
@@ -506,22 +513,29 @@ export default function BibliothequeExercices() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="edit-muscle-principal">Muscle principal *</Label>
-                <Select
-                  value={editingExercise.muscle_principal || ""}
-                  onValueChange={(value) => setEditingExercise({ ...editingExercise, muscle_principal: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un muscle" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MUSCLE_GROUPS.map((muscle) => (
-                      <SelectItem key={muscle} value={muscle}>
+                <Label>Muscle principal *</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2 max-h-48 overflow-y-auto p-3 border rounded-md">
+                  {MUSCLE_GROUPS.map((muscle) => (
+                    <div key={muscle} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-principal-${muscle}`}
+                        checked={editingExercise.muscle_principal === muscle}
+                        onCheckedChange={(checked) => {
+                          setEditingExercise({ 
+                            ...editingExercise, 
+                            muscle_principal: checked ? muscle : "" 
+                          });
+                        }}
+                      />
+                      <label
+                        htmlFor={`edit-principal-${muscle}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
                         {muscle}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label>Muscles secondaires</Label>
