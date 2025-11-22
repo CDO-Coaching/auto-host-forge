@@ -466,7 +466,7 @@ export default function SeanceDetail() {
   const sortedExercises = getSortedExercises(exercises);
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-16 sm:pb-6">
       <UniversalTimer />
       <CelebrationOverlay
         show={showCelebration}
@@ -475,25 +475,25 @@ export default function SeanceDetail() {
         type="session"
       />
 
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
+      <div className="sticky top-0 z-10 bg-background border-b p-3 sm:p-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")} className="text-xs sm:text-sm">
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
           Retour
         </Button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         <div>
-          <h1 className="text-2xl font-bold">{session.name}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{session.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge variant="outline">{exercises.length} exercices</Badge>
+            <Badge variant="outline" className="text-xs">{exercises.length} exercices</Badge>
             {isSessionActive && (
-              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30">
+              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30 text-xs">
                 {formatDuration(sessionDuration)}
               </Badge>
             )}
             {allCompleted && (
-              <Badge variant="outline" className="border-green-600 text-green-600">
+              <Badge variant="outline" className="border-green-600 text-green-600 text-xs">
                 Séance terminée
               </Badge>
             )}
@@ -504,21 +504,21 @@ export default function SeanceDetail() {
           <div className="flex gap-2">
             {!isSessionActive ? (
               <Button onClick={startSession} className="flex-1" size="lg">
-                <Play className="h-4 w-4 mr-2" />
-                Démarrer la séance
+                <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="text-sm sm:text-base">Démarrer</span>
               </Button>
             ) : (
               <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
-                <Square className="h-4 w-4 mr-2" />
-                Terminer la séance
+                <Square className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                <span className="text-sm sm:text-base">Terminer</span>
               </Button>
             )}
           </div>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="outline" size="lg" className="w-full">
-                <RotateCcw className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="lg" className="w-full text-sm sm:text-base">
+                <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                 Invalider la séance
               </Button>
             </AlertDialogTrigger>
@@ -538,11 +538,11 @@ export default function SeanceDetail() {
           </AlertDialog>
         )}
 
-        <div className="space-y-2">
+        <div className="space-y-2 sm:space-y-3">
           {sortedExercises.length === 0 ? (
             <Card>
-              <CardContent className="py-8">
-                <p className="text-center text-muted-foreground">Aucun exercice pour cette séance</p>
+              <CardContent className="py-6 sm:py-8">
+                <p className="text-center text-muted-foreground text-sm">Aucun exercice pour cette séance</p>
               </CardContent>
             </Card>
           ) : (
@@ -553,7 +553,7 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.super_set_group}
-                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary active:scale-[0.98]"} transition-all border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
                     onClick={
@@ -562,33 +562,33 @@ export default function SeanceDetail() {
                         : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)
                     }
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="p-3 sm:p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Badge className={isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge className={`${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"} text-xs`}>
                               Superset
                             </Badge>
-                            {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                            {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
                         </div>
-                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                        {!allCompleted && <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />}
                       </div>
 
-                      <div className={`space-y-2 ${allCompleted ? "mt-4 border-t pt-3" : ""}`}>
+                      <div className={`space-y-2 ${allCompleted ? "mt-3 sm:mt-4 border-t pt-2 sm:pt-3" : ""}`}>
                         {item.exercises.map((ex: any, exIndex: number) => (
                           <div
                             key={exIndex}
-                            className={allCompleted ? "bg-muted/30 rounded-lg p-3 space-y-2" : "space-y-1"}
+                            className={allCompleted ? "bg-muted/30 rounded-lg p-2 sm:p-3 space-y-2" : "space-y-1"}
                           >
-                            <p className={`${allCompleted ? "font-medium" : "text-sm text-muted-foreground"}`}>
+                            <p className={`${allCompleted ? "font-medium text-sm" : "text-xs sm:text-sm text-muted-foreground"}`}>
                               {!allCompleted && `${exIndex + 1}. `}
                               {ex.exercice}
                             </p>
 
                             {allCompleted && (
-                              <div className="flex gap-2 flex-wrap">
+                              <div className="flex gap-1 sm:gap-2 flex-wrap">
                                 {ex.series && (
                                   <Badge variant="outline" className="text-xs">
                                     {ex.series} séries
@@ -657,7 +657,7 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.id}
-                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary active:scale-[0.98]"} transition-all border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
                     onClick={
@@ -668,16 +668,16 @@ export default function SeanceDetail() {
                           : () => navigate(`/sportif/exercice/${item.id}`)
                     }
                   >
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                              <p className="font-semibold text-lg">{item.exercice}</p>
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                              <p className="font-semibold text-base sm:text-lg break-words">{item.exercice}</p>
                             </div>
                             {!isCardio && (
-                              <div className="flex gap-2 flex-wrap">
+                              <div className="flex gap-1 sm:gap-2 flex-wrap">
                                 {item.series && (
                                   <Badge variant="outline" className="text-xs">
                                     {item.series} séries
@@ -826,7 +826,7 @@ export default function SeanceDetail() {
                               </div>
                             )}
                           </div>
-                          {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                          {!allCompleted && <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground shrink-0" />}
                         </div>
 
                         {isCompleted && allCompleted && (
