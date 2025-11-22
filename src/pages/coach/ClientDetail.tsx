@@ -569,11 +569,6 @@ export default function ClientDetail() {
           cardio_sport: isCardio ? "course" : null,
           cardio_content: isCardio ? "" : null,
           cardio_pace: isCardio ? "" : null,
-          ...(isCardio && {
-            cardio_sport: null,
-            cardio_content: null,
-            cardio_pace: null,
-          }),
         })
         .select()
         .single();
@@ -996,11 +991,6 @@ export default function ClientDetail() {
       cardio_sport: isCardio ? "course" : undefined,
       cardio_content: isCardio ? "" : undefined,
       cardio_pace: isCardio ? "" : undefined,
-      ...(isCardio && {
-        cardio_sport: "",
-        cardio_content: "",
-        cardio_pace: "",
-      }),
     };
 
     setSessionExercises({
@@ -1782,11 +1772,50 @@ export default function ClientDetail() {
                                       commencer.
                                     </div>
                                   ) : (
-                                    (sessionExercises[session.id] || []).map((exercise) => (
-                                      <div key={exercise.id} className="border rounded-lg p-4 bg-background space-y-3">
-...
-                                      </div>
-                                    ))
+                                    (sessionExercises[session.id] || []).map((exercise) => {
+                                      let cardioData: CardioData = { steps: [], blocks: [] };
+
+                                      try {
+                                        const parsed = exercise.cardio_content
+                                          ? JSON.parse(exercise.cardio_content)
+                                          : { steps: [], blocks: [] };
+                                        cardioData = Array.isArray(parsed)
+                                          ? { steps: parsed, blocks: [] }
+                                          : parsed;
+                                      } catch (e) {
+                                        console.error("Erreur lors du parsing de cardio_content:", e);
+                                      }
+
+                                      return (
+                                        <div
+                                          key={exercise.id}
+                                          className="border rounded-lg p-4 bg-background space-y-3"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">{exercise.exercice}</span>
+                                            {exercise.cardio_sport && (
+                                              <Badge variant="outline" className="capitalize">
+                                                {exercise.cardio_sport}
+                                              </Badge>
+                                            )}
+                                          </div>
+
+                                          <CardioStepBuilder
+                                            steps={cardioData.steps}
+                                            blocks={cardioData.blocks}
+                                            onChange={(newCardioData) => {
+                                              handleExerciseChange(
+                                                session.id,
+                                                exercise.id,
+                                                "cardio_content",
+                                                JSON.stringify(newCardioData),
+                                              );
+                                            }}
+                                            athleteVma={athleteVma}
+                                          />
+                                        </div>
+                                      );
+                                    })
                                   )}
                                   {!isValidated && (
                                     <Button
