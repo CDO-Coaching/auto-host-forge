@@ -566,6 +566,9 @@ export default function ClientDetail() {
           rpe: "",
           tempo: "",
           commentaire: "",
+          cardio_sport: isCardio ? "course" : null,
+          cardio_content: isCardio ? "" : null,
+          cardio_pace: isCardio ? "" : null,
           ...(isCardio && {
             cardio_sport: null,
             cardio_content: null,
@@ -665,7 +668,7 @@ export default function ClientDetail() {
         rpe: "",
         tempo: "",
         commentaire: "",
-        cardio_sport: "",
+        cardio_sport: "course",
         cardio_content: "",
         cardio_pace: "",
       };
@@ -990,6 +993,9 @@ export default function ClientDetail() {
       rpe: "",
       tempo: "",
       commentaire: "",
+      cardio_sport: isCardio ? "course" : undefined,
+      cardio_content: isCardio ? "" : undefined,
+      cardio_pace: isCardio ? "" : undefined,
       ...(isCardio && {
         cardio_sport: "",
         cardio_content: "",
