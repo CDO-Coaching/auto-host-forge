@@ -247,8 +247,8 @@ export default function Profil() {
   if (loading) return <div className="text-center">Chargement...</div>;
 
   return (
-    <div className="space-y-6 pb-10">
-      <h1 className="text-3xl font-bold">Mon profil</h1>
+    <div className="space-y-4 sm:space-y-6 pb-10 px-3 sm:px-0">
+      <h1 className="text-2xl sm:text-3xl font-bold">Mon profil</h1>
 
       {/* Message d'information si le profil n'est pas complet */}
       {(!form.watch("first_name") || !form.watch("last_name")) && (
@@ -350,7 +350,7 @@ export default function Profil() {
     {saving ? "Enregistrement..." : "Enregistrer les modifications"}
   </Button>
 
-  <div className="flex gap-3">
+  <div className="flex flex-col sm:flex-row gap-3">
     {/* Déconnexion simple */}
     <Button
       type="button"
@@ -369,7 +369,7 @@ export default function Profil() {
           variant="outline"
           className="flex-1"
         >
-          Déconnecter tous mes appareils
+          Déconnecter tous appareils
         </Button>
       </AlertDialogTrigger>
 

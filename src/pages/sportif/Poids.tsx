@@ -173,7 +173,7 @@ export default function Poids() {
   const latestWeight = weightEntries[0];
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-4 sm:py-6 space-y-4 sm:space-y-6 px-3 sm:px-4">
       {/* Rappel hebdomadaire */}
       <AlertDialog open={shouldShowReminder && !isChecking}>
         <AlertDialogContent>
@@ -201,16 +201,16 @@ export default function Poids() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Scale className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Suivi du poids</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Scale className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+          <h1 className="text-2xl sm:text-3xl font-bold">Suivi du poids</h1>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
-              Ajouter un poids
+              Ajouter
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -253,29 +253,31 @@ export default function Poids() {
 
       {latestWeight && (
         <Card>
-          <CardHeader>
-            <CardTitle>Dernier poids enregistré</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Dernier poids enregistré</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-bold text-primary">{latestWeight.weight_kg}</span>
-              <span className="text-xl text-muted-foreground">kg</span>
-              <span className="text-sm text-muted-foreground ml-4">
+            <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl sm:text-4xl font-bold text-primary">{latestWeight.weight_kg}</span>
+                <span className="text-lg sm:text-xl text-muted-foreground">kg</span>
+              </div>
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 le {format(new Date(latestWeight.recorded_at), "dd MMMM yyyy", { locale: fr })}
               </span>
             </div>
-            {latestWeight.notes && <p className="mt-2 text-sm text-muted-foreground">{latestWeight.notes}</p>}
+            {latestWeight.notes && <p className="mt-2 text-xs sm:text-sm text-muted-foreground">{latestWeight.notes}</p>}
           </CardContent>
         </Card>
       )}
 
       {weightEntries.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Évolution du poids</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Évolution du poids</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={250}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" tick={{ fill: "hsl(var(--foreground))" }} />
@@ -301,8 +303,8 @@ export default function Poids() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Historique</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Historique</CardTitle>
         </CardHeader>
         <CardContent>
           {weightEntries.length === 0 ? (
@@ -314,18 +316,18 @@ export default function Poids() {
               {weightEntries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-muted/50 transition-colors gap-2"
                 >
-                  <div>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-xl font-semibold">{entry.weight_kg} kg</span>
-                      <span className="text-sm text-muted-foreground">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
+                      <span className="text-lg sm:text-xl font-semibold">{entry.weight_kg} kg</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {format(new Date(entry.recorded_at), "dd MMMM yyyy", { locale: fr })}
                       </span>
                     </div>
-                    {entry.notes && <p className="text-sm text-muted-foreground mt-1">{entry.notes}</p>}
+                    {entry.notes && <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">{entry.notes}</p>}
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => handleDelete(entry.id)} className="shrink-0">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>

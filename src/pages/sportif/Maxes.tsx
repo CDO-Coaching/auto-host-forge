@@ -252,10 +252,10 @@ export default function Maxes() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Mes Max</h1>
+      <div className="space-y-4 sm:space-y-6 px-3 sm:px-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Mes Max</h1>
         <Card>
-          <CardContent className="py-8 text-center">
+          <CardContent className="py-8 text-center text-sm sm:text-base">
             Chargement...
           </CardContent>
         </Card>
@@ -264,12 +264,12 @@ export default function Maxes() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 px-3 sm:px-0">
       {userId && <VmaCard athleteId={userId} />}
       
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Mes Max</h1>
-        <Button onClick={() => setDialogOpen(true)}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <h1 className="text-2xl sm:text-3xl font-bold">Mes Max</h1>
+        <Button onClick={() => setDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nouveau max
         </Button>
@@ -277,27 +277,27 @@ export default function Maxes() {
 
       {maxes.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
               Statistiques
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
               <div>
-                <div className="text-3xl font-bold text-primary">{uniqueMaxes.length}</div>
-                <div className="text-sm text-muted-foreground">Exercices suivis</div>
+                <div className="text-2xl sm:text-3xl font-bold text-primary">{uniqueMaxes.length}</div>
+                <div className="text-[10px] sm:text-sm text-muted-foreground">Exercices suivis</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary">{maxes.length}</div>
-                <div className="text-sm text-muted-foreground">Maxes enregistrés</div>
+                <div className="text-2xl sm:text-3xl font-bold text-primary">{maxes.length}</div>
+                <div className="text-[10px] sm:text-sm text-muted-foreground">Maxes enregistrés</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary">
+                <div className="text-2xl sm:text-3xl font-bold text-primary">
                   {maxes.filter((m) => m.previous_weight && m.weight_kg > m.previous_weight).length}
                 </div>
-                <div className="text-sm text-muted-foreground">Records battus</div>
+                <div className="text-[10px] sm:text-sm text-muted-foreground">Records battus</div>
               </div>
             </div>
           </CardContent>
