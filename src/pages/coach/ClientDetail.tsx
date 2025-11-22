@@ -18,6 +18,7 @@ import {
   X,
   Copy,
   MessageSquare,
+  Target,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -105,6 +106,8 @@ export default function ClientDetail() {
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
+  const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
+  const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -130,6 +133,7 @@ export default function ClientDetail() {
     loadHistoricalWeeks();
     loadCustomSessions();
     loadLastWeekFeedback();
+    loadAthleteObjectives();
     
     // Restaurer les données sauvegardées localement
     const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
@@ -240,6 +244,40 @@ export default function ClientDetail() {
         week: lastWeek,
         sessions: sessionsData,
       });
+    }
+  };
+
+  const loadAthleteObjectives = async () => {
+    if (!athleteId) return;
+
+    try {
+      // Charger l'objectif principal et secondaire
+      const { data: objectivesData, error: objectivesError } = await supabase
+        .from("athlete_objectives")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .maybeSingle();
+
+      if (objectivesError && objectivesError.code !== "PGRST116") {
+        console.error("Erreur lors du chargement des objectifs:", objectivesError);
+      } else {
+        setAthleteObjectives(objectivesData);
+      }
+
+      // Charger les milestones
+      const { data: milestonesData, error: milestonesError } = await supabase
+        .from("objective_milestones")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("target_date", { ascending: true });
+
+      if (milestonesError) {
+        console.error("Erreur lors du chargement des milestones:", milestonesError);
+      } else {
+        setAthleteMilestones(milestonesData || []);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des objectifs:", error);
     }
   };
 
@@ -1196,6 +1234,87 @@ export default function ClientDetail() {
               athleteId={athleteId!} 
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
+          )}
+
+          {/* Affichage des objectifs */}
+          {athleteObjectives && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Objectifs de {athlete?.first_name}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Objectif Principal */}
+                {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
+                  <div className="space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm">Objectif Principal</p>
+                        <p className="text-sm">{athleteObjectives.main_objective}</p>
+                      </div>
+                      <Badge variant="default" className="whitespace-nowrap">
+                        {(() => {
+                          const today = new Date();
+                          const deadline = new Date(athleteObjectives.main_objective_deadline);
+                          const diffTime = deadline.getTime() - today.getTime();
+                          const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
+                          return diffWeeks > 0 ? `S-${diffWeeks}` : diffWeeks === 0 ? "Cette semaine" : "Dépassé";
+                        })()}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Date cible: {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR", { 
+                        weekday: "long", 
+                        day: "numeric", 
+                        month: "long", 
+                        year: "numeric" 
+                      })}
+                    </p>
+                  </div>
+                )}
+
+                {/* Objectif Secondaire */}
+                {athleteObjectives.secondary_objective && (
+                  <div className="space-y-1 pt-2 border-t border-primary/10">
+                    <p className="font-semibold text-sm">Objectif Secondaire</p>
+                    <p className="text-sm">{athleteObjectives.secondary_objective}</p>
+                  </div>
+                )}
+
+                {/* Milestones proches */}
+                {athleteMilestones.length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-primary/10">
+                    <p className="font-semibold text-sm">Dates d'objectifs proches</p>
+                    {athleteMilestones
+                      .filter(milestone => {
+                        const daysUntil = Math.ceil((new Date(milestone.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        return !milestone.completed && daysUntil >= -7 && daysUntil <= 30;
+                      })
+                      .slice(0, 3)
+                      .map(milestone => {
+                        const daysUntil = Math.ceil((new Date(milestone.target_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        const weeksUntil = Math.ceil(daysUntil / 7);
+                        return (
+                          <div key={milestone.id} className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">{milestone.label}</span>
+                            <Badge variant={daysUntil <= 7 ? "destructive" : "secondary"} className="text-xs">
+                              {daysUntil < 0 
+                                ? `J+${Math.abs(daysUntil)}` 
+                                : daysUntil === 0 
+                                ? "Aujourd'hui" 
+                                : weeksUntil === 1
+                                ? `S-${weeksUntil}`
+                                : `S-${weeksUntil}`}
+                            </Badge>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
           
           {/* Bouton flottant pour ouvrir les retours */}
