@@ -12,6 +12,7 @@ import { useDailyFatigueCheck } from "@/hooks/useDailyFatigueCheck";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
+import RecupDetail from "./sportif/RecupDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
@@ -124,6 +125,7 @@ export default function DashboardSportif() {
               <Route path="/seances" element={<Seances />} />
               <Route path="/mes-seances" element={<MesSeances />} />
               <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
+              <Route path="/recup/:weekId/:sessionId" element={<RecupDetail />} />
               <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />

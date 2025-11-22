@@ -228,12 +228,18 @@ export default function Seances() {
                           ? "border-primary border-2 bg-primary/5 animate-pulse shadow-lg"
                           : "hover:border-primary hover:shadow-md"
                     }`}
-                    onClick={() => navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`)}
+                    onClick={() => {
+                      if (session.session_type === "recup") {
+                        navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                      } else {
+                        navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                      }
+                    }}
                   >
                     <CardContent className="p-4 sm:p-5">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+                           <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                             <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
                               {session.name}
                               {completed && (
@@ -256,9 +262,21 @@ export default function Seances() {
                             )}
                           </div>
 
-                          <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1">
-                            {session.session_exercises?.length || 0} exercices
-                          </Badge>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1">
+                              {session.session_exercises?.length || 0} exercices
+                            </Badge>
+                            {session.session_type === "recup" && (
+                              <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-purple-500 text-purple-600 dark:text-purple-400">
+                                Récup/Mobilité
+                              </Badge>
+                            )}
+                            {session.session_type === "cardio" && (
+                              <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400">
+                                Cardio
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         <ChevronRight
