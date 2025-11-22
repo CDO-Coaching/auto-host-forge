@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { getWeekNumber, getNextWeeks, formatWeekRange } from "@/lib/weekUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -80,6 +81,8 @@ interface Exercise {
   cardio_content?: string;
   cardio_pace?: string;
   super_set_group?: string | null;
+  per_side?: boolean;
+  is_unilateral?: boolean;
 }
 
 export default function ClientDetail() {
@@ -92,7 +95,7 @@ export default function ClientDetail() {
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
-  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string }>>([]);
+  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
@@ -167,7 +170,7 @@ export default function ClientDetail() {
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
 
   const loadLibraryExercises = async () => {
-    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second").order("name");
+    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral").order("name");
 
     if (error) {
       console.error("Erreur lors du chargement des exercices:", error);
@@ -792,6 +795,7 @@ export default function ClientDetail() {
             cardio_content: exercise.cardio_content || null,
             cardio_pace: exercise.cardio_pace || null,
             super_set_group: exercise.super_set_group || null,
+            per_side: exercise.per_side || false,
           }));
 
           const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
@@ -966,12 +970,12 @@ export default function ClientDetail() {
     }, 200);
   };
 
-  const handleExerciseChange = async (sessionId: number, exerciseId: number, field: keyof Exercise, value: string) => {
+  const handleExerciseChange = async (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
 
     // Si on modifie les séries d'un exercice dans un super-set, synchroniser avec tous les exercices du groupe
-    if (field === "series" && currentExercise?.super_set_group) {
+    if (field === "series" && currentExercise?.super_set_group && typeof value === "string") {
       const updatedExercises = currentExercises.map((ex) => {
         if (ex.super_set_group === currentExercise.super_set_group) {
           return { ...ex, series: value };
@@ -987,9 +991,21 @@ export default function ClientDetail() {
       // Créer l'exercice mis à jour avec la nouvelle valeur
       const updatedExercise = currentExercise ? { ...currentExercise, [field]: value } : null;
       
+      // Si on change l'exercice, vérifier si c'est un exercice unilatéral
+      if (field === "exercice" && typeof value === "string" && updatedExercise) {
+        const selectedExercise = libraryExercises.find((ex) => ex.name === value);
+        if (selectedExercise) {
+          (updatedExercise as any).is_unilateral = selectedExercise.unilateral || false;
+          // Réinitialiser per_side si ce n'est plus un exercice unilatéral
+          if (!selectedExercise.unilateral) {
+            (updatedExercise as any).per_side = false;
+          }
+        }
+      }
+      
       // Si on modifie l'exercice, le RPE ou les reps, calculer la charge suggérée
       let suggestedLoad: string | null = null;
-      if ((field === "rpe" || field === "reps" || field === "exercice") && updatedExercise) {
+      if ((field === "rpe" || field === "reps" || field === "exercice") && updatedExercise && typeof value === "string") {
         suggestedLoad = await calculateSuggestedLoad(updatedExercise);
       }
       
@@ -999,6 +1015,13 @@ export default function ClientDetail() {
           // Si on a calculé une charge suggérée, l'ajouter
           if (suggestedLoad !== null) {
             updates.charge = suggestedLoad;
+          }
+          // Si on change l'exercice, ajouter is_unilateral
+          if (field === "exercice" && typeof value === "string" && updatedExercise) {
+            updates.is_unilateral = (updatedExercise as any).is_unilateral;
+            if (!(updatedExercise as any).is_unilateral) {
+              updates.per_side = false;
+            }
           }
           return { ...ex, ...updates };
         }
@@ -2027,25 +2050,50 @@ export default function ClientDetail() {
                                                               </Select>
                                                             </TableCell>
                                                             <TableCell>
-                                                              <Input
-                                                                value={ex.reps}
-                                                                onChange={(e) =>
-                                                                  handleExerciseChange(
-                                                                    session.id,
-                                                                    ex.id,
-                                                                    "reps",
-                                                                    e.target.value,
-                                                                  )
-                                                                }
-                                                                onKeyDown={(e) =>
-                                                                  handleKeyDown(e, session.id, ex.id, "reps")
-                                                                }
-                                                                placeholder="ex: 10"
-                                                                disabled={isValidated}
-                                                                data-session={session.id}
-                                                                data-exercise={ex.id}
-                                                                data-field="reps"
-                                                              />
+                                                              <div className="space-y-2">
+                                                                <Input
+                                                                  value={ex.reps}
+                                                                  onChange={(e) =>
+                                                                    handleExerciseChange(
+                                                                      session.id,
+                                                                      ex.id,
+                                                                      "reps",
+                                                                      e.target.value,
+                                                                    )
+                                                                  }
+                                                                  onKeyDown={(e) =>
+                                                                    handleKeyDown(e, session.id, ex.id, "reps")
+                                                                  }
+                                                                  placeholder="ex: 10"
+                                                                  disabled={isValidated}
+                                                                  data-session={session.id}
+                                                                  data-exercise={ex.id}
+                                                                  data-field="reps"
+                                                                />
+                                                                {ex.is_unilateral && (
+                                                                  <div className="flex items-center space-x-2">
+                                                                    <Checkbox
+                                                                      id={`per-side-${session.id}-${ex.id}`}
+                                                                      checked={ex.per_side || false}
+                                                                      onCheckedChange={(checked) =>
+                                                                        handleExerciseChange(
+                                                                          session.id,
+                                                                          ex.id,
+                                                                          "per_side",
+                                                                          checked as boolean
+                                                                        )
+                                                                      }
+                                                                      disabled={isValidated}
+                                                                    />
+                                                                    <label
+                                                                      htmlFor={`per-side-${session.id}-${ex.id}`}
+                                                                      className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                                    >
+                                                                      par côté
+                                                                    </label>
+                                                                  </div>
+                                                                )}
+                                                              </div>
                                                             </TableCell>
                                                             <TableCell>
                                                               {/* Case de série masquée pour les exercices du super-set */}
@@ -2290,25 +2338,50 @@ export default function ClientDetail() {
                                                         </Select>
                                                       </TableCell>
                                                       <TableCell>
-                                                        <Input
-                                                          value={exercise.reps}
-                                                          onChange={(e) =>
-                                                            handleExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "reps",
-                                                              e.target.value,
-                                                            )
-                                                          }
-                                                          onKeyDown={(e) =>
-                                                            handleKeyDown(e, session.id, exercise.id, "reps")
-                                                          }
-                                                          placeholder="ex: 10"
-                                                          disabled={isValidated}
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="reps"
-                                                        />
+                                                        <div className="space-y-2">
+                                                          <Input
+                                                            value={exercise.reps}
+                                                            onChange={(e) =>
+                                                              handleExerciseChange(
+                                                                session.id,
+                                                                exercise.id,
+                                                                "reps",
+                                                                e.target.value,
+                                                              )
+                                                            }
+                                                            onKeyDown={(e) =>
+                                                              handleKeyDown(e, session.id, exercise.id, "reps")
+                                                            }
+                                                            placeholder="ex: 10"
+                                                            disabled={isValidated}
+                                                            data-session={session.id}
+                                                            data-exercise={exercise.id}
+                                                            data-field="reps"
+                                                          />
+                                                          {exercise.is_unilateral && (
+                                                            <div className="flex items-center space-x-2">
+                                                              <Checkbox
+                                                                id={`per-side-${session.id}-${exercise.id}`}
+                                                                checked={exercise.per_side || false}
+                                                                onCheckedChange={(checked) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    exercise.id,
+                                                                    "per_side",
+                                                                    checked as boolean
+                                                                  )
+                                                                }
+                                                                disabled={isValidated}
+                                                              />
+                                                              <label
+                                                                htmlFor={`per-side-${session.id}-${exercise.id}`}
+                                                                className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                              >
+                                                                par côté
+                                                              </label>
+                                                            </div>
+                                                          )}
+                                                        </div>
                                                       </TableCell>
                                                       <TableCell>
                                                         <Input
