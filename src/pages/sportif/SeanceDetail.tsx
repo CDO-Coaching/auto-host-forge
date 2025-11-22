@@ -596,7 +596,7 @@ export default function SeanceDetail() {
                                 )}
                                 {ex.reps && (
                                   <Badge variant="outline" className="text-xs">
-                                    {ex.reps} reps
+                                    {ex.reps} reps{ex.per_side ? " (par côté)" : ""}
                                   </Badge>
                                 )}
                                 {ex.charge && (
@@ -685,7 +685,7 @@ export default function SeanceDetail() {
                                 )}
                                 {item.reps && (
                                   <Badge variant="outline" className="text-xs">
-                                    {item.reps} reps
+                                    {item.reps} reps{item.per_side ? " (par côté)" : ""}
                                   </Badge>
                                 )}
                                 {item.charge && (

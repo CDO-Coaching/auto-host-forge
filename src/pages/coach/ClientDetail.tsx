@@ -384,9 +384,32 @@ export default function ClientDetail() {
     }
   };
 
-  const handleHistoricalExerciseChange = (sessionId: string, exerciseId: string, field: string, value: string) => {
+  const handleHistoricalExerciseChange = (sessionId: string, exerciseId: string, field: string, value: string | boolean) => {
     setEditedHistoricalExercises((prev) => {
       const sessionExercises = prev[sessionId] || [];
+      
+      // Si on change l'exercice, vérifier si c'est un exercice unilatéral
+      if (field === "exercice" && typeof value === "string") {
+        const selectedExercise = libraryExercises.find((ex) => ex.name === value);
+        const updatedExercises = sessionExercises.map((ex) => {
+          if (ex.id === exerciseId) {
+            const updates: any = { [field]: value };
+            if (selectedExercise) {
+              updates.is_unilateral = selectedExercise.unilateral || false;
+              if (!selectedExercise.unilateral) {
+                updates.per_side = false;
+              }
+            }
+            return { ...ex, ...updates };
+          }
+          return ex;
+        });
+        return {
+          ...prev,
+          [sessionId]: updatedExercises,
+        };
+      }
+      
       return {
         ...prev,
         [sessionId]: sessionExercises.map((ex) => (ex.id === exerciseId ? { ...ex, [field]: value } : ex)),
@@ -416,6 +439,7 @@ export default function ClientDetail() {
               cardio_content: exercise.cardio_content || null,
               cardio_pace: exercise.cardio_pace || null,
               super_set_group: exercise.super_set_group || null,
+              per_side: exercise.per_side || false,
             })
             .eq("id", exercise.id);
 
@@ -3080,22 +3104,55 @@ export default function ClientDetail() {
                                                 )}
                                               </TableCell>
                                               <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.reps}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "reps",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 10"
-                                                  />
-                                                ) : (
-                                                  exercise.reps || "-"
-                                                )}
+                                                <div className="space-y-2">
+                                                  {isEditingHistorical ? (
+                                                    <>
+                                                      <Input
+                                                        value={exercise.reps}
+                                                        onChange={(e) =>
+                                                          handleHistoricalExerciseChange(
+                                                            session.id,
+                                                            exercise.id,
+                                                            "reps",
+                                                            e.target.value,
+                                                          )
+                                                        }
+                                                        placeholder="ex: 10"
+                                                      />
+                                                      {exercise.is_unilateral && (
+                                                        <div className="flex items-center space-x-2">
+                                                          <Checkbox
+                                                            id={`historical-per-side-${session.id}-${exercise.id}`}
+                                                            checked={exercise.per_side || false}
+                                                            onCheckedChange={(checked) =>
+                                                              handleHistoricalExerciseChange(
+                                                                session.id,
+                                                                exercise.id,
+                                                                "per_side",
+                                                                checked as boolean
+                                                              )
+                                                            }
+                                                          />
+                                                          <label
+                                                            htmlFor={`historical-per-side-${session.id}-${exercise.id}`}
+                                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                          >
+                                                            par côté
+                                                          </label>
+                                                        </div>
+                                                      )}
+                                                    </>
+                                                  ) : (
+                                                    <div className="space-y-1">
+                                                      <div>{exercise.reps || "-"}</div>
+                                                      {exercise.per_side && (
+                                                        <Badge variant="secondary" className="text-xs">
+                                                          par côté
+                                                        </Badge>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
                                               </TableCell>
                                               <TableCell>
                                                 {isEditingHistorical ? (
