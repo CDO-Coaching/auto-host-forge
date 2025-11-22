@@ -46,10 +46,10 @@ const MUSCLE_GROUPS = [
 ] as const;
 
 const CATEGORIES = [
-  'Cardio',
-  'Mobilité-Souplesse',
-  'Renfo',
-  'Explosivité-Vitesse'
+  'cardio',
+  'mobilité-souplesse',
+  'renfo',
+  'explosivité-vitesse'
 ] as const;
 
 export default function BibliothequeExercices() {
@@ -256,7 +256,7 @@ export default function BibliothequeExercices() {
                       />
                       <label
                         htmlFor={`category-${category}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer capitalize"
                       >
                         {category}
                       </label>
@@ -497,7 +497,7 @@ export default function BibliothequeExercices() {
                       />
                       <label
                         htmlFor={`edit-category-${category}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer capitalize"
                       >
                         {category}
                       </label>
