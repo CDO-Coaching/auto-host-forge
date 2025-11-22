@@ -23,6 +23,7 @@ export default function SupersetDetail() {
 
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [completedRounds, setCompletedRounds] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -34,7 +35,7 @@ export default function SupersetDetail() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<any>(null);
-  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
+  const [videoUrl, setVideoUrl] = useState<string>("");
 
   useEffect(() => {
     loadSupersetDetail();
@@ -44,6 +45,7 @@ export default function SupersetDetail() {
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
+        if (parsed.currentExerciseIndex !== undefined) setCurrentExerciseIndex(parsed.currentExerciseIndex);
         if (parsed.completedRounds !== undefined) setCompletedRounds(parsed.completedRounds);
 
         // Restaurer le timer avec recalcul basé sur timestamp
@@ -88,6 +90,7 @@ export default function SupersetDetail() {
   useEffect(() => {
     if (supersetId) {
       const dataToSave = {
+        currentExerciseIndex,
         completedRounds,
         timeRemaining,
         isTimerRunning,
@@ -96,7 +99,7 @@ export default function SupersetDetail() {
       };
       localStorage.setItem(`superset-progress-${supersetId}`, JSON.stringify(dataToSave));
     }
-  }, [completedRounds, timeRemaining, isTimerRunning, timerStartTimestamp, targetDuration, supersetId]);
+  }, [currentExerciseIndex, completedRounds, timeRemaining, isTimerRunning, timerStartTimestamp, targetDuration, supersetId]);
 
   const loadSupersetDetail = async () => {
     setLoading(true);
@@ -127,22 +130,6 @@ export default function SupersetDetail() {
         setTimeRemaining(recupTime);
         setTargetDuration(recupTime);
       }
-
-      // Charger les vidéos pour tous les exercices
-      const urls: Record<string, string> = {};
-      for (const ex of data) {
-        if (ex.exercice) {
-          const { data: libraryData } = await supabase
-            .from("exercise_library")
-            .select("video_url")
-            .eq("name", ex.exercice)
-            .maybeSingle();
-          if (libraryData?.video_url) {
-            urls[ex.id] = libraryData.video_url;
-          }
-        }
-      }
-      setVideoUrls(urls);
     }
 
     setLoading(false);
@@ -162,45 +149,6 @@ export default function SupersetDetail() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const incrementRound = () => {
-    if (exercises.length > 0 && exercises[0].series) {
-      const totalSets = parseInt(exercises[0].series);
-      if (completedRounds < totalSets) {
-        setCompletedRounds((prev) => prev + 1);
-
-        // Démarrer automatiquement le chrono de récupération
-        if (exercises[0].recuperation && !isTimerRunning) {
-          const recuperationTime = parseRecuperationTime(exercises[0].recuperation);
-          const now = Date.now();
-
-          setTimeRemaining(recuperationTime);
-          setTargetDuration(recuperationTime);
-          setTimerStartTimestamp(now);
-          setIsTimerRunning(true);
-
-          const interval = setInterval(() => {
-            const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
-            const remaining = Math.max(0, recuperationTime - elapsedSeconds);
-            setTimeRemaining(remaining);
-
-            if (remaining === 0) {
-              setIsTimerRunning(false);
-              setTimerStartTimestamp(null);
-              clearInterval(interval);
-            }
-          }, 100);
-          setTimerInterval(interval);
-          setShowTimerOverlay(true);
-        }
-      }
-    }
-  };
-
-  const decrementRound = () => {
-    if (completedRounds > 0) {
-      setCompletedRounds((prev) => prev - 1);
-    }
-  };
 
   const startTimer = () => {
     if (!isTimerRunning && timeRemaining > 0) {
@@ -254,12 +202,10 @@ export default function SupersetDetail() {
     }
   };
 
-  const handleExerciseClick = (exercise: any) => {
-    // Ne permettre la validation que si l'exercice n'est pas déjà validé
-    if (exercise.sportif_rpe === null) {
-      setSelectedExercise(exercise);
-      setDialogOpen(true);
-    }
+  const handleExerciseClick = () => {
+    const currentExercise = exercises[currentExerciseIndex];
+    setSelectedExercise(currentExercise);
+    setDialogOpen(true);
   };
 
   const handleValidateFeedback = async (rpe: string, comment: string) => {
@@ -302,12 +248,81 @@ export default function SupersetDetail() {
     // Recharger les données
     await loadSupersetDetail();
 
-    // Vérifier si tous les exercices du superset sont terminés
-    const allCompleted = exercises.every((ex) => ex.id === selectedExercise.id || ex.sportif_rpe !== null);
-    if (allCompleted) {
-      // Nettoyer les données sauvegardées
-      localStorage.removeItem(`superset-progress-${supersetId}`);
-      setShowCelebration(true);
+    // Passer à l'exercice suivant
+    const nextIndex = currentExerciseIndex + 1;
+    
+    if (nextIndex < exercises.length) {
+      // Il y a encore des exercices dans ce round
+      // Démarrer le timer de récupération
+      const currentExercise = exercises[currentExerciseIndex];
+      if (currentExercise.recuperation) {
+        const recuperationTime = parseRecuperationTime(currentExercise.recuperation);
+        const now = Date.now();
+
+        setTimeRemaining(recuperationTime);
+        setTargetDuration(recuperationTime);
+        setTimerStartTimestamp(now);
+        setIsTimerRunning(true);
+        setShowTimerOverlay(true);
+
+        const interval = setInterval(() => {
+          const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
+          const remaining = Math.max(0, recuperationTime - elapsedSeconds);
+          setTimeRemaining(remaining);
+
+          if (remaining === 0) {
+            setIsTimerRunning(false);
+            setTimerStartTimestamp(null);
+            clearInterval(interval);
+            setShowTimerOverlay(false);
+            setCurrentExerciseIndex(nextIndex);
+          }
+        }, 100);
+        setTimerInterval(interval);
+      } else {
+        setCurrentExerciseIndex(nextIndex);
+      }
+    } else {
+      // Fin d'un round complet
+      const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
+      const newRoundCount = completedRounds + 1;
+      
+      if (newRoundCount < totalSets) {
+        // Il reste des rounds à faire
+        setCompletedRounds(newRoundCount);
+        setCurrentExerciseIndex(0);
+        
+        // Démarrer le timer entre les rounds
+        if (exercises[0].recuperation) {
+          const recuperationTime = parseRecuperationTime(exercises[0].recuperation);
+          const now = Date.now();
+
+          setTimeRemaining(recuperationTime);
+          setTargetDuration(recuperationTime);
+          setTimerStartTimestamp(now);
+          setIsTimerRunning(true);
+          setShowTimerOverlay(true);
+
+          const interval = setInterval(() => {
+            const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
+            const remaining = Math.max(0, recuperationTime - elapsedSeconds);
+            setTimeRemaining(remaining);
+
+            if (remaining === 0) {
+              setIsTimerRunning(false);
+              setTimerStartTimestamp(null);
+              clearInterval(interval);
+              setShowTimerOverlay(false);
+            }
+          }, 100);
+          setTimerInterval(interval);
+        }
+      } else {
+        // Tous les rounds sont terminés
+        setCompletedRounds(newRoundCount);
+        localStorage.removeItem(`superset-progress-${supersetId}`);
+        setShowCelebration(true);
+      }
     }
   };
 
@@ -420,7 +435,26 @@ export default function SupersetDetail() {
   }
 
   const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
-  const allExercisesCompleted = exercises.every((ex) => ex.sportif_rpe !== null);
+  const currentExercise = exercises[currentExerciseIndex];
+  
+  // Charger la vidéo de l'exercice actuel
+  useEffect(() => {
+    const loadVideo = async () => {
+      if (currentExercise?.exercice) {
+        const { data: libraryData } = await supabase
+          .from("exercise_library")
+          .select("video_url")
+          .eq("name", currentExercise.exercice)
+          .maybeSingle();
+        if (libraryData?.video_url) {
+          setVideoUrl(libraryData.video_url);
+        } else {
+          setVideoUrl("");
+        }
+      }
+    };
+    loadVideo();
+  }, [currentExercise]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -462,213 +496,144 @@ export default function SupersetDetail() {
           </Button>
           <h1 className="text-xl sm:text-2xl font-bold">Superset</h1>
           <Badge variant="secondary" className="ml-auto text-xs">
-            {exercises.length} exercices
+            Round {completedRounds + 1}/{totalSets}
           </Badge>
         </div>
 
-        {/* Compteur de rounds */}
-        {totalSets > 0 && (
-          <Card className="border-2 border-primary/30">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm sm:text-base font-semibold">Rounds</Label>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={decrementRound}
-                    disabled={completedRounds === 0}
-                    className="h-8 w-8 sm:h-10 sm:w-10"
-                  >
-                    <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-
-                  <div className="text-3xl sm:text-4xl font-bold min-w-[80px] sm:min-w-[100px] text-center">
-                    {completedRounds}
-                    <span className="text-xl sm:text-2xl text-muted-foreground">/{totalSets}</span>
-                  </div>
-
-                  <Button
-                    size="icon"
-                    onClick={incrementRound}
-                    disabled={completedRounds >= totalSets}
-                    className="h-8 w-8 sm:h-10 sm:w-10"
-                  >
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                </div>
+        {/* Progression dans le superset */}
+        <Card className="border-2 border-primary/30">
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm sm:text-base font-semibold">Exercice</Label>
+              <div className="text-2xl sm:text-3xl font-bold">
+                {currentExerciseIndex + 1}
+                <span className="text-lg sm:text-xl text-muted-foreground">/{exercises.length}</span>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Chronomètre de récupération */}
-        {exercises[0]?.recuperation && (
-          <Card className="border-2 border-muted-foreground/20 bg-muted/50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0 sm:justify-between">
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                  <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
-                </div>
-                <div
-                  className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
-                >
-                  {formatTime(timeRemaining)}
-                </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  {!isTimerRunning ? (
-                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="h-8 sm:h-9 flex-1 sm:flex-none px-3 sm:px-4">
-                      <Play className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="text-xs sm:text-sm">Start</span>
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="h-8 sm:h-9 flex-1 sm:flex-none px-3 sm:px-4">
-                      <Pause className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                      <span className="text-xs sm:text-sm">Pause</span>
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={resetTimer} variant="outline" className="h-8 w-8 sm:h-9 sm:w-9 p-0">
-                    <RotateCcw className="h-3 w-3 sm:h-4 sm:w-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Separator className="my-4 sm:my-6" />
 
-        {/* Liste des exercices */}
-        <div className="space-y-3 sm:space-y-4">
-          {exercises.map((exercise, index) => {
-            const isCompleted = exercise.sportif_rpe !== null;
+        {/* Exercice actuel */}
+        {currentExercise && (
+          <Card
+            className="cursor-pointer transition-all border-primary/50 hover:border-primary"
+            onClick={handleExerciseClick}
+          >
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              {/* En-tête exercice */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <h3 className="text-xl sm:text-2xl font-bold mb-2">{currentExercise.exercice}</h3>
+                </div>
+                {videoUrl && (
+                  <a
+                    href={videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-yellow-400 hover:text-yellow-200 text-3xl sm:text-4xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    🎥
+                  </a>
+                )}
+              </div>
 
-            return (
-              <Card
-                key={exercise.id}
-                className={`cursor-pointer transition-all ${
-                  isCompleted
-                    ? "border-green-500/50 bg-green-500/5"
-                    : "border-primary/30 hover:border-primary/50"
-                }`}
-                onClick={() => handleExerciseClick(exercise)}
-              >
-                <CardContent className="p-3 sm:p-4 space-y-3">
-                  {/* En-tête exercice */}
-                  <div className="flex items-start justify-between gap-2">
+              {/* Détails - Grid responsive */}
+              <div className="grid grid-cols-2 gap-3">
+                {currentExercise.charge && (
+                  <div className="border border-red-500/30 bg-red-500/5 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Weight className="h-5 w-5 text-red-600" />
+                      <span className="text-xs sm:text-sm font-semibold text-red-600 uppercase">Charge</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.charge}</p>
+                  </div>
+                )}
+
+                {currentExercise.reps && (
+                  <div className="border border-orange-500/30 bg-orange-500/5 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Repeat className="h-5 w-5 text-orange-600" />
+                      <span className="text-xs sm:text-sm font-semibold text-orange-600 uppercase">Reps</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.reps}</p>
+                  </div>
+                )}
+
+                {currentExercise.rpe && (
+                  <div className="border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Zap className="h-5 w-5 text-yellow-600" />
+                        <span className="text-xs sm:text-sm font-semibold text-yellow-600 uppercase">RPE</span>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <RPEExplanationDialog />
+                      </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.rpe}</p>
+                  </div>
+                )}
+
+                {currentExercise.tempo && (
+                  <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg p-3">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-purple-600" />
+                        <span className="text-xs sm:text-sm font-semibold text-purple-600 uppercase">Tempo</span>
+                      </div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <TempoExplanationDialog />
+                      </div>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.tempo}</p>
+                  </div>
+                )}
+
+                {currentExercise.series && (
+                  <div className="border border-blue-500/30 bg-blue-500/5 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Repeat className="h-5 w-5 text-blue-600" />
+                      <span className="text-xs sm:text-sm font-semibold text-blue-600 uppercase">Séries</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.series}</p>
+                  </div>
+                )}
+
+                {currentExercise.recuperation && (
+                  <div className="border border-green-500/30 bg-green-500/5 rounded-lg p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="h-5 w-5 text-green-600" />
+                      <span className="text-xs sm:text-sm font-semibold text-green-600 uppercase">Récup</span>
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold">{currentExercise.recuperation}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Notes du coach */}
+              {currentExercise.commentaire && (
+                <div className="border-2 border-primary/20 rounded-lg p-3 sm:p-4">
+                  <div className="flex items-start gap-2">
+                    <span className="text-xl sm:text-2xl">📝</span>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Badge variant="outline" className="text-xs">
-                          #{index + 1}
-                        </Badge>
-                        {isCompleted && <CheckCircle2 className="h-4 w-4 text-green-600" />}
-                      </div>
-                      <h3 className="text-base sm:text-lg font-bold">{exercise.exercice}</h3>
+                      <p className="text-xs sm:text-sm font-semibold text-primary mb-2">Notes du coach</p>
+                      <p className="text-sm sm:text-base leading-relaxed">{currentExercise.commentaire}</p>
                     </div>
-                    {videoUrls[exercise.id] && (
-                      <a
-                        href={videoUrls[exercise.id]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-yellow-400 hover:text-yellow-200 text-2xl sm:text-3xl"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        🎥
-                      </a>
-                    )}
                   </div>
+                </div>
+              )}
 
-                  {/* Détails - Grid responsive */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {exercise.charge && (
-                      <div className="border border-red-500/30 bg-red-500/5 rounded-lg p-2">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Weight className="h-4 w-4 text-red-600" />
-                          <span className="text-xs font-semibold text-red-600 uppercase">Charge</span>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold">{exercise.charge}</p>
-                      </div>
-                    )}
-
-                    {exercise.reps && (
-                      <div className="border border-orange-500/30 bg-orange-500/5 rounded-lg p-2">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Repeat className="h-4 w-4 text-orange-600" />
-                          <span className="text-xs font-semibold text-orange-600 uppercase">Reps</span>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold">{exercise.reps}</p>
-                      </div>
-                    )}
-
-                    {exercise.rpe && (
-                      <div className="border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-2">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <div className="flex items-center gap-1">
-                            <Zap className="h-4 w-4 text-yellow-600" />
-                            <span className="text-xs font-semibold text-yellow-600 uppercase">RPE</span>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <RPEExplanationDialog />
-                          </div>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold">{exercise.rpe}</p>
-                      </div>
-                    )}
-
-                    {exercise.tempo && (
-                      <div className="border border-purple-500/30 bg-purple-500/5 rounded-lg p-2">
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-4 w-4 text-purple-600" />
-                            <span className="text-xs font-semibold text-purple-600 uppercase">Tempo</span>
-                          </div>
-                          <div onClick={(e) => e.stopPropagation()}>
-                            <TempoExplanationDialog />
-                          </div>
-                        </div>
-                        <p className="text-xl sm:text-2xl font-bold">{exercise.tempo}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Notes du coach */}
-                  {exercise.commentaire && (
-                    <div className="border-2 border-primary/20 rounded-lg p-2 sm:p-3">
-                      <div className="flex items-start gap-2">
-                        <span className="text-base sm:text-lg">📝</span>
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-primary mb-1">Notes du coach</p>
-                          <p className="text-xs sm:text-sm leading-relaxed">{exercise.commentaire}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Status de validation */}
-                  {isCompleted ? (
-                    <div className="text-xs sm:text-sm text-green-600 font-medium text-center">
-                      ✓ Exercice validé
-                    </div>
-                  ) : (
-                    <div className="text-xs sm:text-sm text-muted-foreground text-center">
-                      Cliquer pour valider l'exercice
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        {/* Message si tous terminés */}
-        {allExercisesCompleted && (
-          <Card className="border-2 border-green-500 bg-green-500/10">
-            <CardContent className="p-3 sm:p-4 text-center">
-              <CheckCircle2 className="h-10 w-10 sm:h-12 sm:w-12 text-green-600 mx-auto mb-2" />
-              <p className="text-sm sm:text-base font-semibold text-green-600">
-                Tous les exercices du superset sont terminés !
-              </p>
+              {/* Bouton de validation */}
+              <Button 
+                size="lg" 
+                className="w-full text-base sm:text-lg py-6"
+                onClick={handleExerciseClick}
+              >
+                Valider cet exercice
+              </Button>
             </CardContent>
           </Card>
         )}
