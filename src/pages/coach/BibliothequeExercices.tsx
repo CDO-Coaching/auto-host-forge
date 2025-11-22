@@ -45,6 +45,13 @@ const MUSCLE_GROUPS = [
   'CORE'
 ] as const;
 
+const CATEGORIES = [
+  'Cardio',
+  'Mobilité-Souplesse',
+  'Renfo',
+  'Explosivité-Vitesse'
+] as const;
+
 export default function BibliothequeExercices() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
@@ -233,13 +240,29 @@ export default function BibliothequeExercices() {
                 />
               </div>
               <div>
-                <Label htmlFor="category">Catégorie</Label>
-                <Input
-                  id="category"
-                  value={newExercise.category}
-                  onChange={(e) => setNewExercise({ ...newExercise, category: e.target.value })}
-                  placeholder="Ex: Force, Mobilité, Cardio..."
-                />
+                <Label>Catégories</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2 p-3 border rounded-md">
+                  {CATEGORIES.map((category) => (
+                    <div key={category} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`category-${category}`}
+                        checked={newExercise.category === category}
+                        onCheckedChange={(checked) => {
+                          setNewExercise({ 
+                            ...newExercise, 
+                            category: checked ? category : "" 
+                          });
+                        }}
+                      />
+                      <label
+                        htmlFor={`category-${category}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
+                        {category}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="muscle_principal">Muscle principal *</Label>
@@ -458,13 +481,29 @@ export default function BibliothequeExercices() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-category">Catégorie</Label>
-                <Input
-                  id="edit-category"
-                  value={editingExercise.category || ""}
-                  onChange={(e) => setEditingExercise({ ...editingExercise, category: e.target.value })}
-                  placeholder="Ex: Force, Mobilité, Cardio..."
-                />
+                <Label>Catégories</Label>
+                <div className="grid grid-cols-2 gap-3 mt-2 p-3 border rounded-md">
+                  {CATEGORIES.map((category) => (
+                    <div key={category} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`edit-category-${category}`}
+                        checked={editingExercise.category === category}
+                        onCheckedChange={(checked) => {
+                          setEditingExercise({ 
+                            ...editingExercise, 
+                            category: checked ? category : "" 
+                          });
+                        }}
+                      />
+                      <label
+                        htmlFor={`edit-category-${category}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                      >
+                        {category}
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
               <div>
                 <Label htmlFor="edit-muscle-principal">Muscle principal *</Label>
