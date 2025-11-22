@@ -54,7 +54,7 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps)
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2 sm:space-y-3">
       {maxes.map((max) => {
         const percentages = calculatePercentages(max.weight_kg);
         const improvement = max.previous_weight
@@ -63,18 +63,18 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps)
 
         return (
           <Card key={max.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-lg">{max.exercise_name}</h3>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start justify-between gap-2 sm:gap-4">
+                <div className="flex-1 space-y-2 min-w-0">
+                  <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+                    <h3 className="font-semibold text-sm sm:text-lg break-words">{max.exercise_name}</h3>
                     <Badge
                       variant="outline"
-                      className={muscleColors[max.muscle] || ""}
+                      className={`${muscleColors[max.muscle] || ""} text-[10px] sm:text-xs`}
                     >
                       {max.muscle}
                     </Badge>
-                    <Badge variant="secondary">{max.max_type}</Badge>
+                    <Badge variant="secondary" className="text-[10px] sm:text-xs">{max.max_type}</Badge>
                     {improvement > 0 && (
                       <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
                         <TrendingUp className="mr-1 h-3 w-3" />
@@ -83,12 +83,12 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps)
                     )}
                   </div>
 
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-primary">
+                  <div className="flex flex-wrap items-baseline gap-1 sm:gap-2">
+                    <span className="text-2xl sm:text-3xl font-bold text-primary">
                       {max.weight_kg}
                     </span>
-                    <span className="text-muted-foreground">kg</span>
-                    <span className="text-sm text-muted-foreground ml-2">
+                    <span className="text-muted-foreground text-sm">kg</span>
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       {format(new Date(max.recorded_at), "dd MMM yyyy", {
                         locale: fr,
                       })}
