@@ -24,7 +24,6 @@ interface CoachObjectivesViewProps {
 interface AthleteObjective {
   id?: string;
   main_objective?: string;
-  main_objective_weeks?: number;
   main_objective_deadline?: string;
   secondary_objective?: string;
 }
@@ -45,6 +44,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   const [isSavingSecondary, setIsSavingSecondary] = useState(false);
   const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
   const [editingMilestone, setEditingMilestone] = useState<ObjectiveMilestone | null>(null);
+  const [mainDeadlineDate, setMainDeadlineDate] = useState<Date | undefined>(undefined);
   const [milestoneForm, setMilestoneForm] = useState({
     label: "",
     target_date: new Date(),
@@ -56,6 +56,12 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     loadObjectives();
     loadMilestones();
   }, [athleteId]);
+
+  useEffect(() => {
+    if (objective.main_objective_deadline) {
+      setMainDeadlineDate(new Date(objective.main_objective_deadline));
+    }
+  }, [objective.main_objective_deadline]);
 
   const loadObjectives = async () => {
     try {
@@ -93,14 +99,9 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
-  const calculateDeadline = (weeks: number): string => {
-    const deadline = addWeeks(new Date(), weeks);
-    return format(deadline, "yyyy-MM-dd");
-  };
-
   const handleSaveMainObjective = async () => {
-    if (!objective.main_objective?.trim() || !objective.main_objective_weeks) {
-      toast.error("Veuillez remplir l'objectif et le nombre de semaines");
+    if (!objective.main_objective?.trim() || !mainDeadlineDate) {
+      toast.error("Veuillez remplir l'objectif et sélectionner une date");
       return;
     }
 
@@ -109,7 +110,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const deadline = calculateDeadline(objective.main_objective_weeks);
+      const deadline = format(mainDeadlineDate, "yyyy-MM-dd");
 
       const { error } = await supabase
         .from("athlete_objectives")
@@ -117,7 +118,6 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           athlete_id: athleteId,
           coach_id: user.id,
           main_objective: objective.main_objective,
-          main_objective_weeks: objective.main_objective_weeks,
           main_objective_deadline: deadline,
           secondary_objective: objective.secondary_objective,
           updated_at: new Date().toISOString(),
@@ -155,7 +155,6 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           athlete_id: athleteId,
           coach_id: user.id,
           main_objective: objective.main_objective,
-          main_objective_weeks: objective.main_objective_weeks,
           main_objective_deadline: objective.main_objective_deadline,
           secondary_objective: objective.secondary_objective,
           updated_at: new Date().toISOString(),
@@ -305,33 +304,35 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="weeks">Nombre de semaines</Label>
-            <Input
-              id="weeks"
-              type="number"
-              min="1"
-              max="52"
-              placeholder="Ex: 8"
-              value={objective.main_objective_weeks || ""}
-              onChange={(e) => {
-                const weeks = parseInt(e.target.value);
-                if (weeks > 0 && weeks <= 52) {
-                  setObjective({ ...objective, main_objective_weeks: weeks });
-                }
-              }}
-            />
+            <Label>Date cible de l'objectif *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !mainDeadlineDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {mainDeadlineDate ? (
+                    format(mainDeadlineDate, "EEEE d MMMM yyyy", { locale: fr })
+                  ) : (
+                    <span>Sélectionner une date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={mainDeadlineDate}
+                  onSelect={setMainDeadlineDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
-
-          {objective.main_objective_weeks && objective.main_objective_weeks > 0 && (
-            <div className="p-3 bg-muted rounded-md">
-              <p className="text-sm text-muted-foreground">
-                Date cible calculée:{" "}
-                <span className="font-semibold text-foreground">
-                  {format(addWeeks(new Date(), objective.main_objective_weeks), "EEEE d MMMM yyyy", { locale: fr })}
-                </span>
-              </p>
-            </div>
-          )}
 
           <Button onClick={handleSaveMainObjective} disabled={isSavingMain}>
             <Save className="h-4 w-4 mr-2" />
