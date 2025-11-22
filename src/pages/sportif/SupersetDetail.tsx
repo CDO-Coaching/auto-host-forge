@@ -81,7 +81,16 @@ export default function SupersetDetail() {
     if (error) {
       console.error("Erreur lors du chargement du superset:", error);
     } else if (data && data.length > 0) {
-      setExercises(data);
+      // Dédoublonner les exercices par nom pour n'afficher qu'une fois chaque exercice unique
+      const uniqueExercises = data.reduce((acc: any[], current: any) => {
+        const existingExercise = acc.find(ex => ex.exercice === current.exercice);
+        if (!existingExercise) {
+          acc.push(current);
+        }
+        return acc;
+      }, []);
+      
+      setExercises(uniqueExercises);
       
       const { data: sessionRow } = await supabase
         .from("training_sessions")
