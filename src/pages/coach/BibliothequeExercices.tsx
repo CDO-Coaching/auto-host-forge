@@ -22,7 +22,7 @@ interface Exercise {
   video_url: string | null;
   description: string | null;
   equipment: string | null;
-  unilaterale: boolean | null;
+  unilateral: boolean | null;
   created_at: string;
 }
 
@@ -70,7 +70,7 @@ export default function BibliothequeExercices() {
     video_url: "",
     description: "",
     equipment: "",
-    unilaterale: false,
+    unilateral: false,
   });
 
   useEffect(() => {
@@ -133,7 +133,7 @@ export default function BibliothequeExercices() {
     const { error } = await supabase.from("exercise_library").insert([{
       ...newExercise,
       muscles_second: newExercise.muscles_second.length > 0 ? newExercise.muscles_second : null,
-      unilaterale: newExercise.unilaterale
+      unilateral: newExercise.unilateral
     }]);
 
     if (error) {
@@ -150,7 +150,7 @@ export default function BibliothequeExercices() {
         video_url: "",
         description: "",
         equipment: "",
-        unilaterale: false,
+        unilateral: false,
       });
       loadExercises();
     }
@@ -181,7 +181,7 @@ export default function BibliothequeExercices() {
         video_url: editingExercise.video_url,
         description: editingExercise.description,
         equipment: editingExercise.equipment,
-        unilaterale: editingExercise.unilaterale,
+        unilateral: editingExercise.unilateral,
       })
       .eq("id", editingExercise.id);
 
@@ -326,14 +326,14 @@ export default function BibliothequeExercices() {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="unilaterale"
-                  checked={newExercise.unilaterale}
+                  id="unilateral"
+                  checked={newExercise.unilateral}
                   onCheckedChange={(checked) => 
-                    setNewExercise({ ...newExercise, unilaterale: checked as boolean })
+                    setNewExercise({ ...newExercise, unilateral: checked as boolean })
                   }
                 />
                 <label
-                  htmlFor="unilaterale"
+                  htmlFor="unilateral"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
                 >
                   Unilatérale
@@ -455,7 +455,7 @@ export default function BibliothequeExercices() {
                     </TableCell>
                     <TableCell>{exercise.category || "-"}</TableCell>
                     <TableCell>
-                      {exercise.unilaterale ? (
+                      {exercise.unilateral ? (
                         <Badge variant="default">Oui</Badge>
                       ) : (
                         <Badge variant="outline">Non</Badge>
@@ -597,14 +597,14 @@ export default function BibliothequeExercices() {
               </div>
               <div className="flex items-center space-x-2">
                 <Checkbox
-                  id="edit-unilaterale"
-                  checked={editingExercise.unilaterale || false}
+                  id="edit-unilateral"
+                  checked={editingExercise.unilateral || false}
                   onCheckedChange={(checked) => 
-                    setEditingExercise({ ...editingExercise, unilaterale: checked as boolean })
+                    setEditingExercise({ ...editingExercise, unilateral: checked as boolean })
                   }
                 />
                 <label
-                  htmlFor="edit-unilaterale"
+                  htmlFor="edit-unilateral"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
                 >
                   Unilatérale
