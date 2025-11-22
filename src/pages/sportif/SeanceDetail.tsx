@@ -275,6 +275,40 @@ export default function SeanceDetail() {
     // Nettoyer le localStorage
     localStorage.removeItem(`session_timer_${sessionId}`);
 
+    // Vérifier si TOUS les exercices sont terminés
+    const allExercisesCompleted = exercises.every(isExerciseCompleted);
+
+    // Si tous ne sont pas terminés, marquer les exercices non faits comme "skipped"
+    if (!allExercisesCompleted) {
+      const incompleteExerciseIds: string[] = [];
+      
+      exercises.forEach((item: any) => {
+        if (item.isSuperset) {
+          item.exercises.forEach((ex: any) => {
+            if (ex.sportif_rpe === null) {
+              incompleteExerciseIds.push(ex.id);
+            }
+          });
+        } else {
+          if (item.sportif_rpe === null) {
+            incompleteExerciseIds.push(item.id);
+          }
+        }
+      });
+
+      // Marquer ces exercices comme skipped
+      if (incompleteExerciseIds.length > 0) {
+        const { error: skipError } = await supabase
+          .from("session_exercises")
+          .update({ skipped: true })
+          .in("id", incompleteExerciseIds);
+
+        if (skipError) {
+          console.error("Erreur lors du marquage des exercices non faits:", skipError);
+        }
+      }
+    }
+
     const { data, error, status } = await supabase
       .from("training_sessions")
       .update({
@@ -294,9 +328,6 @@ export default function SeanceDetail() {
       });
       return;
     }
-
-    // Vérifier si TOUS les exercices sont terminés
-    const allExercisesCompleted = exercises.every(isExerciseCompleted);
 
     if (allExercisesCompleted) {
       setShowCelebration(true);
@@ -379,13 +410,14 @@ export default function SeanceDetail() {
       return [item.id];
     });
 
-    // Réinitialiser tous les feedbacks à null
+    // Réinitialiser tous les feedbacks à null et skipped à false
     const { error } = await supabase
       .from("session_exercises")
       .update({
         sportif_rpe: null,
         sportif_comment: null,
         sportif_feedback_at: null,
+        skipped: false,
       })
       .in("id", exerciseIds);
 

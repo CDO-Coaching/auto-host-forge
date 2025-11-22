@@ -127,7 +127,10 @@ export default function Seances() {
 
   const isSessionCompleted = (session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
-    return session.session_exercises.every((ex: any) => ex.sportif_rpe !== null && ex.sportif_rpe !== undefined);
+    // Une séance est considérée comme complétée si tous les exercices ont soit un RPE soit sont marqués comme skipped
+    return session.session_exercises.every((ex: any) => 
+      (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
+    );
   };
 
   if (loading) {

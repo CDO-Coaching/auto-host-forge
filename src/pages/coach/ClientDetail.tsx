@@ -1534,31 +1534,47 @@ export default function ClientDetail() {
                       {session.session_exercises && session.session_exercises.length > 0 ? (
                         <div className="space-y-2">
                           {session.session_exercises
-                            .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment)
+                            .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment || ex.skipped)
                             .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
                             .map((ex: any) => (
                               <div key={ex.id} className="pl-3 border-l-2 border-primary/40 py-2">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1">
-                                    <div className="font-medium text-sm">{ex.exercice}</div>
-                                    <div className="text-xs text-muted-foreground mt-1">
-                                      Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
+                                {ex.skipped ? (
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                      <div className="font-medium text-sm">{ex.exercice}</div>
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
+                                      </div>
                                     </div>
-                                  </div>
-                                  {ex.sportif_rpe && (
-                                    <Badge variant="secondary" className="shrink-0 text-xs">
-                                      RPE: {ex.sportif_rpe}
+                                    <Badge variant="outline" className="text-orange-600 border-orange-600 shrink-0 text-xs">
+                                      Non fait
                                     </Badge>
-                                  )}
-                                </div>
-                                {ex.sportif_comment && (
-                                  <div className="mt-2 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
-                                    "{ex.sportif_comment}"
                                   </div>
+                                ) : (
+                                  <>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1">
+                                        <div className="font-medium text-sm">{ex.exercice}</div>
+                                        <div className="text-xs text-muted-foreground mt-1">
+                                          Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
+                                        </div>
+                                      </div>
+                                      {ex.sportif_rpe && (
+                                        <Badge variant="secondary" className="shrink-0 text-xs">
+                                          RPE: {ex.sportif_rpe}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {ex.sportif_comment && (
+                                      <div className="mt-2 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
+                                        "{ex.sportif_comment}"
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </div>
                             ))}
-                          {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment) && (
+                          {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment || ex.skipped) && (
                             <p className="text-xs text-muted-foreground text-center py-2">
                               Aucun retour du sportif pour cette séance
                             </p>
@@ -2707,12 +2723,18 @@ export default function ClientDetail() {
                                   const exercises = session.session_exercises || [];
                                   if (exercises.length === 0) return null;
                                   const completedCount = exercises.filter((ex: any) => ex.sportif_rpe !== null).length;
-                                  if (completedCount === 0) {
+                                  const skippedCount = exercises.filter((ex: any) => ex.skipped === true).length;
+                                  const totalWithFeedback = completedCount + skippedCount;
+                                  
+                                  if (totalWithFeedback === 0) {
                                     return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
-                                  } else if (completedCount === exercises.length) {
+                                  } else if (totalWithFeedback === exercises.length) {
+                                    if (skippedCount > 0) {
+                                      return <Badge className="bg-orange-600 text-white">Terminée ({skippedCount} non fait{skippedCount > 1 ? 's' : ''})</Badge>;
+                                    }
                                     return <Badge className="bg-green-600 text-white">Terminée</Badge>;
                                   } else {
-                                    return <Badge className="bg-orange-500 text-white">En cours ({completedCount}/{exercises.length})</Badge>;
+                                    return <Badge className="bg-orange-500 text-white">En cours ({totalWithFeedback}/{exercises.length})</Badge>;
                                   }
                                 })()}
                               </div>
@@ -2906,17 +2928,27 @@ export default function ClientDetail() {
                                                     )}
                                                     
                                                     <div className="flex gap-4 pt-2 border-t">
-                                                      <div>
-                                                        <span className="text-sm text-muted-foreground">RPE ressenti: </span>
-                                                        <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
-                                                          {exercise.sportif_rpe || "-"}
-                                                        </span>
-                                                      </div>
-                                                      {exercise.sportif_comment && (
-                                                        <div>
-                                                          <span className="text-sm text-muted-foreground">Retour: </span>
-                                                          <span className="text-sm">{exercise.sportif_comment}</span>
+                                                      {exercise.skipped ? (
+                                                        <div className="flex items-center gap-2">
+                                                          <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                            Exercice non fait
+                                                          </Badge>
                                                         </div>
+                                                      ) : (
+                                                        <>
+                                                          <div>
+                                                            <span className="text-sm text-muted-foreground">RPE ressenti: </span>
+                                                            <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
+                                                              {exercise.sportif_rpe || "-"}
+                                                            </span>
+                                                          </div>
+                                                          {exercise.sportif_comment && (
+                                                            <div>
+                                                              <span className="text-sm text-muted-foreground">Retour: </span>
+                                                              <span className="text-sm">{exercise.sportif_comment}</span>
+                                                            </div>
+                                                          )}
+                                                        </>
                                                       )}
                                                     </div>
                                                   </div>
@@ -3048,19 +3080,27 @@ export default function ClientDetail() {
                                               </TableCell>
                                               <TableCell>
                                                 <div className="space-y-1">
-                                                  <div
-                                                    className={
-                                                      exercise.sportif_rpe
-                                                        ? "font-medium text-primary"
-                                                        : "text-muted-foreground"
-                                                    }
-                                                  >
-                                                    {exercise.sportif_rpe || "-"}
-                                                  </div>
-                                                  {exercise.sportif_feedback_at && (
-                                                    <div className="text-xs text-muted-foreground">
-                                                      {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
-                                                    </div>
+                                                  {exercise.skipped ? (
+                                                    <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                      Non fait
+                                                    </Badge>
+                                                  ) : (
+                                                    <>
+                                                      <div
+                                                        className={
+                                                          exercise.sportif_rpe
+                                                            ? "font-medium text-primary"
+                                                            : "text-muted-foreground"
+                                                        }
+                                                      >
+                                                        {exercise.sportif_rpe || "-"}
+                                                      </div>
+                                                      {exercise.sportif_feedback_at && (
+                                                        <div className="text-xs text-muted-foreground">
+                                                          {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
+                                                        </div>
+                                                      )}
+                                                    </>
                                                   )}
                                                 </div>
                                               </TableCell>
