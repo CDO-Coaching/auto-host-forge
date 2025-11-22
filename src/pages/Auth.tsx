@@ -48,7 +48,7 @@ const Auth = () => {
         } else if (!profile?.approved) {
           navigate("/en-attente", { replace: true });
         } else if (profile.role === "coach") {
-          navigate("/coach/programmation", { replace: true });
+          navigate("/coach/mes-clients", { replace: true });
         } else {
           navigate("/sportif/seances", { replace: true });
         }
@@ -83,7 +83,7 @@ const Auth = () => {
           } else if (!profile?.approved) {
             navigate("/en-attente");
           } else if (profile.role === "coach") {
-            navigate("/coach/programmation");
+            navigate("/coach/mes-clients");
           } else {
             navigate("/sportif/seances");
           }
