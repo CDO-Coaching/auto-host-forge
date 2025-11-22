@@ -40,6 +40,7 @@ import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
+import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
@@ -1184,6 +1185,7 @@ export default function ClientDetail() {
           <TabsTrigger value="suivi">Suivi de fatigue</TabsTrigger>
           <TabsTrigger value="poids">Poids</TabsTrigger>
           <TabsTrigger value="course">Suivi de course</TabsTrigger>
+          <TabsTrigger value="objectifs">Objectifs</TabsTrigger>
           <TabsTrigger value="historique">Historique</TabsTrigger>
         </TabsList>
 
@@ -2243,6 +2245,13 @@ export default function ClientDetail() {
 
         <TabsContent value="course" className="space-y-4">
           <CoachRunningView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
+        </TabsContent>
+
+        <TabsContent value="objectifs" className="space-y-4">
+          <CoachObjectivesView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
           />
