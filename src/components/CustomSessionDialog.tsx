@@ -78,16 +78,16 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
           Ajouter une séance perso
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto mx-4">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto mx-3 max-w-[calc(100vw-24px)]">
         <DialogHeader>
-          <DialogTitle>Créer une séance perso</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-base sm:text-lg">Créer une séance perso</DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm">
             Enregistre une séance supplémentaire que tu as réalisée en dehors du programme
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="session-name">Nom de la séance *</Label>
+            <Label htmlFor="session-name" className="text-xs sm:text-sm">Nom de la séance *</Label>
             <Input
               id="session-name"
               placeholder="Ex: Course à pied, Natation, Yoga..."
@@ -95,11 +95,12 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
               onChange={(e) => setSessionName(e.target.value)}
               maxLength={100}
               required
+              className="text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="duration">Durée (minutes) *</Label>
+            <Label htmlFor="duration" className="text-xs sm:text-sm">Durée (minutes) *</Label>
             <Input
               id="duration"
               type="number"
@@ -109,11 +110,12 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
               min="1"
               max="600"
               required
+              className="text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optionnel)</Label>
+            <Label htmlFor="description" className="text-xs sm:text-sm">Description (optionnel)</Label>
             <Textarea
               id="description"
               placeholder="Décrivez brièvement votre séance..."
@@ -121,19 +123,21 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
               rows={4}
+              className="text-xs sm:text-sm"
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
               disabled={submitting}
+              className="w-full sm:w-auto text-xs sm:text-sm"
             >
               Annuler
             </Button>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="w-full sm:w-auto text-xs sm:text-sm">
               {submitting ? "Enregistrement..." : "Enregistrer"}
             </Button>
           </div>

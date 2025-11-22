@@ -134,21 +134,21 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px] mx-3 max-w-[calc(100vw-24px)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{editMax ? "Modifier le max" : "Nouveau max"}</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">{editMax ? "Modifier le max" : "Nouveau max"}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 sm:space-y-4 py-3 sm:py-4">
           <div className="space-y-2">
-            <Label htmlFor="exercise">Exercice *</Label>
+            <Label htmlFor="exercise" className="text-xs sm:text-sm">Exercice *</Label>
             <Select value={exerciseId} onValueChange={setExerciseId}>
-              <SelectTrigger id="exercise">
+              <SelectTrigger id="exercise" className="text-xs sm:text-sm">
                 <SelectValue placeholder="Sélectionne un exercice" />
               </SelectTrigger>
               <SelectContent>
                 {exercises.map((ex) => (
-                  <SelectItem key={ex.id} value={ex.id}>
+                  <SelectItem key={ex.id} value={ex.id} className="text-xs sm:text-sm">
                     {ex.name} <span className="text-muted-foreground">({ex.muscle_principal})</span>
                   </SelectItem>
                 ))}
@@ -156,25 +156,25 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="maxType">Type de max *</Label>
+              <Label htmlFor="maxType" className="text-xs sm:text-sm">Type de max *</Label>
               <Select value={maxType} onValueChange={setMaxType}>
-                <SelectTrigger id="maxType">
+                <SelectTrigger id="maxType" className="text-xs sm:text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1RM">1RM</SelectItem>
-                  <SelectItem value="3RM">3RM</SelectItem>
-                  <SelectItem value="5RM">5RM</SelectItem>
-                  <SelectItem value="10RM">10RM</SelectItem>
-                  <SelectItem value="max_theorique">Max théorique</SelectItem>
+                  <SelectItem value="1RM" className="text-xs sm:text-sm">1RM</SelectItem>
+                  <SelectItem value="3RM" className="text-xs sm:text-sm">3RM</SelectItem>
+                  <SelectItem value="5RM" className="text-xs sm:text-sm">5RM</SelectItem>
+                  <SelectItem value="10RM" className="text-xs sm:text-sm">10RM</SelectItem>
+                  <SelectItem value="max_theorique" className="text-xs sm:text-sm">Max théorique</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="weight">Poids (kg) *</Label>
+              <Label htmlFor="weight" className="text-xs sm:text-sm">Poids (kg) *</Label>
               <Input
                 id="weight"
                 type="number"
@@ -182,37 +182,40 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 placeholder="100"
+                className="text-sm"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">Date *</Label>
+            <Label htmlFor="date" className="text-xs sm:text-sm">Date *</Label>
             <Input
               id="date"
               type="date"
               value={recordedAt}
               onChange={(e) => setRecordedAt(e.target.value)}
+              className="text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
+            <Label htmlFor="notes" className="text-xs sm:text-sm">Notes</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Ajoute des notes sur cette performance..."
               rows={3}
+              className="text-xs sm:text-sm"
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto text-xs sm:text-sm">
             Annuler
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading} className="w-full sm:w-auto text-xs sm:text-sm">
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {editMax ? "Mettre à jour" : "Enregistrer"}
           </Button>
