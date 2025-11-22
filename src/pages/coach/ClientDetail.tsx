@@ -110,6 +110,7 @@ export default function ClientDetail() {
   const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
+  const [activeTab, setActiveTab] = useState("programmation");
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1218,7 +1219,7 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      <Tabs defaultValue="programmation" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="programmation">Programmation</TabsTrigger>
           <TabsTrigger value="max">Max</TabsTrigger>
@@ -1243,10 +1244,7 @@ export default function ClientDetail() {
             <CoachObjectiveAlert 
               athleteId={athleteId!} 
               athleteName={athlete.first_name || "l'athlète"}
-              onNavigateToObjectives={() => {
-                const objectifsTab = document.querySelector('[value="objectifs"]') as HTMLButtonElement;
-                if (objectifsTab) objectifsTab.click();
-              }}
+              onNavigateToObjectives={() => setActiveTab("objectifs")}
             />
           )}
 
