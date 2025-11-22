@@ -28,7 +28,6 @@ export default function SupersetDetail() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState<any>(null);
   const [exerciseTimers, setExerciseTimers] = useState<Record<string, any>>({});
   const [showSupersetRecoveryOverlay, setShowSupersetRecoveryOverlay] = useState(false);
   
@@ -122,47 +121,41 @@ export default function SupersetDetail() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleExerciseClick = (exercise: any) => {
-    setSelectedExercise(exercise);
-    setDialogOpen(true);
-  };
-
   const handleValidateFeedback = async (rpe: string, comment: string) => {
-    if (!selectedExercise) return;
-
     const rpeValue = rpe ? parseInt(rpe) : null;
 
-    const { error } = await supabase
-      .from("session_exercises")
-      .update({
-        sportif_comment: comment.trim() || null,
-        sportif_rpe: rpeValue,
-        sportif_feedback_at: new Date().toISOString(),
-      })
-      .eq("id", selectedExercise.id);
+    // Valider tous les exercices du superset avec le même RPE
+    for (const exercise of exercises) {
+      const { error } = await supabase
+        .from("session_exercises")
+        .update({
+          sportif_comment: comment.trim() || null,
+          sportif_rpe: rpeValue,
+          sportif_feedback_at: new Date().toISOString(),
+        })
+        .eq("id", exercise.id);
 
-    if (error) {
-      console.error("Erreur lors de la sauvegarde:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder vos données",
-        variant: "destructive",
-      });
-      throw error;
-    }
+      if (error) {
+        console.error("Erreur lors de la sauvegarde:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de sauvegarder vos données",
+          variant: "destructive",
+        });
+        throw error;
+      }
 
-    if (rpeValue && shouldRecordMax(selectedExercise.charge, selectedExercise.reps, rpeValue)) {
-      await recordTheoreticalMax(selectedExercise, rpeValue);
+      if (rpeValue && shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
+        await recordTheoreticalMax(exercise, rpeValue);
+      }
     }
 
     toast({
-      title: "Exercice validé !",
-      description: `${selectedExercise.exercice} enregistré`,
+      title: "Superset validé !",
+      description: "Tous les exercices ont été enregistrés",
     });
 
     setDialogOpen(false);
-    setSelectedExercise(null);
-
     await loadSupersetDetail();
   };
 
@@ -228,17 +221,11 @@ export default function SupersetDetail() {
   };
 
   const handleFinishSuperset = () => {
-    const allValidated = exercises.every(ex => ex.sportif_rpe !== null || ex.sportif_feedback_at !== null);
-    
-    if (!allValidated) {
-      toast({
-        title: "Attention",
-        description: "Validez tous les exercices avant de terminer le superset",
-        variant: "destructive",
-      });
-      return;
-    }
+    // Ouvrir le dialog pour valider le superset
+    setDialogOpen(true);
+  };
 
+  const handleSupersetValidated = async () => {
     const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
     const newRoundCount = completedRounds + 1;
     
@@ -250,7 +237,7 @@ export default function SupersetDetail() {
       });
       
       // Réinitialiser les feedbacks pour le prochain round
-      exercises.forEach(async (exercise) => {
+      for (const exercise of exercises) {
         await supabase
           .from("session_exercises")
           .update({
@@ -259,9 +246,9 @@ export default function SupersetDetail() {
             sportif_feedback_at: null,
           })
           .eq("id", exercise.id);
-      });
+      }
       
-      loadSupersetDetail();
+      await loadSupersetDetail();
     } else {
       setCompletedRounds(newRoundCount);
       localStorage.removeItem(`superset-progress-${supersetId}`);
@@ -289,7 +276,6 @@ export default function SupersetDetail() {
 
   const handleCancelFeedback = () => {
     setDialogOpen(false);
-    setSelectedExercise(null);
   };
 
   const handleBack = () => {
@@ -417,9 +403,12 @@ export default function SupersetDetail() {
       <ExerciseFeedbackDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onValidate={handleValidateFeedback}
+        onValidate={async (rpe, comment) => {
+          await handleValidateFeedback(rpe, comment);
+          await handleSupersetValidated();
+        }}
         onCancel={handleCancelFeedback}
-        exerciseName={selectedExercise?.exercice}
+        exerciseName="Superset"
         exerciseType="renfo"
       />
 
@@ -474,10 +463,7 @@ export default function SupersetDetail() {
         {exercises.map((exercise, index) => (
           <div key={exercise.id}>
             {/* Exercice */}
-            <Card
-              className="cursor-pointer transition-all border-primary/50 hover:border-primary"
-              onClick={() => handleExerciseClick(exercise)}
-            >
+            <Card className="border-primary/50">
               <CardContent className="p-4 sm:p-6 space-y-4">
                 {/* En-tête exercice */}
                 <div className="flex items-start justify-between gap-2">
