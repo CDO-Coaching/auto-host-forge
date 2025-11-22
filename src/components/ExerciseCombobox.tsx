@@ -22,11 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface ExerciseComboboxProps {
   value: string;
   onChange: (value: string) => void;
-  exercises: Array<{ id: string; name: string; muscle_principal?: string | null }>;
+  exercises: Array<{ id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }>;
   disabled?: boolean;
 }
 
@@ -110,14 +111,26 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled }: Exerc
                     onChange(currentValue === value ? "" : currentValue);
                     setOpen(false);
                   }}
+                  className="flex items-start gap-2"
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-2 h-4 w-4 mt-0.5 shrink-0",
                       value === exercise.name ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {exercise.name}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{exercise.name}</div>
+                    {exercise.muscles_second && exercise.muscles_second.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {exercise.muscles_second.map((muscle, idx) => (
+                          <Badge key={idx} variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                            {muscle}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
