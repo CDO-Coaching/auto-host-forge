@@ -1,4 +1,4 @@
-import { Users, User, BookOpen, MessageCircle } from "lucide-react";
+import { Users, User, BookOpen, MessageCircle, HelpCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
@@ -18,6 +18,7 @@ import {
 const menuItems = [
   { title: "Mes clients", url: "/coach/mes-clients", icon: Users },
   { title: "Messagerie", url: "/coach/messagerie", icon: MessageCircle, showBadge: true },
+  { title: "Questions", url: "/coach/questions", icon: HelpCircle },
   { title: "Bibliothèque d'exercices", url: "/coach/bibliotheque-exercices", icon: BookOpen },
   { title: "Mon profil", url: "/coach/profil", icon: User },
 ];
