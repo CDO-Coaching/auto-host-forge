@@ -573,7 +573,14 @@ export default function ExerciceDetail() {
                   <Repeat className="h-5 w-5 text-orange-600" />
                   <span className="text-sm font-semibold text-orange-600 uppercase">Reps</span>
                 </div>
-                <p className="text-3xl font-bold">{exercise.reps}</p>
+                <div className="space-y-1">
+                  <p className="text-3xl font-bold">{exercise.reps}</p>
+                  {exercise.per_side && (
+                    <Badge variant="secondary" className="text-xs bg-orange-600/20 text-orange-700 border-orange-600/30">
+                      par côté
+                    </Badge>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

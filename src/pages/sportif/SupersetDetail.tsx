@@ -513,7 +513,14 @@ export default function SupersetDetail() {
                         <Repeat className="h-4 w-4 text-primary" />
                         <span className="text-xs sm:text-sm font-semibold text-primary uppercase">Reps</span>
                       </div>
-                      <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.reps}</p>
+                      <div className="space-y-1">
+                        <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.reps}</p>
+                        {exercise.per_side && (
+                          <Badge variant="secondary" className="text-xs bg-primary/20 text-primary border-primary/30">
+                            par côté
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   )}
 
