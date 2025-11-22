@@ -108,6 +108,7 @@ export default function ClientDetail() {
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
+  const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
   const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
@@ -330,6 +331,53 @@ export default function ClientDetail() {
     // Recharger les données originales
     if (selectedHistoricalWeek) {
       await loadHistoricalWeekDetails(selectedHistoricalWeek.id);
+    }
+  };
+
+  const handleDeleteWeek = async () => {
+    if (!selectedHistoricalWeek) return;
+
+    try {
+      // 1. Supprimer tous les exercices des séances de cette semaine
+      const { error: exercisesError } = await supabase
+        .from("session_exercises")
+        .delete()
+        .in(
+          "session_id",
+          historicalSessions.map((s) => s.id)
+        );
+
+      if (exercisesError) throw exercisesError;
+
+      // 2. Supprimer toutes les séances de cette semaine
+      const { error: sessionsError } = await supabase
+        .from("training_sessions")
+        .delete()
+        .eq("week_id", selectedHistoricalWeek.id);
+
+      if (sessionsError) throw sessionsError;
+
+      // 3. Supprimer la semaine validée
+      const { error: weekError } = await supabase
+        .from("validated_training_weeks")
+        .delete()
+        .eq("id", selectedHistoricalWeek.id);
+
+      if (weekError) throw weekError;
+
+      toast.success("Semaine supprimée avec succès");
+      
+      // Réinitialiser l'état
+      setSelectedHistoricalWeek(null);
+      setHistoricalSessions([]);
+      setIsEditingHistorical(false);
+      setShowDeleteWeekDialog(false);
+      
+      // Recharger l'historique
+      await loadHistoricalWeeks();
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast.error("Erreur lors de la suppression de la semaine");
     }
   };
 
@@ -2585,6 +2633,10 @@ export default function ClientDetail() {
                               <Button onClick={handleCancelEditingHistorical} variant="outline">
                                 Annuler
                               </Button>
+                              <Button onClick={() => setShowDeleteWeekDialog(true)} variant="destructive">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Supprimer la semaine
+                              </Button>
                             </>
                           )}
                         </div>
@@ -3257,6 +3309,27 @@ export default function ClientDetail() {
             <Button onClick={handleCopyFromWeek} disabled={!selectedWeekToCopy}>
               <Copy className="h-4 w-4 mr-2" />
               Copier cette semaine
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmation de suppression de semaine */}
+      <Dialog open={showDeleteWeekDialog} onOpenChange={setShowDeleteWeekDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              Êtes-vous sûr de vouloir supprimer toute cette semaine d'entraînement ? Cette action est irréversible et supprimera toutes les séances et exercices associés.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteWeekDialog(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteWeek}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer définitivement
             </Button>
           </DialogFooter>
         </DialogContent>
