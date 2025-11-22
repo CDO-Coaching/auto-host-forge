@@ -9,7 +9,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import Programmation from "./coach/Programmation";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -119,8 +118,7 @@ export default function DashboardCoach() {
               </Alert>
             )}
             <Routes>
-              <Route path="/" element={<Navigate to="/coach/programmation" replace />} />
-              <Route path="/programmation" element={<Programmation />} />
+              <Route path="/" element={<Navigate to="/coach/mes-clients" replace />} />
               <Route path="/mes-clients" element={<MesClients />} />
               <Route path="/client/:athleteId" element={<ClientDetail />} />
               <Route path="/messagerie" element={<Messagerie />} />
