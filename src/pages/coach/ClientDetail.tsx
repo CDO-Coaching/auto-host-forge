@@ -42,6 +42,7 @@ import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
+import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
@@ -1234,6 +1235,18 @@ export default function ClientDetail() {
             <CoachFatigueAlert 
               athleteId={athleteId!} 
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+
+          {/* Alerte objectif atteint */}
+          {athlete && (
+            <CoachObjectiveAlert 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"}
+              onNavigateToObjectives={() => {
+                const objectifsTab = document.querySelector('[value="objectifs"]') as HTMLButtonElement;
+                if (objectifsTab) objectifsTab.click();
+              }}
             />
           )}
 
