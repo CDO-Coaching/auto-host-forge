@@ -15,12 +15,11 @@ interface Exercise {
   id: string;
   name: string;
   category: string | null;
-  sub_category: string | null;
+  muscle_principal: string | null;
+  muscles_second: string[] | null;
   video_url: string | null;
   description: string | null;
-  muscles_worked: string[] | null;
   equipment: string | null;
-  muscle: string | null;
   created_at: string;
 }
 
@@ -72,13 +71,13 @@ export default function BibliothequeExercices() {
       filtered = filtered.filter(
         (ex) =>
           ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          ex.muscle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          ex.muscle_principal?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           ex.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (selectedMuscle !== "all") {
-      filtered = filtered.filter((ex) => ex.muscle === selectedMuscle);
+      filtered = filtered.filter((ex) => ex.muscle_principal === selectedMuscle);
     }
 
     // Tri alphabétique par nom
@@ -114,7 +113,7 @@ export default function BibliothequeExercices() {
     }
   };
 
-  const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle).filter(Boolean))).sort();
+  const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort();
 
   return (
     <div className="space-y-6">
@@ -268,7 +267,9 @@ export default function BibliothequeExercices() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
-                  <TableHead>Muscle principal</TableHead>
+                  <TableHead>Muscle Principal</TableHead>
+                  <TableHead>Muscles Secondaires</TableHead>
+                  <TableHead>Catégorie</TableHead>
                   <TableHead>Lien vidéo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -276,7 +277,21 @@ export default function BibliothequeExercices() {
                 {filteredExercises.map((exercise) => (
                   <TableRow key={exercise.id}>
                     <TableCell className="font-medium">{exercise.name}</TableCell>
-                    <TableCell>{exercise.muscle || "-"}</TableCell>
+                    <TableCell>{exercise.muscle_principal || "-"}</TableCell>
+                    <TableCell>
+                      {exercise.muscles_second && exercise.muscles_second.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {exercise.muscles_second.map((muscle, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">
+                              {muscle}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                    <TableCell>{exercise.category || "-"}</TableCell>
                     <TableCell>
                       {exercise.video_url ? (
                         <Button 
