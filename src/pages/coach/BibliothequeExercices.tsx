@@ -22,6 +22,7 @@ interface Exercise {
   video_url: string | null;
   description: string | null;
   equipment: string | null;
+  unilaterale: boolean | null;
   created_at: string;
 }
 
@@ -69,6 +70,7 @@ export default function BibliothequeExercices() {
     video_url: "",
     description: "",
     equipment: "",
+    unilaterale: false,
   });
 
   useEffect(() => {
@@ -130,7 +132,8 @@ export default function BibliothequeExercices() {
 
     const { error } = await supabase.from("exercise_library").insert([{
       ...newExercise,
-      muscles_second: newExercise.muscles_second.length > 0 ? newExercise.muscles_second : null
+      muscles_second: newExercise.muscles_second.length > 0 ? newExercise.muscles_second : null,
+      unilaterale: newExercise.unilaterale
     }]);
 
     if (error) {
@@ -147,6 +150,7 @@ export default function BibliothequeExercices() {
         video_url: "",
         description: "",
         equipment: "",
+        unilaterale: false,
       });
       loadExercises();
     }
@@ -177,6 +181,7 @@ export default function BibliothequeExercices() {
         video_url: editingExercise.video_url,
         description: editingExercise.description,
         equipment: editingExercise.equipment,
+        unilaterale: editingExercise.unilaterale,
       })
       .eq("id", editingExercise.id);
 
@@ -319,6 +324,21 @@ export default function BibliothequeExercices() {
                   placeholder="Ex: Barre, Poids du corps"
                 />
               </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="unilaterale"
+                  checked={newExercise.unilaterale}
+                  onCheckedChange={(checked) => 
+                    setNewExercise({ ...newExercise, unilaterale: checked as boolean })
+                  }
+                />
+                <label
+                  htmlFor="unilaterale"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                >
+                  Unilatérale
+                </label>
+              </div>
               <div>
                 <Label htmlFor="video_url">URL de la vidéo</Label>
                 <Input
@@ -411,6 +431,7 @@ export default function BibliothequeExercices() {
                   <TableHead>Muscle Principal</TableHead>
                   <TableHead>Muscles Secondaires</TableHead>
                   <TableHead>Catégorie</TableHead>
+                  <TableHead>Unilatérale</TableHead>
                   <TableHead>Lien vidéo</TableHead>
                 </TableRow>
               </TableHeader>
@@ -433,6 +454,13 @@ export default function BibliothequeExercices() {
                       )}
                     </TableCell>
                     <TableCell>{exercise.category || "-"}</TableCell>
+                    <TableCell>
+                      {exercise.unilaterale ? (
+                        <Badge variant="default">Oui</Badge>
+                      ) : (
+                        <Badge variant="outline">Non</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {exercise.video_url ? (
@@ -566,6 +594,21 @@ export default function BibliothequeExercices() {
                   onChange={(e) => setEditingExercise({ ...editingExercise, equipment: e.target.value })}
                   placeholder="Ex: Barre, Poids du corps"
                 />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-unilaterale"
+                  checked={editingExercise.unilaterale || false}
+                  onCheckedChange={(checked) => 
+                    setEditingExercise({ ...editingExercise, unilaterale: checked as boolean })
+                  }
+                />
+                <label
+                  htmlFor="edit-unilaterale"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                >
+                  Unilatérale
+                </label>
               </div>
               <div>
                 <Label htmlFor="edit-video-url">URL de la vidéo</Label>
