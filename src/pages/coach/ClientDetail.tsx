@@ -19,6 +19,7 @@ import {
   Copy,
   MessageSquare,
   Target,
+  ChevronLeft,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -1254,23 +1255,12 @@ export default function ClientDetail() {
               <SheetTrigger asChild>
                 <Button
                   variant="default"
-                  className="fixed right-0 top-1/3 -translate-y-1/2 rounded-l-xl rounded-r-none shadow-glow z-50 px-3 py-6 bg-primary hover:shadow-[0_0_30px_hsl(var(--primary))] transition-all duration-300 border-2 border-primary/50 flex flex-col items-center gap-2 h-auto"
+                  className="fixed right-0 top-1/3 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-primary/90 hover:bg-primary transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
                 >
-                  <Target className="h-5 w-5" />
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-xs whitespace-nowrap">Objectifs</span>
-                    {athleteObjectives.main_objective_deadline && (
-                      <span className="font-bold text-xs whitespace-nowrap">
-                        {(() => {
-                          const today = new Date();
-                          const deadline = new Date(athleteObjectives.main_objective_deadline);
-                          const diffTime = deadline.getTime() - today.getTime();
-                          const diffWeeks = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-                          return diffWeeks > 0 ? `S-${diffWeeks}` : "Dépassé";
-                        })()}
-                      </span>
-                    )}
-                  </div>
+                  <ChevronLeft className="h-3 w-3" />
+                  <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
+                    Objectifs
+                  </span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
@@ -1443,13 +1433,12 @@ export default function ClientDetail() {
               <SheetTrigger asChild>
                 <Button
                   variant="default"
-                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-xl rounded-r-none shadow-glow z-50 px-3 py-6 bg-gradient-cta hover:shadow-[0_0_30px_hsl(var(--primary))] transition-all duration-300 border-2 border-primary/50 flex flex-col items-center gap-2 h-auto"
+                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-gradient-cta hover:opacity-90 transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
                 >
-                  <MessageSquare className="h-5 w-5" />
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="font-bold text-xs whitespace-nowrap">Retours</span>
-                    <span className="font-bold text-xs whitespace-nowrap">S{lastWeekData.week.week_number}</span>
-                  </div>
+                  <ChevronLeft className="h-3 w-3" />
+                  <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
+                    Retours
+                  </span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-[50vw] overflow-y-auto">

@@ -100,4 +100,9 @@ All colors MUST be HSL.
   * {
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Vertical text utility */
+  .writing-mode-vertical-rl {
+    writing-mode: vertical-rl;
+  }
 }
