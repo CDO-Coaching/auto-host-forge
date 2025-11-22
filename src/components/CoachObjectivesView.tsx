@@ -328,6 +328,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                   selected={mainDeadlineDate}
                   onSelect={setMainDeadlineDate}
                   initialFocus
+                  locale={fr}
+                  weekStartsOn={1}
                   className="pointer-events-auto"
                 />
               </PopoverContent>
@@ -490,6 +492,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                     selected={milestoneForm.target_date}
                     onSelect={(date) => date && setMilestoneForm({ ...milestoneForm, target_date: date })}
                     initialFocus
+                    locale={fr}
+                    weekStartsOn={1}
                     className="pointer-events-auto"
                   />
                 </PopoverContent>
