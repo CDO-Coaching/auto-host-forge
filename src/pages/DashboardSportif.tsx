@@ -21,7 +21,6 @@ import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 import MesSeances from "./sportif/MesSeances";
 import Install from "./sportif/Install";
-import SuiviCourse from "./sportif/SuiviCourse";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -130,7 +129,6 @@ export default function DashboardSportif() {
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/maxes" element={<Maxes />} />
               <Route path="/poids" element={<Poids />} />
-              <Route path="/suivi-course" element={<SuiviCourse />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
               <Route path="/installer" element={<Install />} />
