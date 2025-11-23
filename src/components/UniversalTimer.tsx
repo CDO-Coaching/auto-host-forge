@@ -1,6 +1,6 @@
 import { Timer, Play, Pause, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +39,7 @@ export function UniversalTimer() {
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(Math.abs(seconds) / 60);
-    const secs = Math.abs(seconds) % 60;
+    const secs = Math.floor(Math.abs(seconds) % 60);
     return `${seconds < 0 ? '-' : ''}${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
@@ -68,22 +68,30 @@ export function UniversalTimer() {
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
         <Button
           size="icon"
           className="fixed top-4 right-4 z-40 h-12 w-12 rounded-full bg-gradient-cta shadow-glow hover:shadow-glow hover:scale-110 transition-all"
         >
           <Timer className="h-6 w-6" />
         </Button>
-      </SheetTrigger>
+      </DialogTrigger>
 
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto bg-background">
-        <SheetHeader>
-          <SheetTitle className="text-2xl font-bold">Minuteur</SheetTitle>
-        </SheetHeader>
+      <DialogContent className="max-w-full h-screen max-h-screen p-6 overflow-y-auto bg-background flex flex-col">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold">Minuteur</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setOpen(false)}
+            className="h-10 w-10"
+          >
+            <X className="h-6 w-6" />
+          </Button>
+        </div>
 
-        <div className="mt-6 space-y-6">
+        <div className="flex-1 flex flex-col justify-center space-y-8 max-w-2xl mx-auto w-full">
           {/* Sélection du type */}
           <div className="space-y-2">
             <Label>Type de minuteur</Label>
@@ -95,7 +103,7 @@ export function UniversalTimer() {
               }}
               disabled={isRunning}
             >
-              <SelectTrigger>
+              <SelectTrigger className="h-12 text-lg">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -108,15 +116,15 @@ export function UniversalTimer() {
             </Select>
           </div>
 
-          {/* Affichage principal */}
-          <div className="bg-card border-2 border-primary/20 rounded-lg p-6 text-center space-y-4">
-            <div className="text-7xl font-mono font-bold text-foreground">
+          {/* Affichage principal du temps - GRAND */}
+          <div className="bg-card border-2 border-primary/20 rounded-2xl p-12 text-center space-y-6">
+            <div className="text-9xl font-mono font-bold text-foreground tabular-nums">
               {formatTime(timeRemaining)}
             </div>
 
             {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
-              <div className="space-y-2">
-                <div className="text-lg font-semibold">
+              <div className="space-y-4">
+                <div className="text-2xl font-semibold">
                   {settings.type === 'emom' ? (
                     `Tour ${currentRound} / ${getTotalRounds()}`
                   ) : (
@@ -124,30 +132,30 @@ export function UniversalTimer() {
                       <span className={isWorkPhase ? "text-green-500" : "text-blue-500"}>
                         {isWorkPhase ? "🔥 TRAVAIL" : "💤 REPOS"}
                       </span>
-                      <div className="text-sm text-muted-foreground mt-1">
+                      <div className="text-lg text-muted-foreground mt-2">
                         Tour {currentRound} / {getTotalRounds()}
                       </div>
                     </>
                   )}
                 </div>
-                <Progress value={getProgress()} className="h-3" />
+                <Progress value={getProgress()} className="h-4" />
               </div>
             )}
 
             {settings.type === 'countdown' && (
-              <Progress value={getProgress()} className="h-3" />
+              <Progress value={getProgress()} className="h-4" />
             )}
           </div>
 
           {/* Contrôles */}
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-4 justify-center">
             {!isRunning ? (
               <Button
                 size="lg"
                 onClick={startTimer}
-                className="px-8 bg-green-600 hover:bg-green-700"
+                className="px-12 h-16 text-lg bg-green-600 hover:bg-green-700"
               >
-                <Play className="h-5 w-5 mr-2" />
+                <Play className="h-6 w-6 mr-2" />
                 Démarrer
               </Button>
             ) : (
@@ -155,9 +163,9 @@ export function UniversalTimer() {
                 size="lg"
                 onClick={pauseTimer}
                 variant="secondary"
-                className="px-8"
+                className="px-12 h-16 text-lg"
               >
-                <Pause className="h-5 w-5 mr-2" />
+                <Pause className="h-6 w-6 mr-2" />
                 Pause
               </Button>
             )}
@@ -165,15 +173,15 @@ export function UniversalTimer() {
               size="lg"
               onClick={resetTimer}
               variant="outline"
-              className="px-6"
+              className="px-8 h-16"
             >
-              <RotateCcw className="h-5 w-5" />
+              <RotateCcw className="h-6 w-6" />
             </Button>
           </div>
 
           {/* Réglages */}
-          <div className="space-y-4 pt-4 border-t">
-            <h3 className="font-semibold">Réglages</h3>
+          <div className="space-y-4 pt-6 border-t">
+            <h3 className="font-semibold text-xl">Réglages</h3>
 
             {settings.type === 'countdown' && (
               <div className="space-y-2">
@@ -190,9 +198,9 @@ export function UniversalTimer() {
                     }}
                     min={0}
                     max={99}
-                    className="w-24"
+                    className="w-28 h-12 text-lg"
                   />
-                  <span className="flex items-center">:</span>
+                  <span className="flex items-center text-xl">:</span>
                   <Input
                     type="number"
                     placeholder="Secondes"
@@ -204,10 +212,10 @@ export function UniversalTimer() {
                     }}
                     min={0}
                     max={59}
-                    className="w-24"
+                    className="w-28 h-12 text-lg"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Les changements s'appliquent immédiatement
                 </p>
               </div>
@@ -221,7 +229,7 @@ export function UniversalTimer() {
                     value={settings.workTime.toString()}
                     onValueChange={(value) => updateSettings({ workTime: Number(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -246,7 +254,7 @@ export function UniversalTimer() {
                     value={settings.restTime.toString()}
                     onValueChange={(value) => updateSettings({ restTime: Number(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -271,7 +279,7 @@ export function UniversalTimer() {
                     value={settings.rounds.toString()}
                     onValueChange={(value) => updateSettings({ rounds: Number(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -294,7 +302,7 @@ export function UniversalTimer() {
                     value={(settings.emomInterval || 60).toString()}
                     onValueChange={(value) => updateSettings({ emomInterval: Number(value) as EmomInterval })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -312,7 +320,7 @@ export function UniversalTimer() {
                     value={settings.rounds.toString()}
                     onValueChange={(value) => updateSettings({ rounds: Number(value) })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="h-12 text-lg">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-[300px]">
@@ -336,7 +344,7 @@ export function UniversalTimer() {
             </div>
           </div>
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
