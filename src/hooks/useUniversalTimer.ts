@@ -298,7 +298,7 @@ export function useUniversalTimer() {
       pausedTimeRef.current += now - startTimeRef.current;
       setIsRunning(false);
       if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+        clearInterval(animationFrameRef.current as any);
       }
       localStorage.removeItem(STATE_KEY);
     }
@@ -308,7 +308,7 @@ export function useUniversalTimer() {
   const stopTimer = useCallback(() => {
     setIsRunning(false);
     if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+      clearInterval(animationFrameRef.current as any);
     }
     localStorage.removeItem(STATE_KEY);
   }, []);
@@ -338,14 +338,15 @@ export function useUniversalTimer() {
     });
   }, [resetTimer]);
 
-  // Effet pour la boucle d'animation avec requestAnimationFrame
+  // Effet pour la boucle d'animation avec setInterval (100ms au lieu de requestAnimationFrame pour éviter le lag)
   useEffect(() => {
     if (isRunning) {
-      animationFrameRef.current = requestAnimationFrame(updateTimerDisplay);
+      const intervalId = setInterval(updateTimerDisplay, 100);
+      animationFrameRef.current = intervalId as any;
     }
     return () => {
       if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+        clearInterval(animationFrameRef.current as any);
       }
     };
   }, [isRunning, updateTimerDisplay]);
