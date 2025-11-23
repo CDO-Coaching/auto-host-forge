@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getWeekNumber } from "@/lib/weekUtils";
 
@@ -35,6 +35,7 @@ export default function MesClients() {
   const firstName = profile?.first_name || "Coach";
   const [pendingRequests, setPendingRequests] = useState<AthleteRelationship[]>([]);
   const [approvedAthletes, setApprovedAthletes] = useState<AthleteRelationship[]>([]);
+  const [pausedAthletes, setPausedAthletes] = useState<AthleteRelationship[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -50,7 +51,7 @@ export default function MesClients() {
     setLoading(true);
 
     // 1) Récupère les relations sans jointure pour éviter les blocages RLS
-    const [{ data: pendingRels }, { data: approvedRels }] = await Promise.all([
+    const [{ data: pendingRels }, { data: approvedRels }, { data: pausedRels }] = await Promise.all([
       supabase
         .from("coach_athlete_relationships")
         .select("id, athlete_id, status, requested_at")
@@ -63,11 +64,17 @@ export default function MesClients() {
         .eq("coach_id", profile.id)
         .eq("status", "approved")
         .order("requested_at", { ascending: false }),
+      supabase
+        .from("coach_athlete_relationships")
+        .select("id, athlete_id, status, requested_at")
+        .eq("coach_id", profile.id)
+        .eq("status", "paused")
+        .order("requested_at", { ascending: false }),
     ]);
 
     // 2) Charge les profils des athlètes concernés en une seule requête
     const athleteIds = Array.from(
-      new Set([...(pendingRels || []), ...(approvedRels || [])].map((r) => r.athlete_id))
+      new Set([...(pendingRels || []), ...(approvedRels || []), ...(pausedRels || [])].map((r) => r.athlete_id))
     );
 
     let athletesMap = new Map<string, Athlete>();
@@ -118,8 +125,13 @@ export default function MesClients() {
       }))
       .filter((r) => !!r.athlete) as AthleteRelationship[];
 
+    const pausedWithProfiles = (pausedRels || [])
+      .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
+      .filter((r) => !!r.athlete) as AthleteRelationship[];
+
     setPendingRequests(pendingWithProfiles);
     setApprovedAthletes(approvedWithProfiles);
+    setPausedAthletes(pausedWithProfiles);
     setLoading(false);
   };
 
@@ -148,6 +160,29 @@ export default function MesClients() {
     }
   };
 
+  const handlePauseToggle = async (relationshipId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === "paused" ? "approved" : "paused";
+      const { error } = await supabase
+        .from("coach_athlete_relationships")
+        .update({ status: newStatus })
+        .eq("id", relationshipId);
+
+      if (error) throw error;
+
+      toast.success(
+        newStatus === "paused" 
+          ? "Athlète mis en pause" 
+          : "Athlète réactivé"
+      );
+      
+      await loadRelationships();
+    } catch (error: any) {
+      toast.error("Erreur lors de la modification du statut");
+      console.error(error);
+    }
+  };
+
   // Filtrer les athlètes selon la recherche
   const filterAthletes = (athletes: AthleteRelationship[]) => {
     if (!searchQuery.trim()) return athletes;
@@ -168,6 +203,7 @@ export default function MesClients() {
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
+  const filteredPaused = filterAthletes(pausedAthletes);
 
   if (loading) {
     return <div className="text-center">Chargement...</div>;
@@ -178,7 +214,7 @@ export default function MesClients() {
       <h1 className="text-3xl font-bold">Mes clients</h1>
       
       <Tabs defaultValue="approved" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="approved">
             Mes athlètes
             {approvedAthletes.length > 0 && (
@@ -192,6 +228,14 @@ export default function MesClients() {
             {pendingRequests.length > 0 && (
               <Badge variant="secondary" className="ml-2">
                 {pendingRequests.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="paused">
+            En pause
+            {pausedAthletes.length > 0 && (
+              <Badge variant="outline" className="ml-2">
+                {pausedAthletes.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -286,12 +330,14 @@ export default function MesClients() {
               ) : (
                 <div className="space-y-4">
                   {filteredApproved.map((relationship) => (
-                    <div
+                     <div
                       key={relationship.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors cursor-pointer"
-                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
                     >
-                      <div className="flex items-center gap-4">
+                      <div 
+                        className="flex items-center gap-4 flex-1 cursor-pointer"
+                        onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+                      >
                         <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
                           <User className="h-6 w-6 text-green-600" />
                         </div>
@@ -310,6 +356,17 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePauseToggle(relationship.id, relationship.status);
+                          }}
+                        >
+                          <Pause className="h-4 w-4 mr-1" />
+                          Pause
+                        </Button>
                         {relationship.hasCurrentWeekProgrammed ? (
                           <Badge className="bg-green-600">
                             <Check className="h-3 w-3 mr-1" />
@@ -321,6 +378,72 @@ export default function MesClients() {
                             Non validé
                           </Badge>
                         )}
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="paused" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Athlètes en pause</CardTitle>
+              <CardDescription>
+                Liste des athlètes dont le suivi est actuellement en pause
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredPaused.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchQuery ? "Aucun athlète en pause ne correspond à ta recherche" : "Aucun athlète en pause"}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredPaused.map((relationship) => (
+                    <div
+                      key={relationship.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
+                    >
+                      <div 
+                        className="flex items-center gap-4 flex-1 cursor-pointer"
+                        onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+                      >
+                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                          <User className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {relationship.athlete.first_name} {relationship.athlete.last_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {relationship.athlete.email}
+                          </p>
+                          {relationship.athlete.date_of_birth && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePauseToggle(relationship.id, relationship.status);
+                          }}
+                        >
+                          <Play className="h-4 w-4 mr-1" />
+                          Réactiver
+                        </Button>
+                        <Badge variant="outline">
+                          <Pause className="h-3 w-3 mr-1" />
+                          En pause
+                        </Badge>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                       </div>
                     </div>
