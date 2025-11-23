@@ -90,7 +90,7 @@ export default function Maxes() {
           notes,
           exercise_library (
             name,
-            muscle
+            muscle_principal
           )
         `)
         .eq("athlete_id", user.id)
@@ -143,7 +143,7 @@ export default function Maxes() {
             id: max.id,
             exercise_id: max.exercise_id,
             exercise_name: max.exercise_library.name,
-            muscle: max.exercise_library.muscle,
+            muscle: max.exercise_library.muscle_principal,
             max_type: max.max_type,
             weight_kg: max.weight_kg,
             recorded_at: max.recorded_at,
