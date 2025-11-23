@@ -51,203 +51,281 @@ export function useUniversalTimer() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
   const [isWorkPhase, setIsWorkPhase] = useState(true);
-  
-  const stateRef = useRef<TimerState>({
-    startTime: null,
-    pausedTime: 0,
-    currentRound: 1,
-    isWorkPhase: true,
+
+  // Refs for precision timing with performance.now()
+  const startTimeRef = useRef<number | null>(null);
+  const pausedTimeRef = useRef<number>(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const beepedRef = useRef({
+    halfway: false,
+    lastThree: false,
+    lastTwo: false,
+    lastOne: false,
+    halfInterval: false,
+    intervalEnd: false,
   });
-  
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const finalBeepRef = useRef<HTMLAudioElement | null>(null);
-  const lastBeepTimeRef = useRef<number>(0);
 
   // Sauvegarder les réglages
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  // Initialiser les sons
+  // Initialiser l'AudioContext
   useEffect(() => {
-    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
-    finalBeepRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTaM0fPTgjMGHm7A7+OZTA0PVqzn77BdGAo+ltryxnMpBSuBzvLaiTcIGWi77eefTRAMUKfj8LZjHAY4ktfyy3ksBSR3x/DdkEAKFF606+uoVRQKRp/g8r5sIQU2jNHz04IzBh5uwO/jmUwND1as5++wXRgKPpba8sZzKQUrgc7y2ok3CBlou+3nn00QDFC');
-    if (finalBeepRef.current) {
-      finalBeepRef.current.volume = 1.0;
-    }
-  }, []);
-
-  // Restaurer l'état et gérer la visibilité
-  useEffect(() => {
-    const storedState = localStorage.getItem(STATE_KEY);
-    if (storedState) {
-      try {
-        const state: TimerState = JSON.parse(storedState);
-        if (state.startTime) {
-          stateRef.current = state;
-          setCurrentRound(state.currentRound);
-          setIsWorkPhase(state.isWorkPhase);
-          setIsRunning(true);
-        }
-      } catch {}
-    }
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && stateRef.current.startTime) {
-        updateTimerDisplay();
+    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  const playSound = useCallback((isFinal = false) => {
-    if (settings.soundEnabled) {
-      const audio = isFinal ? finalBeepRef.current : audioRef.current;
-      if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      }
+  // Fonction de beep optimisée avec AudioContext
+  const playBeep = useCallback((frequency: number, duration: number) => {
+    if (!settings.soundEnabled || !audioContextRef.current) return;
+    
+    try {
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.frequency.value = frequency;
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration / 1000);
+      
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + duration / 1000);
+    } catch (error) {
+      console.error('Error playing beep:', error);
     }
   }, [settings.soundEnabled]);
 
+  // Réinitialisation des flags de beep
+  const resetBeepFlags = useCallback(() => {
+    beepedRef.current = {
+      halfway: false,
+      lastThree: false,
+      lastTwo: false,
+      lastOne: false,
+      halfInterval: false,
+      intervalEnd: false,
+    };
+  }, []);
+
+  // Mise à jour du timer - CŒUR DE LA LOGIQUE avec performance.now()
   const updateTimerDisplay = useCallback(() => {
-    if (!stateRef.current.startTime) return;
+    if (!isRunning || !startTimeRef.current) return;
 
-    const now = Date.now();
-    const elapsed = Math.floor((now - stateRef.current.startTime + stateRef.current.pausedTime * 1000) / 1000);
+    const now = performance.now();
+    const elapsed = (now - startTimeRef.current + pausedTimeRef.current) / 1000;
 
+    // ============ CHRONO ============
     if (settings.type === 'chrono') {
       setTimeRemaining(elapsed);
-    } else if (settings.type === 'countdown') {
+    }
+    
+    // ============ COUNTDOWN ============
+    else if (settings.type === 'countdown') {
       const remaining = Math.max(0, settings.duration - elapsed);
       setTimeRemaining(remaining);
 
-      const halfTime = Math.floor(settings.duration / 2);
-      if (elapsed === halfTime && elapsed !== lastBeepTimeRef.current) {
-        playSound(false);
-        lastBeepTimeRef.current = elapsed;
-      }
-      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
-        playSound(remaining === 1);
-        lastBeepTimeRef.current = Math.floor(elapsed);
+      // Beep à mi-parcours
+      if (!beepedRef.current.halfway && elapsed >= settings.duration / 2 && elapsed < settings.duration / 2 + 0.1) {
+        playBeep(800, 150);
+        beepedRef.current.halfway = true;
       }
 
-      if (remaining === 0) {
-        pauseTimer();
-      }
-    } else if (settings.type === 'emom') {
-      const currentInterval = Math.floor(elapsed / settings.emomInterval);
-      const roundNum = Math.min(currentInterval + 1, settings.rounds);
-      const timeInInterval = elapsed % settings.emomInterval;
-      const remaining = settings.emomInterval - timeInInterval;
-
-      setCurrentRound(roundNum);
-      setTimeRemaining(remaining);
-
-      const halfInterval = Math.floor(settings.emomInterval / 2);
-      if (timeInInterval === halfInterval && Math.floor(elapsed) !== lastBeepTimeRef.current) {
-        playSound(false);
-        lastBeepTimeRef.current = Math.floor(elapsed);
-      }
-      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
-        playSound(remaining === 1);
-        lastBeepTimeRef.current = Math.floor(elapsed);
+      // Beeps sur les 3 dernières secondes
+      if (remaining <= 3 && remaining > 2.5 && !beepedRef.current.lastThree) {
+        playBeep(1000, 100);
+        beepedRef.current.lastThree = true;
+      } else if (remaining <= 2 && remaining > 1.5 && !beepedRef.current.lastTwo) {
+        playBeep(1000, 100);
+        beepedRef.current.lastTwo = true;
+      } else if (remaining <= 1 && remaining > 0.5 && !beepedRef.current.lastOne) {
+        playBeep(1000, 100);
+        beepedRef.current.lastOne = true;
       }
 
-      if (roundNum >= settings.rounds && remaining === 0) {
-        pauseTimer();
+      // Fin du countdown
+      if (remaining <= 0) {
+        stopTimer();
+        playBeep(1200, 400);
+        setTimeRemaining(0);
       }
-    } else if (settings.type === 'tabata') {
-      const totalCycleTime = settings.workTime + settings.restTime;
-      const currentCycle = Math.floor(elapsed / totalCycleTime);
-      const roundNum = Math.min(currentCycle + 1, settings.rounds);
-      const timeInCycle = elapsed % totalCycleTime;
+    }
+    
+    // ============ EMOM ============
+    else if (settings.type === 'emom') {
+      const totalDuration = settings.rounds * settings.emomInterval;
       
-      const isWork = timeInCycle < settings.workTime;
-      const phaseTime = isWork ? settings.workTime : settings.restTime;
-      const timeInPhase = isWork ? timeInCycle : timeInCycle - settings.workTime;
-      const remaining = phaseTime - timeInPhase;
+      // Vérification de fin AVANT tous les calculs
+      if (elapsed >= totalDuration) {
+        stopTimer();
+        playBeep(1200, 400);
+        setTimeRemaining(0);
+        setCurrentRound(settings.rounds);
+        return;
+      }
 
+      const currentInterval = Math.floor(elapsed / settings.emomInterval);
+      const timeInInterval = elapsed % settings.emomInterval;
+      const roundNum = currentInterval + 1;
+      
+      setTimeRemaining(timeInInterval);
+      setCurrentRound(roundNum);
+
+      // Beep à mi-intervalle
+      const halfPoint = settings.emomInterval / 2;
+      if (timeInInterval >= halfPoint - 0.1 && timeInInterval < halfPoint + 0.1 && !beepedRef.current.halfInterval) {
+        playBeep(800, 120);
+        beepedRef.current.halfInterval = true;
+      }
+
+      // Beep de fin d'intervalle (sauf au dernier round)
+      const nearEnd = settings.emomInterval - 0.5;
+      if (timeInInterval >= nearEnd && currentInterval < settings.rounds - 1 && !beepedRef.current.intervalEnd) {
+        playBeep(1000, 200);
+        beepedRef.current.intervalEnd = true;
+      }
+
+      // Reset des flags au début de chaque intervalle
+      if (timeInInterval < 0.2) {
+        beepedRef.current.halfInterval = false;
+        beepedRef.current.intervalEnd = false;
+      }
+    }
+    
+    // ============ TABATA ============
+    else if (settings.type === 'tabata') {
+      const cycleTime = settings.workTime + settings.restTime;
+      const totalDuration = settings.rounds * cycleTime;
+      
+      // Vérification de fin AVANT tous les calculs
+      if (elapsed >= totalDuration) {
+        stopTimer();
+        playBeep(1200, 400);
+        setTimeRemaining(0);
+        setCurrentRound(settings.rounds);
+        setIsWorkPhase(false);
+        return;
+      }
+
+      const currentCycle = Math.floor(elapsed / cycleTime);
+      const timeInCycle = elapsed % cycleTime;
+      const isWork = timeInCycle < settings.workTime;
+      const roundNum = currentCycle + 1;
+      
       setCurrentRound(roundNum);
       setIsWorkPhase(isWork);
-      setTimeRemaining(remaining);
-      stateRef.current.isWorkPhase = isWork;
-      stateRef.current.currentRound = roundNum;
 
-      if (remaining <= 3 && remaining > 0 && Math.floor(elapsed) !== lastBeepTimeRef.current) {
-        playSound(remaining === 1);
-        lastBeepTimeRef.current = Math.floor(elapsed);
-      }
-
-      if (roundNum >= settings.rounds && remaining === 0 && !isWork) {
-        pauseTimer();
+      if (isWork) {
+        const workRemaining = settings.workTime - timeInCycle;
+        setTimeRemaining(workRemaining);
+        
+        // Beeps sur les 3 dernières secondes du travail
+        if (workRemaining <= 3 && workRemaining > 2.5 && !beepedRef.current.lastThree) {
+          playBeep(1000, 100);
+          beepedRef.current.lastThree = true;
+        } else if (workRemaining <= 2 && workRemaining > 1.5 && !beepedRef.current.lastTwo) {
+          playBeep(1000, 100);
+          beepedRef.current.lastTwo = true;
+        } else if (workRemaining <= 1 && workRemaining > 0.5 && !beepedRef.current.lastOne) {
+          playBeep(1000, 100);
+          beepedRef.current.lastOne = true;
+        }
+        
+        // Reset des flags en milieu de phase
+        if (workRemaining > 4) {
+          beepedRef.current.lastThree = false;
+          beepedRef.current.lastTwo = false;
+          beepedRef.current.lastOne = false;
+        }
+      } else {
+        const restElapsed = timeInCycle - settings.workTime;
+        const restRemaining = settings.restTime - restElapsed;
+        setTimeRemaining(restRemaining);
+        
+        // Beeps sur les 3 dernières secondes du repos
+        if (restRemaining <= 3 && restRemaining > 2.5 && !beepedRef.current.lastThree) {
+          playBeep(800, 100);
+          beepedRef.current.lastThree = true;
+        } else if (restRemaining <= 2 && restRemaining > 1.5 && !beepedRef.current.lastTwo) {
+          playBeep(800, 100);
+          beepedRef.current.lastTwo = true;
+        } else if (restRemaining <= 1 && restRemaining > 0.5 && !beepedRef.current.lastOne) {
+          playBeep(800, 100);
+          beepedRef.current.lastOne = true;
+        }
+        
+        // Reset des flags en milieu de phase
+        if (restRemaining > 4) {
+          beepedRef.current.lastThree = false;
+          beepedRef.current.lastTwo = false;
+          beepedRef.current.lastOne = false;
+        }
       }
     }
-  }, [settings, playSound]);
 
+    animationFrameRef.current = requestAnimationFrame(updateTimerDisplay);
+  }, [isRunning, settings, playBeep]);
+
+  // Démarrage du timer avec performance.now()
   const startTimer = useCallback(() => {
-    if (stateRef.current.startTime === null) {
-      stateRef.current.startTime = Date.now();
-      stateRef.current.pausedTime = 0;
-    } else {
-      const pauseDuration = Date.now() - (stateRef.current.startTime + stateRef.current.pausedTime * 1000);
-      stateRef.current.pausedTime += Math.floor(pauseDuration / 1000);
-      stateRef.current.startTime = Date.now() - stateRef.current.pausedTime * 1000;
+    if (!isRunning) {
+      const now = performance.now();
+      startTimeRef.current = now;
+      setIsRunning(true);
+      localStorage.setItem(STATE_KEY, JSON.stringify({
+        startTime: Date.now(),
+        pausedTime: pausedTimeRef.current,
+        currentRound,
+        isWorkPhase
+      }));
     }
+  }, [isRunning, currentRound, isWorkPhase]);
 
-    setIsRunning(true);
-    localStorage.setItem(STATE_KEY, JSON.stringify(stateRef.current));
-
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(updateTimerDisplay, 100);
-    updateTimerDisplay();
-  }, [updateTimerDisplay]);
-
+  // Pause du timer
   const pauseTimer = useCallback(() => {
+    if (isRunning && startTimeRef.current) {
+      const now = performance.now();
+      pausedTimeRef.current += now - startTimeRef.current;
+      setIsRunning(false);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      localStorage.removeItem(STATE_KEY);
+    }
+  }, [isRunning]);
+
+  // Arrêt complet du timer
+  const stopTimer = useCallback(() => {
     setIsRunning(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
     }
-    
-    if (stateRef.current.startTime) {
-      const now = Date.now();
-      stateRef.current.pausedTime = Math.floor((now - stateRef.current.startTime) / 1000);
-    }
-    
     localStorage.removeItem(STATE_KEY);
   }, []);
 
+  // Réinitialisation du timer
   const resetTimer = useCallback(() => {
-    pauseTimer();
-    
-    stateRef.current = {
-      startTime: null,
-      pausedTime: 0,
-      currentRound: 1,
-      isWorkPhase: true,
-    };
-    
+    stopTimer();
+    startTimeRef.current = null;
+    pausedTimeRef.current = 0;
+    setTimeRemaining(0);
     setCurrentRound(1);
     setIsWorkPhase(true);
-    lastBeepTimeRef.current = 0;
-    
-    if (settings.type === 'chrono') {
-      setTimeRemaining(0);
-    } else if (settings.type === 'tabata') {
-      setTimeRemaining(settings.workTime);
-    } else if (settings.type === 'emom') {
-      setTimeRemaining(settings.emomInterval);
-    } else {
-      setTimeRemaining(settings.duration);
-    }
-    
+    resetBeepFlags();
     localStorage.removeItem(STATE_KEY);
-  }, [settings, pauseTimer]);
+  }, [stopTimer, resetBeepFlags]);
 
+  // Mise à jour des réglages
   const updateSettings = useCallback((newSettings: Partial<TimerSettings>) => {
     setSettings((prev) => {
       const updated = { ...prev, ...newSettings };
@@ -260,13 +338,45 @@ export function useUniversalTimer() {
     });
   }, [resetTimer]);
 
+  // Effet pour la boucle d'animation avec requestAnimationFrame
   useEffect(() => {
+    if (isRunning) {
+      animationFrameRef.current = requestAnimationFrame(updateTimerDisplay);
+    }
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
+  }, [isRunning, updateTimerDisplay]);
+
+  // Restaurer l'état au chargement
+  useEffect(() => {
+    const storedState = localStorage.getItem(STATE_KEY);
+    if (storedState) {
+      try {
+        const state: TimerState = JSON.parse(storedState);
+        if (state.startTime) {
+          const elapsed = (Date.now() - state.startTime) / 1000;
+          pausedTimeRef.current = elapsed * 1000;
+          setCurrentRound(state.currentRound);
+          setIsWorkPhase(state.isWorkPhase);
+        }
+      } catch {}
+    }
   }, []);
+
+  // Gérer la visibilité de la page
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isRunning) {
+        updateTimerDisplay();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isRunning, updateTimerDisplay]);
 
   return {
     settings,
