@@ -51,7 +51,7 @@ export default function MesClients() {
     setLoading(true);
 
     // 1) Récupère les relations sans jointure pour éviter les blocages RLS
-    const [{ data: pendingRels }, { data: approvedRels }, { data: pausedRels }] = await Promise.all([
+    const [{ data: pendingRels, error: pendingError }, { data: approvedRels, error: approvedError }, { data: pausedRels, error: pausedError }] = await Promise.all([
       supabase
         .from("coach_athlete_relationships")
         .select("id, athlete_id, status, requested_at")
@@ -71,6 +71,8 @@ export default function MesClients() {
         .eq("status", "paused")
         .order("requested_at", { ascending: false }),
     ]);
+
+    console.log("Relations chargées:", { pendingRels, approvedRels, pausedRels, pendingError, approvedError, pausedError });
 
     // 2) Charge les profils des athlètes concernés en une seule requête
     const athleteIds = Array.from(
