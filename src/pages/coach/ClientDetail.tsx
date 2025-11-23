@@ -1734,7 +1734,23 @@ export default function ClientDetail() {
                               <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             )}
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{session.name}</span>
+                              {!isValidated ? (
+                                <Input
+                                  value={session.name}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    const updatedSessions = sessions.map((s) =>
+                                      s.id === session.id ? { ...s, name: e.target.value } : s
+                                    );
+                                    setSessions(updatedSessions);
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-medium h-8 w-48"
+                                  placeholder="Nom de la séance"
+                                />
+                              ) : (
+                                <span className="font-medium">{session.name}</span>
+                              )}
                               {session.session_type === "renfo" && sessionExercises[session.id]?.length > 0 && (
                                 <span className="text-sm text-muted-foreground">
                                   ({formatSessionDuration(calculateSessionDuration(sessionExercises[session.id]))})
