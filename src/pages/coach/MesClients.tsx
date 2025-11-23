@@ -127,9 +127,18 @@ export default function MesClients() {
       }))
       .filter((r) => !!r.athlete) as AthleteRelationship[];
 
-    const pausedWithProfiles = (pausedRels || [])
-      .map((r) => ({ ...r, athlete: athletesMap.get(r.athlete_id)! }))
-      .filter((r) => !!r.athlete) as AthleteRelationship[];
+    const pausedWithProfiles = (pausedRels || []).map((r) => {
+      const athlete = athletesMap.get(r.athlete_id) || {
+        id: r.athlete_id,
+        first_name: "Athlète",
+        last_name: "",
+        email: "",
+        date_of_birth: null,
+        gender: null,
+      };
+
+      return { ...r, athlete } as AthleteRelationship;
+    });
 
     setPendingRequests(pendingWithProfiles);
     setApprovedAthletes(approvedWithProfiles);
