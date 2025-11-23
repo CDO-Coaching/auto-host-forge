@@ -118,7 +118,7 @@ export function UniversalTimer() {
 
           {/* Affichage principal du temps - GRAND */}
           <div className="bg-card border-2 border-primary/20 rounded-2xl p-12 text-center space-y-6">
-            <div className="text-9xl font-mono font-bold text-foreground tabular-nums">
+            <div className="font-mono font-bold text-foreground tabular-nums leading-none text-[clamp(3rem,18vw,6rem)] sm:text-[clamp(4rem,14vw,7rem)]">
               {formatTime(timeRemaining)}
             </div>
 
