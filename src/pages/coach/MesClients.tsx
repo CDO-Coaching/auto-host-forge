@@ -163,12 +163,22 @@ export default function MesClients() {
   const handlePauseToggle = async (relationshipId: string, currentStatus: string) => {
     try {
       const newStatus = currentStatus === "paused" ? "approved" : "paused";
-      const { error } = await supabase
+      
+      console.log("Tentative de changement de statut:", { relationshipId, currentStatus, newStatus });
+      
+      const { data, error } = await supabase
         .from("coach_athlete_relationships")
         .update({ status: newStatus })
-        .eq("id", relationshipId);
+        .eq("id", relationshipId)
+        .select();
 
-      if (error) throw error;
+      console.log("Résultat de l'update:", { data, error });
+
+      if (error) {
+        console.error("Erreur SQL détaillée:", error);
+        toast.error(`Erreur: ${error.message}. As-tu exécuté la migration SQL ?`);
+        return;
+      }
 
       toast.success(
         newStatus === "paused" 
@@ -178,8 +188,8 @@ export default function MesClients() {
       
       await loadRelationships();
     } catch (error: any) {
-      toast.error("Erreur lors de la modification du statut");
-      console.error(error);
+      console.error("Erreur lors de la modification du statut:", error);
+      toast.error(`Erreur: ${error.message || "Impossible de modifier le statut"}`);
     }
   };
 
