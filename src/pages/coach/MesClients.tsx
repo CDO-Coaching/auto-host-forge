@@ -217,6 +217,14 @@ export default function MesClients() {
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
   const filteredPaused = filterAthletes(pausedAthletes);
 
+  console.log("MesClients state:", {
+    pendingRequests: pendingRequests.length,
+    approvedAthletes: approvedAthletes.length,
+    pausedAthletes: pausedAthletes.length,
+    filteredPaused: filteredPaused.length,
+    searchQuery,
+  });
+
   if (loading) {
     return <div className="text-center">Chargement...</div>;
   }
@@ -409,7 +417,7 @@ export default function MesClients() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {filteredPaused.length === 0 ? (
+              {pausedAthletes.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">
                   {searchQuery ? "Aucun athlète en pause ne correspond à ta recherche" : "Aucun athlète en pause"}
                 </p>
