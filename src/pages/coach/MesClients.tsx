@@ -81,10 +81,17 @@ export default function MesClients() {
 
     let athletesMap = new Map<string, Athlete>();
     if (athleteIds.length > 0) {
-      const { data: athletes } = await supabase
+      const { data: athletes, error: athletesError } = await supabase
         .from("user_profiles")
         .select("id, first_name, last_name, email, date_of_birth, gender")
         .in("id", athleteIds);
+
+      console.log("Profils chargés:", { 
+        athleteIds: athleteIds.length, 
+        athletesLoaded: athletes?.length,
+        athletesError,
+        pausedIds: (pausedRels || []).map(r => r.athlete_id)
+      });
 
       if (athletes) {
         athletesMap = new Map(athletes.map((a) => [a.id, a as Athlete]));
@@ -262,11 +269,6 @@ export default function MesClients() {
           </TabsTrigger>
           <TabsTrigger value="paused">
             En pause
-            {pausedAthletes.length > 0 && (
-              <Badge variant="outline" className="ml-2">
-                {pausedAthletes.length}
-              </Badge>
-            )}
           </TabsTrigger>
         </TabsList>
 
