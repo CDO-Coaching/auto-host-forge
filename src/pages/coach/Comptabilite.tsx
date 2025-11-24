@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -274,6 +274,65 @@ export default function Comptabilite() {
     }
   };
 
+  const copyFromPreviousMonth = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const previousMonth = subMonths(currentMonth, 1);
+      const previousMonthStr = format(previousMonth, "yyyy-MM-01");
+      const currentMonthStr = format(currentMonth, "yyyy-MM-01");
+
+      // Récupérer les entrées du mois précédent
+      const { data: previousEntries, error: fetchError } = await supabase
+        .from("accounting_entries")
+        .select("*")
+        .eq("coach_id", session.user.id)
+        .eq("month", previousMonthStr);
+
+      if (fetchError) throw fetchError;
+
+      if (!previousEntries || previousEntries.length === 0) {
+        toast.error("Aucune donnée trouvée pour le mois précédent");
+        return;
+      }
+
+      // Créer les nouvelles entrées pour le mois actuel
+      const newEntries = previousEntries.map(entry => ({
+        coach_id: session.user.id,
+        client_id: entry.client_id,
+        external_client_id: entry.external_client_id,
+        month: currentMonthStr,
+        sessions_planned: entry.sessions_planned,
+        sessions_done: 0,
+        sessions_paid: 0,
+        payment_type: entry.payment_type,
+        amount_cash: 0,
+        amount_transfer: 0
+      }));
+
+      // Supprimer les entrées existantes du mois actuel pour éviter les doublons
+      await supabase
+        .from("accounting_entries")
+        .delete()
+        .eq("coach_id", session.user.id)
+        .eq("month", currentMonthStr);
+
+      // Insérer les nouvelles entrées
+      const { error: insertError } = await supabase
+        .from("accounting_entries")
+        .insert(newEntries);
+
+      if (insertError) throw insertError;
+
+      toast.success("Données copiées depuis le mois précédent");
+      loadData();
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la copie des données");
+    }
+  };
+
   const totals = {
     cash: entries.reduce((sum, e) => sum + e.amount_cash, 0),
     transfer: entries.reduce((sum, e) => sum + e.amount_transfer, 0),
@@ -285,7 +344,7 @@ export default function Comptabilite() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-3xl font-bold">Comptabilité</h1>
         
         <div className="flex items-center gap-4">
@@ -310,13 +369,22 @@ export default function Comptabilite() {
           </Button>
         </div>
 
-        <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Ajouter un client externe
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={copyFromPreviousMonth}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            Copier du mois précédent
+          </Button>
+
+          <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un client externe
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Ajouter un client externe</DialogTitle>
@@ -343,7 +411,8 @@ export default function Comptabilite() {
               </Button>
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       {loading ? (
