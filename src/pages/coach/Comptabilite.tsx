@@ -451,7 +451,7 @@ export default function Comptabilite() {
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
                       <TableRow>
-                        <TableHead>Client</TableHead>
+                        <TableHead className="sticky left-0 bg-background z-20">Client</TableHead>
                         <TableHead className="text-center">Séances prévues</TableHead>
                         <TableHead className="text-center">Séances réalisées</TableHead>
                         <TableHead className="text-center">Séances payées</TableHead>
@@ -465,7 +465,7 @@ export default function Comptabilite() {
                     <TableBody>
                       {entries.map(entry => (
                         <TableRow key={entry.id}>
-                          <TableCell className="font-medium">{entry.client_name}</TableCell>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10">{entry.client_name}</TableCell>
                           <TableCell>
                             <Input
                               type="number"
