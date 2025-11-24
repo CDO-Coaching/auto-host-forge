@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Switch } from "@/components/ui/switch";
 
 interface Client {
   id: string;
@@ -42,6 +43,8 @@ export default function Comptabilite() {
   const [newClientFirstName, setNewClientFirstName] = useState("");
   const [newClientLastName, setNewClientLastName] = useState("");
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
+  const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -332,10 +335,13 @@ export default function Comptabilite() {
     }
   };
 
+  const cashTotal = entries.reduce((sum, e) => sum + e.amount_cash, 0);
+  const transferTotal = entries.reduce((sum, e) => sum + e.amount_transfer, 0);
+  
   const totals = {
-    cash: entries.reduce((sum, e) => sum + e.amount_cash, 0),
-    transfer: entries.reduce((sum, e) => sum + e.amount_transfer, 0),
-    total: entries.reduce((sum, e) => sum + e.amount_cash + e.amount_transfer, 0),
+    cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
+    transfer: applyTransferCoefficient ? transferTotal * 0.76 : transferTotal,
+    total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal),
     sessionsPlanned: entries.reduce((sum, e) => sum + e.sessions_planned, 0),
     sessionsDone: entries.reduce((sum, e) => sum + e.sessions_done, 0),
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
@@ -558,11 +564,29 @@ export default function Comptabilite() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total espèces</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-muted-foreground">Total espèces</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">×0.76</span>
+                      <Switch
+                        checked={applyCashCoefficient}
+                        onCheckedChange={setApplyCashCoefficient}
+                      />
+                    </div>
+                  </div>
                   <p className="text-2xl font-bold text-green-600">{totals.cash.toFixed(2)} €</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total virements</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm text-muted-foreground">Total virements</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">×0.76</span>
+                      <Switch
+                        checked={applyTransferCoefficient}
+                        onCheckedChange={setApplyTransferCoefficient}
+                      />
+                    </div>
+                  </div>
                   <p className="text-2xl font-bold text-blue-600">{totals.transfer.toFixed(2)} €</p>
                 </div>
                 <div className="space-y-2">
