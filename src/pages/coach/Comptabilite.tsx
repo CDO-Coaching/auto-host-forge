@@ -447,19 +447,20 @@ export default function Comptabilite() {
                   })}
                 </div>
 
-                <div className="relative border rounded-md overflow-auto max-h-[600px]">
+                <div className="relative border rounded-md">
+                  <div className="overflow-auto max-h-[600px]">
                     <Table>
-                      <TableHeader className="sticky top-0 bg-background z-20 shadow-sm">
-                        <TableRow className="border-b">
-                          <TableHead className="sticky left-0 bg-background z-30 border-r">Client</TableHead>
-                          <TableHead className="text-center bg-background">Séances prévues</TableHead>
-                        <TableHead className="text-center bg-background">Séances réalisées</TableHead>
-                        <TableHead className="text-center bg-background">Séances payées</TableHead>
-                        <TableHead className="bg-background">Type paiement</TableHead>
-                        <TableHead className="text-right bg-background">Espèces (€)</TableHead>
-                        <TableHead className="text-right bg-background">Virement (€)</TableHead>
-                        <TableHead className="text-right bg-background">Total (€)</TableHead>
-                        <TableHead className="bg-background"></TableHead>
+                      <TableHeader>
+                        <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
+                          <TableHead className="sticky left-0 top-0 bg-background z-30 border-r">Client</TableHead>
+                          <TableHead className="text-center bg-background sticky top-0 z-20">Séances prévues</TableHead>
+                        <TableHead className="text-center bg-background sticky top-0 z-20">Séances réalisées</TableHead>
+                        <TableHead className="text-center bg-background sticky top-0 z-20">Séances payées</TableHead>
+                        <TableHead className="bg-background sticky top-0 z-20">Type paiement</TableHead>
+                        <TableHead className="text-right bg-background sticky top-0 z-20">Espèces (€)</TableHead>
+                        <TableHead className="text-right bg-background sticky top-0 z-20">Virement (€)</TableHead>
+                        <TableHead className="text-right bg-background sticky top-0 z-20">Total (€)</TableHead>
+                        <TableHead className="bg-background sticky top-0 z-20"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -544,6 +545,7 @@ export default function Comptabilite() {
                       ))}
                     </TableBody>
                     </Table>
+                  </div>
                 </div>
               </div>
             </CardContent>
