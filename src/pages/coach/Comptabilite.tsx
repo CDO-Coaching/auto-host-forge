@@ -516,24 +516,32 @@ export default function Comptabilite() {
                             </Select>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={entry.amount_cash}
-                              onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
-                              className="w-24 text-right"
-                            />
+                            {(entry.payment_type === "espèces" || entry.payment_type === "mixte") ? (
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={entry.amount_cash}
+                                onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
+                                className="w-24 text-right"
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              value={entry.amount_transfer}
-                              onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
-                              className="w-24 text-right"
-                            />
+                            {(entry.payment_type === "virement" || entry.payment_type === "mixte") ? (
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={entry.amount_transfer}
+                                onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
+                                className="w-24 text-right"
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-sm">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right font-medium">
                             {(entry.amount_cash + entry.amount_transfer).toFixed(2)} €
