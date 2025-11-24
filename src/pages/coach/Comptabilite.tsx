@@ -449,7 +449,7 @@ export default function Comptabilite() {
 
                 <div className="overflow-x-auto">
                   <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
                         <TableHead>Client</TableHead>
                         <TableHead className="text-center">Séances prévues</TableHead>
