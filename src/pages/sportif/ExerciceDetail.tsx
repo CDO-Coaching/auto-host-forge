@@ -173,7 +173,13 @@ export default function ExerciceDetail() {
         setCompletedSets((prev) => prev + 1);
 
         // Démarrer automatiquement le chrono de récupération
-        if (exercise.recuperation && !isTimerRunning) {
+        if (exercise.recuperation) {
+          // Arrêter le timer précédent s'il existe
+          if (timerInterval) {
+            clearInterval(timerInterval);
+            setTimerInterval(null);
+          }
+
           const recuperationTime = parseRecuperationTime(exercise.recuperation);
           const now = Date.now();
 

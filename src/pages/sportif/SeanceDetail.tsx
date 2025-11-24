@@ -119,6 +119,15 @@ export default function SeanceDetail() {
     };
   }, [timerInterval]);
 
+  // Arrêter automatiquement le timer de séance quand tous les exercices sont validés
+  useEffect(() => {
+    const allExercisesCompleted = exercises.every(isExerciseCompleted);
+    
+    if (allExercisesCompleted && exercises.length > 0 && isSessionActive) {
+      endSession();
+    }
+  }, [exercises, isSessionActive]);
+
   // --- Sauvegarder le timer dans localStorage ---
   useEffect(() => {
     if (isSessionActive && sessionStartTime) {
