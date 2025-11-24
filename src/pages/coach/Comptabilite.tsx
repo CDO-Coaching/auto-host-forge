@@ -447,11 +447,10 @@ export default function Comptabilite() {
                   })}
                 </div>
 
-                <div className="relative border rounded-md">
-                  <div className="overflow-auto max-h-[600px]">
+                <div className="relative border rounded-md overflow-auto max-h-[600px]">
                     <Table>
-                      <TableHeader className="sticky top-0 bg-background z-20 shadow-md after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-border">
-                        <TableRow>
+                      <TableHeader className="sticky top-0 bg-background z-20 shadow-sm">
+                        <TableRow className="border-b">
                           <TableHead className="sticky left-0 bg-background z-30 border-r">Client</TableHead>
                           <TableHead className="text-center bg-background">Séances prévues</TableHead>
                         <TableHead className="text-center bg-background">Séances réalisées</TableHead>
@@ -545,7 +544,6 @@ export default function Comptabilite() {
                       ))}
                     </TableBody>
                     </Table>
-                  </div>
                 </div>
               </div>
             </CardContent>
