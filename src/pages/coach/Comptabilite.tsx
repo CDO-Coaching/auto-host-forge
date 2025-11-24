@@ -447,25 +447,26 @@ export default function Comptabilite() {
                   })}
                 </div>
 
-                <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background z-10 shadow-sm">
-                      <TableRow>
-                        <TableHead className="sticky left-0 bg-background z-20">Client</TableHead>
-                        <TableHead className="text-center">Séances prévues</TableHead>
-                        <TableHead className="text-center">Séances réalisées</TableHead>
-                        <TableHead className="text-center">Séances payées</TableHead>
-                        <TableHead>Type paiement</TableHead>
-                        <TableHead className="text-right">Espèces (€)</TableHead>
-                        <TableHead className="text-right">Virement (€)</TableHead>
-                        <TableHead className="text-right">Total (€)</TableHead>
-                        <TableHead></TableHead>
+                <div className="relative border rounded-md">
+                  <div className="overflow-auto max-h-[600px]">
+                    <Table>
+                      <TableHeader className="sticky top-0 bg-background z-20 border-b">
+                        <TableRow>
+                          <TableHead className="sticky left-0 bg-background z-30 border-r">Client</TableHead>
+                          <TableHead className="text-center bg-background">Séances prévues</TableHead>
+                        <TableHead className="text-center bg-background">Séances réalisées</TableHead>
+                        <TableHead className="text-center bg-background">Séances payées</TableHead>
+                        <TableHead className="bg-background">Type paiement</TableHead>
+                        <TableHead className="text-right bg-background">Espèces (€)</TableHead>
+                        <TableHead className="text-right bg-background">Virement (€)</TableHead>
+                        <TableHead className="text-right bg-background">Total (€)</TableHead>
+                        <TableHead className="bg-background"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {entries.map(entry => (
                         <TableRow key={entry.id}>
-                          <TableCell className="font-medium sticky left-0 bg-background z-10">{entry.client_name}</TableCell>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
                           <TableCell>
                             <Input
                               type="number"
@@ -543,7 +544,8 @@ export default function Comptabilite() {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                    </Table>
+                  </div>
                 </div>
               </div>
             </CardContent>
