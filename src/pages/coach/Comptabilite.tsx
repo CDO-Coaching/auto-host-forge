@@ -54,33 +54,45 @@ export default function Comptabilite() {
       if (!session) return;
 
       // Charger les clients internes (athlètes du coach)
-      const { data: internalClients } = await supabase
+      const { data: relationships, error: relError } = await supabase
         .from("coach_athlete_relationships")
-        .select(`
-          athlete_id,
-          user_profiles!coach_athlete_relationships_athlete_id_fkey (
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select("athlete_id")
         .eq("coach_id", session.user.id)
         .eq("status", "approved");
 
+      console.log("Relationships:", relationships, "Error:", relError);
+
+      let internalClients: Client[] = [];
+      if (relationships && relationships.length > 0) {
+        const athleteIds = relationships.map(r => r.athlete_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from("user_profiles")
+          .select("id, first_name, last_name")
+          .in("id", athleteIds);
+
+        console.log("Profiles:", profiles, "Error:", profilesError);
+
+        if (profiles) {
+          internalClients = profiles.map(p => ({
+            id: p.id,
+            first_name: p.first_name || "",
+            last_name: p.last_name || "",
+            is_external: false
+          }));
+        }
+      }
+
       // Charger les clients externes
-      const { data: externalClients } = await supabase
+      const { data: externalClients, error: extError } = await supabase
         .from("external_clients")
         .select("*")
         .eq("coach_id", session.user.id);
 
+      console.log("External clients:", externalClients, "Error:", extError);
+
       // Combiner les clients
       const allClients: Client[] = [
-        ...(internalClients?.map((c: any) => ({
-          id: c.user_profiles?.id || "",
-          first_name: c.user_profiles?.first_name || "",
-          last_name: c.user_profiles?.last_name || "",
-          is_external: false
-        })) || []),
+        ...internalClients,
         ...(externalClients?.map(c => ({
           id: c.id,
           first_name: c.first_name,
@@ -89,6 +101,7 @@ export default function Comptabilite() {
         })) || [])
       ];
 
+      console.log("All clients:", allClients);
       setClients(allClients);
 
       // Charger les entrées comptables du mois
