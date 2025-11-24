@@ -168,6 +168,9 @@ export default function Comptabilite() {
         notes: entry.notes
       })) || [];
 
+      // Trier par ordre alphabétique du nom
+      formattedEntries.sort((a, b) => a.client_name.localeCompare(b.client_name));
+
       setEntries(formattedEntries);
     } catch (error) {
       console.error("Erreur lors du chargement:", error);
