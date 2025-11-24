@@ -3071,75 +3071,80 @@ export default function ClientDetail() {
                                                       // Mode lecture seule
                                                       cardioData.steps.length > 0 ? (
                                                         <div className="space-y-3">
-                                                          {/* Afficher les blocs avec leurs étapes */}
-                                                          {cardioData.blocks && cardioData.blocks.length > 0 && (
-                                                            <div className="space-y-2">
-                                                              <p className="text-sm font-medium">Blocs répétés:</p>
-                                                              {cardioData.blocks.map((block, blockIdx) => (
-                                                                <div key={blockIdx} className="p-3 bg-primary/10 rounded-md border border-primary/20">
-                                                                  <div className="flex items-center gap-2 mb-2">
-                                                                    <Badge className="bg-primary">Bloc répété</Badge>
-                                                                    <span className="text-sm font-medium">{block.repetitions}x</span>
-                                                                  </div>
-                                                                  <div className="space-y-1 ml-4">
-                                                                    {cardioData.steps
-                                                                      .filter(s => s.block_id === block.id)
-                                                                      .map((step, stepIdx) => {
-                                                                        const pace = calculatePace(step.vma_percentage, athleteVma);
-                                                                        return (
-                                                                          <div key={stepIdx} className="flex items-center gap-3 text-sm p-1.5 bg-background/50 rounded">
-                                                                            <span className="text-muted-foreground">#{stepIdx + 1}</span>
-                                                                            <span className="capitalize">{step.movement_type}</span>
-                                                                            {step.effort_type === "duration" && step.duration && (
-                                                                              <span>{formatCardioTime(step.duration)}</span>
-                                                                            )}
-                                                                            {step.effort_type === "distance" && step.distance && (
-                                                                              <span>{formatCardioDistance(step.distance)}</span>
-                                                                            )}
-                                                                            {pace && (
-                                                                              <span className="text-primary font-medium">{pace}</span>
-                                                                            )}
-                                                                            {step.target_heart_rate && (
-                                                                              <span className="text-orange-600">FC: {step.target_heart_rate}</span>
-                                                                            )}
-                                                                          </div>
-                                                                        );
-                                                                      })}
-                                                                  </div>
-                                                                </div>
-                                                              ))}
-                                                            </div>
-                                                          )}
-                                                          
-                                                          {/* Afficher les étapes individuelles (pas dans un bloc) */}
-                                                          {cardioData.steps.filter(s => !s.block_id).length > 0 && (
-                                                            <div className="space-y-2">
-                                                              <p className="text-sm font-medium">Étapes individuelles:</p>
-                                                              {cardioData.steps
-                                                                .filter(s => !s.block_id)
-                                                                .map((step, idx) => {
-                                                                  const pace = calculatePace(step.vma_percentage, athleteVma);
+                                                          {/* Afficher les blocs et étapes dans l'ordre */}
+                                                          <div className="space-y-2">
+                                                            {(() => {
+                                                              const displayedBlocks = new Set();
+                                                              return cardioData.steps.map((step, stepIdx) => {
+                                                                // Si le step est dans un bloc
+                                                                if (step.block_id) {
+                                                                  // Si on a déjà affiché ce bloc, on le saute
+                                                                  if (displayedBlocks.has(step.block_id)) {
+                                                                    return null;
+                                                                  }
+                                                                  
+                                                                  // Sinon, on affiche le bloc entier
+                                                                  displayedBlocks.add(step.block_id);
+                                                                  const block = cardioData.blocks.find(b => b.id === step.block_id);
+                                                                  if (!block) return null;
+                                                                  
+                                                                  const blockSteps = cardioData.steps.filter(s => s.block_id === step.block_id);
                                                                   return (
-                                                                    <div key={idx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
-                                                                      <span className="font-medium text-muted-foreground">Étape {idx + 1}:</span>
-                                                                      <span className="capitalize">{step.movement_type}</span>
-                                                                      {step.effort_type === "duration" && step.duration && (
-                                                                        <span>{formatCardioTime(step.duration)}</span>
-                                                                      )}
-                                                                      {step.effort_type === "distance" && step.distance && (
-                                                                        <span>{formatCardioDistance(step.distance)}</span>
-                                                                      )}
-                                                                      {pace && (
-                                                                        <span className="text-primary font-medium">{pace}</span>
-                                                                      )}
-                                                                      {step.target_heart_rate && (
-                                                                        <span className="text-orange-600">FC: {step.target_heart_rate}</span>
-                                                                      )}
+                                                                    <div key={`block-${step.block_id}`} className="p-3 bg-primary/10 rounded-md border border-primary/20">
+                                                                      <div className="flex items-center gap-2 mb-2">
+                                                                        <Badge className="bg-primary">Bloc répété</Badge>
+                                                                        <span className="text-sm font-medium">{block.repetitions}x</span>
+                                                                      </div>
+                                                                      <div className="space-y-1 ml-4">
+                                                                        {blockSteps.map((blockStep, blockStepIdx) => {
+                                                                          const pace = calculatePace(blockStep.vma_percentage, athleteVma);
+                                                                          return (
+                                                                            <div key={blockStepIdx} className="flex items-center gap-3 text-sm p-1.5 bg-background/50 rounded">
+                                                                              <span className="text-muted-foreground">#{blockStepIdx + 1}</span>
+                                                                              <span className="capitalize">{blockStep.movement_type}</span>
+                                                                              {blockStep.effort_type === "duration" && blockStep.duration && (
+                                                                                <span>{formatCardioTime(blockStep.duration)}</span>
+                                                                              )}
+                                                                              {blockStep.effort_type === "distance" && blockStep.distance && (
+                                                                                <span>{formatCardioDistance(blockStep.distance)}</span>
+                                                                              )}
+                                                                              {pace && (
+                                                                                <span className="text-primary font-medium">{pace}</span>
+                                                                              )}
+                                                                              {blockStep.target_heart_rate && (
+                                                                                <span className="text-orange-600">FC: {blockStep.target_heart_rate}</span>
+                                                                              )}
+                                                                            </div>
+                                                                          );
+                                                                        })}
+                                                                      </div>
                                                                     </div>
                                                                   );
-                                                                })}
-                                                            </div>
-                                                          )}
+                                                                }
+                                                                
+                                                                // Sinon, c'est une étape individuelle
+                                                                const pace = calculatePace(step.vma_percentage, athleteVma);
+                                                                return (
+                                                                  <div key={stepIdx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
+                                                                    <span className="font-medium text-muted-foreground">Étape {stepIdx + 1}:</span>
+                                                                    <span className="capitalize">{step.movement_type}</span>
+                                                                    {step.effort_type === "duration" && step.duration && (
+                                                                      <span>{formatCardioTime(step.duration)}</span>
+                                                                    )}
+                                                                    {step.effort_type === "distance" && step.distance && (
+                                                                      <span>{formatCardioDistance(step.distance)}</span>
+                                                                    )}
+                                                                    {pace && (
+                                                                      <span className="text-primary font-medium">{pace}</span>
+                                                                    )}
+                                                                    {step.target_heart_rate && (
+                                                                      <span className="text-orange-600">FC: {step.target_heart_rate}</span>
+                                                                    )}
+                                                                  </div>
+                                                                );
+                                                              });
+                                                            })()}
+                                                          </div>
                                                         </div>
                                                       ) : (
                                                         <p className="text-sm text-muted-foreground">Aucune donnée cardio enregistrée</p>
