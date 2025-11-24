@@ -106,7 +106,7 @@ export default function Comptabilite() {
 
       // Charger les entrées comptables du mois
       const monthStr = format(currentMonth, "yyyy-MM-01");
-      const { data: entriesData } = await supabase
+      let { data: entriesData } = await supabase
         .from("accounting_entries")
         .select(`
           *,
@@ -115,6 +115,42 @@ export default function Comptabilite() {
         `)
         .eq("coach_id", session.user.id)
         .eq("month", monthStr);
+
+      // Créer automatiquement des entrées pour les clients qui n'en ont pas
+      const existingClientIds = new Set(
+        entriesData?.map(e => e.client_id || e.external_client_id) || []
+      );
+
+      const missingClients = allClients.filter(c => !existingClientIds.has(c.id));
+      
+      if (missingClients.length > 0) {
+        const newEntries = missingClients.map(client => ({
+          coach_id: session.user.id,
+          [client.is_external ? "external_client_id" : "client_id"]: client.id,
+          month: monthStr,
+          sessions_planned: 0,
+          sessions_done: 0,
+          sessions_paid: 0,
+          payment_type: "espèces",
+          amount_cash: 0,
+          amount_transfer: 0
+        }));
+
+        await supabase.from("accounting_entries").insert(newEntries);
+
+        // Recharger les entrées après l'insertion
+        const { data: updatedEntriesData } = await supabase
+          .from("accounting_entries")
+          .select(`
+            *,
+            user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
+            external_clients (first_name, last_name)
+          `)
+          .eq("coach_id", session.user.id)
+          .eq("month", monthStr);
+
+        entriesData = updatedEntriesData;
+      }
 
       const formattedEntries: AccountingEntry[] = entriesData?.map(entry => ({
         id: entry.id,
@@ -320,29 +356,6 @@ export default function Comptabilite() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex gap-2 flex-wrap">
-                  {clients.map(client => {
-                    const hasEntry = entries.some(e => 
-                      (client.is_external && e.external_client_id === client.id) ||
-                      (!client.is_external && e.client_id === client.id)
-                    );
-                    
-                    if (hasEntry) return null;
-                    
-                    return (
-                      <Button
-                        key={client.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addEntry(client.id, client.is_external)}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {client.first_name} {client.last_name}
-                      </Button>
-                    );
-                  })}
-                </div>
-
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
