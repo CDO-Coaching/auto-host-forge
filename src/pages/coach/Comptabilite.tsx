@@ -338,10 +338,13 @@ export default function Comptabilite() {
   const cashTotal = entries.reduce((sum, e) => sum + e.amount_cash, 0);
   const transferTotal = entries.reduce((sum, e) => sum + e.amount_transfer, 0);
   
+  const urssafDeduction = (applyCashCoefficient ? cashTotal * 0.24 : 0) + (applyTransferCoefficient ? transferTotal * 0.24 : 0);
+  
   const totals = {
     cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
     transfer: applyTransferCoefficient ? transferTotal * 0.76 : transferTotal,
     total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal),
+    urssaf: urssafDeduction,
     sessionsPlanned: entries.reduce((sum, e) => sum + e.sessions_planned, 0),
     sessionsDone: entries.reduce((sum, e) => sum + e.sessions_done, 0),
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
@@ -562,7 +565,7 @@ export default function Comptabilite() {
               <CardTitle>Récapitulatif du mois</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm text-muted-foreground">Total espèces</p>
@@ -593,6 +596,12 @@ export default function Comptabilite() {
                   <p className="text-sm text-muted-foreground">Total général</p>
                   <p className="text-2xl font-bold">{totals.total.toFixed(2)} €</p>
                 </div>
+                {(applyCashCoefficient || applyTransferCoefficient) && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Paiement à l'URSSAF</p>
+                    <p className="text-2xl font-bold text-orange-600">{totals.urssaf.toFixed(2)} €</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Séances prévues</p>
                   <p className="text-2xl font-bold">{totals.sessionsPlanned}</p>
