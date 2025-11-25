@@ -8,10 +8,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 
 interface Client {
   id: string;
@@ -45,10 +47,52 @@ export default function Comptabilite() {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
+  const [weeklyDifference, setWeeklyDifference] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
+    loadWeeklyComparison();
   }, [currentMonth]);
+
+  const loadWeeklyComparison = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const now = new Date();
+      const currentWeekMonday = getMondayOfWeek(now);
+      const currentWeekSunday = getSundayOfWeek(now);
+
+      // Semaine précédente
+      const lastWeekMonday = new Date(currentWeekMonday);
+      lastWeekMonday.setDate(lastWeekMonday.getDate() - 7);
+      const lastWeekSunday = new Date(currentWeekSunday);
+      lastWeekSunday.setDate(lastWeekSunday.getDate() - 7);
+
+      // Récupérer les entrées de la semaine actuelle
+      const { data: currentWeekData } = await supabase
+        .from("accounting_entries")
+        .select("sessions_done, created_at, updated_at")
+        .eq("coach_id", session.user.id)
+        .gte("updated_at", currentWeekMonday.toISOString())
+        .lte("updated_at", currentWeekSunday.toISOString());
+
+      // Récupérer les entrées de la semaine précédente
+      const { data: lastWeekData } = await supabase
+        .from("accounting_entries")
+        .select("sessions_done, created_at, updated_at")
+        .eq("coach_id", session.user.id)
+        .gte("updated_at", lastWeekMonday.toISOString())
+        .lte("updated_at", lastWeekSunday.toISOString());
+
+      const currentWeekTotal = currentWeekData?.reduce((sum, e) => sum + (e.sessions_done || 0), 0) || 0;
+      const lastWeekTotal = lastWeekData?.reduce((sum, e) => sum + (e.sessions_done || 0), 0) || 0;
+
+      setWeeklyDifference(currentWeekTotal - lastWeekTotal);
+    } catch (error) {
+      console.error("Erreur lors du chargement de la comparaison hebdomadaire:", error);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -357,7 +401,22 @@ export default function Comptabilite() {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-3xl font-bold">Comptabilité</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-3xl font-bold">Comptabilité</h1>
+          {weeklyDifference !== null && (
+            <Badge 
+              variant={weeklyDifference >= 0 ? "default" : "secondary"}
+              className="flex items-center gap-1"
+            >
+              {weeklyDifference >= 0 ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              {weeklyDifference >= 0 ? '+' : ''}{weeklyDifference} séance{Math.abs(weeklyDifference) > 1 ? 's' : ''} vs semaine dernière
+            </Badge>
+          )}
+        </div>
         
         <div className="flex items-center gap-4">
           <Button
