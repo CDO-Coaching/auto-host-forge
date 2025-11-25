@@ -24,6 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { getWeekNumber, getNextWeeks, formatWeekRange } from "@/lib/weekUtils";
@@ -1790,8 +1791,7 @@ export default function ClientDetail() {
                                 <div className="space-y-3">
                                   {(sessionExercises[session.id] || []).length === 0 ? (
                                     <div className="text-center text-muted-foreground py-8">
-                                      Aucune séance cardio ajoutée. Clique sur "Ajouter une séance cardio" pour
-                                      commencer.
+                                      Aucune étape ajoutée. Clique sur "Ajouter une étape" pour commencer.
                                     </div>
                                   ) : (
                                     (sessionExercises[session.id] || []).map((exercise) => {
@@ -1811,17 +1811,8 @@ export default function ClientDetail() {
                                       return (
                                         <div
                                           key={exercise.id}
-                                          className="border rounded-lg p-4 bg-background space-y-3"
+                                          className="space-y-3"
                                         >
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-medium">{exercise.exercice}</span>
-                                            {exercise.cardio_sport && (
-                                              <Badge variant="outline" className="capitalize">
-                                                {exercise.cardio_sport}
-                                              </Badge>
-                                            )}
-                                          </div>
-
                                           <CardioStepBuilder
                                             steps={cardioData.steps}
                                             blocks={cardioData.blocks}
@@ -1834,20 +1825,29 @@ export default function ClientDetail() {
                                               );
                                             }}
                                             athleteVma={athleteVma}
+                                            disabled={isValidated}
                                           />
+                                          
+                                          <div className="space-y-2">
+                                            <label className="text-sm font-medium">Commentaire</label>
+                                            <Textarea
+                                              value={exercise.commentaire || ""}
+                                              onChange={(e) =>
+                                                handleExerciseChange(
+                                                  session.id,
+                                                  exercise.id,
+                                                  "commentaire",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder="Ajouter un commentaire pour cette séance..."
+                                              disabled={isValidated}
+                                              className="min-h-[80px]"
+                                            />
+                                          </div>
                                         </div>
                                       );
                                     })
-                                  )}
-                                  {!isValidated && (
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => handleAddExercise(session.id)}
-                                      className="w-full"
-                                    >
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Ajouter une séance cardio
-                                    </Button>
                                   )}
                                 </div>
                               ) : session.session_type === "recup" ? (
