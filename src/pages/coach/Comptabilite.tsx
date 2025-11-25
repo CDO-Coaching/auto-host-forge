@@ -50,7 +50,7 @@ export default function Comptabilite() {
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [rent, setRent] = useState(0);
-  const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
+  const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -424,14 +424,11 @@ export default function Comptabilite() {
 
   // Calculer le nombre de clients débiteurs
   const debtorsCount = entries.filter(e => e.sessions_done > e.sessions_paid).length;
+  const debtorsList = entries.filter(e => e.sessions_done > e.sessions_paid);
 
-  // Filtrer et trier les entrées selon la recherche et le filtre débiteurs
+  // Filtrer et trier les entrées selon la recherche
   const filteredEntries = entries
     .filter(entry => {
-      // Filtre débiteurs
-      if (showDebtorsOnly && entry.sessions_done <= entry.sessions_paid) return false;
-      
-      // Filtre recherche
       if (!searchQuery.trim()) return true;
       const query = searchQuery.toLowerCase();
       return entry.client_name.toLowerCase().includes(query);
@@ -549,9 +546,9 @@ export default function Comptabilite() {
                     </Button>
                   )}
                   <Button
-                    variant={showDebtorsOnly ? "default" : "outline"}
+                    variant="outline"
                     size="sm"
-                    onClick={() => setShowDebtorsOnly(!showDebtorsOnly)}
+                    onClick={() => setShowDebtorsDialog(true)}
                     className="gap-2"
                   >
                     <AlertCircle className="h-4 w-4" />
@@ -605,18 +602,8 @@ export default function Comptabilite() {
                     </TableHeader>
                     <TableBody>
                       {filteredEntries.map(entry => (
-                        <TableRow 
-                          key={entry.id}
-                          className={entry.sessions_done > entry.sessions_paid ? "bg-orange-50 dark:bg-orange-950/10" : ""}
-                        >
-                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
-                            <div className="flex items-center gap-2">
-                              {entry.client_name}
-                              {entry.sessions_done > entry.sessions_paid && (
-                                <AlertCircle className="h-4 w-4 text-orange-600" />
-                              )}
-                            </div>
-                          </TableCell>
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
                           <TableCell>
                             <Input
                               type="number"
@@ -803,6 +790,58 @@ export default function Comptabilite() {
           </Card>
         </>
       )}
+
+      {/* Dialog pour afficher les clients avec impayés */}
+      <Dialog open={showDebtorsDialog} onOpenChange={setShowDebtorsDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Clients avec impayés ({debtorsCount})</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {debtorsList.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Aucun client avec des impayés
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {debtorsList.map(debtor => (
+                  <Card key={debtor.id} className="border-orange-200 dark:border-orange-900">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-orange-600" />
+                            <h3 className="font-semibold text-lg">{debtor.client_name}</h3>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Séances réalisées</p>
+                              <p className="font-semibold">{debtor.sessions_done}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Séances payées</p>
+                              <p className="font-semibold">{debtor.sessions_paid}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Séances impayées</p>
+                          <p className="text-2xl font-bold text-orange-600">
+                            {debtor.sessions_done - debtor.sessions_paid}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            ≈ {((debtor.sessions_done - debtor.sessions_paid) * 60).toFixed(2)} €
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
