@@ -166,29 +166,30 @@ export default function Comptabilite() {
 
       const formattedEntries: AccountingEntry[] = await Promise.all(
         (entriesData || []).map(async (entry) => {
-          // Récupérer les séances de la semaine actuelle pour ce client
-          const { data: currentWeekData } = await supabase
-            .from("accounting_entries")
-            .select("sessions_done")
-            .eq("coach_id", session.user.id)
-            .eq(entry.client_id ? "client_id" : "external_client_id", entry.client_id || entry.external_client_id)
-            .gte("updated_at", currentWeekMonday.toISOString())
-            .lte("updated_at", currentWeekSunday.toISOString())
-            .single();
+          let weeklyDiff = 0;
 
-          // Récupérer les séances de la semaine précédente pour ce client
-          const { data: lastWeekData } = await supabase
-            .from("accounting_entries")
-            .select("sessions_done")
-            .eq("coach_id", session.user.id)
-            .eq(entry.client_id ? "client_id" : "external_client_id", entry.client_id || entry.external_client_id)
-            .gte("updated_at", lastWeekMonday.toISOString())
-            .lte("updated_at", lastWeekSunday.toISOString())
-            .single();
+          // Seulement pour les clients internes (athlètes), compter les séances validées
+          if (entry.client_id) {
+            // Compter les séances validées CETTE semaine (lundi à aujourd'hui)
+            const { count: currentWeekCount } = await supabase
+              .from("training_sessions")
+              .select("*", { count: "exact", head: true })
+              .eq("athlete_id", entry.client_id)
+              .eq("validated", true)
+              .gte("validated_at", currentWeekMonday.toISOString())
+              .lte("validated_at", now.toISOString());
 
-          const currentWeekSessions = currentWeekData?.sessions_done || 0;
-          const lastWeekSessions = lastWeekData?.sessions_done || 0;
-          const weeklyDiff = currentWeekSessions - lastWeekSessions;
+            // Compter les séances validées la SEMAINE DERNIÈRE (lundi à dimanche)
+            const { count: lastWeekCount } = await supabase
+              .from("training_sessions")
+              .select("*", { count: "exact", head: true })
+              .eq("athlete_id", entry.client_id)
+              .eq("validated", true)
+              .gte("validated_at", lastWeekMonday.toISOString())
+              .lte("validated_at", lastWeekSunday.toISOString());
+
+            weeklyDiff = (currentWeekCount || 0) - (lastWeekCount || 0);
+          }
 
           return {
             id: entry.id,
