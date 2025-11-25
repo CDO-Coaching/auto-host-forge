@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -50,6 +50,7 @@ export default function Comptabilite() {
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [rent, setRent] = useState(0);
+  const [showDebtorsOnly, setShowDebtorsOnly] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -421,9 +422,16 @@ export default function Comptabilite() {
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
   };
 
-  // Filtrer et trier les entrées selon la recherche
+  // Calculer le nombre de clients débiteurs
+  const debtorsCount = entries.filter(e => e.sessions_done > e.sessions_paid).length;
+
+  // Filtrer et trier les entrées selon la recherche et le filtre débiteurs
   const filteredEntries = entries
     .filter(entry => {
+      // Filtre débiteurs
+      if (showDebtorsOnly && entry.sessions_done <= entry.sessions_paid) return false;
+      
+      // Filtre recherche
       if (!searchQuery.trim()) return true;
       const query = searchQuery.toLowerCase();
       return entry.client_name.toLowerCase().includes(query);
@@ -521,7 +529,7 @@ export default function Comptabilite() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -540,6 +548,20 @@ export default function Comptabilite() {
                       Effacer
                     </Button>
                   )}
+                  <Button
+                    variant={showDebtorsOnly ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowDebtorsOnly(!showDebtorsOnly)}
+                    className="gap-2"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    Impayés
+                    {debtorsCount > 0 && (
+                      <Badge variant="destructive" className="ml-1">
+                        {debtorsCount}
+                      </Badge>
+                    )}
+                  </Button>
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
@@ -583,8 +605,18 @@ export default function Comptabilite() {
                     </TableHeader>
                     <TableBody>
                       {filteredEntries.map(entry => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
+                        <TableRow 
+                          key={entry.id}
+                          className={entry.sessions_done > entry.sessions_paid ? "bg-orange-50 dark:bg-orange-950/10" : ""}
+                        >
+                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
+                            <div className="flex items-center gap-2">
+                              {entry.client_name}
+                              {entry.sessions_done > entry.sessions_paid && (
+                                <AlertCircle className="h-4 w-4 text-orange-600" />
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Input
                               type="number"
