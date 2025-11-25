@@ -259,17 +259,26 @@ export default function MesClients() {
     }
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Session expirée");
+        return;
+      }
+
       const { error } = await supabase
         .from("external_clients")
         .insert({
-          coach_id: profile?.id,
+          coach_id: session.user.id,
           first_name: newExternalFirstName.trim(),
           last_name: newExternalLastName.trim(),
           email: newExternalEmail.trim() || null,
           is_active: true
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur détaillée:", error);
+        throw error;
+      }
 
       toast.success("Client externe ajouté");
       setNewExternalFirstName("");
@@ -279,7 +288,7 @@ export default function MesClients() {
       await loadRelationships();
     } catch (error: any) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors de l'ajout du client");
+      toast.error(`Erreur: ${error.message || "Impossible d'ajouter le client"}`);
     }
   };
 
