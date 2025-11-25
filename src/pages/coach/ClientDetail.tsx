@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Target,
   ChevronLeft,
+  GripVertical,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -118,6 +119,9 @@ export default function ClientDetail() {
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("programmation");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
+  const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
+  const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
+  const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1269,6 +1273,85 @@ export default function ClientDetail() {
     );
   };
 
+  // Drag & Drop handlers pour les séances
+  const handleSessionDragStart = (sessionId: number) => {
+    setDraggedSessionId(sessionId);
+  };
+
+  const handleSessionDragOver = (e: React.DragEvent, targetSessionId: number) => {
+    e.preventDefault();
+    if (draggedSessionId === null || draggedSessionId === targetSessionId) return;
+  };
+
+  const handleSessionDrop = (e: React.DragEvent, targetSessionId: number) => {
+    e.preventDefault();
+    if (draggedSessionId === null || draggedSessionId === targetSessionId) {
+      setDraggedSessionId(null);
+      return;
+    }
+
+    const draggedIndex = sessions.findIndex((s) => s.id === draggedSessionId);
+    const targetIndex = sessions.findIndex((s) => s.id === targetSessionId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newSessions = [...sessions];
+    const [draggedSession] = newSessions.splice(draggedIndex, 1);
+    newSessions.splice(targetIndex, 0, draggedSession);
+
+    setSessions(newSessions);
+    setDraggedSessionId(null);
+    toast.success("Séance réorganisée");
+  };
+
+  // Drag & Drop handlers pour les exercices
+  const handleExerciseDragStart = (sessionId: number, exerciseId: number) => {
+    setDraggedExerciseId(exerciseId);
+    setDraggedSessionForExercise(sessionId);
+  };
+
+  const handleExerciseDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleExerciseDrop = (e: React.DragEvent, targetSessionId: number, targetExerciseId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (
+      draggedExerciseId === null ||
+      draggedSessionForExercise === null ||
+      draggedExerciseId === targetExerciseId
+    ) {
+      setDraggedExerciseId(null);
+      setDraggedSessionForExercise(null);
+      return;
+    }
+
+    const sourceExercises = sessionExercises[draggedSessionForExercise] || [];
+    const draggedIndex = sourceExercises.findIndex((ex) => ex.id === draggedExerciseId);
+    const targetIndex = sourceExercises.findIndex((ex) => ex.id === targetExerciseId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedExerciseId(null);
+      setDraggedSessionForExercise(null);
+      return;
+    }
+
+    const newExercises = [...sourceExercises];
+    const [draggedExercise] = newExercises.splice(draggedIndex, 1);
+    newExercises.splice(targetIndex, 0, draggedExercise);
+
+    setSessionExercises({
+      ...sessionExercises,
+      [draggedSessionForExercise]: newExercises,
+    });
+
+    setDraggedExerciseId(null);
+    setDraggedSessionForExercise(null);
+    toast.success("Exercice réorganisé");
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent, sessionId: number, exerciseId: number, field: keyof Exercise) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -1729,12 +1812,22 @@ export default function ClientDetail() {
                 <>
                   <div className="space-y-3">
                     {sessions.map((session) => (
-                      <div key={session.id} className="border rounded-lg">
+                      <div 
+                        key={session.id} 
+                        className="border rounded-lg"
+                        draggable={!isValidated}
+                        onDragStart={() => handleSessionDragStart(session.id)}
+                        onDragOver={(e) => handleSessionDragOver(e, session.id)}
+                        onDrop={(e) => handleSessionDrop(e, session.id)}
+                      >
                         <div
                           className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
                           onClick={() => !isValidated && toggleSession(session.id)}
                         >
                           <div className="flex items-center gap-3">
+                            {!isValidated && (
+                              <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                            )}
                             {expandedSessionId === session.id ? (
                               <ChevronDown className="h-5 w-5 text-primary" />
                             ) : (
@@ -1870,21 +1963,34 @@ export default function ClientDetail() {
                                               Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
                                             </TableCell>
                                           </TableRow>
-                                        ) : (
-                                          (sessionExercises[session.id] || []).map((exercise) => (
-                                            <TableRow key={exercise.id}>
-                                              <TableCell>
-                                                <ExerciseCombobox
-                                                  value={exercise.exercice}
-                                                  onChange={(value) =>
-                                                    handleExerciseChange(session.id, exercise.id, "exercice", value)
-                                                  }
-                                                  exercises={libraryExercises.filter(
-                                                    (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
-                                                  )}
-                                                  disabled={isValidated}
-                                                />
-                                              </TableCell>
+                                         ) : (
+                                           (sessionExercises[session.id] || []).map((exercise) => (
+                                             <TableRow 
+                                               key={exercise.id}
+                                               draggable={!isValidated}
+                                               onDragStart={() => handleExerciseDragStart(session.id, exercise.id)}
+                                               onDragOver={handleExerciseDragOver}
+                                               onDrop={(e) => handleExerciseDrop(e, session.id, exercise.id)}
+                                             >
+                                               <TableCell>
+                                                 <div className="flex items-center gap-2">
+                                                   {!isValidated && (
+                                                     <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                                                   )}
+                                                   <div className="flex-1">
+                                                     <ExerciseCombobox
+                                                       value={exercise.exercice}
+                                                       onChange={(value) =>
+                                                         handleExerciseChange(session.id, exercise.id, "exercice", value)
+                                                       }
+                                                       exercises={libraryExercises.filter(
+                                                         (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
+                                                       )}
+                                                       disabled={isValidated}
+                                                     />
+                                                   </div>
+                                                 </div>
+                                               </TableCell>
                                               <TableCell>
                                                 <Input
                                                   value={exercise.reps}
@@ -2033,15 +2139,26 @@ export default function ClientDetail() {
                                                         isInSameGroup(session.id, ex.id, nextExercise.id);
 
                                                       return (
-                                                        <React.Fragment key={ex.id}>
-                                                          <TableRow className="bg-primary/5 border-l-4 border-l-primary">
-                                                            <TableCell>
-                                                              <div
-                                                                data-session={session.id}
-                                                                data-exercise={ex.id}
-                                                                data-field="exercice"
-                                                              >
-                                                                <ExerciseCombobox
+                                                         <React.Fragment key={ex.id}>
+                                                           <TableRow 
+                                                             className="bg-primary/5 border-l-4 border-l-primary"
+                                                             draggable={!isValidated}
+                                                             onDragStart={() => handleExerciseDragStart(session.id, ex.id)}
+                                                             onDragOver={handleExerciseDragOver}
+                                                             onDrop={(e) => handleExerciseDrop(e, session.id, ex.id)}
+                                                           >
+                                                             <TableCell>
+                                                               <div className="flex items-center gap-2">
+                                                                 {!isValidated && (
+                                                                   <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                                                                 )}
+                                                                 <div
+                                                                   data-session={session.id}
+                                                                   data-exercise={ex.id}
+                                                                   data-field="exercice"
+                                                                   className="flex-1"
+                                                                 >
+                                                                   <ExerciseCombobox
                                                                   value={ex.exercice}
                                                                   onChange={(value) => {
                                                                     handleExerciseChange(
@@ -2058,11 +2175,12 @@ export default function ClientDetail() {
                                                                       nextInput?.click();
                                                                     }, 100);
                                                                   }}
-                                                                  exercises={libraryExercises}
-                                                                  disabled={isValidated}
-                                                                />
-                                                              </div>
-                                                            </TableCell>
+                                                                     exercises={libraryExercises}
+                                                                     disabled={isValidated}
+                                                                   />
+                                                                 </div>
+                                                               </div>
+                                                             </TableCell>
                                                             <TableCell>
                                                               <Select
                                                                 value={ex.recuperation}
@@ -2325,15 +2443,25 @@ export default function ClientDetail() {
                                                   isInSameGroup(session.id, exercise.id, nextExercise.id);
 
                                                 result.push(
-                                                  <React.Fragment key={exercise.id}>
-                                                    <TableRow>
-                                                      <TableCell>
-                                                        <div
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="exercice"
-                                                        >
-                                                          <ExerciseCombobox
+                                                   <React.Fragment key={exercise.id}>
+                                                     <TableRow
+                                                       draggable={!isValidated}
+                                                       onDragStart={() => handleExerciseDragStart(session.id, exercise.id)}
+                                                       onDragOver={handleExerciseDragOver}
+                                                       onDrop={(e) => handleExerciseDrop(e, session.id, exercise.id)}
+                                                     >
+                                                       <TableCell>
+                                                         <div className="flex items-center gap-2">
+                                                           {!isValidated && (
+                                                             <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                                                           )}
+                                                           <div
+                                                             data-session={session.id}
+                                                             data-exercise={exercise.id}
+                                                             data-field="exercice"
+                                                             className="flex-1"
+                                                           >
+                                                             <ExerciseCombobox
                                                             value={exercise.exercice}
                                                             onChange={(value) => {
                                                               handleExerciseChange(
@@ -2350,11 +2478,12 @@ export default function ClientDetail() {
                                                                 nextInput?.click();
                                                               }, 100);
                                                             }}
-                                                            exercises={libraryExercises}
-                                                            disabled={isValidated}
-                                                          />
-                                                        </div>
-                                                      </TableCell>
+                                                               exercises={libraryExercises}
+                                                               disabled={isValidated}
+                                                             />
+                                                           </div>
+                                                         </div>
+                                                       </TableCell>
                                                       <TableCell>
                                                         <Select
                                                           value={exercise.recuperation}
