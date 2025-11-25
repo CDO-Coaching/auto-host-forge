@@ -840,7 +840,13 @@ export default function SeanceDetail() {
                                         <p className="text-sm text-muted-foreground mt-2">{item.cardio_content}</p>
                                       );
                                     }
-                                  })()}
+                                   })()}
+                                {item.commentaire && (
+                                  <div className="bg-background/50 p-2 rounded-md border border-border/50 mt-2">
+                                    <span className="text-xs font-medium text-muted-foreground">Commentaire: </span>
+                                    <p className="text-xs mt-1">{item.commentaire}</p>
+                                  </div>
+                                )}
                                 {item.cardio_pace && (
                                   <Badge variant="outline" className="text-xs">
                                     {item.cardio_pace}
