@@ -3068,19 +3068,38 @@ export default function ClientDetail() {
                                                     
                                                     {isEditingHistorical ? (
                                                       // Mode édition avec CardioStepBuilder
-                                                      <CardioStepBuilder
-                                                        steps={cardioData.steps}
-                                                        blocks={cardioData.blocks}
-                                                        onChange={(newCardioData) => {
-                                                          handleHistoricalExerciseChange(
-                                                            session.id,
-                                                            exercise.id,
-                                                            "cardio_content",
-                                                            JSON.stringify(newCardioData),
-                                                          );
-                                                        }}
-                                                        athleteVma={athleteVma}
-                                                      />
+                                                      <>
+                                                        <CardioStepBuilder
+                                                          steps={cardioData.steps}
+                                                          blocks={cardioData.blocks}
+                                                          onChange={(newCardioData) => {
+                                                            handleHistoricalExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "cardio_content",
+                                                              JSON.stringify(newCardioData),
+                                                            );
+                                                          }}
+                                                          athleteVma={athleteVma}
+                                                        />
+                                                        
+                                                        <div className="space-y-2 mt-3">
+                                                          <label className="text-sm font-medium">Commentaire</label>
+                                                          <Textarea
+                                                            value={exercise.commentaire || ""}
+                                                            onChange={(e) =>
+                                                              handleHistoricalExerciseChange(
+                                                                session.id,
+                                                                exercise.id,
+                                                                "commentaire",
+                                                                e.target.value,
+                                                              )
+                                                            }
+                                                            placeholder="Ajouter un commentaire pour cette séance..."
+                                                            className="min-h-[80px]"
+                                                          />
+                                                        </div>
+                                                      </>
                                                     ) : (
                                                       // Mode lecture seule
                                                       cardioData.steps.length > 0 ? (
@@ -3163,9 +3182,17 @@ export default function ClientDetail() {
                                                       ) : (
                                                         <p className="text-sm text-muted-foreground">Aucune donnée cardio enregistrée</p>
                                                       )
-                                                    )}
-                                                    
-                                                    <div className="flex gap-4 pt-2 border-t">
+                                                     )}
+                                                     
+                                                     {/* Commentaire du coach pour la séance cardio */}
+                                                     {exercise.commentaire && (
+                                                       <div className="bg-background p-3 rounded-md border">
+                                                         <span className="text-sm font-medium text-muted-foreground">Commentaire du coach: </span>
+                                                         <p className="text-sm mt-1">{exercise.commentaire}</p>
+                                                       </div>
+                                                     )}
+                                                     
+                                                     <div className="flex gap-4 pt-2 border-t">
                                                       {exercise.skipped ? (
                                                         <div className="flex items-center gap-2">
                                                           <Badge variant="outline" className="text-orange-600 border-orange-600">
