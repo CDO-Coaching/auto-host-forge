@@ -85,11 +85,12 @@ export default function Comptabilite() {
         }
       }
 
-      // Charger les clients externes
+      // Charger les clients externes actifs uniquement
       const { data: externalClients, error: extError } = await supabase
         .from("external_clients")
         .select("*")
-        .eq("coach_id", session.user.id);
+        .eq("coach_id", session.user.id)
+        .eq("is_active", true);
 
       console.log("External clients:", externalClients, "Error:", extError);
 

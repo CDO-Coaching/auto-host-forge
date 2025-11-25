@@ -29,6 +29,14 @@ interface AthleteRelationship {
   hasCurrentWeekProgrammed?: boolean;
 }
 
+interface ExternalClient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string | null;
+  is_active: boolean;
+}
+
 export default function MesClients() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
@@ -36,6 +44,7 @@ export default function MesClients() {
   const [pendingRequests, setPendingRequests] = useState<AthleteRelationship[]>([]);
   const [approvedAthletes, setApprovedAthletes] = useState<AthleteRelationship[]>([]);
   const [pausedAthletes, setPausedAthletes] = useState<AthleteRelationship[]>([]);
+  const [externalClients, setExternalClients] = useState<ExternalClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -147,9 +156,18 @@ export default function MesClients() {
       return { ...r, athlete } as AthleteRelationship;
     });
 
+    // 5) Charger les clients externes
+    const { data: externalClientsData } = await supabase
+      .from("external_clients")
+      .select("id, first_name, last_name, email, is_active")
+      .eq("coach_id", profile.id)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true });
+
     setPendingRequests(pendingWithProfiles);
     setApprovedAthletes(approvedWithProfiles);
     setPausedAthletes(pausedWithProfiles);
+    setExternalClients(externalClientsData || []);
     setLoading(false);
   };
 
@@ -211,6 +229,23 @@ export default function MesClients() {
     }
   };
 
+  const handleToggleExternalClient = async (clientId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("external_clients")
+        .update({ is_active: !currentStatus })
+        .eq("id", clientId);
+
+      if (error) throw error;
+
+      toast.success(!currentStatus ? "Client activé" : "Client désactivé");
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la modification du statut");
+    }
+  };
+
   // Filtrer les athlètes selon la recherche
   const filterAthletes = (athletes: AthleteRelationship[]) => {
     if (!searchQuery.trim()) return athletes;
@@ -219,6 +254,18 @@ export default function MesClients() {
     return athletes.filter((rel) => {
       const firstName = rel.athlete.first_name?.toLowerCase() || "";
       const lastName = rel.athlete.last_name?.toLowerCase() || "";
+      return firstName.includes(query) || lastName.includes(query);
+    });
+  };
+
+  // Filtrer les clients externes selon la recherche
+  const filterExternalClients = (clients: ExternalClient[]) => {
+    if (!searchQuery.trim()) return clients;
+    
+    const query = searchQuery.toLowerCase();
+    return clients.filter((client) => {
+      const firstName = client.first_name?.toLowerCase() || "";
+      const lastName = client.last_name?.toLowerCase() || "";
       return firstName.includes(query) || lastName.includes(query);
     });
   };
@@ -232,6 +279,7 @@ export default function MesClients() {
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
   const filteredPaused = filterAthletes(pausedAthletes);
+  const filteredExternalClients = filterExternalClients(externalClients);
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
@@ -250,7 +298,7 @@ export default function MesClients() {
       <h1 className="text-3xl font-bold">Mes clients</h1>
       
       <Tabs defaultValue="approved" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="approved">
             Mes athlètes
             {approvedAthletes.length > 0 && (
@@ -269,6 +317,14 @@ export default function MesClients() {
           </TabsTrigger>
           <TabsTrigger value="paused">
             En pause
+          </TabsTrigger>
+          <TabsTrigger value="external">
+            Clients externes
+            {externalClients.length > 0 && (
+              <Badge className="ml-2 bg-blue-600">
+                {externalClients.length}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -476,6 +532,71 @@ export default function MesClients() {
                           En pause
                         </Badge>
                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="external" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Clients externes</CardTitle>
+              <CardDescription>
+                Clients présentiels n'utilisant pas l'application
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredExternalClients.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  {searchQuery ? "Aucun client externe ne correspond à ta recherche" : "Aucun client externe"}
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {filteredExternalClients.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`h-12 w-12 rounded-full ${client.is_active ? 'bg-blue-600/10' : 'bg-muted'} flex items-center justify-center`}>
+                          <User className={`h-6 w-6 ${client.is_active ? 'text-blue-600' : 'text-muted-foreground'}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium">
+                            {client.first_name} {client.last_name}
+                          </p>
+                          {client.email && (
+                            <p className="text-sm text-muted-foreground">
+                              {client.email}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant={client.is_active ? "outline" : "default"}
+                          onClick={() => handleToggleExternalClient(client.id, client.is_active)}
+                        >
+                          {client.is_active ? (
+                            <>
+                              <Pause className="h-4 w-4 mr-1" />
+                              Désactiver
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-4 w-4 mr-1" />
+                              Activer
+                            </>
+                          )}
+                        </Button>
+                        <Badge variant={client.is_active ? "default" : "outline"} className={client.is_active ? "bg-blue-600" : ""}>
+                          {client.is_active ? "Actif" : "Inactif"}
+                        </Badge>
                       </div>
                     </div>
                   ))}
