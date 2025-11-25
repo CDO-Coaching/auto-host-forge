@@ -47,7 +47,7 @@ export default function Comptabilite() {
   const [newClientLastName, setNewClientLastName] = useState("");
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
-  const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
+  const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
