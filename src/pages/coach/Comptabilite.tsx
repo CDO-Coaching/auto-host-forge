@@ -251,9 +251,8 @@ export default function Comptabilite() {
 
       if (error) throw error;
 
-      setEntries(prev => prev.map(e => 
-        e.id === entryId ? { ...e, [field]: value } : e
-      ));
+      // Recharger les données pour garantir la synchronisation
+      await loadData();
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la mise à jour");
