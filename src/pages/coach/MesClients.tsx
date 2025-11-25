@@ -7,8 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { getWeekNumber } from "@/lib/weekUtils";
@@ -289,6 +290,23 @@ export default function MesClients() {
     } catch (error: any) {
       console.error("Erreur:", error);
       toast.error(`Erreur: ${error.message || "Impossible d'ajouter le client"}`);
+    }
+  };
+
+  const handleDeleteExternalClient = async (clientId: string) => {
+    try {
+      const { error } = await supabase
+        .from("external_clients")
+        .delete()
+        .eq("id", clientId);
+
+      if (error) throw error;
+
+      toast.success("Client externe supprimé");
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la suppression du client");
     }
   };
 
@@ -690,6 +708,33 @@ export default function MesClients() {
                             </>
                           )}
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Cette action est irréversible. Le client "{client.first_name} {client.last_name}" sera définitivement supprimé.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteExternalClient(client.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <Badge variant={client.is_active ? "default" : "outline"} className={client.is_active ? "bg-blue-600" : ""}>
                           {client.is_active ? "Actif" : "Inactif"}
                         </Badge>
