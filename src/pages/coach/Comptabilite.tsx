@@ -243,19 +243,26 @@ export default function Comptabilite() {
   };
 
   const updateEntry = async (entryId: string, field: string, value: any) => {
+    // Mise à jour optimiste de l'état local
+    setEntries(prev => prev.map(e => 
+      e.id === entryId ? { ...e, [field]: value } : e
+    ));
+
     try {
       const { error } = await supabase
         .from("accounting_entries")
         .update({ [field]: value })
         .eq("id", entryId);
 
-      if (error) throw error;
-
-      // Recharger les données pour garantir la synchronisation
-      await loadData();
+      if (error) {
+        // En cas d'erreur, recharger les données pour récupérer l'état correct
+        toast.error("Erreur lors de la mise à jour");
+        await loadData();
+      }
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la mise à jour");
+      await loadData();
     }
   };
 
