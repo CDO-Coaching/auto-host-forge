@@ -2187,7 +2187,7 @@ export default function ClientDetail() {
                                                                  }
                                                                  placeholder={
                                                                    !ex.charge && chargeSuggestions[session.id]?.[ex.id]
-                                                                     ? `Suggéré: ${chargeSuggestions[session.id][ex.id]}kg`
+                                                                     ? `${chargeSuggestions[session.id][ex.id]}kg`
                                                                      : "ex: 80kg"
                                                                  }
                                                                  disabled={isValidated}
@@ -2494,7 +2494,7 @@ export default function ClientDetail() {
                                                            }
                                                            placeholder={
                                                              !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
-                                                               ? `Suggéré: ${chargeSuggestions[session.id][exercise.id]}kg`
+                                                               ? `${chargeSuggestions[session.id][exercise.id]}kg`
                                                                : "ex: 80kg"
                                                            }
                                                            disabled={isValidated}
