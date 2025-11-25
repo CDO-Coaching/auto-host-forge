@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -48,6 +48,7 @@ export default function Comptabilite() {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     loadData();
@@ -396,6 +397,23 @@ export default function Comptabilite() {
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
   };
 
+  // Filtrer et trier les entrées selon la recherche
+  const filteredEntries = entries
+    .filter(entry => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return entry.client_name.toLowerCase().includes(query);
+    })
+    .sort((a, b) => {
+      if (!searchQuery.trim()) return 0;
+      const query = searchQuery.toLowerCase();
+      const aMatches = a.client_name.toLowerCase().includes(query);
+      const bMatches = b.client_name.toLowerCase().includes(query);
+      if (aMatches && !bMatches) return -1;
+      if (!aMatches && bMatches) return 1;
+      return 0;
+    });
+
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -479,6 +497,27 @@ export default function Comptabilite() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Rechercher par nom ou prénom..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSearchQuery("")}
+                    >
+                      Effacer
+                    </Button>
+                  )}
+                </div>
+
                 <div className="flex gap-2 flex-wrap">
                   {clients.map(client => {
                     const hasEntry = entries.some(e => 
@@ -519,7 +558,7 @@ export default function Comptabilite() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {entries.map(entry => (
+                      {filteredEntries.map(entry => (
                         <TableRow key={entry.id}>
                           <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
                           <TableCell>
