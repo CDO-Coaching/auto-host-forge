@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCoachDailyPaymentReminder } from "@/hooks/useCoachDailyPaymentReminder";
+import { CoachPaymentReminderDialog } from "@/components/CoachPaymentReminderDialog";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -22,6 +24,7 @@ export default function DashboardCoach() {
   const [pendingCount, setPendingCount] = useState(0);
   const { profile } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
+  const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -89,8 +92,13 @@ export default function DashboardCoach() {
   const firstName = profile?.first_name || "Coach";
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+    <>
+      <CoachPaymentReminderDialog
+        open={shouldShowReminder && !isChecking}
+        onDismiss={handleDismiss}
+      />
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
         <CoachSidebar />
         <div className="flex-1 flex flex-col">
           <header className="h-14 border-b flex items-center px-4 bg-background justify-between">
@@ -133,5 +141,6 @@ export default function DashboardCoach() {
         </div>
       </div>
     </SidebarProvider>
+    </>
   );
 }
