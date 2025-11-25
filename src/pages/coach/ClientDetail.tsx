@@ -116,6 +116,7 @@ export default function ClientDetail() {
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("programmation");
+  const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1049,18 +1050,23 @@ export default function ClientDetail() {
       }
       
       // Si on modifie l'exercice, le RPE ou les reps, calculer la charge suggérée
-      let suggestedLoad: string | null = null;
       if ((field === "rpe" || field === "reps" || field === "exercice") && updatedExercise && typeof value === "string") {
-        suggestedLoad = await calculateSuggestedLoad(updatedExercise);
+        const suggestedLoad = await calculateSuggestedLoad(updatedExercise);
+        if (suggestedLoad !== null) {
+          // Stocker la suggestion pour l'afficher comme placeholder
+          setChargeSuggestions(prev => ({
+            ...prev,
+            [sessionId]: {
+              ...(prev[sessionId] || {}),
+              [exerciseId]: suggestedLoad
+            }
+          }));
+        }
       }
       
       const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId) {
           const updates: Partial<Exercise> = { [field]: value };
-          // Si on a calculé une charge suggérée, l'ajouter
-          if (suggestedLoad !== null) {
-            updates.charge = suggestedLoad;
-          }
           // Si on change l'exercice, ajouter is_unilateral
           if (field === "exercice" && typeof value === "string" && updatedExercise) {
             updates.is_unilateral = (updatedExercise as any).is_unilateral;
@@ -2165,27 +2171,31 @@ export default function ClientDetail() {
                                                                 data-field="rpe"
                                                               />
                                                             </TableCell>
-                                                            <TableCell>
-                                                              <Input
-                                                                value={ex.charge}
-                                                                onChange={(e) =>
-                                                                  handleExerciseChange(
-                                                                    session.id,
-                                                                    ex.id,
-                                                                    "charge",
-                                                                    e.target.value,
-                                                                  )
-                                                                }
-                                                                onKeyDown={(e) =>
-                                                                  handleKeyDown(e, session.id, ex.id, "charge")
-                                                                }
-                                                                placeholder="ex: 80kg"
-                                                                disabled={isValidated}
-                                                                data-session={session.id}
-                                                                data-exercise={ex.id}
-                                                                data-field="charge"
-                                                              />
-                                                            </TableCell>
+                                                             <TableCell>
+                                                               <Input
+                                                                 value={ex.charge}
+                                                                 onChange={(e) =>
+                                                                   handleExerciseChange(
+                                                                     session.id,
+                                                                     ex.id,
+                                                                     "charge",
+                                                                     e.target.value,
+                                                                   )
+                                                                 }
+                                                                 onKeyDown={(e) =>
+                                                                   handleKeyDown(e, session.id, ex.id, "charge")
+                                                                 }
+                                                                 placeholder={
+                                                                   !ex.charge && chargeSuggestions[session.id]?.[ex.id]
+                                                                     ? `Suggéré: ${chargeSuggestions[session.id][ex.id]}kg`
+                                                                     : "ex: 80kg"
+                                                                 }
+                                                                 disabled={isValidated}
+                                                                 data-session={session.id}
+                                                                 data-exercise={ex.id}
+                                                                 data-field="charge"
+                                                               />
+                                                             </TableCell>
                                                             <TableCell>
                                                               <Input
                                                                 value={ex.tempo}
@@ -2468,27 +2478,31 @@ export default function ClientDetail() {
                                                           data-field="rpe"
                                                         />
                                                       </TableCell>
-                                                      <TableCell>
-                                                        <Input
-                                                          value={exercise.charge}
-                                                          onChange={(e) =>
-                                                            handleExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "charge",
-                                                              e.target.value,
-                                                            )
-                                                          }
-                                                          onKeyDown={(e) =>
-                                                            handleKeyDown(e, session.id, exercise.id, "charge")
-                                                          }
-                                                          placeholder="ex: 80kg"
-                                                          disabled={isValidated}
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="charge"
-                                                        />
-                                                      </TableCell>
+                                                       <TableCell>
+                                                         <Input
+                                                           value={exercise.charge}
+                                                           onChange={(e) =>
+                                                             handleExerciseChange(
+                                                               session.id,
+                                                               exercise.id,
+                                                               "charge",
+                                                               e.target.value,
+                                                             )
+                                                           }
+                                                           onKeyDown={(e) =>
+                                                             handleKeyDown(e, session.id, exercise.id, "charge")
+                                                           }
+                                                           placeholder={
+                                                             !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
+                                                               ? `Suggéré: ${chargeSuggestions[session.id][exercise.id]}kg`
+                                                               : "ex: 80kg"
+                                                           }
+                                                           disabled={isValidated}
+                                                           data-session={session.id}
+                                                           data-exercise={exercise.id}
+                                                           data-field="charge"
+                                                         />
+                                                       </TableCell>
                                                       <TableCell>
                                                         <Input
                                                           value={exercise.tempo}
