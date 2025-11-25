@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Link2, Unlink } from "lucide-react";
+import { Plus, Trash2, Link2, Unlink, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export interface CardioStep {
   id: number;
@@ -40,6 +41,7 @@ interface CardioStepBuilderProps {
 export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
   const [blocks, setBlocks] = useState<CardioBlock[]>(initialBlocks);
   const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
+  const [draggedStepId, setDraggedStepId] = useState<number | null>(null);
 
   // Calcule l'allure en min/km à partir du pourcentage de VMA
   const calculatePace = (vmaPercentage: number | undefined): string => {
@@ -170,6 +172,41 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
     return blocks.find(b => b.id === step.block_id);
   };
 
+  // Drag & Drop handlers pour les étapes
+  const handleStepDragStart = (stepId: number) => {
+    setDraggedStepId(stepId);
+  };
+
+  const handleStepDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleStepDrop = (e: React.DragEvent, targetStepId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (draggedStepId === null || draggedStepId === targetStepId) {
+      setDraggedStepId(null);
+      return;
+    }
+
+    const draggedIndex = steps.findIndex((s) => s.id === draggedStepId);
+    const targetIndex = steps.findIndex((s) => s.id === targetStepId);
+
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedStepId(null);
+      return;
+    }
+
+    const newSteps = [...steps];
+    const [draggedStep] = newSteps.splice(draggedIndex, 1);
+    newSteps.splice(targetIndex, 0, draggedStep);
+
+    onChange({ steps: newSteps, blocks });
+    setDraggedStepId(null);
+    toast.success("Étape réorganisée");
+  };
+
   return (
     <div className="space-y-4">
       {selectedSteps.length >= 2 && !disabled && (
@@ -226,10 +263,19 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                 </div>
               )}
               
-              <Card className={stepBlock ? "rounded-t-none" : ""}>
+              <Card 
+                className={stepBlock ? "rounded-t-none" : ""}
+                draggable={!disabled}
+                onDragStart={() => handleStepDragStart(step.id)}
+                onDragOver={handleStepDragOver}
+                onDrop={(e) => handleStepDrop(e, step.id)}
+              >
                 <CardContent className="pt-6 space-y-4">
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-2">
+                      {!disabled && (
+                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                      )}
                       {!disabled && !step.block_id && (
                         <input
                           type="checkbox"
