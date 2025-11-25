@@ -410,7 +410,7 @@ export default function Comptabilite() {
   const totals = {
     cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
     transfer: applyTransferCoefficient ? transferTotal * 0.76 : transferTotal,
-    total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal),
+    total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal) - rent,
     ursaff: ursaffAmount,
     sessionsPlanned: entries.reduce((sum, e) => sum + e.sessions_planned, 0),
     sessionsDone: entries.reduce((sum, e) => sum + e.sessions_done, 0),
