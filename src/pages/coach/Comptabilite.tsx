@@ -793,11 +793,11 @@ export default function Comptabilite() {
 
       {/* Dialog pour afficher les clients avec impayés */}
       <Dialog open={showDebtorsDialog} onOpenChange={setShowDebtorsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Clients avec impayés ({debtorsCount})</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2">
             {debtorsList.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 Aucun client avec des impayés
