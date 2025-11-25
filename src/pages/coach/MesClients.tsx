@@ -7,7 +7,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { getWeekNumber } from "@/lib/weekUtils";
 
@@ -47,6 +49,10 @@ export default function MesClients() {
   const [externalClients, setExternalClients] = useState<ExternalClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddExternalDialog, setShowAddExternalDialog] = useState(false);
+  const [newExternalFirstName, setNewExternalFirstName] = useState("");
+  const [newExternalLastName, setNewExternalLastName] = useState("");
+  const [newExternalEmail, setNewExternalEmail] = useState("");
 
   useEffect(() => {
     if (profile?.id) {
@@ -243,6 +249,37 @@ export default function MesClients() {
     } catch (error: any) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la modification du statut");
+    }
+  };
+
+  const handleAddExternalClient = async () => {
+    if (!newExternalFirstName.trim() || !newExternalLastName.trim()) {
+      toast.error("Le prénom et le nom sont obligatoires");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("external_clients")
+        .insert({
+          coach_id: profile?.id,
+          first_name: newExternalFirstName.trim(),
+          last_name: newExternalLastName.trim(),
+          email: newExternalEmail.trim() || null,
+          is_active: true
+        });
+
+      if (error) throw error;
+
+      toast.success("Client externe ajouté");
+      setNewExternalFirstName("");
+      setNewExternalLastName("");
+      setNewExternalEmail("");
+      setShowAddExternalDialog(false);
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de l'ajout du client");
     }
   };
 
@@ -544,10 +581,60 @@ export default function MesClients() {
         <TabsContent value="external" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Clients externes</CardTitle>
-              <CardDescription>
-                Clients présentiels n'utilisant pas l'application
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Clients externes</CardTitle>
+                  <CardDescription>
+                    Clients présentiels n'utilisant pas l'application
+                  </CardDescription>
+                </div>
+                <Dialog open={showAddExternalDialog} onOpenChange={setShowAddExternalDialog}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter un client
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Ajouter un client externe</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label htmlFor="firstName">Prénom *</Label>
+                        <Input
+                          id="firstName"
+                          value={newExternalFirstName}
+                          onChange={(e) => setNewExternalFirstName(e.target.value)}
+                          placeholder="Prénom"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="lastName">Nom *</Label>
+                        <Input
+                          id="lastName"
+                          value={newExternalLastName}
+                          onChange={(e) => setNewExternalLastName(e.target.value)}
+                          placeholder="Nom"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="email">Email (optionnel)</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={newExternalEmail}
+                          onChange={(e) => setNewExternalEmail(e.target.value)}
+                          placeholder="email@exemple.com"
+                        />
+                      </div>
+                      <Button onClick={handleAddExternalClient} className="w-full">
+                        Ajouter
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent>
               {filteredExternalClients.length === 0 ? (
