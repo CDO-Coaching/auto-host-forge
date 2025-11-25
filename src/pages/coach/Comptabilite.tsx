@@ -49,10 +49,26 @@ export default function Comptabilite() {
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [rent, setRent] = useState(0);
 
   useEffect(() => {
     loadData();
+    // Charger le loyer depuis localStorage pour ce mois
+    const rentKey = `rent_${format(currentMonth, "yyyy-MM")}`;
+    const savedRent = localStorage.getItem(rentKey);
+    if (savedRent) {
+      setRent(parseFloat(savedRent));
+    } else {
+      setRent(0);
+    }
   }, [currentMonth]);
+
+  const handleRentChange = (value: number) => {
+    setRent(value);
+    // Sauvegarder dans localStorage
+    const rentKey = `rent_${format(currentMonth, "yyyy-MM")}`;
+    localStorage.setItem(rentKey, value.toString());
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -388,10 +404,14 @@ export default function Comptabilite() {
   const cashTotal = entries.reduce((sum, e) => sum + e.amount_cash, 0);
   const transferTotal = entries.reduce((sum, e) => sum + e.amount_transfer, 0);
   
+  // Calculer le montant URSSAF (0.24 du total si les coefficients sont activés)
+  const ursaffAmount = (applyCashCoefficient ? cashTotal * 0.24 : 0) + (applyTransferCoefficient ? transferTotal * 0.24 : 0);
+  
   const totals = {
     cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
     transfer: applyTransferCoefficient ? transferTotal * 0.76 : transferTotal,
     total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal),
+    ursaff: ursaffAmount,
     sessionsPlanned: entries.reduce((sum, e) => sum + e.sessions_planned, 0),
     sessionsDone: entries.reduce((sum, e) => sum + e.sessions_done, 0),
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
@@ -704,6 +724,27 @@ export default function Comptabilite() {
                   <p className="text-sm text-muted-foreground">Total général</p>
                   <p className="text-2xl font-bold">{totals.total.toFixed(2)} €</p>
                 </div>
+                
+                {totals.ursaff > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Paiement à l'URSSAF</p>
+                    <p className="text-2xl font-bold text-orange-600">{totals.ursaff.toFixed(2)} €</p>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="rent" className="text-sm text-muted-foreground">Loyer</Label>
+                  <Input
+                    id="rent"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={rent}
+                    onChange={(e) => handleRentChange(parseFloat(e.target.value) || 0)}
+                    className="text-2xl font-bold h-auto py-2"
+                  />
+                </div>
+                
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">Séances prévues</p>
                   <p className="text-2xl font-bold">{totals.sessionsPlanned}</p>
