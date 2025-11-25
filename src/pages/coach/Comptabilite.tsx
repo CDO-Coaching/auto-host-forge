@@ -539,17 +539,17 @@ export default function Comptabilite() {
                                 onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
                                 className="w-20 text-center"
                               />
-                              {entry.weekly_difference !== undefined && entry.weekly_difference !== 0 && (
+                              {entry.weekly_difference !== undefined && (
                                 <Badge 
-                                  variant={entry.weekly_difference > 0 ? "default" : "secondary"}
+                                  variant={entry.weekly_difference > 0 ? "default" : entry.weekly_difference < 0 ? "secondary" : "outline"}
                                   className="flex items-center gap-1 text-xs whitespace-nowrap"
                                 >
                                   {entry.weekly_difference > 0 ? (
                                     <TrendingUp className="h-3 w-3" />
-                                  ) : (
+                                  ) : entry.weekly_difference < 0 ? (
                                     <TrendingDown className="h-3 w-3" />
-                                  )}
-                                  {entry.weekly_difference > 0 ? '+' : ''}{entry.weekly_difference}
+                                  ) : null}
+                                  {entry.weekly_difference >= 0 ? '+' : ''}{entry.weekly_difference}
                                 </Badge>
                               )}
                             </div>
