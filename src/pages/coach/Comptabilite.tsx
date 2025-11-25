@@ -407,11 +407,15 @@ export default function Comptabilite() {
   // Calculer le montant URSSAF (0.24 du total si les coefficients sont activés)
   const ursaffAmount = (applyCashCoefficient ? cashTotal * 0.24 : 0) + (applyTransferCoefficient ? transferTotal * 0.24 : 0);
   
+  // Calculer l'estimation de salaire basée sur les séances prévues
+  const estimatedSalary = entries.reduce((sum, e) => sum + e.sessions_planned, 0) * 60 * 0.76;
+  
   const totals = {
     cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
     transfer: applyTransferCoefficient ? transferTotal * 0.76 : transferTotal,
     total: (applyCashCoefficient ? cashTotal * 0.76 : cashTotal) + (applyTransferCoefficient ? transferTotal * 0.76 : transferTotal) - rent,
     ursaff: ursaffAmount,
+    estimatedSalary,
     sessionsPlanned: entries.reduce((sum, e) => sum + e.sessions_planned, 0),
     sessionsDone: entries.reduce((sum, e) => sum + e.sessions_done, 0),
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
@@ -743,6 +747,11 @@ export default function Comptabilite() {
                     onChange={(e) => handleRentChange(parseFloat(e.target.value) || 0)}
                     className="text-2xl font-bold h-auto py-2"
                   />
+                </div>
+                
+                <div className="space-y-2 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Estimation salaire (séances prévues × 60 × 0.76)</p>
+                  <p className="text-2xl font-bold text-blue-600">{totals.estimatedSalary.toFixed(2)} €</p>
                 </div>
                 
                 <div className="space-y-2">
