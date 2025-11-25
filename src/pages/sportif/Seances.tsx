@@ -127,7 +127,13 @@ export default function Seances() {
 
   const isSessionCompleted = (session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
-    // Une séance est considérée comme complétée si tous les exercices ont soit un RPE soit sont marqués comme skipped
+    
+    // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
+    if (session.session_type === "recup") {
+      return session.duration_minutes !== null && session.duration_minutes !== undefined;
+    }
+    
+    // Pour les autres séances, vérifier si tous les exercices ont soit un RPE soit sont marqués comme skipped
     return session.session_exercises.every((ex: any) => 
       (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
     );
