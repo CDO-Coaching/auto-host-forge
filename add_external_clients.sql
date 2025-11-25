@@ -12,18 +12,17 @@ CREATE TABLE IF NOT EXISTS external_clients (
 );
 
 -- Modifier la table accounting_entries pour supporter les clients externes
--- L'entrée peut être liée soit à un athlete_id (client app) soit à un external_client_id (client présentiel)
 ALTER TABLE accounting_entries 
 ADD COLUMN IF NOT EXISTS external_client_id UUID REFERENCES external_clients(id) ON DELETE CASCADE;
 
--- Ajouter une contrainte pour s'assurer qu'une entrée est liée soit à un athlete soit à un client externe (mais pas les deux)
+-- Ajouter une contrainte pour s'assurer qu'une entrée est liée soit à un client soit à un client externe (mais pas les deux)
 ALTER TABLE accounting_entries
 DROP CONSTRAINT IF EXISTS check_client_type;
 
 ALTER TABLE accounting_entries
 ADD CONSTRAINT check_client_type CHECK (
-  (athlete_id IS NOT NULL AND external_client_id IS NULL) OR
-  (athlete_id IS NULL AND external_client_id IS NOT NULL)
+  (client_id IS NOT NULL AND external_client_id IS NULL) OR
+  (client_id IS NULL AND external_client_id IS NOT NULL)
 );
 
 -- Index pour améliorer les performances
