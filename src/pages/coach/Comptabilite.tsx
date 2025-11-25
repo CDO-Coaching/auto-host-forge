@@ -34,6 +34,7 @@ interface AccountingEntry {
   amount_cash: number;
   amount_transfer: number;
   notes?: string;
+  weekly_difference?: number;
 }
 
 export default function Comptabilite() {
@@ -47,52 +48,10 @@ export default function Comptabilite() {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(false);
-  const [weeklyDifference, setWeeklyDifference] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
-    loadWeeklyComparison();
   }, [currentMonth]);
-
-  const loadWeeklyComparison = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const now = new Date();
-      const currentWeekMonday = getMondayOfWeek(now);
-      const currentWeekSunday = getSundayOfWeek(now);
-
-      // Semaine précédente
-      const lastWeekMonday = new Date(currentWeekMonday);
-      lastWeekMonday.setDate(lastWeekMonday.getDate() - 7);
-      const lastWeekSunday = new Date(currentWeekSunday);
-      lastWeekSunday.setDate(lastWeekSunday.getDate() - 7);
-
-      // Récupérer les entrées de la semaine actuelle
-      const { data: currentWeekData } = await supabase
-        .from("accounting_entries")
-        .select("sessions_done, created_at, updated_at")
-        .eq("coach_id", session.user.id)
-        .gte("updated_at", currentWeekMonday.toISOString())
-        .lte("updated_at", currentWeekSunday.toISOString());
-
-      // Récupérer les entrées de la semaine précédente
-      const { data: lastWeekData } = await supabase
-        .from("accounting_entries")
-        .select("sessions_done, created_at, updated_at")
-        .eq("coach_id", session.user.id)
-        .gte("updated_at", lastWeekMonday.toISOString())
-        .lte("updated_at", lastWeekSunday.toISOString());
-
-      const currentWeekTotal = currentWeekData?.reduce((sum, e) => sum + (e.sessions_done || 0), 0) || 0;
-      const lastWeekTotal = lastWeekData?.reduce((sum, e) => sum + (e.sessions_done || 0), 0) || 0;
-
-      setWeeklyDifference(currentWeekTotal - lastWeekTotal);
-    } catch (error) {
-      console.error("Erreur lors du chargement de la comparaison hebdomadaire:", error);
-    }
-  };
 
   const loadData = async () => {
     setLoading(true);
@@ -196,21 +155,59 @@ export default function Comptabilite() {
         }
       }
 
-      const formattedEntries: AccountingEntry[] = entriesData?.map(entry => ({
-        id: entry.id,
-        client_id: entry.client_id,
-        external_client_id: entry.external_client_id,
-        client_name: entry.client_id
-          ? `${entry.user_profiles?.first_name} ${entry.user_profiles?.last_name}`
-          : `${entry.external_clients?.first_name} ${entry.external_clients?.last_name}`,
-        sessions_planned: entry.sessions_planned || 0,
-        sessions_done: entry.sessions_done || 0,
-        sessions_paid: entry.sessions_paid || 0,
-        payment_type: entry.payment_type || "",
-        amount_cash: parseFloat(entry.amount_cash) || 0,
-        amount_transfer: parseFloat(entry.amount_transfer) || 0,
-        notes: entry.notes
-      })) || [];
+      // Calculer les différences hebdomadaires pour chaque client
+      const now = new Date();
+      const currentWeekMonday = getMondayOfWeek(now);
+      const currentWeekSunday = getSundayOfWeek(now);
+      const lastWeekMonday = new Date(currentWeekMonday);
+      lastWeekMonday.setDate(lastWeekMonday.getDate() - 7);
+      const lastWeekSunday = new Date(currentWeekSunday);
+      lastWeekSunday.setDate(lastWeekSunday.getDate() - 7);
+
+      const formattedEntries: AccountingEntry[] = await Promise.all(
+        (entriesData || []).map(async (entry) => {
+          // Récupérer les séances de la semaine actuelle pour ce client
+          const { data: currentWeekData } = await supabase
+            .from("accounting_entries")
+            .select("sessions_done")
+            .eq("coach_id", session.user.id)
+            .eq(entry.client_id ? "client_id" : "external_client_id", entry.client_id || entry.external_client_id)
+            .gte("updated_at", currentWeekMonday.toISOString())
+            .lte("updated_at", currentWeekSunday.toISOString())
+            .single();
+
+          // Récupérer les séances de la semaine précédente pour ce client
+          const { data: lastWeekData } = await supabase
+            .from("accounting_entries")
+            .select("sessions_done")
+            .eq("coach_id", session.user.id)
+            .eq(entry.client_id ? "client_id" : "external_client_id", entry.client_id || entry.external_client_id)
+            .gte("updated_at", lastWeekMonday.toISOString())
+            .lte("updated_at", lastWeekSunday.toISOString())
+            .single();
+
+          const currentWeekSessions = currentWeekData?.sessions_done || 0;
+          const lastWeekSessions = lastWeekData?.sessions_done || 0;
+          const weeklyDiff = currentWeekSessions - lastWeekSessions;
+
+          return {
+            id: entry.id,
+            client_id: entry.client_id,
+            external_client_id: entry.external_client_id,
+            client_name: entry.client_id
+              ? `${entry.user_profiles?.first_name} ${entry.user_profiles?.last_name}`
+              : `${entry.external_clients?.first_name} ${entry.external_clients?.last_name}`,
+            sessions_planned: entry.sessions_planned || 0,
+            sessions_done: entry.sessions_done || 0,
+            sessions_paid: entry.sessions_paid || 0,
+            payment_type: entry.payment_type || "",
+            amount_cash: parseFloat(entry.amount_cash) || 0,
+            amount_transfer: parseFloat(entry.amount_transfer) || 0,
+            notes: entry.notes,
+            weekly_difference: weeklyDiff
+          };
+        })
+      );
 
       // Trier par ordre alphabétique du nom
       formattedEntries.sort((a, b) => a.client_name.localeCompare(b.client_name));
@@ -401,22 +398,7 @@ export default function Comptabilite() {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold">Comptabilité</h1>
-          {weeklyDifference !== null && (
-            <Badge 
-              variant={weeklyDifference >= 0 ? "default" : "secondary"}
-              className="flex items-center gap-1"
-            >
-              {weeklyDifference >= 0 ? (
-                <TrendingUp className="h-3 w-3" />
-              ) : (
-                <TrendingDown className="h-3 w-3" />
-              )}
-              {weeklyDifference >= 0 ? '+' : ''}{weeklyDifference} séance{Math.abs(weeklyDifference) > 1 ? 's' : ''} vs semaine dernière
-            </Badge>
-          )}
-        </div>
+        <h1 className="text-3xl font-bold">Comptabilité</h1>
         
         <div className="flex items-center gap-4">
           <Button
@@ -549,13 +531,28 @@ export default function Comptabilite() {
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={entry.sessions_done}
-                              onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
-                              className="w-20 text-center"
-                            />
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                min="0"
+                                value={entry.sessions_done}
+                                onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
+                                className="w-20 text-center"
+                              />
+                              {entry.weekly_difference !== undefined && entry.weekly_difference !== 0 && (
+                                <Badge 
+                                  variant={entry.weekly_difference > 0 ? "default" : "secondary"}
+                                  className="flex items-center gap-1 text-xs whitespace-nowrap"
+                                >
+                                  {entry.weekly_difference > 0 ? (
+                                    <TrendingUp className="h-3 w-3" />
+                                  ) : (
+                                    <TrendingDown className="h-3 w-3" />
+                                  )}
+                                  {entry.weekly_difference > 0 ? '+' : ''}{entry.weekly_difference}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Input
