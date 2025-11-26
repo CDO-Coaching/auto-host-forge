@@ -444,20 +444,21 @@ export default function Comptabilite() {
     });
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-3xl font-bold">Comptabilité</h1>
+    <div className="container mx-auto p-3 sm:p-4 space-y-4 sm:space-y-6">
+      <div className="space-y-3 sm:space-y-0 sm:flex sm:items-center sm:justify-between sm:flex-wrap sm:gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold">Comptabilité</h1>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+            className="h-9 w-9 sm:h-10 sm:w-10"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <span className="text-lg font-medium min-w-[150px] text-center">
+          <span className="text-base sm:text-lg font-medium min-w-[140px] sm:min-w-[150px] text-center">
             {format(currentMonth, "MMMM yyyy", { locale: fr })}
           </span>
           
@@ -465,25 +466,30 @@ export default function Comptabilite() {
             variant="outline"
             size="icon"
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+            className="h-9 w-9 sm:h-10 sm:w-10"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           <Button
             variant="outline"
             onClick={copyFromPreviousMonth}
+            className="w-full sm:w-auto text-sm"
+            size="sm"
           >
             <Copy className="h-4 w-4 mr-2" />
-            Copier du mois précédent
+            <span className="hidden sm:inline">Copier du mois précédent</span>
+            <span className="sm:hidden">Copier mois précédent</span>
           </Button>
 
           <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto text-sm" size="sm">
                 <Plus className="h-4 w-4 mr-2" />
-                Ajouter un client externe
+                <span className="hidden sm:inline">Ajouter un client externe</span>
+                <span className="sm:hidden">Client externe</span>
               </Button>
             </DialogTrigger>
           <DialogContent>
@@ -517,20 +523,20 @@ export default function Comptabilite() {
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Chargement...</div>
+        <div className="text-center py-6 sm:py-8 text-sm">Chargement...</div>
       ) : (
         <>
           <Card>
-            <CardHeader>
-              <CardTitle>Entrées du mois</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">Entrées du mois</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative flex-1 max-w-sm">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="space-y-3 sm:space-y-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 sm:flex-wrap">
+                  <div className="relative flex-1 max-w-full sm:max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Rechercher par nom ou prénom..."
+                      placeholder="Rechercher..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
@@ -549,7 +555,7 @@ export default function Comptabilite() {
                     variant="outline"
                     size="sm"
                     onClick={() => setShowDebtorsDialog(true)}
-                    className="gap-2"
+                    className="gap-2 w-full sm:w-auto"
                   >
                     <AlertCircle className="h-4 w-4" />
                     Impayés
@@ -576,6 +582,7 @@ export default function Comptabilite() {
                         variant="outline"
                         size="sm"
                         onClick={() => addEntry(client.id, client.is_external)}
+                        className="text-xs sm:text-sm"
                       >
                         <Plus className="h-3 w-3 mr-1" />
                         {client.first_name} {client.last_name}
@@ -584,9 +591,9 @@ export default function Comptabilite() {
                   })}
                 </div>
 
-                <div className="relative border rounded-md">
-                  <div className="overflow-auto max-h-[600px]">
-                    <Table>
+                <div className="relative border rounded-md -mx-4 sm:mx-0">
+                  <div className="overflow-auto max-h-[400px] sm:max-h-[600px]">
+                    <Table className="min-w-[900px]">
                       <TableHeader>
                         <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
                           <TableHead className="sticky left-0 top-0 bg-background z-30 border-r">Client</TableHead>
@@ -712,14 +719,14 @@ export default function Comptabilite() {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Récapitulatif du mois</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">Récapitulatif du mois</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent className="p-4 sm:p-6 pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted-foreground">Total espèces</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Total espèces</p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">×0.76</span>
                       <Switch
@@ -728,11 +735,11 @@ export default function Comptabilite() {
                       />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-green-600">{totals.cash.toFixed(2)} €</p>
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">{totals.cash.toFixed(2)} €</p>
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm text-muted-foreground">Total virements</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Total virements</p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-muted-foreground">×0.76</span>
                       <Switch
@@ -741,22 +748,22 @@ export default function Comptabilite() {
                       />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-blue-600">{totals.transfer.toFixed(2)} €</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">{totals.transfer.toFixed(2)} €</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Total général</p>
-                  <p className="text-2xl font-bold">{totals.total.toFixed(2)} €</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Total général</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totals.total.toFixed(2)} €</p>
                 </div>
                 
                 {totals.ursaff > 0 && (
                   <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">Paiement à l'URSSAF</p>
-                    <p className="text-2xl font-bold text-orange-600">{totals.ursaff.toFixed(2)} €</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground">Paiement à l'URSSAF</p>
+                    <p className="text-xl sm:text-2xl font-bold text-orange-600">{totals.ursaff.toFixed(2)} €</p>
                   </div>
                 )}
                 
                 <div className="space-y-2">
-                  <Label htmlFor="rent" className="text-sm text-muted-foreground">Loyer</Label>
+                  <Label htmlFor="rent" className="text-xs sm:text-sm text-muted-foreground">Loyer</Label>
                   <Input
                     id="rent"
                     type="number"
@@ -764,26 +771,27 @@ export default function Comptabilite() {
                     step="0.01"
                     value={rent}
                     onChange={(e) => handleRentChange(parseFloat(e.target.value) || 0)}
-                    className="text-2xl font-bold h-auto py-2"
+                    className="text-lg sm:text-2xl font-bold h-auto py-2"
                   />
                 </div>
                 
                 <div className="space-y-2 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
-                  <p className="text-sm text-muted-foreground">Estimation salaire (séances prévues × 60 × 0.76)</p>
-                  <p className="text-2xl font-bold text-blue-600">{totals.estimatedSalary.toFixed(2)} €</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Estimation salaire</p>
+                  <p className="text-sm text-muted-foreground">(prévues × 60 × 0.76)</p>
+                  <p className="text-xl sm:text-2xl font-bold text-blue-600">{totals.estimatedSalary.toFixed(2)} €</p>
                 </div>
                 
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Séances prévues</p>
-                  <p className="text-2xl font-bold">{totals.sessionsPlanned}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Séances prévues</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totals.sessionsPlanned}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Séances réalisées</p>
-                  <p className="text-2xl font-bold">{totals.sessionsDone}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Séances réalisées</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totals.sessionsDone}</p>
                 </div>
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">Séances payées</p>
-                  <p className="text-2xl font-bold">{totals.sessionsPaid}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Séances payées</p>
+                  <p className="text-xl sm:text-2xl font-bold">{totals.sessionsPaid}</p>
                 </div>
               </div>
             </CardContent>
