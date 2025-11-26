@@ -801,43 +801,43 @@ export default function Comptabilite() {
 
       {/* Dialog pour afficher les clients avec impayés */}
       <Dialog open={showDebtorsDialog} onOpenChange={setShowDebtorsDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[80vh] mx-3 sm:mx-0">
           <DialogHeader>
-            <DialogTitle>Clients avec impayés ({debtorsCount})</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Clients avec impayés ({debtorsCount})</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 overflow-y-auto max-h-[60vh] pr-2">
+          <div className="space-y-3 sm:space-y-4 overflow-y-auto max-h-[60vh] pr-2">
             {debtorsList.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
+              <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                 Aucun client avec des impayés
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {debtorsList.map(debtor => (
                   <Card key={debtor.id} className="border-orange-200 dark:border-orange-900">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
+                    <CardContent className="p-4 sm:pt-6">
+                      <div className="flex flex-col sm:flex-row items-start justify-between gap-3 sm:gap-0">
+                        <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-orange-600" />
-                            <h3 className="font-semibold text-lg">{debtor.client_name}</h3>
+                            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                            <h3 className="font-semibold text-base sm:text-lg">{debtor.client_name}</h3>
                           </div>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="grid grid-cols-2 gap-3 sm:gap-4 text-sm">
                             <div>
-                              <p className="text-muted-foreground">Séances réalisées</p>
+                              <p className="text-muted-foreground text-xs sm:text-sm">Séances réalisées</p>
                               <p className="font-semibold">{debtor.sessions_done}</p>
                             </div>
                             <div>
-                              <p className="text-muted-foreground">Séances payées</p>
+                              <p className="text-muted-foreground text-xs sm:text-sm">Séances payées</p>
                               <p className="font-semibold">{debtor.sessions_paid}</p>
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Séances impayées</p>
-                          <p className="text-2xl font-bold text-orange-600">
+                        <div className="text-left sm:text-right w-full sm:w-auto">
+                          <p className="text-xs sm:text-sm text-muted-foreground">Séances impayées</p>
+                          <p className="text-xl sm:text-2xl font-bold text-orange-600">
                             {debtor.sessions_done - debtor.sessions_paid}
                           </p>
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                             ≈ {((debtor.sessions_done - debtor.sessions_paid) * 60).toFixed(2)} €
                           </p>
                         </div>
