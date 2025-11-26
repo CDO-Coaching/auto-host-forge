@@ -388,10 +388,32 @@ export default function SeanceDetail() {
     }
 
     const rpeNumber = Number(rpe);
-    if (isNaN(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
+    
+    // Vérifier si c'est un nombre valide
+    if (isNaN(rpeNumber)) {
       toast({
         title: "RPE invalide",
-        description: "Le RPE doit être un chiffre entre 1 et 10",
+        description: "Le RPE doit être un chiffre entre 1 et 10 (pas de lettres ou caractères spéciaux)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Vérifier si c'est un nombre entier (pas de décimales)
+    if (!Number.isInteger(rpeNumber)) {
+      toast({
+        title: "RPE invalide",
+        description: "Le RPE doit être un chiffre rond entre 1 et 10 (pas de virgule : 5.5, 7.2, etc.)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Vérifier la plage
+    if (rpeNumber < 1 || rpeNumber > 10) {
+      toast({
+        title: "RPE invalide",
+        description: "Le RPE doit être un chiffre entre 1 et 10 uniquement",
         variant: "destructive",
       });
       return;
