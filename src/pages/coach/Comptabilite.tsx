@@ -176,37 +176,32 @@ export default function Comptabilite() {
       // Calculer les différences hebdomadaires pour chaque client
       const now = new Date();
       const currentWeekMonday = getMondayOfWeek(now);
-      const currentWeekSunday = getSundayOfWeek(now);
-      const lastWeekMonday = new Date(currentWeekMonday);
-      lastWeekMonday.setDate(lastWeekMonday.getDate() - 7);
-      const lastWeekSunday = new Date(currentWeekSunday);
-      lastWeekSunday.setDate(lastWeekSunday.getDate() - 7);
 
       const formattedEntries: AccountingEntry[] = await Promise.all(
         (entriesData || []).map(async (entry) => {
           let weeklyDiff = 0;
 
-          // Seulement pour les clients internes (athlètes), compter les séances validées
-          if (entry.client_id) {
-            // Compter les séances validées CETTE semaine (lundi à aujourd'hui)
-            const { count: currentWeekCount } = await supabase
-              .from("training_sessions")
-              .select("*", { count: "exact", head: true })
-              .eq("athlete_id", entry.client_id)
-              .eq("validated", true)
-              .gte("validated_at", currentWeekMonday.toISOString())
-              .lte("validated_at", now.toISOString());
+          // Vérifier si c'est lundi (jour 1) ou si la baseline n'a jamais été mise à jour
+          const isMonday = now.getDay() === 1;
+          const needsBaselineUpdate = !entry.weekly_baseline_updated_at || 
+            new Date(entry.weekly_baseline_updated_at) < currentWeekMonday ||
+            isMonday;
 
-            // Compter les séances validées la SEMAINE DERNIÈRE (lundi à dimanche)
-            const { count: lastWeekCount } = await supabase
-              .from("training_sessions")
-              .select("*", { count: "exact", head: true })
-              .eq("athlete_id", entry.client_id)
-              .eq("validated", true)
-              .gte("validated_at", lastWeekMonday.toISOString())
-              .lte("validated_at", lastWeekSunday.toISOString());
-
-            weeklyDiff = (currentWeekCount || 0) - (lastWeekCount || 0);
+          // Si c'est lundi ou si la baseline est obsolète, mettre à jour la baseline
+          if (needsBaselineUpdate) {
+            await supabase
+              .from("accounting_entries")
+              .update({
+                weekly_baseline_sessions_done: entry.sessions_done,
+                weekly_baseline_updated_at: now.toISOString()
+              })
+              .eq("id", entry.id);
+            
+            // La différence est 0 car on vient de réinitialiser
+            weeklyDiff = 0;
+          } else {
+            // Calculer la différence par rapport à la baseline
+            weeklyDiff = (entry.sessions_done || 0) - (entry.weekly_baseline_sessions_done || 0);
           }
 
           return {
@@ -317,6 +312,9 @@ export default function Comptabilite() {
       if (error) {
         // En cas d'erreur, recharger les données pour récupérer l'état correct
         toast.error("Erreur lors de la mise à jour");
+        await loadData();
+      } else {
+        // Recharger les données pour recalculer la différence hebdomadaire
         await loadData();
       }
     } catch (error) {
