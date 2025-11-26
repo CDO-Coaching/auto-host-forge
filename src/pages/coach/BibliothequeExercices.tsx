@@ -220,12 +220,12 @@ export default function BibliothequeExercices() {
   const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort();
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Bibliothèque d'exercices</h1>
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Bibliothèque d'exercices</h1>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               Ajouter un exercice
             </Button>
@@ -407,14 +407,14 @@ export default function BibliothequeExercices() {
       </Card>
 
       {loading ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Chargement...</p>
+        <div className="text-center py-8 sm:py-12">
+          <p className="text-muted-foreground text-sm">Chargement...</p>
         </div>
       ) : filteredExercises.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Dumbbell className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
+          <CardContent className="py-8 sm:py-12 text-center px-4">
+            <Dumbbell className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground text-sm">
               {exercises.length === 0
                 ? "Aucun exercice dans ta bibliothèque. Commence par en ajouter un !"
                 : "Aucun exercice ne correspond à ta recherche."}
@@ -422,9 +422,58 @@ export default function BibliothequeExercices() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
+        <>
+          {/* Version mobile : Cards */}
+          <div className="block sm:hidden space-y-2">
+            {filteredExercises.map((exercise) => (
+              <Card key={exercise.id} className="p-3">
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm">{exercise.name}</p>
+                      {exercise.muscle_principal && (
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          {exercise.muscle_principal}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex gap-1">
+                      {exercise.video_url && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          asChild
+                          className="h-8 w-8 p-0"
+                        >
+                          <a href={exercise.video_url} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => openEditDialog(exercise)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  {exercise.category && (
+                    <Badge variant="secondary" className="text-xs capitalize">
+                      {exercise.category}
+                    </Badge>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          {/* Version desktop : Table */}
+          <Card className="hidden sm:block">
+            <CardContent className="p-0">
+              <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Nom</TableHead>
@@ -496,6 +545,7 @@ export default function BibliothequeExercices() {
             </Table>
           </CardContent>
         </Card>
+        </>
       )}
 
       {/* Dialog de modification */}
