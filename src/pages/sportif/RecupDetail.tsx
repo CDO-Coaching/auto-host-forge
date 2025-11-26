@@ -284,16 +284,16 @@ export default function RecupDetail() {
         type="session"
       />
 
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
+      <div className="sticky top-0 z-10 bg-background border-b p-3 sm:p-4">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
         </Button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         <div>
-          <h1 className="text-2xl font-bold">{session.name}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">{session.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <Badge variant="outline" className="border-purple-500 text-purple-600 dark:text-purple-400">
               Récup/Mobilité
@@ -349,7 +349,29 @@ export default function RecupDetail() {
           </AlertDialog>
         )}
 
-        <Card>
+        {/* Version mobile : Cards empilées */}
+        <div className="block sm:hidden space-y-2">
+          {exercises.map((exercise) => (
+            <Card key={exercise.id}>
+              <CardContent className="p-3">
+                <div className="space-y-2">
+                  <p className="font-semibold text-sm">{exercise.exercise_name}</p>
+                  <div className="flex gap-2 text-xs">
+                    <Badge variant="outline" className="text-xs">
+                      {exercise.reps || "-"}
+                    </Badge>
+                    {exercise.coach_notes && (
+                      <span className="text-muted-foreground line-clamp-1">{exercise.coach_notes}</span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Version desktop : Table */}
+        <Card className="hidden sm:block">
           <CardContent className="p-0">
             <Table>
               <TableHeader>
@@ -376,7 +398,7 @@ export default function RecupDetail() {
 
         {isSessionActive && (
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <label className="text-sm font-medium mb-2 block">
                 Tes retours sur cette séance (optionnel)
               </label>
@@ -392,7 +414,7 @@ export default function RecupDetail() {
 
         {isCompleted && session.session_exercises?.some((ex: any) => ex.sportif_comment) && (
           <Card className="border-green-500/30 bg-green-500/5">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <h3 className="font-semibold mb-2 flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                 Tes retours
