@@ -469,6 +469,7 @@ export default function ExerciceDetail() {
         onCancel={handleCancelFeedback}
         exerciseName={exercise?.exercice}
         exerciseType="renfo"
+        isRpeRequired={true}
       />
 
       <div className="p-4 space-y-4">

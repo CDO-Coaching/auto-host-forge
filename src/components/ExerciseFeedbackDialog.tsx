@@ -20,7 +20,8 @@ interface ExerciseFeedbackDialogProps {
   onValidate: (rpe: string, comment: string) => Promise<void>;
   onCancel: () => void;
   exerciseName?: string;
-  exerciseType?: "cardio" | "renfo";
+  exerciseType?: "cardio" | "renfo" | "recup";
+  isRpeRequired?: boolean;
 }
 
 export function ExerciseFeedbackDialog({
@@ -30,6 +31,7 @@ export function ExerciseFeedbackDialog({
   onCancel,
   exerciseName,
   exerciseType = "renfo",
+  isRpeRequired = false,
 }: ExerciseFeedbackDialogProps) {
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
@@ -39,10 +41,20 @@ export function ExerciseFeedbackDialog({
   const handleValidate = async () => {
     const rpeValue = rpe.trim();
 
-    if (rpeValue && (isNaN(Number(rpeValue)) || Number(rpeValue) < 0 || Number(rpeValue) > 10)) {
+    // Validation du RPE obligatoire
+    if (isRpeRequired && !rpeValue) {
+      toast({
+        title: "RPE obligatoire",
+        description: "Merci de remplir un RPE pour valider",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (rpeValue && (isNaN(Number(rpeValue)) || Number(rpeValue) < 1 || Number(rpeValue) > 10)) {
       toast({
         title: "RPE invalide",
-        description: "Le RPE doit être un nombre entre 0 et 10",
+        description: "Le RPE doit être un nombre entre 1 et 10",
         variant: "destructive",
       });
       return;
@@ -78,17 +90,20 @@ export function ExerciseFeedbackDialog({
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label htmlFor="rpe">RPE ressenti (0-10) <span className="text-muted-foreground text-sm font-normal">(optionnel)</span></Label>
+              <Label htmlFor="rpe">
+                RPE ressenti (1-10) {isRpeRequired ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>}
+              </Label>
               <RPEExplanationDialog />
             </div>
             <Input
               id="rpe"
               type="number"
-              min="0"
+              min="1"
               max="10"
               placeholder="Ex: 8"
               value={rpe}
               onChange={(e) => setRpe(e.target.value)}
+              required={isRpeRequired}
             />
           </div>
           <div className="space-y-2">

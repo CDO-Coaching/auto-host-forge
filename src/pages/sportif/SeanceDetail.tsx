@@ -377,10 +377,30 @@ export default function SeanceDetail() {
   const handleCardioFeedback = async (rpe: string, comment: string) => {
     if (!selectedCardioExercise) return;
 
+    // Validation obligatoire du RPE pour les séances cardio
+    if (!rpe || rpe.trim() === '') {
+      toast({
+        title: "RPE obligatoire",
+        description: "Merci de remplir un RPE pour valider la séance",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const rpeNumber = Number(rpe);
+    if (isNaN(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
+      toast({
+        title: "RPE invalide",
+        description: "Le RPE doit être un chiffre entre 1 et 10",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("session_exercises")
       .update({
-        sportif_rpe: rpe ? Number(rpe) : null,
+        sportif_rpe: rpeNumber,
         sportif_comment: comment || null,
         sportif_feedback_at: new Date().toISOString(),
       })
@@ -474,6 +494,12 @@ export default function SeanceDetail() {
   // Trier les exercices en fonction de leur état de complétion
   const sortedExercises = getSortedExercises(exercises);
 
+  // Vérifier si c'est une séance cardio (course)
+  const isCardioSession = session.session_type === 'course' || exercises.some((ex: any) => ex.cardio_sport === 'course');
+  
+  // Vérifier si c'est une séance de récup/mobilité
+  const isRecupMobilitySession = session.session_type === 'recup';
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <UniversalTimer />
@@ -510,19 +536,30 @@ export default function SeanceDetail() {
         </div>
 
         {!allCompleted ? (
-          <div className="flex gap-2">
-            {!isSessionActive ? (
-              <Button onClick={startSession} className="flex-1" size="lg">
-                <Play className="h-4 w-4 mr-2" />
-                Démarrer la séance
-              </Button>
-            ) : (
-              <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
-                <Square className="h-4 w-4 mr-2" />
-                Terminer la séance
-              </Button>
+          <>
+            {!isCardioSession && (
+              <div className="flex gap-2">
+                {!isSessionActive ? (
+                  <Button onClick={startSession} className="flex-1" size="lg">
+                    <Play className="h-4 w-4 mr-2" />
+                    Démarrer la séance
+                  </Button>
+                ) : (
+                  <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
+                    <Square className="h-4 w-4 mr-2" />
+                    Terminer la séance
+                  </Button>
+                )}
+              </div>
             )}
-          </div>
+            {isCardioSession && (
+              <div className="text-center p-4 bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">
+                  Cliquez sur la séance cardio ci-dessous pour la valider
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -894,6 +931,8 @@ export default function SeanceDetail() {
         open={feedbackDialogOpen}
         onOpenChange={setFeedbackDialogOpen}
         exerciseName={selectedCardioExercise?.exercice || ""}
+        exerciseType="cardio"
+        isRpeRequired={!isRecupMobilitySession}
         onValidate={handleCardioFeedback}
         onCancel={handleCancelCardioFeedback}
       />

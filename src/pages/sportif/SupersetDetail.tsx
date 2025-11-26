@@ -419,6 +419,7 @@ export default function SupersetDetail() {
         onCancel={handleCancelFeedback}
         exerciseName="Superset"
         exerciseType="renfo"
+        isRpeRequired={true}
       />
 
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
