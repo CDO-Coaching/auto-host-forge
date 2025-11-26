@@ -472,16 +472,16 @@ export default function ExerciceDetail() {
         isRpeRequired={true}
       />
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* En-tête exercice avec vidéo */}
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="text-2xl font-bold flex-1">{exercise.exercice}</h1>
+        <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold flex-1">{exercise.exercice}</h1>
           {videoUrl && (
             <a
               href={videoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-yellow-400 hover:text-yellow-200 text-3xl"
+              className="text-yellow-400 hover:text-yellow-200 text-2xl sm:text-3xl"
             >
               🎥
             </a>
@@ -491,32 +491,32 @@ export default function ExerciceDetail() {
         {/* Compteur de séries - Mis en avant */}
         {exercise.series && (
           <Card className="border-2 border-primary/30">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between">
-                <Label className="text-base font-semibold">Séries</Label>
-                <div className="flex items-center gap-3">
+                <Label className="text-sm sm:text-base font-semibold">Séries</Label>
+                <div className="flex items-center gap-2 sm:gap-3">
                   <Button
                     size="icon"
                     variant="outline"
                     onClick={decrementSet}
                     disabled={completedSets === 0}
-                    className="h-10 w-10"
+                    className="h-8 w-8 sm:h-10 sm:w-10"
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
 
-                  <div className="text-4xl font-bold min-w-[100px] text-center">
+                  <div className="text-2xl sm:text-4xl font-bold min-w-[80px] sm:min-w-[100px] text-center">
                     {completedSets}
-                    <span className="text-2xl text-muted-foreground">/{exercise.series}</span>
+                    <span className="text-lg sm:text-2xl text-muted-foreground">/{exercise.series}</span>
                   </div>
 
                   <Button
                     size="icon"
                     onClick={incrementSet}
                     disabled={completedSets >= parseInt(exercise.series)}
-                    className="h-10 w-10"
+                    className="h-8 w-8 sm:h-10 sm:w-10"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
                   </Button>
                 </div>
               </div>
@@ -527,25 +527,27 @@ export default function ExerciceDetail() {
         {/* Chronomètre de récupération */}
         {exercise.recuperation && (
           <Card className="border-2 border-muted-foreground/20 bg-muted/50">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-6 w-6 text-primary" />
-                  <Label className="text-base font-semibold">Récupération</Label>
-                </div>
-                <div
-                  className={`text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
-                >
-                  {formatTime(timeRemaining)}
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
+                  </div>
+                  <div
+                    className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
+                  >
+                    {formatTime(timeRemaining)}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {!isTimerRunning ? (
-                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="h-9 px-4">
+                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
                       <Play className="h-4 w-4 mr-1" />
                       Start
                     </Button>
                   ) : (
-                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="h-9 px-4">
+                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
                       <Pause className="h-4 w-4 mr-1" />
                       Pause
                     </Button>
@@ -560,28 +562,28 @@ export default function ExerciceDetail() {
         )}
 
         {/* Détails de l'exercice - Compact et lisible */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {exercise.charge && (
             <Card className="border border-red-500/30 bg-red-500/5">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Weight className="h-5 w-5 text-red-600" />
-                  <span className="text-sm font-semibold text-red-600 uppercase">Charge</span>
+              <CardContent className="p-2 sm:p-3">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                  <Weight className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                  <span className="text-xs sm:text-sm font-semibold text-red-600 uppercase">Charge</span>
                 </div>
-                <p className="text-3xl font-bold">{exercise.charge}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{exercise.charge}</p>
               </CardContent>
             </Card>
           )}
 
           {exercise.reps && (
             <Card className="border border-orange-500/30 bg-orange-500/5">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <Repeat className="h-5 w-5 text-orange-600" />
-                  <span className="text-sm font-semibold text-orange-600 uppercase">Reps</span>
+              <CardContent className="p-2 sm:p-3">
+                <div className="flex items-center gap-1 sm:gap-2 mb-1">
+                  <Repeat className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+                  <span className="text-xs sm:text-sm font-semibold text-orange-600 uppercase">Reps</span>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-3xl font-bold">{exercise.reps}</p>
+                  <p className="text-2xl sm:text-3xl font-bold">{exercise.reps}</p>
                   {exercise.per_side && (
                     <Badge variant="secondary" className="text-xs bg-orange-600/20 text-orange-700 border-orange-600/30">
                       par côté
@@ -594,30 +596,30 @@ export default function ExerciceDetail() {
 
           {exercise.rpe && (
             <Card className="border border-yellow-500/30 bg-yellow-500/5">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-5 w-5 text-yellow-600" />
-                    <span className="text-sm font-semibold text-yellow-600 uppercase">RPE</span>
+              <CardContent className="p-2 sm:p-3">
+                <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                    <span className="text-xs sm:text-sm font-semibold text-yellow-600 uppercase">RPE</span>
                   </div>
                   <RPEExplanationDialog />
                 </div>
-                <p className="text-3xl font-bold">{exercise.rpe}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{exercise.rpe}</p>
               </CardContent>
             </Card>
           )}
 
           {exercise.tempo && (
             <Card className="border border-purple-500/30 bg-purple-500/5">
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-purple-600" />
-                    <span className="text-sm font-semibold text-purple-600 uppercase">Tempo</span>
+              <CardContent className="p-2 sm:p-3">
+                <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                    <span className="text-xs sm:text-sm font-semibold text-purple-600 uppercase">Tempo</span>
                   </div>
                   <TempoExplanationDialog />
                 </div>
-                <p className="text-3xl font-bold">{exercise.tempo}</p>
+                <p className="text-2xl sm:text-3xl font-bold">{exercise.tempo}</p>
               </CardContent>
             </Card>
           )}
@@ -626,11 +628,11 @@ export default function ExerciceDetail() {
         {/* Notes du coach */}
         {exercise.commentaire && (
           <Card className="border-2 border-primary/20">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-start gap-2">
-                <span className="text-xl">📝</span>
+                <span className="text-lg sm:text-xl">📝</span>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-primary mb-1">Notes du coach</p>
+                  <p className="text-xs sm:text-sm font-semibold text-primary mb-1">Notes du coach</p>
                   <p className="text-sm leading-relaxed">{exercise.commentaire}</p>
                 </div>
               </div>
