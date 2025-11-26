@@ -358,41 +358,44 @@ export default function MesClients() {
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Mes clients</h1>
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
+      <h1 className="text-2xl sm:text-3xl font-bold">Mes clients</h1>
       
       <Tabs defaultValue="approved" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="approved">
-            Mes athlètes
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+          <TabsTrigger value="approved" className="text-xs sm:text-sm py-2 sm:py-2.5">
+            <span className="hidden sm:inline">Mes athlètes</span>
+            <span className="sm:hidden">Athlètes</span>
             {approvedAthletes.length > 0 && (
-              <Badge className="ml-2 bg-green-600">
+              <Badge className="ml-1 sm:ml-2 bg-green-600 text-xs">
                 {approvedAthletes.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="pending">
-            Demandes en attente
+          <TabsTrigger value="pending" className="text-xs sm:text-sm py-2 sm:py-2.5">
+            <span className="hidden sm:inline">Demandes en attente</span>
+            <span className="sm:hidden">Demandes</span>
             {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-2">
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
                 {pendingRequests.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="paused">
+          <TabsTrigger value="paused" className="text-xs sm:text-sm py-2 sm:py-2.5 col-span-2 sm:col-span-1">
             En pause
           </TabsTrigger>
-          <TabsTrigger value="external">
-            Clients externes
+          <TabsTrigger value="external" className="text-xs sm:text-sm py-2 sm:py-2.5 col-span-2 sm:col-span-1">
+            <span className="hidden sm:inline">Clients externes</span>
+            <span className="sm:hidden">Externes</span>
             {externalClients.length > 0 && (
-              <Badge className="ml-2 bg-blue-600">
+              <Badge className="ml-1 sm:ml-2 bg-blue-600 text-xs">
                 {externalClients.length}
               </Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
-        <div className="relative mt-4">
+        <div className="relative mt-3 sm:mt-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
@@ -421,17 +424,17 @@ export default function MesClients() {
                   {filteredPending.map((request) => (
                     <div
                       key={request.id}
-                      className="flex items-center justify-between p-4 border rounded-lg"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3 sm:gap-4"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="h-6 w-6 text-primary" />
+                      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                         </div>
-                        <div>
-                          <p className="font-medium">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm sm:text-base">
                             {request.athlete.first_name} {request.athlete.last_name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             {request.athlete.email}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
@@ -440,13 +443,14 @@ export default function MesClients() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 w-full sm:w-auto">
                         <Button
                           size="sm"
                           onClick={() => handleResponse(request.id, "approved")}
+                          className="flex-1 sm:flex-none"
                         >
-                          <Check className="h-4 w-4 mr-1" />
-                          Accepter
+                          <Check className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Accepter</span>
                         </Button>
                         <Button
                           size="sm"

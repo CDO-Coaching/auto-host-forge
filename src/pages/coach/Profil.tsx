@@ -113,18 +113,18 @@ export default function Profil() {
   };
 
   if (loading) {
-    return <div className="text-center">Chargement...</div>;
+    return <div className="text-center py-6 sm:py-8 text-sm">Chargement...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Mon profil</h1>
+    <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
+      <h1 className="text-2xl sm:text-3xl font-bold">Mon profil</h1>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Informations personnelles</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl">Informations personnelles</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 sm:p-6 pt-0">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div>
