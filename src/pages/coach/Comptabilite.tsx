@@ -14,6 +14,7 @@ import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 
 interface Client {
@@ -39,6 +40,7 @@ interface AccountingEntry {
 }
 
 export default function Comptabilite() {
+  const isMobile = useIsMobile();
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [clients, setClients] = useState<Client[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
@@ -546,57 +548,60 @@ export default function Comptabilite() {
     });
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h1 className="text-3xl font-bold">Comptabilité</h1>
+    <div className="container mx-auto p-2 md:p-4 space-y-4 md:space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
+        <h1 className="text-2xl md:text-3xl font-bold">Comptabilité</h1>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           <Button
             variant="outline"
-            size="icon"
+            size={isMobile ? "sm" : "icon"}
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           
-          <span className="text-lg font-medium min-w-[150px] text-center">
-            {format(currentMonth, "MMMM yyyy", { locale: fr })}
+          <span className="text-sm md:text-lg font-medium min-w-[120px] md:min-w-[150px] text-center">
+            {format(currentMonth, isMobile ? "MMM yyyy" : "MMMM yyyy", { locale: fr })}
           </span>
           
           <Button
             variant="outline"
-            size="icon"
+            size={isMobile ? "sm" : "icon"}
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           {hasBackup && (
             <Button
               variant="outline"
+              size={isMobile ? "sm" : "default"}
               onClick={restoreBackup}
-              className="text-orange-600 border-orange-600 hover:bg-orange-50"
+              className="text-orange-600 border-orange-600 hover:bg-orange-50 text-xs md:text-sm"
             >
-              <Copy className="h-4 w-4 mr-2" />
-              Annuler la dernière copie
+              <Copy className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+              {isMobile ? "Annuler copie" : "Annuler la dernière copie"}
             </Button>
           )}
           
           <Button
             variant="outline"
+            size={isMobile ? "sm" : "default"}
             onClick={() => setShowCopyConfirmDialog(true)}
+            className="text-xs md:text-sm"
           >
-            <Copy className="h-4 w-4 mr-2" />
-            Copier du mois précédent
+            <Copy className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+            {isMobile ? "Copier mois préc." : "Copier du mois précédent"}
           </Button>
 
           <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Ajouter un client externe
+              <Button size={isMobile ? "sm" : "default"} className="text-xs md:text-sm">
+                <Plus className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                {isMobile ? "Client ext." : "Ajouter un client externe"}
               </Button>
             </DialogTrigger>
           <DialogContent>
@@ -640,10 +645,10 @@ export default function Comptabilite() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="relative flex-1 max-w-sm">
+                  <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Rechercher par nom ou prénom..."
+                      placeholder={isMobile ? "Rechercher..." : "Rechercher par nom ou prénom..."}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
@@ -661,10 +666,11 @@ export default function Comptabilite() {
                   {hasUnsavedChanges && (
                     <Button
                       onClick={saveAllChanges}
+                      size={isMobile ? "sm" : "default"}
                       className="gap-2"
                     >
                       <Save className="h-4 w-4" />
-                      Valider les modifications
+                      {isMobile ? "Valider" : "Valider les modifications"}
                     </Button>
                   )}
                   <Button
@@ -706,48 +712,189 @@ export default function Comptabilite() {
                   })}
                 </div>
 
-                <div className="relative border rounded-md">
-                  <div className="overflow-auto max-h-[600px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
-                          <TableHead className="sticky left-0 top-0 bg-background z-30 border-r">Client</TableHead>
-                          <TableHead className="text-center bg-background sticky top-0 z-20">Séances prévues</TableHead>
-                        <TableHead className="text-center bg-background sticky top-0 z-20">Séances réalisées</TableHead>
-                        <TableHead className="text-center bg-background sticky top-0 z-20">Séances payées</TableHead>
-                        <TableHead className="bg-background sticky top-0 z-20">Type paiement</TableHead>
-                        <TableHead className="text-right bg-background sticky top-0 z-20">Espèces (€)</TableHead>
-                        <TableHead className="text-right bg-background sticky top-0 z-20">Virement (€)</TableHead>
-                        <TableHead className="text-right bg-background sticky top-0 z-20">Total (€)</TableHead>
-                        <TableHead className="bg-background sticky top-0 z-20"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredEntries.map(entry => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={entry.sessions_planned}
-                              onChange={(e) => updateEntry(entry.id, "sessions_planned", parseInt(e.target.value) || 0)}
-                              className="w-20 text-center"
-                            />
-                          </TableCell>
-                          <TableCell>
+                {/* Vue Desktop - Tableau */}
+                {!isMobile && (
+                  <div className="relative border rounded-md">
+                    <div className="overflow-auto max-h-[600px]">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
+                            <TableHead className="sticky left-0 top-0 bg-background z-30 border-r">Client</TableHead>
+                            <TableHead className="text-center bg-background sticky top-0 z-20">Séances prévues</TableHead>
+                          <TableHead className="text-center bg-background sticky top-0 z-20">Séances réalisées</TableHead>
+                          <TableHead className="text-center bg-background sticky top-0 z-20">Séances payées</TableHead>
+                          <TableHead className="bg-background sticky top-0 z-20">Type paiement</TableHead>
+                          <TableHead className="text-right bg-background sticky top-0 z-20">Espèces (€)</TableHead>
+                          <TableHead className="text-right bg-background sticky top-0 z-20">Virement (€)</TableHead>
+                          <TableHead className="text-right bg-background sticky top-0 z-20">Total (€)</TableHead>
+                          <TableHead className="bg-background sticky top-0 z-20"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredEntries.map(entry => (
+                          <TableRow key={entry.id}>
+                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={entry.sessions_planned}
+                                onChange={(e) => updateEntry(entry.id, "sessions_planned", parseInt(e.target.value) || 0)}
+                                className="w-20 text-center"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={entry.sessions_done}
+                                  onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
+                                  className="w-20 text-center"
+                                />
+                                {entry.weekly_difference !== undefined && (
+                                  <Badge 
+                                    variant={entry.weekly_difference > 0 ? "default" : entry.weekly_difference < 0 ? "secondary" : "outline"}
+                                    className="flex items-center gap-1 text-xs whitespace-nowrap"
+                                  >
+                                    {entry.weekly_difference > 0 ? (
+                                      <TrendingUp className="h-3 w-3" />
+                                    ) : entry.weekly_difference < 0 ? (
+                                      <TrendingDown className="h-3 w-3" />
+                                    ) : null}
+                                    {entry.weekly_difference >= 0 ? '+' : ''}{entry.weekly_difference}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={entry.sessions_paid}
+                                onChange={(e) => updateEntry(entry.id, "sessions_paid", parseInt(e.target.value) || 0)}
+                                className="w-20 text-center"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={entry.payment_type}
+                                onValueChange={(value) => updateEntry(entry.id, "payment_type", value)}
+                              >
+                                <SelectTrigger className="w-32">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="espèces">Espèces</SelectItem>
+                                  <SelectItem value="virement">Virement</SelectItem>
+                                  <SelectItem value="mixte">Mixte</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              {(entry.payment_type === "espèces" || entry.payment_type === "mixte") ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={entry.amount_cash}
+                                  onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
+                                  className="w-24 text-right"
+                                />
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {(entry.payment_type === "virement" || entry.payment_type === "mixte") ? (
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={entry.amount_transfer}
+                                  onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
+                                  className="w-24 text-right"
+                                />
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {(entry.amount_cash + entry.amount_transfer).toFixed(2)} €
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => deleteEntry(entry.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Vue Mobile - Cartes */}
+                {isMobile && (
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                    {filteredEntries.map(entry => (
+                      <Card key={entry.id} className="border shadow-sm">
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <h3 className="font-semibold text-base">{entry.client_name}</h3>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteEntry(entry.id)}
+                              className="h-8 w-8 -mt-1 -mr-2"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Séances prévues</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={entry.sessions_planned}
+                                onChange={(e) => updateEntry(entry.id, "sessions_planned", parseInt(e.target.value) || 0)}
+                                className="h-9 text-center"
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Séances payées</Label>
+                              <Input
+                                type="number"
+                                min="0"
+                                value={entry.sessions_paid}
+                                onChange={(e) => updateEntry(entry.id, "sessions_paid", parseInt(e.target.value) || 0)}
+                                className="h-9 text-center"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Séances réalisées</Label>
                             <div className="flex items-center gap-2">
                               <Input
                                 type="number"
                                 min="0"
                                 value={entry.sessions_done}
                                 onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
-                                className="w-20 text-center"
+                                className="h-9 text-center flex-1"
                               />
                               {entry.weekly_difference !== undefined && (
                                 <Badge 
                                   variant={entry.weekly_difference > 0 ? "default" : entry.weekly_difference < 0 ? "secondary" : "outline"}
-                                  className="flex items-center gap-1 text-xs whitespace-nowrap"
+                                  className="flex items-center gap-1 text-xs"
                                 >
                                   {entry.weekly_difference > 0 ? (
                                     <TrendingUp className="h-3 w-3" />
@@ -758,22 +905,15 @@ export default function Comptabilite() {
                                 </Badge>
                               )}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              min="0"
-                              value={entry.sessions_paid}
-                              onChange={(e) => updateEntry(entry.id, "sessions_paid", parseInt(e.target.value) || 0)}
-                              className="w-20 text-center"
-                            />
-                          </TableCell>
-                          <TableCell>
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Type de paiement</Label>
                             <Select
                               value={entry.payment_type}
                               onValueChange={(value) => updateEntry(entry.id, "payment_type", value)}
                             >
-                              <SelectTrigger className="w-32">
+                              <SelectTrigger className="h-9">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
@@ -782,53 +922,47 @@ export default function Comptabilite() {
                                 <SelectItem value="mixte">Mixte</SelectItem>
                               </SelectContent>
                             </Select>
-                          </TableCell>
-                          <TableCell>
-                            {(entry.payment_type === "espèces" || entry.payment_type === "mixte") ? (
+                          </div>
+
+                          {(entry.payment_type === "espèces" || entry.payment_type === "mixte") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Montant espèces (€)</Label>
                               <Input
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 value={entry.amount_cash}
                                 onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
-                                className="w-24 text-right"
+                                className="h-9"
                               />
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {(entry.payment_type === "virement" || entry.payment_type === "mixte") ? (
+                            </div>
+                          )}
+
+                          {(entry.payment_type === "virement" || entry.payment_type === "mixte") && (
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">Montant virement (€)</Label>
                               <Input
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 value={entry.amount_transfer}
                                 onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
-                                className="w-24 text-right"
+                                className="h-9"
                               />
-                            ) : (
-                              <span className="text-muted-foreground text-sm">-</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {(entry.amount_cash + entry.amount_transfer).toFixed(2)} €
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteEntry(entry.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    </Table>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t flex justify-between items-center">
+                            <span className="text-sm text-muted-foreground">Total</span>
+                            <span className="text-lg font-bold">
+                              {(entry.amount_cash + entry.amount_transfer).toFixed(2)} €
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
