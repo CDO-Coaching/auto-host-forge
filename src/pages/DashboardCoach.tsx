@@ -18,6 +18,7 @@ import Profil from "./coach/Profil";
 import Messagerie from "./coach/Messagerie";
 import Questions from "./coach/Questions";
 import Comptabilite from "./coach/Comptabilite";
+import SuiviSalaire from "./coach/SuiviSalaire";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
@@ -135,6 +136,7 @@ export default function DashboardCoach() {
               <Route path="/questions" element={<Questions />} />
               <Route path="/bibliotheque-exercices" element={<BibliothequeExercices />} />
               <Route path="/comptabilite" element={<Comptabilite />} />
+              <Route path="/suivi-salaire" element={<SuiviSalaire />} />
               <Route path="/profil" element={<Profil />} />
             </Routes>
           </main>
