@@ -54,8 +54,20 @@ export default function Comptabilite() {
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
   const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
   const [hasBackup, setHasBackup] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
+    // Vérifier s'il y a des modifications non sauvegardées avant de changer de mois
+    if (hasUnsavedChanges) {
+      const confirmChange = window.confirm("Vous avez des modifications non sauvegardées. Voulez-vous vraiment changer de mois ?");
+      if (!confirmChange) {
+        return;
+      }
+      setPendingChanges({});
+      setHasUnsavedChanges(false);
+    }
+    
     loadData();
     // Charger le loyer depuis localStorage pour ce mois
     const rentKey = `rent_${format(currentMonth, "yyyy-MM")}`;
@@ -305,29 +317,48 @@ export default function Comptabilite() {
     }
   };
 
-  const updateEntry = async (entryId: string, field: string, value: any) => {
-    // Mise à jour optimiste de l'état local
+  const updateEntry = (entryId: string, field: string, value: any) => {
+    // Mise à jour locale uniquement
     setEntries(prev => prev.map(e => 
       e.id === entryId ? { ...e, [field]: value } : e
     ));
 
-    try {
-      const { error } = await supabase
-        .from("accounting_entries")
-        .update({ [field]: value })
-        .eq("id", entryId);
-
-      if (error) {
-        // En cas d'erreur, recharger les données pour récupérer l'état correct
-        toast.error("Erreur lors de la mise à jour");
-        await loadData();
-      } else {
-        // Recharger les données pour recalculer la différence hebdomadaire
-        await loadData();
+    // Stocker les modifications en attente
+    setPendingChanges(prev => ({
+      ...prev,
+      [entryId]: {
+        ...(prev[entryId] || {}),
+        [field]: value
       }
+    }));
+    
+    setHasUnsavedChanges(true);
+  };
+
+  const saveAllChanges = async () => {
+    if (Object.keys(pendingChanges).length === 0) {
+      toast.info("Aucune modification à sauvegarder");
+      return;
+    }
+
+    try {
+      // Sauvegarder toutes les modifications en une fois
+      const updates = Object.entries(pendingChanges).map(([entryId, changes]) => 
+        supabase
+          .from("accounting_entries")
+          .update(changes)
+          .eq("id", entryId)
+      );
+
+      await Promise.all(updates);
+
+      toast.success(`${Object.keys(pendingChanges).length} modification(s) sauvegardée(s)`);
+      setPendingChanges({});
+      setHasUnsavedChanges(false);
+      await loadData();
     } catch (error) {
       console.error("Erreur:", error);
-      toast.error("Erreur lors de la mise à jour");
+      toast.error("Erreur lors de la sauvegarde");
       await loadData();
     }
   };
@@ -415,6 +446,8 @@ export default function Comptabilite() {
 
       toast.success("Données copiées depuis le mois précédent");
       setShowCopyConfirmDialog(false);
+      setPendingChanges({});
+      setHasUnsavedChanges(false);
       loadData();
     } catch (error) {
       console.error("Erreur:", error);
@@ -460,6 +493,8 @@ export default function Comptabilite() {
       // Supprimer le backup après restauration
       localStorage.removeItem(backupKey);
       setHasBackup(false);
+      setPendingChanges({});
+      setHasUnsavedChanges(false);
 
       toast.success("Données restaurées avec succès");
       loadData();
@@ -621,6 +656,15 @@ export default function Comptabilite() {
                       onClick={() => setSearchQuery("")}
                     >
                       Effacer
+                    </Button>
+                  )}
+                  {hasUnsavedChanges && (
+                    <Button
+                      onClick={saveAllChanges}
+                      className="gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      Valider les modifications
                     </Button>
                   )}
                   <Button
