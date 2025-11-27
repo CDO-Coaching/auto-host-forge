@@ -42,15 +42,27 @@ export default function SuiviSalaire() {
           .eq("coach_id", session.user.id)
           .eq("month", monthStr);
 
-        const cash = entries?.reduce((sum, e) => sum + (parseFloat(e.amount_cash?.toString() || "0") || 0), 0) || 0;
-        const transfers = entries?.reduce((sum, e) => sum + (parseFloat(e.amount_transfer?.toString() || "0") || 0), 0) || 0;
+        let cash = entries?.reduce((sum, e) => sum + (parseFloat(e.amount_cash?.toString() || "0") || 0), 0) || 0;
+        let transfers = entries?.reduce((sum, e) => sum + (parseFloat(e.amount_transfer?.toString() || "0") || 0), 0) || 0;
+
+        // Appliquer le coefficient 0.76 aux virements (par défaut activé)
+        transfers = transfers * 0.76;
+        // Pas de coefficient pour les espèces (par défaut désactivé)
+
+        // Charger le loyer depuis localStorage pour ce mois
+        const rentKey = `rent_${format(monthDate, "yyyy-MM")}`;
+        const savedRent = localStorage.getItem(rentKey);
+        const rent = savedRent ? parseFloat(savedRent) : 0;
+
+        // Calculer le total après déduction du loyer
+        const total = transfers + cash - rent;
 
         months.push({
           month: monthStr,
           monthLabel,
           transfers,
           cash,
-          total: transfers + cash
+          total
         });
       }
 
@@ -80,28 +92,28 @@ export default function SuiviSalaire() {
 
     return (
       <g>
-        {/* Partie basse - Virements (bleu) */}
+        {/* Partie basse - Virements (jaune) */}
         {transfers > 0 && (
           <rect
             x={centerX - barWidth / 2}
             y={y + height - transferHeight}
             width={barWidth}
             height={transferHeight}
-            fill="hsl(var(--chart-1))"
+            fill="hsl(var(--warning))"
             stroke="hsl(var(--border))"
             strokeWidth={1}
             rx={2}
           />
         )}
         
-        {/* Partie haute - Espèces (vert) */}
+        {/* Partie haute - Espèces (orange) */}
         {cash > 0 && (
           <rect
             x={centerX - barWidth / 2}
             y={y + height - transferHeight - cashHeight}
             width={barWidth}
             height={cashHeight}
-            fill="hsl(var(--chart-2))"
+            fill="hsl(var(--destructive))"
             stroke="hsl(var(--border))"
             strokeWidth={1}
             rx={2}
@@ -119,13 +131,13 @@ export default function SuiviSalaire() {
           <p className="font-semibold mb-2">{data.monthLabel}</p>
           <div className="space-y-1 text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(var(--chart-2))" }}></div>
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(var(--destructive))" }}></div>
               <span className="text-muted-foreground">Espèces:</span>
               <span className="font-semibold">{data.cash.toFixed(2)} €</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(var(--chart-1))" }}></div>
-              <span className="text-muted-foreground">Virements:</span>
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(var(--warning))" }}></div>
+              <span className="text-muted-foreground">Virements (×0.76):</span>
               <span className="font-semibold">{data.transfers.toFixed(2)} €</span>
             </div>
             <div className="pt-2 border-t flex justify-between gap-4">
@@ -218,12 +230,12 @@ export default function SuiviSalaire() {
               {/* Légende personnalisée */}
               <div className="flex items-center justify-center gap-6 mt-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(var(--chart-2))" }}></div>
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(var(--destructive))" }}></div>
                   <span className="text-sm text-muted-foreground">Espèces</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(var(--chart-1))" }}></div>
-                  <span className="text-sm text-muted-foreground">Virements</span>
+                  <div className="w-4 h-4 rounded" style={{ backgroundColor: "hsl(var(--warning))" }}></div>
+                  <span className="text-sm text-muted-foreground">Virements (×0.76)</span>
                 </div>
               </div>
             </CardContent>
@@ -247,11 +259,11 @@ export default function SuiviSalaire() {
                     <div className="flex items-center gap-4 text-sm">
                       <div className="text-right">
                         <p className="text-muted-foreground text-xs">Espèces</p>
-                        <p className="font-semibold" style={{ color: "hsl(var(--chart-2))" }}>{month.cash.toFixed(2)} €</p>
+                        <p className="font-semibold" style={{ color: "hsl(var(--destructive))" }}>{month.cash.toFixed(2)} €</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-muted-foreground text-xs">Virements</p>
-                        <p className="font-semibold" style={{ color: "hsl(var(--chart-1))" }}>{month.transfers.toFixed(2)} €</p>
+                        <p className="text-muted-foreground text-xs">Virements (×0.76)</p>
+                        <p className="font-semibold" style={{ color: "hsl(var(--warning))" }}>{month.transfers.toFixed(2)} €</p>
                       </div>
                       <div className="text-right min-w-[100px]">
                         <p className="text-muted-foreground text-xs">Total</p>
