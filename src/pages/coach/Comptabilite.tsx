@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle } from "lucide-react";
@@ -51,6 +52,8 @@ export default function Comptabilite() {
   const [searchQuery, setSearchQuery] = useState("");
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
+  const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
+  const [hasBackup, setHasBackup] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -62,6 +65,11 @@ export default function Comptabilite() {
     } else {
       setRent(0);
     }
+    
+    // Vérifier s'il y a un backup pour ce mois
+    const backupKey = `backup_${format(currentMonth, "yyyy-MM")}`;
+    const backup = localStorage.getItem(backupKey);
+    setHasBackup(!!backup);
   }, [currentMonth]);
 
   const handleRentChange = (value: number) => {
@@ -350,6 +358,19 @@ export default function Comptabilite() {
       const previousMonthStr = format(previousMonth, "yyyy-MM-01");
       const currentMonthStr = format(currentMonth, "yyyy-MM-01");
 
+      // Sauvegarder les données actuelles avant de copier
+      const { data: currentEntries } = await supabase
+        .from("accounting_entries")
+        .select("*")
+        .eq("coach_id", session.user.id)
+        .eq("month", currentMonthStr);
+
+      if (currentEntries && currentEntries.length > 0) {
+        const backupKey = `backup_${format(currentMonth, "yyyy-MM")}`;
+        localStorage.setItem(backupKey, JSON.stringify(currentEntries));
+        setHasBackup(true);
+      }
+
       // Récupérer les entrées du mois précédent
       const { data: previousEntries, error: fetchError } = await supabase
         .from("accounting_entries")
@@ -393,10 +414,58 @@ export default function Comptabilite() {
       if (insertError) throw insertError;
 
       toast.success("Données copiées depuis le mois précédent");
+      setShowCopyConfirmDialog(false);
       loadData();
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la copie des données");
+    }
+  };
+
+  const restoreBackup = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const backupKey = `backup_${format(currentMonth, "yyyy-MM")}`;
+      const backupData = localStorage.getItem(backupKey);
+
+      if (!backupData) {
+        toast.error("Aucune sauvegarde trouvée");
+        return;
+      }
+
+      const currentMonthStr = format(currentMonth, "yyyy-MM-01");
+      const backupEntries = JSON.parse(backupData);
+
+      // Supprimer les entrées actuelles
+      await supabase
+        .from("accounting_entries")
+        .delete()
+        .eq("coach_id", session.user.id)
+        .eq("month", currentMonthStr);
+
+      // Restaurer les entrées sauvegardées (sans les IDs pour éviter les conflits)
+      const entriesToRestore = backupEntries.map((entry: any) => {
+        const { id, created_at, updated_at, ...rest } = entry;
+        return rest;
+      });
+
+      const { error } = await supabase
+        .from("accounting_entries")
+        .insert(entriesToRestore);
+
+      if (error) throw error;
+
+      // Supprimer le backup après restauration
+      localStorage.removeItem(backupKey);
+      setHasBackup(false);
+
+      toast.success("Données restaurées avec succès");
+      loadData();
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la restauration des données");
     }
   };
 
@@ -469,9 +538,20 @@ export default function Comptabilite() {
         </div>
 
         <div className="flex items-center gap-2">
+          {hasBackup && (
+            <Button
+              variant="outline"
+              onClick={restoreBackup}
+              className="text-orange-600 border-orange-600 hover:bg-orange-50"
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Annuler la dernière copie
+            </Button>
+          )}
+          
           <Button
             variant="outline"
-            onClick={copyFromPreviousMonth}
+            onClick={() => setShowCopyConfirmDialog(true)}
           >
             <Copy className="h-4 w-4 mr-2" />
             Copier du mois précédent
@@ -840,6 +920,26 @@ export default function Comptabilite() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de confirmation pour copier du mois précédent */}
+      <AlertDialog open={showCopyConfirmDialog} onOpenChange={setShowCopyConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Copier du mois précédent ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action va supprimer toutes les données actuelles du mois et les remplacer par les données du mois précédent.
+              <br /><br />
+              <strong>Une sauvegarde sera créée automatiquement</strong> et vous pourrez annuler cette action si besoin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={copyFromPreviousMonth}>
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
