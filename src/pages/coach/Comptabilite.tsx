@@ -510,8 +510,8 @@ export default function Comptabilite() {
   // Calculer le montant URSSAF (0.24 du total si les coefficients sont activés)
   const ursaffAmount = (applyCashCoefficient ? cashTotal * 0.24 : 0) + (applyTransferCoefficient ? transferTotal * 0.24 : 0);
   
-  // Calculer l'estimation de salaire basée sur les séances prévues
-  const estimatedSalary = entries.reduce((sum, e) => sum + e.sessions_planned, 0) * 60 * 0.76;
+  // Calculer l'estimation de salaire basée sur les séances prévues (après déduction URSAFF et loyer)
+  const estimatedSalary = (entries.reduce((sum, e) => sum + e.sessions_planned, 0) * 60 * 0.76) - rent;
   
   const totals = {
     cash: applyCashCoefficient ? cashTotal * 0.76 : cashTotal,
