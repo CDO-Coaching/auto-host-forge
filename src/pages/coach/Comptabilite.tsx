@@ -657,18 +657,6 @@ export default function Comptabilite() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setHideClientNames(!hideClientNames)}
-                      className="whitespace-nowrap"
-                    >
-                      {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                      {hideClientNames ? "Afficher noms" : "Masquer noms"}
-                    </Button>
-                  </div>
-                  
                   <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -713,8 +701,22 @@ export default function Comptabilite() {
                   </Button>
                 </div>
 
-                <div className="flex gap-2 flex-wrap">
-                  {clients.map(client => {
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Clients à ajouter</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setHideClientNames(!hideClientNames)}
+                      className="h-8"
+                    >
+                      {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                      {hideClientNames ? "Afficher" : "Masquer"}
+                    </Button>
+                  </div>
+                  
+                  <div className="flex gap-2 flex-wrap">
+                    {clients.map(client => {
                     const hasEntry = entries.some(e => 
                       (client.is_external && e.external_client_id === client.id) ||
                       (!client.is_external && e.client_id === client.id)
@@ -730,10 +732,11 @@ export default function Comptabilite() {
                         onClick={() => addEntry(client.id, client.is_external)}
                       >
                         <Plus className="h-3 w-3 mr-1" />
-                        {client.first_name} {client.last_name}
+                        {hideClientNames ? "•••••••••" : `${client.first_name} ${client.last_name}`}
                       </Button>
                     );
-                  })}
+                    })}
+                  </div>
                 </div>
 
                 {/* Vue Desktop - Tableau */}
@@ -757,9 +760,7 @@ export default function Comptabilite() {
                       <TableBody>
                         {filteredEntries.map(entry => (
                           <TableRow key={entry.id}>
-                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
-                              {hideClientNames ? "•••••••••" : entry.client_name}
-                            </TableCell>
+                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
                             <TableCell>
                               <Input
                                 type="number"
@@ -872,9 +873,7 @@ export default function Comptabilite() {
                       <Card key={entry.id} className="border shadow-sm">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between">
-                            <h3 className="font-semibold text-base">
-                              {hideClientNames ? "•••••••••" : entry.client_name}
-                            </h3>
+                            <h3 className="font-semibold text-base">{entry.client_name}</h3>
                             <Button
                               variant="ghost"
                               size="icon"
