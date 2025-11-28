@@ -9,12 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle, BarChart3, Eye, EyeOff } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 import { getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 
 interface Client {
@@ -41,6 +42,7 @@ interface AccountingEntry {
 
 export default function Comptabilite() {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [clients, setClients] = useState<Client[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
@@ -58,6 +60,7 @@ export default function Comptabilite() {
   const [hasBackup, setHasBackup] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hideClientNames, setHideClientNames] = useState(false);
 
   useEffect(() => {
     // Vérifier s'il y a des modifications non sauvegardées avant de changer de mois
@@ -555,6 +558,15 @@ export default function Comptabilite() {
         <div className="flex items-center gap-2 md:gap-4">
           <Button
             variant="outline"
+            size={isMobile ? "sm" : "default"}
+            onClick={() => navigate("/coach/suivi-salaire")}
+          >
+            <BarChart3 className="h-4 w-4 mr-2" />
+            {isMobile ? "Salaire" : "Suivi du salaire"}
+          </Button>
+          
+          <Button
+            variant="outline"
             size={isMobile ? "sm" : "icon"}
             onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
           >
@@ -645,6 +657,18 @@ export default function Comptabilite() {
             <CardContent>
               <div className="space-y-4">
                 <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setHideClientNames(!hideClientNames)}
+                      className="whitespace-nowrap"
+                    >
+                      {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                      {hideClientNames ? "Afficher noms" : "Masquer noms"}
+                    </Button>
+                  </div>
+                  
                   <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -733,7 +757,9 @@ export default function Comptabilite() {
                       <TableBody>
                         {filteredEntries.map(entry => (
                           <TableRow key={entry.id}>
-                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
+                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
+                              {hideClientNames ? "•••••••••" : entry.client_name}
+                            </TableCell>
                             <TableCell>
                               <Input
                                 type="number"
@@ -846,7 +872,9 @@ export default function Comptabilite() {
                       <Card key={entry.id} className="border shadow-sm">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between">
-                            <h3 className="font-semibold text-base">{entry.client_name}</h3>
+                            <h3 className="font-semibold text-base">
+                              {hideClientNames ? "•••••••••" : entry.client_name}
+                            </h3>
                             <Button
                               variant="ghost"
                               size="icon"
