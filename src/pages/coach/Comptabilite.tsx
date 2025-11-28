@@ -715,28 +715,30 @@ export default function Comptabilite() {
                     </Button>
                   </div>
                   
-                  <div className="flex gap-2 flex-wrap">
-                    {clients.map(client => {
-                    const hasEntry = entries.some(e => 
-                      (client.is_external && e.external_client_id === client.id) ||
-                      (!client.is_external && e.client_id === client.id)
-                    );
-                    
-                    if (hasEntry) return null;
-                    
-                    return (
-                      <Button
-                        key={client.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addEntry(client.id, client.is_external)}
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {hideClientNames ? "•••••••••" : `${client.first_name} ${client.last_name}`}
-                      </Button>
-                    );
-                    })}
-                  </div>
+                  {!hideClientNames && (
+                    <div className="flex gap-2 flex-wrap">
+                      {clients.map(client => {
+                        const hasEntry = entries.some(e => 
+                          (client.is_external && e.external_client_id === client.id) ||
+                          (!client.is_external && e.client_id === client.id)
+                        );
+                        
+                        if (hasEntry) return null;
+                        
+                        return (
+                          <Button
+                            key={client.id}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addEntry(client.id, client.is_external)}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {client.first_name} {client.last_name}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Vue Desktop - Tableau */}
