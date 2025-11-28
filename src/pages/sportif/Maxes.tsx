@@ -98,31 +98,9 @@ export default function Maxes() {
 
       if (error) throw error;
 
-      // Filtrer pour exclure les max théoriques à la baisse (uniquement côté sportif)
-      const filteredMaxesData = await Promise.all(
-        maxesData.map(async (max: any) => {
-          if (max.max_type === "max_theorique") {
-            // Chercher le max précédent pour le même exercice
-            const { data: previousMax } = await supabase
-              .from("exercise_maxes")
-              .select("weight_kg")
-              .eq("athlete_id", user.id)
-              .eq("exercise_id", max.exercise_id)
-              .lt("recorded_at", max.recorded_at)
-              .order("recorded_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-            
-            // Exclure si c'est à la baisse
-            if (previousMax && max.weight_kg < previousMax.weight_kg) {
-              return null;
-            }
-          }
-          return max;
-        })
-      );
-      
-      const validMaxesData = filteredMaxesData.filter(max => max !== null);
+      // Filtrer pour exclure les max théoriques à la baisse (uniquement côté sportif) - DÉSACTIVÉ
+      // On garde maintenant tous les max pour permettre le suivi des performances même en baisse
+      const validMaxesData = maxesData;
 
       // Transformer et enrichir les données
       const enrichedMaxes = await Promise.all(

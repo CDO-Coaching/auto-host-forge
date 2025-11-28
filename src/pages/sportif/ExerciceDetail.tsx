@@ -373,40 +373,34 @@ export default function ExerciceDetail() {
       console.log("🔄 Comparaison:", { 
         nouveau: theoretical1RM, 
         ancien: latestMax?.weight_kg, 
-        estSuperieur: !latestMax || theoretical1RM > latestMax.weight_kg 
+        estNouveauRecord: !latestMax || theoretical1RM > latestMax.weight_kg 
       });
 
-      // Enregistrer uniquement si c'est un nouveau record
-      if (!latestMax || theoretical1RM > latestMax.weight_kg) {
-        console.log("✅ Enregistrement du nouveau max...");
-        const { data: insertData, error: insertError } = await supabase.from("exercise_maxes").insert({
-          athlete_id: user.id,
-          exercise_id: libraryData.id,
-          max_type: "max_theorique",
-          weight_kg: theoretical1RM,
-          recorded_at: new Date().toISOString(),
-          notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
-        }).select();
+      // Enregistrer tous les max théoriques, même s'ils sont en baisse
+      const isNewRecord = !latestMax || theoretical1RM > latestMax.weight_kg;
+      console.log("✅ Enregistrement du max...");
+      
+      const { data: insertData, error: insertError } = await supabase.from("exercise_maxes").insert({
+        athlete_id: user.id,
+        exercise_id: libraryData.id,
+        max_type: "max_theorique",
+        weight_kg: theoretical1RM,
+        recorded_at: new Date().toISOString(),
+        notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
+      }).select();
 
-        if (insertError) {
-          console.error("❌ Erreur insert max théorique:", insertError);
-          toast({
-            title: "Max non enregistré",
-            description: "Autorisation refusée. Je peux corriger les permissions si tu veux.",
-            variant: "destructive",
-          });
-        } else {
-          console.log("✅ Max enregistré avec succès:", insertData);
-          toast({
-            title: "Max théorique enregistré",
-            description: `${theoretical1RM} kg sur ${exercise.exercice}`,
-          });
-        }
-      } else {
-        console.log("⚠️ Max non enregistré: pas un nouveau record");
+      if (insertError) {
+        console.error("❌ Erreur insert max théorique:", insertError);
         toast({
           title: "Max non enregistré",
-          description: `Le max calculé (${theoretical1RM} kg) n'est pas supérieur au max existant (${latestMax.weight_kg} kg)`,
+          description: "Autorisation refusée. Je peux corriger les permissions si tu veux.",
+          variant: "destructive",
+        });
+      } else {
+        console.log("✅ Max enregistré avec succès:", insertData);
+        toast({
+          title: isNewRecord ? "Nouveau record !" : "Max enregistré",
+          description: `${theoretical1RM} kg sur ${exercise.exercice}${!isNewRecord ? ` (précédent: ${latestMax.weight_kg} kg)` : ""}`,
         });
       }
     } catch (error) {
