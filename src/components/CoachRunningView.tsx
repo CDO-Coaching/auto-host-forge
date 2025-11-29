@@ -12,10 +12,16 @@ interface CardioSessionData {
   week: string;
   weekNumber: number;
   year: number;
-  durationMinutes: number;
-  distanceKm: number;
-  averageIntensity: number;
-  sessionCount: number;
+  // Données programmées
+  plannedDurationMinutes: number;
+  plannedDistanceKm: number;
+  plannedAverageIntensity: number;
+  plannedSessionCount: number;
+  // Données réalisées
+  actualDurationMinutes: number;
+  actualDistanceKm: number;
+  actualAverageIntensity: number;
+  actualSessionCount: number;
 }
 
 interface PlannedVolume {
@@ -143,7 +149,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           id,
           cardio_sport,
           sportif_rpe,
-          sportif_feedback_at
+          sportif_feedback_at,
+          actual_distance_km,
+          actual_duration_minutes,
+          actual_pace_min_per_km,
+          actual_avg_heart_rate
         ),
         training_weeks!inner(
           athlete_id,
@@ -169,29 +179,70 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       const year = session.training_weeks.year;
       const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
 
+      // Données programmées (toujours incluses)
+      const plannedDistance = session.cardio_total_distance_km || 0;
+      const plannedDuration = session.cardio_total_duration_minutes || 0;
+      const plannedIntensity = session.cardio_average_intensity || 0;
+
+      // Vérifier si la séance est validée
+      const exercise = session.session_exercises?.[0];
+      const isValidated = exercise && (
+        exercise.sportif_rpe !== null || 
+        exercise.actual_distance_km !== null ||
+        exercise.actual_duration_minutes !== null ||
+        exercise.actual_pace_min_per_km !== null ||
+        exercise.actual_avg_heart_rate !== null
+      );
+
+      // Données réalisées (seulement si validée)
+      let actualDistance = 0;
+      let actualDuration = 0;
+      let actualIntensity = 0;
+      
+      if (isValidated) {
+        // Prioriser les données réelles saisies par le sportif
+        actualDistance = exercise.actual_distance_km || plannedDistance;
+        actualDuration = exercise.actual_duration_minutes || plannedDuration;
+        actualIntensity = plannedIntensity; // L'intensité reste celle programmée sauf si calculée autrement
+      }
+
       if (weeklyData.has(weekKey)) {
         const existing = weeklyData.get(weekKey)!;
-        existing.distanceKm += session.cardio_total_distance_km || 0;
-        existing.durationMinutes += session.cardio_total_duration_minutes || 0;
         
-        // Calculer la moyenne pondérée de l'intensité
-        const totalDuration = existing.durationMinutes;
-        const newIntensity = session.cardio_average_intensity || 0;
-        const newDuration = session.cardio_total_duration_minutes || 0;
-        
-        existing.averageIntensity = Math.round(
-          ((existing.averageIntensity * (totalDuration - newDuration)) + (newIntensity * newDuration)) / totalDuration
+        // Cumuler les données programmées
+        existing.plannedDistanceKm += plannedDistance;
+        existing.plannedDurationMinutes += plannedDuration;
+        const totalPlannedDuration = existing.plannedDurationMinutes;
+        existing.plannedAverageIntensity = Math.round(
+          ((existing.plannedAverageIntensity * (totalPlannedDuration - plannedDuration)) + (plannedIntensity * plannedDuration)) / totalPlannedDuration
         );
-        existing.sessionCount++;
+        existing.plannedSessionCount++;
+
+        // Cumuler les données réalisées
+        if (isValidated) {
+          existing.actualDistanceKm += actualDistance;
+          existing.actualDurationMinutes += actualDuration;
+          const totalActualDuration = existing.actualDurationMinutes;
+          if (totalActualDuration > 0) {
+            existing.actualAverageIntensity = Math.round(
+              ((existing.actualAverageIntensity * (totalActualDuration - actualDuration)) + (actualIntensity * actualDuration)) / totalActualDuration
+            );
+          }
+          existing.actualSessionCount++;
+        }
       } else {
         weeklyData.set(weekKey, {
           week: weekKey,
           weekNumber,
           year,
-          distanceKm: session.cardio_total_distance_km || 0,
-          durationMinutes: session.cardio_total_duration_minutes || 0,
-          averageIntensity: session.cardio_average_intensity || 0,
-          sessionCount: 1
+          plannedDistanceKm: plannedDistance,
+          plannedDurationMinutes: plannedDuration,
+          plannedAverageIntensity: plannedIntensity,
+          plannedSessionCount: 1,
+          actualDistanceKm: actualDistance,
+          actualDurationMinutes: actualDuration,
+          actualAverageIntensity: actualIntensity,
+          actualSessionCount: isValidated ? 1 : 0
         });
       }
     });
@@ -226,10 +277,13 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     );
   }
 
-  const totalDistance = cardioSessions.reduce((sum, s) => sum + s.distanceKm, 0);
-  const totalDuration = cardioSessions.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const totalPlannedDistance = cardioSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0);
+  const totalPlannedDuration = cardioSessions.reduce((sum, s) => sum + s.plannedDurationMinutes, 0);
+  const totalActualDistance = cardioSessions.reduce((sum, s) => sum + s.actualDistanceKm, 0);
+  const totalActualDuration = cardioSessions.reduce((sum, s) => sum + s.actualDurationMinutes, 0);
   const totalWeeks = cardioSessions.length;
-  const avgIntensity = cardioSessions.reduce((sum, s) => sum + s.averageIntensity, 0) / totalWeeks;
+  const avgPlannedIntensity = cardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks;
+  const avgActualIntensity = cardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks;
 
   // Calculer les métriques de la semaine précédente pour comparaison
   const lastWeek = cardioSessions[cardioSessions.length - 1];
@@ -241,9 +295,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     return { value: Math.abs(percentChange), isIncrease: percentChange >= 0 };
   };
 
-  const distanceChange = previousWeek ? calculatePercentChange(lastWeek.distanceKm, previousWeek.distanceKm) : null;
-  const durationChange = previousWeek ? calculatePercentChange(lastWeek.durationMinutes, previousWeek.durationMinutes) : null;
-  const intensityChange = previousWeek ? calculatePercentChange(lastWeek.averageIntensity, previousWeek.averageIntensity) : null;
+  const distanceChange = previousWeek ? calculatePercentChange(lastWeek.actualDistanceKm, previousWeek.actualDistanceKm) : null;
+  const durationChange = previousWeek ? calculatePercentChange(lastWeek.actualDurationMinutes, previousWeek.actualDurationMinutes) : null;
+  const intensityChange = previousWeek ? calculatePercentChange(lastWeek.actualAverageIntensity, previousWeek.actualAverageIntensity) : null;
 
   return (
     <div className="space-y-6">
@@ -308,9 +362,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalDistance.toFixed(1)} km</div>
+            <div className="text-2xl font-bold text-green-600">{totalActualDistance.toFixed(1)} km</div>
             <p className="text-xs text-muted-foreground">
-              Moyenne: {(totalDistance / totalWeeks).toFixed(1)} km/semaine
+              Réalisé · Prévu: {totalPlannedDistance.toFixed(1)} km
             </p>
           </CardContent>
         </Card>
@@ -321,11 +375,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {Math.floor(totalDuration / 60)}h{(totalDuration % 60).toString().padStart(2, '0')}
+            <div className="text-2xl font-bold text-green-600">
+              {Math.floor(totalActualDuration / 60)}h{(totalActualDuration % 60).toString().padStart(2, '0')}
             </div>
             <p className="text-xs text-muted-foreground">
-              Moyenne: {Math.round(totalDuration / totalWeeks)} min/semaine
+              Réalisé · Prévu: {Math.floor(totalPlannedDuration / 60)}h{(totalPlannedDuration % 60).toString().padStart(2, '0')}
             </p>
           </CardContent>
         </Card>
@@ -336,9 +390,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Math.round(avgIntensity)}% VMA</div>
+            <div className="text-2xl font-bold text-green-600">{Math.round(avgActualIntensity)}% VMA</div>
             <p className="text-xs text-muted-foreground">
-              Sur toutes les semaines
+              Réalisé · Prévu: {Math.round(avgPlannedIntensity)}% VMA
             </p>
           </CardContent>
         </Card>
@@ -351,7 +405,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <CardTitle>Distance par semaine</CardTitle>
             {lastWeek && previousWeek && distanceChange && (
               <p className="text-sm text-muted-foreground mt-1">
-                Semaine précédente : {previousWeek.distanceKm.toFixed(1)} km
+                Semaine précédente : {previousWeek.actualDistanceKm.toFixed(1)} km
                 <span className={distanceChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {distanceChange.isIncrease ? "↑" : "↓"} {distanceChange.value.toFixed(1)}%
                 </span>
@@ -360,7 +414,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
+              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -375,9 +429,12 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium">{payload[0].payload.week}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Distance: {payload[0].value} km
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-yellow-600">
+                            Programmée: {payload[0].payload.plannedDistanceKm.toFixed(1)} km
+                          </p>
+                          <p className="text-sm text-green-600">
+                            Réalisée: {payload[0].payload.actualDistanceKm.toFixed(1)} km
                           </p>
                         </div>
                       );
@@ -386,7 +443,8 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Bar dataKey="distanceKm" fill="hsl(var(--primary))" name="Distance (km)" />
+                <Bar dataKey="plannedDistanceKm" fill="hsl(48 100% 50%)" name="Programmée (km)" />
+                <Bar dataKey="actualDistanceKm" fill="hsl(142 71% 45%)" name="Réalisée (km)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -397,7 +455,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <CardTitle>Durée par semaine</CardTitle>
             {lastWeek && previousWeek && durationChange && (
               <p className="text-sm text-muted-foreground mt-1">
-                Semaine précédente : {Math.floor(previousWeek.durationMinutes / 60)}h{(previousWeek.durationMinutes % 60).toString().padStart(2, '0')}
+                Semaine précédente : {Math.floor(previousWeek.actualDurationMinutes / 60)}h{(previousWeek.actualDurationMinutes % 60).toString().padStart(2, '0')}
                 <span className={durationChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {durationChange.isIncrease ? "↑" : "↓"} {durationChange.value.toFixed(1)}%
                 </span>
@@ -406,7 +464,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
+              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -419,12 +477,16 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
-                      const minutes = payload[0].value as number;
+                      const plannedMinutes = payload[0].payload.plannedDurationMinutes;
+                      const actualMinutes = payload[0].payload.actualDurationMinutes;
                       return (
                         <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium">{payload[0].payload.week}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Durée: {Math.floor(minutes / 60)}h{(minutes % 60).toString().padStart(2, '0')}
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-yellow-600">
+                            Programmée: {Math.floor(plannedMinutes / 60)}h{(plannedMinutes % 60).toString().padStart(2, '0')}
+                          </p>
+                          <p className="text-sm text-green-600">
+                            Réalisée: {Math.floor(actualMinutes / 60)}h{(actualMinutes % 60).toString().padStart(2, '0')}
                           </p>
                         </div>
                       );
@@ -433,7 +495,8 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Bar dataKey="durationMinutes" fill="hsl(var(--primary))" name="Durée (min)" />
+                <Bar dataKey="plannedDurationMinutes" fill="hsl(48 100% 50%)" name="Programmée (min)" />
+                <Bar dataKey="actualDurationMinutes" fill="hsl(142 71% 45%)" name="Réalisée (min)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -444,7 +507,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             <CardTitle>Intensité moyenne par semaine</CardTitle>
             {lastWeek && previousWeek && intensityChange && (
               <p className="text-sm text-muted-foreground mt-1">
-                Semaine précédente : {previousWeek.averageIntensity}% VMA
+                Semaine précédente : {previousWeek.actualAverageIntensity}% VMA
                 <span className={intensityChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {intensityChange.isIncrease ? "↑" : "↓"} {intensityChange.value.toFixed(1)}%
                 </span>
@@ -453,7 +516,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={40}>
+              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -468,9 +531,12 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                     if (active && payload && payload.length) {
                       return (
                         <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium">{payload[0].payload.week}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Intensité: {payload[0].value}% VMA
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-yellow-600">
+                            Programmée: {payload[0].payload.plannedAverageIntensity}% VMA
+                          </p>
+                          <p className="text-sm text-green-600">
+                            Réalisée: {payload[0].payload.actualAverageIntensity}% VMA
                           </p>
                         </div>
                       );
@@ -479,11 +545,8 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Bar 
-                  dataKey="averageIntensity" 
-                  fill="hsl(var(--primary))" 
-                  name="Intensité (% VMA)"
-                />
+                <Bar dataKey="plannedAverageIntensity" fill="hsl(48 100% 50%)" name="Programmée (% VMA)" />
+                <Bar dataKey="actualAverageIntensity" fill="hsl(142 71% 45%)" name="Réalisée (% VMA)" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
