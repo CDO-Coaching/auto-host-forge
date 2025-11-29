@@ -2879,22 +2879,37 @@ export default function ClientDetail() {
                               const weekSessions = historicalSessions.filter((s: any) => s.week_id === selectedHistoricalWeek.id);
                               if (weekSessions.length === 0) return null;
                               
-                              let totalExercises = 0;
-                              let completedExercises = 0;
+                              let totalSessionCount = weekSessions.length;
+                              let completedSessionCount = 0;
                               
                               weekSessions.forEach((s: any) => {
                                 const exercises = s.session_exercises || [];
-                                totalExercises += exercises.length;
-                                completedExercises += exercises.filter((ex: any) => ex.sportif_rpe !== null).length;
+                                
+                                // Pour les sessions Récup/Mobilité
+                                if (s.session_type === "recup") {
+                                  if (s.duration_minutes !== null && s.duration_minutes !== undefined) {
+                                    completedSessionCount++;
+                                  }
+                                  return;
+                                }
+                                
+                                // Pour les autres séances: vérifier si tous les exercices sont complétés ou skipped
+                                if (exercises.length > 0) {
+                                  const allCompleted = exercises.every((ex: any) => 
+                                    (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
+                                  );
+                                  if (allCompleted) {
+                                    completedSessionCount++;
+                                  }
+                                }
                               });
                               
-                              if (totalExercises === 0) return null;
-                              if (completedExercises === 0) {
+                              if (completedSessionCount === 0) {
                                 return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
-                              } else if (completedExercises === totalExercises) {
+                              } else if (completedSessionCount === totalSessionCount) {
                                 return <Badge className="bg-green-600 text-white">Semaine terminée</Badge>;
                               } else {
-                                return <Badge className="bg-orange-500 text-white">En cours ({completedExercises}/{totalExercises} exos)</Badge>;
+                                return <Badge className="bg-orange-500 text-white">En cours ({completedSessionCount}/{totalSessionCount} séances)</Badge>;
                               }
                             })()}
                           </div>
@@ -2996,6 +3011,16 @@ export default function ClientDetail() {
                                 {(() => {
                                   const exercises = session.session_exercises || [];
                                   if (exercises.length === 0) return null;
+                                  
+                                  // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
+                                  if (session.session_type === "recup") {
+                                    if (session.duration_minutes !== null && session.duration_minutes !== undefined) {
+                                      return <Badge className="bg-green-600 text-white">Terminée</Badge>;
+                                    }
+                                    return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
+                                  }
+                                  
+                                  // Pour les autres séances
                                   const completedCount = exercises.filter((ex: any) => ex.sportif_rpe !== null).length;
                                   const skippedCount = exercises.filter((ex: any) => ex.skipped === true).length;
                                   const totalWithFeedback = completedCount + skippedCount;
