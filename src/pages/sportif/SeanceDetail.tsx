@@ -973,25 +973,25 @@ export default function SeanceDetail() {
                                   {item.actual_distance_km && (
                                     <div>
                                       <span className="text-muted-foreground">Distance: </span>
-                                      <span className="font-medium">{item.actual_distance_km} km</span>
+                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_distance_km} km</span>
                                     </div>
                                   )}
                                   {item.actual_duration_minutes && (
                                     <div>
                                       <span className="text-muted-foreground">Durée: </span>
-                                      <span className="font-medium">{item.actual_duration_minutes} min</span>
+                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_duration_minutes} min</span>
                                     </div>
                                   )}
                                   {item.actual_pace_min_per_km && (
                                     <div>
                                       <span className="text-muted-foreground">Allure: </span>
-                                      <span className="font-medium">{item.actual_pace_min_per_km}/km</span>
+                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_pace_min_per_km}/km</span>
                                     </div>
                                   )}
                                   {item.actual_avg_heart_rate && (
                                     <div>
                                       <span className="text-muted-foreground">FC moy: </span>
-                                      <span className="font-medium">{item.actual_avg_heart_rate} bpm</span>
+                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_avg_heart_rate} bpm</span>
                                     </div>
                                   )}
                                 </div>
