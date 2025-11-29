@@ -945,7 +945,7 @@ export default function SeanceDetail() {
                         </div>
 
                         {isCompleted && allCompleted && (
-                          <div className="border-t pt-3 space-y-1">
+                          <div className="border-t pt-3 space-y-2">
                             <div className="flex items-center gap-2 text-xs flex-wrap">
                               <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
                                 RPE ressenti: {item.sportif_rpe || "-"}
@@ -963,6 +963,39 @@ export default function SeanceDetail() {
                             </div>
                             {item.sportif_comment && (
                               <p className="text-xs text-muted-foreground italic">💬 {item.sportif_comment}</p>
+                            )}
+                            
+                            {/* Données réelles saisies (pour séances cardio) */}
+                            {(item.actual_distance_km || item.actual_duration_minutes || item.actual_pace_min_per_km || item.actual_avg_heart_rate) && (
+                              <div className="bg-green-50 dark:bg-green-950/20 p-2 rounded-md border border-green-200 dark:border-green-800">
+                                <div className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">Tes données de la séance</div>
+                                <div className="flex gap-3 flex-wrap text-xs">
+                                  {item.actual_distance_km && (
+                                    <div>
+                                      <span className="text-muted-foreground">Distance: </span>
+                                      <span className="font-medium">{item.actual_distance_km} km</span>
+                                    </div>
+                                  )}
+                                  {item.actual_duration_minutes && (
+                                    <div>
+                                      <span className="text-muted-foreground">Durée: </span>
+                                      <span className="font-medium">{item.actual_duration_minutes} min</span>
+                                    </div>
+                                  )}
+                                  {item.actual_pace_min_per_km && (
+                                    <div>
+                                      <span className="text-muted-foreground">Allure: </span>
+                                      <span className="font-medium">{item.actual_pace_min_per_km}/km</span>
+                                    </div>
+                                  )}
+                                  {item.actual_avg_heart_rate && (
+                                    <div>
+                                      <span className="text-muted-foreground">FC moy: </span>
+                                      <span className="font-medium">{item.actual_avg_heart_rate} bpm</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </div>
                         )}

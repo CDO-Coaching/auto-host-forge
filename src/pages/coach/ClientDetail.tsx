@@ -3321,30 +3321,65 @@ export default function ClientDetail() {
                                                        </div>
                                                      )}
                                                      
-                                                     <div className="flex gap-4 pt-2 border-t">
-                                                      {exercise.skipped ? (
-                                                        <div className="flex items-center gap-2">
-                                                          <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                                            Exercice non fait
-                                                          </Badge>
-                                                        </div>
-                                                      ) : (
-                                                        <>
-                                                          <div>
-                                                            <span className="text-sm text-muted-foreground">RPE ressenti: </span>
-                                                            <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
-                                                              {exercise.sportif_rpe || "-"}
-                                                            </span>
-                                                          </div>
-                                                          {exercise.sportif_comment && (
-                                                            <div>
-                                                              <span className="text-sm text-muted-foreground">Retour: </span>
-                                                              <span className="text-sm">{exercise.sportif_comment}</span>
-                                                            </div>
-                                                          )}
-                                                        </>
-                                                      )}
-                                                    </div>
+                                                     <div className="space-y-2 pt-2 border-t">
+                                                       {exercise.skipped ? (
+                                                         <div className="flex items-center gap-2">
+                                                           <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                             Exercice non fait
+                                                           </Badge>
+                                                         </div>
+                                                       ) : (
+                                                         <>
+                                                           <div className="flex gap-4 flex-wrap">
+                                                             <div>
+                                                               <span className="text-sm text-muted-foreground">RPE ressenti: </span>
+                                                               <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
+                                                                 {exercise.sportif_rpe || "-"}
+                                                               </span>
+                                                             </div>
+                                                             {exercise.sportif_comment && (
+                                                               <div>
+                                                                 <span className="text-sm text-muted-foreground">Retour: </span>
+                                                                 <span className="text-sm">{exercise.sportif_comment}</span>
+                                                               </div>
+                                                             )}
+                                                           </div>
+                                                           
+                                                           {/* Données réelles saisies par le sportif */}
+                                                           {(exercise.actual_distance_km || exercise.actual_duration_minutes || exercise.actual_pace_min_per_km || exercise.actual_avg_heart_rate) && (
+                                                             <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-md border border-green-200 dark:border-green-800">
+                                                               <div className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">Données réelles de la séance</div>
+                                                               <div className="flex gap-4 flex-wrap text-sm">
+                                                                 {exercise.actual_distance_km && (
+                                                                   <div>
+                                                                     <span className="text-muted-foreground">Distance: </span>
+                                                                     <span className="font-medium">{exercise.actual_distance_km} km</span>
+                                                                   </div>
+                                                                 )}
+                                                                 {exercise.actual_duration_minutes && (
+                                                                   <div>
+                                                                     <span className="text-muted-foreground">Durée: </span>
+                                                                     <span className="font-medium">{exercise.actual_duration_minutes} min</span>
+                                                                   </div>
+                                                                 )}
+                                                                 {exercise.actual_pace_min_per_km && (
+                                                                   <div>
+                                                                     <span className="text-muted-foreground">Allure: </span>
+                                                                     <span className="font-medium">{exercise.actual_pace_min_per_km}/km</span>
+                                                                   </div>
+                                                                 )}
+                                                                 {exercise.actual_avg_heart_rate && (
+                                                                   <div>
+                                                                     <span className="text-muted-foreground">FC moy: </span>
+                                                                     <span className="font-medium">{exercise.actual_avg_heart_rate} bpm</span>
+                                                                   </div>
+                                                                 )}
+                                                               </div>
+                                                             </div>
+                                                           )}
+                                                         </>
+                                                       )}
+                                                     </div>
                                                   </div>
                                                 </TableCell>
                                               </TableRow>
