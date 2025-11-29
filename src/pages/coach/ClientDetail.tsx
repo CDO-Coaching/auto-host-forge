@@ -2893,10 +2893,15 @@ export default function ClientDetail() {
                                   return;
                                 }
                                 
-                                // Pour les autres séances: vérifier si tous les exercices sont complétés ou skipped
+                                // Pour les autres séances: vérifier si tous les exercices sont complétés (avec RPE, données cardio, ou skipped)
                                 if (exercises.length > 0) {
                                   const allCompleted = exercises.every((ex: any) => 
-                                    (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
+                                    ex.sportif_rpe !== null || 
+                                    ex.actual_distance_km !== null || 
+                                    ex.actual_duration_minutes !== null || 
+                                    ex.actual_pace_min_per_km !== null || 
+                                    ex.actual_avg_heart_rate !== null ||
+                                    ex.skipped === true
                                   );
                                   if (allCompleted) {
                                     completedSessionCount++;
@@ -3020,9 +3025,22 @@ export default function ClientDetail() {
                                     return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
                                   }
                                   
-                                  // Pour les autres séances
-                                  const completedCount = exercises.filter((ex: any) => ex.sportif_rpe !== null).length;
-                                  const skippedCount = exercises.filter((ex: any) => ex.skipped === true).length;
+                                  // Pour les autres séances: compter les exercices avec feedback
+                                  const completedCount = exercises.filter((ex: any) => 
+                                    ex.sportif_rpe !== null || 
+                                    ex.actual_distance_km !== null || 
+                                    ex.actual_duration_minutes !== null || 
+                                    ex.actual_pace_min_per_km !== null || 
+                                    ex.actual_avg_heart_rate !== null
+                                  ).length;
+                                  const skippedCount = exercises.filter((ex: any) => 
+                                    ex.skipped === true && 
+                                    !ex.sportif_rpe && 
+                                    !ex.actual_distance_km && 
+                                    !ex.actual_duration_minutes &&
+                                    !ex.actual_pace_min_per_km &&
+                                    !ex.actual_avg_heart_rate
+                                  ).length;
                                   const totalWithFeedback = completedCount + skippedCount;
                                   
                                   if (totalWithFeedback === 0) {
@@ -3347,21 +3365,16 @@ export default function ClientDetail() {
                                                      )}
                                                      
                                                      <div className="space-y-2 pt-2 border-t">
-                                                       {exercise.skipped ? (
-                                                         <div className="flex items-center gap-2">
-                                                           <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                                             Exercice non fait
-                                                           </Badge>
-                                                         </div>
-                                                       ) : (
+                                                       {/* Afficher les données réelles en priorité */}
+                                                       {(exercise.sportif_rpe || exercise.actual_distance_km || exercise.actual_duration_minutes || exercise.actual_pace_min_per_km || exercise.actual_avg_heart_rate) ? (
                                                          <>
                                                            <div className="flex gap-4 flex-wrap">
-                                                             <div>
-                                                               <span className="text-sm text-muted-foreground">RPE ressenti: </span>
-                                                               <span className={exercise.sportif_rpe ? "font-medium text-primary" : "text-muted-foreground"}>
-                                                                 {exercise.sportif_rpe || "-"}
-                                                               </span>
-                                                             </div>
+                                                             {exercise.sportif_rpe && (
+                                                               <div>
+                                                                 <span className="text-sm text-muted-foreground">RPE ressenti: </span>
+                                                                 <span className="font-medium text-primary">{exercise.sportif_rpe}</span>
+                                                               </div>
+                                                             )}
                                                              {exercise.sportif_comment && (
                                                                <div>
                                                                  <span className="text-sm text-muted-foreground">Retour: </span>
@@ -3403,7 +3416,13 @@ export default function ClientDetail() {
                                                              </div>
                                                            )}
                                                          </>
-                                                       )}
+                                                       ) : exercise.skipped ? (
+                                                         <div className="flex items-center gap-2">
+                                                           <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                             Exercice non fait
+                                                           </Badge>
+                                                         </div>
+                                                       ) : null}
                                                      </div>
                                                   </div>
                                                 </TableCell>
