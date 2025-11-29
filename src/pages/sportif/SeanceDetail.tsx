@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw } from "
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
+import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
 import {
@@ -41,6 +42,7 @@ export default function SeanceDetail() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [cardioFeedbackDialogOpen, setCardioFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
@@ -371,11 +373,20 @@ export default function SeanceDetail() {
 
   const handleCardioClick = (exercise: any) => {
     setSelectedCardioExercise(exercise);
-    setFeedbackDialogOpen(true);
+    setCardioFeedbackDialogOpen(true);
   };
 
-  const handleCardioFeedback = async (rpe: string, comment: string) => {
+  const handleCardioFeedback = async (data: {
+    rpe: string;
+    comment: string;
+    actualDistance?: number;
+    actualDuration?: number;
+    actualPace?: string;
+    actualAvgHeartRate?: number;
+  }) => {
     if (!selectedCardioExercise) return;
+
+    const { rpe, comment, actualDistance, actualDuration, actualPace, actualAvgHeartRate } = data;
 
     // Validation obligatoire du RPE pour les séances cardio
     if (!rpe || rpe.trim() === '') {
@@ -419,13 +430,29 @@ export default function SeanceDetail() {
       return;
     }
 
+    const updateData: any = {
+      sportif_rpe: rpeNumber,
+      sportif_comment: comment || null,
+      sportif_feedback_at: new Date().toISOString(),
+    };
+
+    // Ajouter les données optionnelles si présentes
+    if (actualDistance !== undefined) {
+      updateData.actual_distance_km = actualDistance;
+    }
+    if (actualDuration !== undefined) {
+      updateData.actual_duration_minutes = actualDuration;
+    }
+    if (actualPace !== undefined) {
+      updateData.actual_pace_min_per_km = actualPace;
+    }
+    if (actualAvgHeartRate !== undefined) {
+      updateData.actual_avg_heart_rate = actualAvgHeartRate;
+    }
+
     const { error } = await supabase
       .from("session_exercises")
-      .update({
-        sportif_rpe: rpeNumber,
-        sportif_comment: comment || null,
-        sportif_feedback_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq("id", selectedCardioExercise.id);
 
     if (error) {
@@ -439,16 +466,16 @@ export default function SeanceDetail() {
 
     toast({
       title: "Retour enregistré !",
-      description: "Ton RPE a bien été sauvegardé",
+      description: "Ton RPE et tes données ont bien été sauvegardés",
     });
 
-    setFeedbackDialogOpen(false);
+    setCardioFeedbackDialogOpen(false);
     setSelectedCardioExercise(null);
     loadSessionDetail();
   };
 
   const handleCancelCardioFeedback = () => {
-    setFeedbackDialogOpen(false);
+    setCardioFeedbackDialogOpen(false);
     setSelectedCardioExercise(null);
   };
 
@@ -949,12 +976,10 @@ export default function SeanceDetail() {
         </div>
       </div>
 
-      <ExerciseFeedbackDialog
-        open={feedbackDialogOpen}
-        onOpenChange={setFeedbackDialogOpen}
+      <CardioFeedbackDialog
+        open={cardioFeedbackDialogOpen}
+        onOpenChange={setCardioFeedbackDialogOpen}
         exerciseName={selectedCardioExercise?.exercice || ""}
-        exerciseType="cardio"
-        isRpeRequired={!isRecupMobilitySession}
         onValidate={handleCardioFeedback}
         onCancel={handleCancelCardioFeedback}
       />
