@@ -16,6 +16,7 @@ import {
   calculatePace,
   calculateCardioSessionDuration,
   formatCardioSessionDuration,
+  calculateCardioMetrics,
 } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import {
@@ -819,14 +820,22 @@ export default function SeanceDetail() {
                                       const steps = cardioData.steps || [];
                                       const blocks = cardioData.blocks || [];
                                       const estimatedDuration = calculateCardioSessionDuration(cardioData, athleteVma);
+                                      const metrics = calculateCardioMetrics(cardioData, athleteVma);
 
                                       return (
                                         <div className="space-y-2 mt-2">
-                                          {estimatedDuration > 0 && (
-                                            <Badge variant="secondary" className="text-xs">
-                                              Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
-                                            </Badge>
-                                          )}
+                                          <div className="flex flex-wrap gap-2">
+                                            {estimatedDuration > 0 && (
+                                              <Badge variant="secondary" className="text-xs">
+                                                Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
+                                              </Badge>
+                                            )}
+                                            {metrics.totalDistanceKm > 0 && (
+                                              <Badge variant="secondary" className="text-xs">
+                                                Distance estimée: {formatCardioDistance(metrics.totalDistanceKm * 1000)}
+                                              </Badge>
+                                            )}
+                                          </div>
                                           {(() => {
                                             const displayedBlocks = new Set();
                                             return steps.map((step: any, stepIndex: number) => {
