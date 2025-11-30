@@ -342,25 +342,25 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     return { value: Math.abs(percentChange), isIncrease: percentChange >= 0 };
   };
 
-  // Comparer dernière barre verte (réalisée) vs dernière barre jaune (programmée) de la dernière semaine
-  const distanceChangeVsPlanned = lastWeek && lastWeek.plannedDistanceKm > 0
+  // Comparer km réalisés de la semaine précédente avec km programmés de la dernière semaine
+  const distanceChangeVsPlanned = lastWeek && previousWeek && previousWeek.actualDistanceKm > 0
     ? {
-        value: Math.abs(((lastWeek.actualDistanceKm - lastWeek.plannedDistanceKm) / lastWeek.plannedDistanceKm) * 100),
-        isIncrease: lastWeek.actualDistanceKm >= lastWeek.plannedDistanceKm
+        value: Math.abs(((lastWeek.plannedDistanceKm - previousWeek.actualDistanceKm) / previousWeek.actualDistanceKm) * 100),
+        isIncrease: lastWeek.plannedDistanceKm >= previousWeek.actualDistanceKm
       }
     : null;
 
-  const durationChangeVsPlanned = lastWeek && lastWeek.plannedDurationMinutes > 0
+  const durationChangeVsPlanned = lastWeek && previousWeek && previousWeek.actualDurationMinutes > 0
     ? {
-        value: Math.abs(((lastWeek.actualDurationMinutes - lastWeek.plannedDurationMinutes) / lastWeek.plannedDurationMinutes) * 100),
-        isIncrease: lastWeek.actualDurationMinutes >= lastWeek.plannedDurationMinutes
+        value: Math.abs(((lastWeek.plannedDurationMinutes - previousWeek.actualDurationMinutes) / previousWeek.actualDurationMinutes) * 100),
+        isIncrease: lastWeek.plannedDurationMinutes >= previousWeek.actualDurationMinutes
       }
     : null;
 
-  const intensityChangeVsPlanned = lastWeek && lastWeek.plannedAverageIntensity > 0
+  const intensityChangeVsPlanned = lastWeek && previousWeek && previousWeek.actualAverageIntensity > 0
     ? {
-        value: Math.abs(((lastWeek.actualAverageIntensity - lastWeek.plannedAverageIntensity) / lastWeek.plannedAverageIntensity) * 100),
-        isIncrease: lastWeek.actualAverageIntensity >= lastWeek.plannedAverageIntensity
+        value: Math.abs(((lastWeek.plannedAverageIntensity - previousWeek.actualAverageIntensity) / previousWeek.actualAverageIntensity) * 100),
+        isIncrease: lastWeek.plannedAverageIntensity >= previousWeek.actualAverageIntensity
       }
     : null;
 
@@ -468,9 +468,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card>
           <CardHeader>
             <CardTitle>Distance par semaine</CardTitle>
-            {distanceChangeVsPlanned && (
+            {distanceChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
-                Dernière semaine : {lastWeek.actualDistanceKm.toFixed(1)} km (réalisée) vs {lastWeek.plannedDistanceKm.toFixed(1)} km (programmée)
+                Dernière semaine : {previousWeek.actualDistanceKm.toFixed(1)} km (réalisée, {previousWeek.week}) vs {lastWeek.plannedDistanceKm.toFixed(1)} km (programmée, {lastWeek.week})
                 <span className={distanceChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {distanceChangeVsPlanned.isIncrease ? "↑" : "↓"} {distanceChangeVsPlanned.value.toFixed(1)}%
                 </span>
@@ -518,9 +518,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card>
           <CardHeader>
             <CardTitle>Durée par semaine</CardTitle>
-            {durationChangeVsPlanned && (
+            {durationChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
-                Dernière semaine : {Math.floor(lastWeek.actualDurationMinutes / 60)}h{(lastWeek.actualDurationMinutes % 60).toString().padStart(2, '0')} (réalisée) vs {Math.floor(lastWeek.plannedDurationMinutes / 60)}h{(lastWeek.plannedDurationMinutes % 60).toString().padStart(2, '0')} (programmée)
+                Dernière semaine : {Math.floor(previousWeek.actualDurationMinutes / 60)}h{(previousWeek.actualDurationMinutes % 60).toString().padStart(2, '0')} (réalisée, {previousWeek.week}) vs {Math.floor(lastWeek.plannedDurationMinutes / 60)}h{(lastWeek.plannedDurationMinutes % 60).toString().padStart(2, '0')} (programmée, {lastWeek.week})
                 <span className={durationChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {durationChangeVsPlanned.isIncrease ? "↑" : "↓"} {durationChangeVsPlanned.value.toFixed(1)}%
                 </span>
@@ -570,9 +570,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Intensité moyenne par semaine</CardTitle>
-            {intensityChangeVsPlanned && (
+            {intensityChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
-                Dernière semaine : {lastWeek.actualAverageIntensity}% VMA (réalisée) vs {lastWeek.plannedAverageIntensity}% VMA (programmée)
+                Dernière semaine : {previousWeek.actualAverageIntensity}% VMA (réalisée, {previousWeek.week}) vs {lastWeek.plannedAverageIntensity}% VMA (programmée, {lastWeek.week})
                 <span className={intensityChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {intensityChangeVsPlanned.isIncrease ? "↑" : "↓"} {intensityChangeVsPlanned.value.toFixed(1)}%
                 </span>
