@@ -184,9 +184,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       const plannedDuration = session.cardio_total_duration_minutes || 0;
       const plannedIntensity = session.cardio_average_intensity || 0;
 
-      // Vérifier si la séance est validée
+      // Vérifier si la séance est validée (a des données ET n'est pas skipped)
       const exercise = session.session_exercises?.[0];
-      const isValidated = exercise && (
+      const isValidated = exercise && !exercise.skipped && (
         exercise.sportif_rpe !== null || 
         exercise.actual_distance_km !== null ||
         exercise.actual_duration_minutes !== null ||
