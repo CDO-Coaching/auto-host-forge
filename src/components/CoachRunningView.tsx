@@ -22,6 +22,10 @@ interface CardioSessionData {
   actualDistanceKm: number;
   actualAverageIntensity: number;
   actualSessionCount: number;
+  // Retours sportif
+  actualAveragePace: number | null;
+  actualAverageHeartRate: number | null;
+  actualAverageRpe: number | null;
 }
 
 interface PlannedVolume {
@@ -198,12 +202,31 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       let actualDistance = 0;
       let actualDuration = 0;
       let actualIntensity = 0;
+      let actualPace = 0;
+      let actualHeartRate = 0;
+      let actualRpe = 0;
+      let validatedSessionsWithPace = 0;
+      let validatedSessionsWithHR = 0;
+      let validatedSessionsWithRpe = 0;
       
       if (isValidated) {
         // Prioriser les données réelles saisies par le sportif
         actualDistance = exercise.actual_distance_km || plannedDistance;
         actualDuration = exercise.actual_duration_minutes || plannedDuration;
         actualIntensity = plannedIntensity; // L'intensité reste celle programmée sauf si calculée autrement
+        
+        if (exercise.actual_pace_min_per_km) {
+          actualPace = exercise.actual_pace_min_per_km;
+          validatedSessionsWithPace = 1;
+        }
+        if (exercise.actual_avg_heart_rate) {
+          actualHeartRate = exercise.actual_avg_heart_rate;
+          validatedSessionsWithHR = 1;
+        }
+        if (exercise.sportif_rpe) {
+          actualRpe = exercise.sportif_rpe;
+          validatedSessionsWithRpe = 1;
+        }
       }
 
       if (weeklyData.has(weekKey)) {
@@ -229,6 +252,27 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             );
           }
           existing.actualSessionCount++;
+          
+          // Cumuler allure moyenne
+          if (actualPace > 0) {
+            const currentPaceCount = existing.actualAveragePace ? existing.actualSessionCount - 1 : 0;
+            const currentPaceSum = (existing.actualAveragePace || 0) * currentPaceCount;
+            existing.actualAveragePace = (currentPaceSum + actualPace) / (currentPaceCount + 1);
+          }
+          
+          // Cumuler FC moyenne
+          if (actualHeartRate > 0) {
+            const currentHRCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
+            const currentHRSum = (existing.actualAverageHeartRate || 0) * currentHRCount;
+            existing.actualAverageHeartRate = Math.round((currentHRSum + actualHeartRate) / (currentHRCount + 1));
+          }
+          
+          // Cumuler RPE moyen
+          if (actualRpe > 0) {
+            const currentRpeCount = existing.actualAverageRpe ? existing.actualSessionCount - 1 : 0;
+            const currentRpeSum = (existing.actualAverageRpe || 0) * currentRpeCount;
+            existing.actualAverageRpe = Math.round((currentRpeSum + actualRpe) / (currentRpeCount + 1));
+          }
         }
       } else {
         weeklyData.set(weekKey, {
@@ -242,7 +286,10 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           actualDistanceKm: actualDistance,
           actualDurationMinutes: actualDuration,
           actualAverageIntensity: actualIntensity,
-          actualSessionCount: isValidated ? 1 : 0
+          actualSessionCount: isValidated ? 1 : 0,
+          actualAveragePace: actualPace > 0 ? actualPace : null,
+          actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
+          actualAverageRpe: actualRpe > 0 ? actualRpe : null
         });
       }
     });
@@ -548,6 +595,153 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                 <Bar dataKey="plannedAverageIntensity" fill="hsl(48 100% 50%)" name="Programmée (% VMA)" />
                 <Bar dataKey="actualAverageIntensity" fill="hsl(142 71% 45%)" name="Réalisée (% VMA)" />
               </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Graphiques des retours sportif */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Allure moyenne par semaine</CardTitle>
+            <p className="text-sm text-muted-foreground">Données saisies par le sportif</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={cardioSessions.filter(s => s.actualAveragePace)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis 
+                  domain={['dataMin - 0.5', 'dataMax + 0.5']}
+                  tickFormatter={(value) => `${value.toFixed(2)}`}
+                />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const pace = payload[0].payload.actualAveragePace;
+                      const minutes = Math.floor(pace);
+                      const seconds = Math.round((pace - minutes) * 60);
+                      return (
+                        <div className="bg-background border rounded-lg p-3 shadow-lg">
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-blue-600">
+                            Allure: {minutes}'{seconds.toString().padStart(2, '0')}/km
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="actualAveragePace" 
+                  stroke="hsl(221 83% 53%)" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(221 83% 53%)', r: 4 }}
+                  name="Allure (min/km)" 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>FC moyenne par semaine</CardTitle>
+            <p className="text-sm text-muted-foreground">Fréquence cardiaque moyenne</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={cardioSessions.filter(s => s.actualAverageHeartRate)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis domain={['dataMin - 10', 'dataMax + 10']} />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-background border rounded-lg p-3 shadow-lg">
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-red-600">
+                            FC moy: {payload[0].payload.actualAverageHeartRate} bpm
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="actualAverageHeartRate" 
+                  stroke="hsl(0 84% 60%)" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(0 84% 60%)', r: 4 }}
+                  name="FC moy (bpm)" 
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>RPE moyen par semaine</CardTitle>
+            <p className="text-sm text-muted-foreground">Effort perçu</p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={cardioSessions.filter(s => s.actualAverageRpe)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12 }}
+                  angle={-45}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis domain={[0, 10]} />
+                <Tooltip 
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-background border rounded-lg p-3 shadow-lg">
+                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="text-sm text-purple-600">
+                            RPE moy: {payload[0].payload.actualAverageRpe}/10
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="actualAverageRpe" 
+                  stroke="hsl(280 87% 65%)" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(280 87% 65%)', r: 4 }}
+                  name="RPE moyen" 
+                />
+              </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
