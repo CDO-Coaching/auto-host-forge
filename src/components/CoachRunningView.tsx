@@ -342,7 +342,14 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     return { value: Math.abs(percentChange), isIncrease: percentChange >= 0 };
   };
 
-  const distanceChange = previousWeek ? calculatePercentChange(lastWeek.actualDistanceKm, previousWeek.actualDistanceKm) : null;
+  // Calculer le pourcentage entre km réalisés semaine précédente et km programmés semaine actuelle
+  const distanceChangeVsPlanned = previousWeek && plannedVolume && previousWeek.actualDistanceKm > 0
+    ? {
+        value: Math.abs(((plannedVolume.distanceKm - previousWeek.actualDistanceKm) / previousWeek.actualDistanceKm) * 100),
+        isIncrease: plannedVolume.distanceKm >= previousWeek.actualDistanceKm
+      }
+    : null;
+
   const durationChange = previousWeek ? calculatePercentChange(lastWeek.actualDurationMinutes, previousWeek.actualDurationMinutes) : null;
   const intensityChange = previousWeek ? calculatePercentChange(lastWeek.actualAverageIntensity, previousWeek.actualAverageIntensity) : null;
 
@@ -450,11 +457,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <Card>
           <CardHeader>
             <CardTitle>Distance par semaine</CardTitle>
-            {lastWeek && previousWeek && distanceChange && (
+            {distanceChangeVsPlanned && (
               <p className="text-sm text-muted-foreground mt-1">
-                Semaine précédente : {previousWeek.actualDistanceKm.toFixed(1)} km
-                <span className={distanceChange.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
-                  {distanceChange.isIncrease ? "↑" : "↓"} {distanceChange.value.toFixed(1)}%
+                Semaine précédente : {previousWeek!.actualDistanceKm.toFixed(1)} km
+                <span className={distanceChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                  {distanceChangeVsPlanned.isIncrease ? "↑" : "↓"} {distanceChangeVsPlanned.value.toFixed(1)}%
                 </span>
               </p>
             )}
