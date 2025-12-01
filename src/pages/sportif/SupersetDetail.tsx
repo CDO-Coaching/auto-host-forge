@@ -29,6 +29,7 @@ export default function SupersetDetail() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [exerciseTimers, setExerciseTimers] = useState<Record<string, any>>({});
+  const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [showSupersetRecoveryOverlay, setShowSupersetRecoveryOverlay] = useState(false);
   
   const {
@@ -74,10 +75,7 @@ export default function SupersetDetail() {
 
     const { data, error } = await supabase
       .from("session_exercises")
-      .select(`
-        *,
-        exercise_library(video_url)
-      `)
+      .select("*")
       .eq("super_set_group", supersetId)
       .order("exercise_order");
 
@@ -86,15 +84,39 @@ export default function SupersetDetail() {
     } else if (data && data.length > 0) {
       // Dédoublonner les exercices par nom pour n'afficher qu'une fois chaque exercice unique
       const uniqueExercises = data.reduce((acc: any[], current: any) => {
-        const existingExercise = acc.find(ex => ex.exercice === current.exercice);
+        const existingExercise = acc.find((ex) => ex.exercice === current.exercice);
         if (!existingExercise) {
           acc.push(current);
         }
         return acc;
       }, []);
-      
+
       setExercises(uniqueExercises);
-      
+
+      // Charger les URLs de vidéos depuis la bibliothèque d'exercices
+      const exerciseNames = Array.from(
+        new Set(uniqueExercises.map((ex: any) => ex.exercice).filter(Boolean))
+      );
+
+      if (exerciseNames.length > 0) {
+        const { data: libraryData, error: libraryError } = await supabase
+          .from("exercise_library")
+          .select("name, video_url")
+          .in("name", exerciseNames);
+
+        if (libraryError) {
+          console.error("Erreur lors du chargement des vidéos d'exercices:", libraryError);
+        } else if (libraryData) {
+          const videoMap: Record<string, string> = {};
+          libraryData.forEach((row: any) => {
+            if (row.video_url) {
+              videoMap[row.name] = row.video_url;
+            }
+          });
+          setVideoUrls(videoMap);
+        }
+      }
+
       const { data: sessionRow } = await supabase
         .from("training_sessions")
         .select("week_id")
@@ -118,7 +140,6 @@ export default function SupersetDetail() {
 
     setLoading(false);
   };
-
   const parseRecuperationTime = (recup: string): number => {
     const minMatch = recup.match(/(\d+)min/);
     const secMatch = recup.match(/(\d+)s/);
@@ -486,9 +507,9 @@ export default function SupersetDetail() {
                       <h3 className="text-xl sm:text-2xl font-bold">{exercise.exercice}</h3>
                     </div>
                   </div>
-                  {exercise.exercise_library?.video_url && (
+                  {videoUrls[exercise.exercice] && (
                     <a
-                      href={exercise.exercise_library.video_url}
+                      href={videoUrls[exercise.exercice]}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-yellow-400 hover:text-yellow-200 text-3xl sm:text-4xl"
