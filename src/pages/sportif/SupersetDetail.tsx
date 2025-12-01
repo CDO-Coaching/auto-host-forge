@@ -74,7 +74,10 @@ export default function SupersetDetail() {
 
     const { data, error } = await supabase
       .from("session_exercises")
-      .select("*")
+      .select(`
+        *,
+        exercise_library!inner(video_url)
+      `)
       .eq("super_set_group", supersetId)
       .order("exercise_order");
 
@@ -483,9 +486,9 @@ export default function SupersetDetail() {
                       <h3 className="text-xl sm:text-2xl font-bold">{exercise.exercice}</h3>
                     </div>
                   </div>
-                  {exercise.video_url && (
+                  {exercise.exercise_library?.video_url && (
                     <a
-                      href={exercise.video_url}
+                      href={exercise.exercise_library.video_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-yellow-400 hover:text-yellow-200 text-3xl sm:text-4xl"
