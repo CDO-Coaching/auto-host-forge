@@ -511,6 +511,7 @@ export default function ClientDetail() {
           week_id: selectedHistoricalWeek.id,
           session_number: nextSessionNumber,
           name: newHistoricalSessionName,
+          session_type: newHistoricalSessionType,
         })
         .select()
         .single();
