@@ -76,7 +76,7 @@ export default function SupersetDetail() {
       .from("session_exercises")
       .select(`
         *,
-        exercise_library!inner(video_url)
+        exercise_library(video_url)
       `)
       .eq("super_set_group", supersetId)
       .order("exercise_order");
