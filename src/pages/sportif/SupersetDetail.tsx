@@ -23,6 +23,7 @@ export default function SupersetDetail() {
   const { toast } = useToast();
 
   const [exercises, setExercises] = useState<any[]>([]);
+  const [allExercises, setAllExercises] = useState<any[]>([]); // Liste complète pour les updates DB
   const [loading, setLoading] = useState(true);
   const [completedRounds, setCompletedRounds] = useState(0);
   const [weekId, setWeekId] = useState<string | null>(null);
@@ -82,6 +83,9 @@ export default function SupersetDetail() {
     if (error) {
       console.error("Erreur lors du chargement du superset:", error);
     } else if (data && data.length > 0) {
+      // Stocker tous les exercices pour les updates DB
+      setAllExercises(data);
+      
       // Dédoublonner les exercices par nom pour n'afficher qu'une fois chaque exercice unique
       const uniqueExercises = data.reduce((acc: any[], current: any) => {
         const existingExercise = acc.find((ex) => ex.exercice === current.exercice);
@@ -157,8 +161,8 @@ export default function SupersetDetail() {
   const handleValidateFeedback = async (rpe: string, comment: string) => {
     const rpeValue = rpe ? parseInt(rpe) : null;
 
-    // Valider tous les exercices du superset avec le même RPE
-    for (const exercise of exercises) {
+    // Valider TOUS les exercices du superset (pas seulement les uniques) avec le même RPE
+    for (const exercise of allExercises) {
       const { error } = await supabase
         .from("session_exercises")
         .update({
