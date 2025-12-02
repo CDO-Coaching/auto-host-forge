@@ -71,6 +71,10 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
     onChange({ steps: steps.filter(s => s.id !== stepId), blocks });
   };
 
+  // Allure de marche moyenne (environ 6 km/h = 10:00/km)
+  const WALKING_PACE = "10:00/km";
+  const WALKING_SPEED = 6; // km/h
+
   const handleStepChange = (stepId: number, field: keyof CardioStep, value: any) => {
     const updatedSteps = steps.map(step => {
       if (step.id === stepId) {
@@ -87,6 +91,11 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
             updatedStep.distance_unit = "m";
             delete updatedStep.duration;
           }
+        }
+
+        // Si on passe en marche, on retire le pourcentage VMA (allure fixe)
+        if (field === "movement_type" && value === "marche") {
+          delete updatedStep.vma_percentage;
         }
         
         return updatedStep;
@@ -387,36 +396,48 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Objectif % VMA */}
+                {/* Objectif % VMA ou Allure de marche */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Objectif (% VMA)
-                    {athleteVma && (
-                      <span className="text-xs text-muted-foreground ml-2">
-                        VMA: {athleteVma} km/h
-                      </span>
-                    )}
-                  </label>
-                  <div className="space-y-2">
-                    <Input
-                      type="number"
-                      min="30"
-                      max="120"
-                      value={step.vma_percentage || ""}
-                      onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
-                      placeholder="ex: 65"
-                      disabled={disabled || !athleteVma}
-                    />
-                    {athleteVma ? (
-                      <div className="text-sm text-muted-foreground">
-                        Allure calculée: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
+                  {step.movement_type === "marche" ? (
+                    <>
+                      <label className="text-sm font-medium mb-2 block">Allure de marche</label>
+                      <div className="p-3 bg-muted rounded-md">
+                        <span className="font-medium text-foreground">{WALKING_PACE}</span>
+                        <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED} km/h)</span>
                       </div>
-                    ) : (
-                      <div className="text-sm text-destructive">
-                        VMA non renseignée dans les max
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-sm font-medium mb-2 block">
+                        Objectif (% VMA)
+                        {athleteVma && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            VMA: {athleteVma} km/h
+                          </span>
+                        )}
+                      </label>
+                      <div className="space-y-2">
+                        <Input
+                          type="number"
+                          min="30"
+                          max="120"
+                          value={step.vma_percentage || ""}
+                          onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
+                          placeholder="ex: 65"
+                          disabled={disabled || !athleteVma}
+                        />
+                        {athleteVma ? (
+                          <div className="text-sm text-muted-foreground">
+                            Allure calculée: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-destructive">
+                            VMA non renseignée dans les max
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Objectif de fréquence cardiaque */}
