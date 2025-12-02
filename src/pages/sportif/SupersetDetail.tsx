@@ -259,33 +259,22 @@ export default function SupersetDetail() {
   };
 
   const handleSupersetValidated = async () => {
+    // Marquer le superset comme terminé et célébrer
+    localStorage.removeItem(`superset-progress-${supersetId}`);
+    setShowCelebration(true);
+  };
+
+  // Fonction pour incrémenter les rounds avec démarrage automatique du timer
+  const handleIncrementRound = () => {
     const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
-    const newRoundCount = completedRounds + 1;
-    
-    if (newRoundCount < totalSets) {
-      setCompletedRounds(newRoundCount);
-      toast({
-        title: `Round ${newRoundCount} terminé !`,
-        description: `Encore ${totalSets - newRoundCount} round(s) à faire`,
-      });
+    if (completedRounds < totalSets) {
+      setCompletedRounds(completedRounds + 1);
       
-      // Réinitialiser les feedbacks pour le prochain round
-      for (const exercise of exercises) {
-        await supabase
-          .from("session_exercises")
-          .update({
-            sportif_comment: null,
-            sportif_rpe: null,
-            sportif_feedback_at: null,
-          })
-          .eq("id", exercise.id);
+      // Démarrer automatiquement le timer de récupération du superset
+      if (exercises[0]?.recuperation) {
+        startTimer(supersetTimerId, exercises[0].recuperation);
+        setShowSupersetRecoveryOverlay(true);
       }
-      
-      await loadSupersetDetail();
-    } else {
-      setCompletedRounds(newRoundCount);
-      localStorage.removeItem(`superset-progress-${supersetId}`);
-      setShowCelebration(true);
     }
   };
 
@@ -481,7 +470,7 @@ export default function SupersetDetail() {
                 <Button
                   variant="outline"
                   size="icon"
-                  onClick={() => setCompletedRounds(Math.min(totalSets, completedRounds + 1))}
+                  onClick={handleIncrementRound}
                   className="h-8 w-8"
                 >
                   +
