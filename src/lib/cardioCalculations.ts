@@ -1,5 +1,9 @@
 import { CardioData, CardioStep, CardioBlock } from "@/components/CardioStepBuilder";
 
+// Constante globale pour la vitesse de marche (6 km/h = 10:00/km)
+export const WALKING_SPEED_KMH = 6;
+export const WALKING_PACE = "10:00/km";
+
 /**
  * Formate la durée en secondes
  * < 60 sec : affiche "Xsec"
@@ -31,15 +35,31 @@ export const formatCardioDistance = (meters: number): string => {
 };
 
 /**
- * Calcule l'allure en min/km à partir du % VMA
+ * Calcule l'allure en min/km à partir du % VMA ou retourne l'allure de marche
  */
-export const calculatePace = (vmaPercentage: number, athleteVma: number | null): string | null => {
-  if (!athleteVma || vmaPercentage === 0) return null;
+export const calculatePace = (vmaPercentage: number | undefined, athleteVma: number | null, isWalking?: boolean): string | null => {
+  if (isWalking) {
+    return WALKING_PACE;
+  }
+  if (!athleteVma || !vmaPercentage || vmaPercentage === 0) return null;
   const speed = athleteVma * (vmaPercentage / 100); // km/h
   const paceMinPerKm = 60 / speed; // min/km
   const minutes = Math.floor(paceMinPerKm);
   const seconds = Math.round((paceMinPerKm - minutes) * 60);
   return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
+};
+
+/**
+ * Obtient la vitesse en km/h pour un step (marche ou course)
+ */
+export const getStepSpeed = (step: CardioStep, athleteVma: number | null): number => {
+  if (step.movement_type === 'marche') {
+    return WALKING_SPEED_KMH;
+  }
+  if (athleteVma && step.vma_percentage) {
+    return athleteVma * (step.vma_percentage / 100);
+  }
+  return 0;
 };
 
 /**
@@ -50,21 +70,26 @@ export const calculateCardioSessionDuration = (cardioData: CardioData, athleteVm
   const steps = cardioData.steps || [];
   const blocks = cardioData.blocks || [];
 
+  const calculateStepDuration = (step: CardioStep): number => {
+    if (step.effort_type === 'duration') {
+      return step.duration || 0;
+    } else if (step.effort_type === 'distance') {
+      const speed = getStepSpeed(step, athleteVma);
+      if (speed > 0) {
+        const distanceKm = (step.distance || 0) / 1000;
+        return (distanceKm / speed) * 3600; // Convertir en secondes
+      }
+    }
+    return 0;
+  };
+
   // Calculer la durée des blocs
   blocks.forEach((block: CardioBlock) => {
     const blockSteps = steps.filter((s: CardioStep) => s.block_id === block.id);
     let blockDuration = 0;
     
     blockSteps.forEach((step: CardioStep) => {
-      if (step.effort_type === 'duration') {
-        blockDuration += step.duration || 0;
-      } else if (step.effort_type === 'distance' && athleteVma && step.vma_percentage) {
-        // Calculer le temps basé sur la distance et l'allure
-        const distanceKm = (step.distance || 0) / 1000;
-        const speed = athleteVma * (step.vma_percentage / 100); // km/h
-        const durationHours = distanceKm / speed;
-        blockDuration += durationHours * 3600; // Convertir en secondes
-      }
+      blockDuration += calculateStepDuration(step);
     });
     
     totalSeconds += blockDuration * block.repetitions;
@@ -72,15 +97,7 @@ export const calculateCardioSessionDuration = (cardioData: CardioData, athleteVm
 
   // Calculer la durée des étapes individuelles
   steps.filter((s: CardioStep) => !s.block_id).forEach((step: CardioStep) => {
-    if (step.effort_type === 'duration') {
-      totalSeconds += step.duration || 0;
-    } else if (step.effort_type === 'distance' && athleteVma && step.vma_percentage) {
-      // Calculer le temps basé sur la distance et l'allure
-      const distanceKm = (step.distance || 0) / 1000;
-      const speed = athleteVma * (step.vma_percentage / 100); // km/h
-      const durationHours = distanceKm / speed;
-      totalSeconds += durationHours * 3600; // Convertir en secondes
-    }
+    totalSeconds += calculateStepDuration(step);
   });
 
   return Math.round(totalSeconds);
@@ -117,7 +134,7 @@ export interface CardioMetrics {
 
 /**
  * Calcule les métriques complètes d'une séance cardio
- * Prend en compte la marche à 4 km/h et la course basée sur VMA
+ * Prend en compte la marche à 6 km/h (10:00/km) et la course basée sur VMA
  */
 export const calculateCardioMetrics = (cardioData: CardioData, athleteVma: number | null): CardioMetrics => {
   let totalDistanceMeters = 0;
@@ -127,13 +144,11 @@ export const calculateCardioMetrics = (cardioData: CardioData, athleteVma: numbe
   
   const steps = cardioData.steps || [];
   const blocks = cardioData.blocks || [];
-  
-  // Vitesse de marche moyenne : 4 km/h
-  const WALKING_SPEED_KMH = 4;
 
   // Fonction helper pour calculer les métriques d'un step
   const calculateStepMetrics = (step: CardioStep) => {
     const isWalking = step.movement_type === 'marche';
+    const speed = getStepSpeed(step, athleteVma);
     let stepDuration = 0;
     let stepDistance = 0;
     
@@ -141,20 +156,14 @@ export const calculateCardioMetrics = (cardioData: CardioData, athleteVma: numbe
       // Durée fixe
       stepDuration = step.duration || 0;
       // Calculer la distance basée sur la vitesse
-      if (isWalking) {
-        stepDistance = (WALKING_SPEED_KMH * (stepDuration / 3600)) * 1000; // en mètres
-      } else if (athleteVma && step.vma_percentage) {
-        const speed = athleteVma * (step.vma_percentage / 100); // km/h
+      if (speed > 0) {
         stepDistance = (speed * (stepDuration / 3600)) * 1000; // en mètres
       }
     } else if (step.effort_type === 'distance') {
       // Distance fixe
       stepDistance = step.distance || 0;
       // Calculer la durée basée sur la vitesse
-      if (isWalking) {
-        stepDuration = (stepDistance / 1000 / WALKING_SPEED_KMH) * 3600; // en secondes
-      } else if (athleteVma && step.vma_percentage) {
-        const speed = athleteVma * (step.vma_percentage / 100); // km/h
+      if (speed > 0) {
         stepDuration = (stepDistance / 1000 / speed) * 3600; // en secondes
       }
     }

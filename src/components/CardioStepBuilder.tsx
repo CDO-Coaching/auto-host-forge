@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Trash2, Link2, Unlink, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { WALKING_SPEED_KMH, WALKING_PACE } from "@/lib/cardioCalculations";
 
 export interface CardioStep {
   id: number;
@@ -70,10 +71,6 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
   const handleDeleteStep = (stepId: number) => {
     onChange({ steps: steps.filter(s => s.id !== stepId), blocks });
   };
-
-  // Allure de marche moyenne (environ 6 km/h = 10:00/km)
-  const WALKING_PACE = "10:00/km";
-  const WALKING_SPEED = 6; // km/h
 
   const handleStepChange = (stepId: number, field: keyof CardioStep, value: any) => {
     const updatedSteps = steps.map(step => {
@@ -403,7 +400,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                       <label className="text-sm font-medium mb-2 block">Allure de marche</label>
                       <div className="p-3 bg-muted rounded-md">
                         <span className="font-medium text-foreground">{WALKING_PACE}</span>
-                        <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED} km/h)</span>
+                        <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED_KMH} km/h)</span>
                       </div>
                     </>
                   ) : (
