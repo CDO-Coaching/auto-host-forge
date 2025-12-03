@@ -274,9 +274,10 @@ export default function SupersetDetail() {
     if (completedRounds < totalSets) {
       setCompletedRounds(completedRounds + 1);
       
-      // Démarrer automatiquement le timer de récupération du superset
-      if (exercises[0]?.recuperation) {
-        startTimer(supersetTimerId, exercises[0].recuperation);
+      // Démarrer automatiquement le timer de récupération du superset (récup du dernier exercice)
+      const lastExercise = exercises[exercises.length - 1];
+      if (lastExercise?.recuperation) {
+        startTimer(supersetTimerId, lastExercise.recuperation);
         setShowSupersetRecoveryOverlay(true);
       }
     }
@@ -417,13 +418,14 @@ export default function SupersetDetail() {
         timeRemaining={supersetRecoveryTime}
         isRunning={isSupersetRecoveryRunning}
         onStart={() => {
-          if (exercises[0]?.recuperation) {
-            startTimer(supersetTimerId, exercises[0].recuperation);
+          const lastExercise = exercises[exercises.length - 1];
+          if (lastExercise?.recuperation) {
+            startTimer(supersetTimerId, lastExercise.recuperation);
           }
         }}
         onPause={() => pauseTimer(supersetTimerId)}
         onReset={() => resetTimer(supersetTimerId)}
-        title="Récup superset"
+        title="Récup entre séries"
       />
 
       <ExerciseFeedbackDialog
@@ -625,14 +627,14 @@ export default function SupersetDetail() {
           </div>
         ))}
 
-        {/* Timer de récupération du superset */}
-        {exercises[0]?.recuperation && (
+        {/* Timer de récupération du superset (basé sur le dernier exercice) */}
+        {exercises[exercises.length - 1]?.recuperation && (
           <Card className="bg-muted/50 border-primary/30">
             <CardContent className="p-3 sm:p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Timer className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Récup superset</span>
+                  <span className="text-sm font-semibold">Récup entre séries</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-mono font-bold">
@@ -645,7 +647,8 @@ export default function SupersetDetail() {
                       if (isSupersetRecoveryRunning) {
                         pauseTimer(supersetTimerId);
                       } else {
-                        startTimer(supersetTimerId, exercises[0].recuperation);
+                        const lastExercise = exercises[exercises.length - 1];
+                        startTimer(supersetTimerId, lastExercise.recuperation);
                         setShowSupersetRecoveryOverlay(true);
                       }
                     }}
