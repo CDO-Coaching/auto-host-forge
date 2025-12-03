@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface TimerState {
   [key: string]: {
@@ -18,7 +18,7 @@ export function useRecoveryTimer() {
   // Gérer la visibilité de la page
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === "visible") {
         Object.keys(stateRef.current).forEach((id) => {
           if (stateRef.current[id].isRunning) {
             updateTimer(id);
@@ -27,9 +27,9 @@ export function useRecoveryTimer() {
       }
     };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       Object.values(intervalsRef.current).forEach(clearInterval);
     };
   }, []);
@@ -59,39 +59,42 @@ export function useRecoveryTimer() {
     }
   }, []);
 
-  const startTimer = useCallback((id: string, recuperation: string) => {
-    if (intervalsRef.current[id]) {
-      clearInterval(intervalsRef.current[id]);
-    }
+  const startTimer = useCallback(
+    (id: string, recuperation: string) => {
+      if (intervalsRef.current[id]) {
+        clearInterval(intervalsRef.current[id]);
+      }
 
-    const targetSeconds = parseRecuperationTime(recuperation);
-    const now = Date.now();
+      const targetSeconds = parseRecuperationTime(recuperation);
+      const now = Date.now();
 
-    if (!stateRef.current[id] || stateRef.current[id].pausedTime === 0) {
-      // Nouveau démarrage
-      stateRef.current[id] = {
-        startTime: now,
-        targetTime: targetSeconds,
-        pausedTime: 0,
-        isRunning: true,
-      };
-    } else {
-      // Reprendre après pause
-      const pausedTime = stateRef.current[id].pausedTime;
-      stateRef.current[id] = {
-        ...stateRef.current[id],
-        startTime: now - (stateRef.current[id].targetTime - pausedTime) * 1000,
-        isRunning: true,
-      };
-    }
+      if (!stateRef.current[id] || stateRef.current[id].pausedTime === 0) {
+        // Nouveau démarrage
+        stateRef.current[id] = {
+          startTime: now,
+          targetTime: targetSeconds,
+          pausedTime: 0,
+          isRunning: true,
+        };
+      } else {
+        // Reprendre après pause
+        const pausedTime = stateRef.current[id].pausedTime;
+        stateRef.current[id] = {
+          ...stateRef.current[id],
+          startTime: now - (stateRef.current[id].targetTime - pausedTime) * 1000,
+          isRunning: true,
+        };
+      }
 
-    setTimers((prev) => ({ ...prev, [id]: targetSeconds }));
-    setIsRunning((prev) => ({ ...prev, [id]: true }));
+      setTimers((prev) => ({ ...prev, [id]: targetSeconds }));
+      setIsRunning((prev) => ({ ...prev, [id]: true }));
 
-    const interval = setInterval(() => updateTimer(id), 100);
-    intervalsRef.current[id] = interval;
-    updateTimer(id);
-  }, [updateTimer]);
+      const interval = setInterval(() => updateTimer(id), 100);
+      intervalsRef.current[id] = interval;
+      updateTimer(id);
+    },
+    [updateTimer],
+  );
 
   const pauseTimer = useCallback((id: string) => {
     if (intervalsRef.current[id]) {
