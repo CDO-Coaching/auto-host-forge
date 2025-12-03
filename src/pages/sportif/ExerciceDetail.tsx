@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,7 @@ import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
-import { UniversalTimer } from "@/components/UniversalTimer";
+import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 
 export default function ExerciceDetail() {
   const { exerciceId } = useParams();
@@ -34,6 +34,19 @@ export default function ExerciceDetail() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const { toast } = useToast();
+  const timerRef = useRef<UniversalTimerRef>(null);
+
+  // Vérifier si la récupération est en mode EMOM
+  const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
+
+  const handleLaunchEmom = () => {
+    const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
+    timerRef.current?.openWithSettings({
+      type: 'emom',
+      emomInterval: 60, // 1 minute
+      rounds: totalSets,
+    });
+  };
 
   useEffect(() => {
     loadExerciseDetail();
@@ -172,8 +185,9 @@ export default function ExerciceDetail() {
       if (completedSets < totalSets) {
         setCompletedSets((prev) => prev + 1);
 
-        // Démarrer automatiquement le chrono de récupération
-        if (exercise.recuperation) {
+        // Ne pas démarrer le timer de récupération si c'est un EMOM
+        const isEmom = exercise.recuperation?.toLowerCase() === 'emom';
+        if (exercise.recuperation && !isEmom) {
           // Arrêter le timer précédent s'il existe
           if (timerInterval) {
             clearInterval(timerInterval);
@@ -470,7 +484,7 @@ export default function ExerciceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      <UniversalTimer />
+      <UniversalTimer ref={timerRef} />
       <CelebrationOverlay
         show={showCelebration}
         message={exercise?.exercice || ""}
@@ -552,41 +566,64 @@ export default function ExerciceDetail() {
           </Card>
         )}
 
-        {/* Chronomètre de récupération */}
+        {/* Chronomètre de récupération ou Bouton EMOM */}
         {exercise.recuperation && (
-          <Card className="border-2 border-muted-foreground/20 bg-muted/50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+          isEmomRecovery ? (
+            <Card className="border-2 border-primary/30 bg-primary/5">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
+                    <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <Label className="text-sm sm:text-base font-semibold">Mode EMOM</Label>
                   </div>
-                  <div
-                    className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
+                  <p className="text-sm text-muted-foreground">
+                    {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × 1 minute
+                  </p>
+                  <Button 
+                    onClick={handleLaunchEmom} 
+                    className="w-full h-11"
                   >
-                    {formatTime(timeRemaining)}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {!isTimerRunning ? (
-                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
-                      <Play className="h-4 w-4 mr-1" />
-                      Start
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
-                      <Pause className="h-4 w-4 mr-1" />
-                      Pause
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
-                    <RotateCcw className="h-4 w-4" />
+                    <Timer className="h-4 w-4 mr-2" />
+                    Lancer l'EMOM
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-2 border-muted-foreground/20 bg-muted/50">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
+                    </div>
+                    <div
+                      className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
+                    >
+                      {formatTime(timeRemaining)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {!isTimerRunning ? (
+                      <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
+                        <Play className="h-4 w-4 mr-1" />
+                        Start
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
+                        <Pause className="h-4 w-4 mr-1" />
+                        Pause
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
+                      <RotateCcw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
         )}
 
         {/* Détails de l'exercice - Compact et lisible */}

@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { useUniversalTimer, TimerType, EmomInterval } from "@/hooks/useUniversalTimer";
-import { useState } from "react";
+import { useUniversalTimer, TimerType, EmomInterval, TimerSettings } from "@/hooks/useUniversalTimer";
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 
 const TIMER_TYPES: { value: TimerType; label: string }[] = [
   { value: 'chrono', label: 'Chrono simple' },
@@ -23,7 +23,15 @@ const EMOM_INTERVALS: { value: EmomInterval; label: string }[] = [
   { value: 180, label: '3 minutes' },
 ];
 
-export function UniversalTimer() {
+export interface UniversalTimerRef {
+  openWithSettings: (settings: Partial<TimerSettings>) => void;
+}
+
+interface UniversalTimerProps {
+  ref?: React.Ref<UniversalTimerRef>;
+}
+
+export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>((props, ref) => {
   const [open, setOpen] = useState(false);
   const {
     settings,
@@ -36,6 +44,13 @@ export function UniversalTimer() {
     resetTimer,
     updateSettings,
   } = useUniversalTimer();
+
+  useImperativeHandle(ref, () => ({
+    openWithSettings: (newSettings: Partial<TimerSettings>) => {
+      updateSettings(newSettings);
+      setOpen(true);
+    }
+  }));
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(Math.abs(seconds) / 60);
@@ -347,4 +362,6 @@ export function UniversalTimer() {
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+UniversalTimer.displayName = "UniversalTimer";
