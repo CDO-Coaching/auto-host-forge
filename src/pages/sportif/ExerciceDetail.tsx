@@ -38,12 +38,28 @@ export default function ExerciceDetail() {
 
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
+  
+  // Vérifier si l'exercice est en mode durée (Tabata)
+  const isDurationMode = exercise?.is_duration === true;
 
   const handleLaunchEmom = () => {
     const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
     timerRef.current?.openWithSettings({
       type: 'emom',
       emomInterval: 60, // 1 minute
+      rounds: totalSets,
+    });
+  };
+
+  const handleLaunchTabata = () => {
+    const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
+    const workTime = exercise?.reps ? parseInt(exercise.reps) : 20;
+    const restTime = exercise?.recuperation ? parseRecuperationTime(exercise.recuperation) : 10;
+    
+    timerRef.current?.openWithSettings({
+      type: 'tabata',
+      workTime: workTime,
+      restTime: restTime,
       rounds: totalSets,
     });
   };
@@ -566,7 +582,7 @@ export default function ExerciceDetail() {
           </Card>
         )}
 
-        {/* Chronomètre de récupération ou Bouton EMOM */}
+        {/* Chronomètre de récupération, Bouton EMOM ou Bouton Tabata */}
         {exercise.recuperation && (
           isEmomRecovery ? (
             <Card className="border-2 border-primary/30 bg-primary/5">
@@ -585,6 +601,27 @@ export default function ExerciceDetail() {
                   >
                     <Timer className="h-4 w-4 mr-2" />
                     Lancer l'EMOM
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : isDurationMode ? (
+            <Card className="border-2 border-green-500/30 bg-green-500/5">
+              <CardContent className="p-3 sm:p-4">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                    <Label className="text-sm sm:text-base font-semibold">Mode Tabata</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × {exercise.reps}s travail / {exercise.recuperation} repos
+                  </p>
+                  <Button 
+                    onClick={handleLaunchTabata} 
+                    className="w-full h-11 bg-green-600 hover:bg-green-700"
+                  >
+                    <Timer className="h-4 w-4 mr-2" />
+                    Lancer le Tabata
                   </Button>
                 </div>
               </CardContent>
@@ -645,10 +682,14 @@ export default function ExerciceDetail() {
               <CardContent className="p-2 sm:p-3">
                 <div className="flex items-center gap-1 sm:gap-2 mb-1">
                   <Repeat className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-                  <span className="text-xs sm:text-sm font-semibold text-orange-600 uppercase">Reps</span>
+                  <span className="text-xs sm:text-sm font-semibold text-orange-600 uppercase">
+                    {exercise.is_duration ? "Durée" : "Reps"}
+                  </span>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-2xl sm:text-3xl font-bold">{exercise.reps}</p>
+                  <p className="text-2xl sm:text-3xl font-bold">
+                    {exercise.reps}{exercise.is_duration ? "s" : ""}
+                  </p>
                   {exercise.per_side && (
                     <Badge variant="secondary" className="text-xs bg-orange-600/20 text-orange-700 border-orange-600/30">
                       par côté

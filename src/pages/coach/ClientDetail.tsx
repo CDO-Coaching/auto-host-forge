@@ -85,6 +85,7 @@ interface Exercise {
   super_set_group?: string | null;
   per_side?: boolean;
   is_unilateral?: boolean;
+  is_duration?: boolean;
 }
 
 export default function ClientDetail() {
@@ -446,6 +447,7 @@ export default function ClientDetail() {
               cardio_pace: exercise.cardio_pace || null,
               super_set_group: exercise.super_set_group || null,
               per_side: exercise.per_side || false,
+              is_duration: exercise.is_duration || false,
             })
             .eq("id", exercise.id);
 
@@ -849,6 +851,7 @@ export default function ClientDetail() {
             cardio_pace: exercise.cardio_pace || null,
             super_set_group: exercise.super_set_group || null,
             per_side: exercise.per_side || false,
+            is_duration: exercise.is_duration || false,
           }));
 
           const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
@@ -2052,7 +2055,7 @@ export default function ClientDetail() {
                                         <TableRow>
                                           <TableHead className="min-w-[150px]">Exercice</TableHead>
                                           <TableHead className="min-w-[120px]">Récupération</TableHead>
-                                          <TableHead className="min-w-[100px]">Reps</TableHead>
+                                          <TableHead className="min-w-[100px]">Reps/Durée</TableHead>
                                           <TableHead className="min-w-[100px]">Séries</TableHead>
                                           <TableHead className="min-w-[100px]">RPE</TableHead>
                                           <TableHead className="min-w-[100px]">Charge</TableHead>
@@ -2232,12 +2235,33 @@ export default function ClientDetail() {
                                                                   onKeyDown={(e) =>
                                                                     handleKeyDown(e, session.id, ex.id, "reps")
                                                                   }
-                                                                  placeholder="ex: 10"
+                                                                  placeholder={ex.is_duration ? "ex: 20 (sec)" : "ex: 10"}
                                                                   disabled={isValidated}
                                                                   data-session={session.id}
                                                                   data-exercise={ex.id}
                                                                   data-field="reps"
                                                                 />
+                                                                <div className="flex items-center space-x-2">
+                                                                  <Checkbox
+                                                                    id={`is-duration-superset-${session.id}-${ex.id}`}
+                                                                    checked={ex.is_duration || false}
+                                                                    onCheckedChange={(checked) =>
+                                                                      handleExerciseChange(
+                                                                        session.id,
+                                                                        ex.id,
+                                                                        "is_duration",
+                                                                        checked as boolean
+                                                                      )
+                                                                    }
+                                                                    disabled={isValidated}
+                                                                  />
+                                                                  <label
+                                                                    htmlFor={`is-duration-superset-${session.id}-${ex.id}`}
+                                                                    className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                                  >
+                                                                    durée (sec)
+                                                                  </label>
+                                                                </div>
                                                                 {ex.is_unilateral && (
                                                                   <div className="flex items-center space-x-2">
                                                                     <Checkbox
@@ -2535,12 +2559,33 @@ export default function ClientDetail() {
                                                             onKeyDown={(e) =>
                                                               handleKeyDown(e, session.id, exercise.id, "reps")
                                                             }
-                                                            placeholder="ex: 10"
+                                                            placeholder={exercise.is_duration ? "ex: 20 (sec)" : "ex: 10"}
                                                             disabled={isValidated}
                                                             data-session={session.id}
                                                             data-exercise={exercise.id}
                                                             data-field="reps"
                                                           />
+                                                          <div className="flex items-center space-x-2">
+                                                            <Checkbox
+                                                              id={`is-duration-${session.id}-${exercise.id}`}
+                                                              checked={exercise.is_duration || false}
+                                                              onCheckedChange={(checked) =>
+                                                                handleExerciseChange(
+                                                                  session.id,
+                                                                  exercise.id,
+                                                                  "is_duration",
+                                                                  checked as boolean
+                                                                )
+                                                              }
+                                                              disabled={isValidated}
+                                                            />
+                                                            <label
+                                                              htmlFor={`is-duration-${session.id}-${exercise.id}`}
+                                                              className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                            >
+                                                              durée (sec)
+                                                            </label>
+                                                          </div>
                                                           {exercise.is_unilateral && (
                                                             <div className="flex items-center space-x-2">
                                                               <Checkbox
@@ -3113,7 +3158,7 @@ export default function ClientDetail() {
                                           <>
                                             <TableHead>Exercice</TableHead>
                                             <TableHead>Récup</TableHead>
-                                            <TableHead>Reps</TableHead>
+                                            <TableHead>Reps/Durée</TableHead>
                                             <TableHead>Séries</TableHead>
                                             <TableHead>Charge</TableHead>
                                             <TableHead>RPE prescrit</TableHead>
@@ -3480,57 +3525,82 @@ export default function ClientDetail() {
                                                   exercise.recuperation || "-"
                                                 )}
                                               </TableCell>
-                                              <TableCell>
-                                                <div className="space-y-2">
-                                                  {isEditingHistorical ? (
-                                                    <>
-                                                      <Input
-                                                        value={exercise.reps}
-                                                        onChange={(e) =>
-                                                          handleHistoricalExerciseChange(
-                                                            session.id,
-                                                            exercise.id,
-                                                            "reps",
-                                                            e.target.value,
-                                                          )
-                                                        }
-                                                        placeholder="ex: 10"
-                                                      />
-                                                      {exercise.is_unilateral && (
-                                                        <div className="flex items-center space-x-2">
-                                                          <Checkbox
-                                                            id={`historical-per-side-${session.id}-${exercise.id}`}
-                                                            checked={exercise.per_side || false}
-                                                            onCheckedChange={(checked) =>
-                                                              handleHistoricalExerciseChange(
-                                                                session.id,
-                                                                exercise.id,
-                                                                "per_side",
-                                                                checked as boolean
-                                                              )
-                                                            }
-                                                          />
-                                                          <label
-                                                            htmlFor={`historical-per-side-${session.id}-${exercise.id}`}
-                                                            className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
-                                                          >
-                                                            par côté
-                                                          </label>
-                                                        </div>
-                                                      )}
-                                                    </>
-                                                  ) : (
-                                                    <div className="space-y-1">
-                                                      <div>{exercise.reps || "-"}</div>
-                                                      {exercise.per_side && (
-                                                        <Badge variant="secondary" className="text-xs">
-                                                          par côté
-                                                        </Badge>
-                                                      )}
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </TableCell>
+                                                            <TableCell>
+                                                              <div className="space-y-2">
+                                                                {isEditingHistorical ? (
+                                                                  <>
+                                                                    <Input
+                                                                      value={exercise.reps}
+                                                                      onChange={(e) =>
+                                                                        handleHistoricalExerciseChange(
+                                                                          session.id,
+                                                                          exercise.id,
+                                                                          "reps",
+                                                                          e.target.value,
+                                                                        )
+                                                                      }
+                                                                      placeholder={exercise.is_duration ? "ex: 20 (sec)" : "ex: 10"}
+                                                                    />
+                                                                    <div className="flex items-center space-x-2">
+                                                                      <Checkbox
+                                                                        id={`historical-is-duration-${session.id}-${exercise.id}`}
+                                                                        checked={exercise.is_duration || false}
+                                                                        onCheckedChange={(checked) =>
+                                                                          handleHistoricalExerciseChange(
+                                                                            session.id,
+                                                                            exercise.id,
+                                                                            "is_duration",
+                                                                            checked as boolean
+                                                                          )
+                                                                        }
+                                                                      />
+                                                                      <label
+                                                                        htmlFor={`historical-is-duration-${session.id}-${exercise.id}`}
+                                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                                      >
+                                                                        durée (sec)
+                                                                      </label>
+                                                                    </div>
+                                                                    {exercise.is_unilateral && (
+                                                                      <div className="flex items-center space-x-2">
+                                                                        <Checkbox
+                                                                          id={`historical-per-side-${session.id}-${exercise.id}`}
+                                                                          checked={exercise.per_side || false}
+                                                                          onCheckedChange={(checked) =>
+                                                                            handleHistoricalExerciseChange(
+                                                                              session.id,
+                                                                              exercise.id,
+                                                                              "per_side",
+                                                                              checked as boolean
+                                                                            )
+                                                                          }
+                                                                        />
+                                                                        <label
+                                                                          htmlFor={`historical-per-side-${session.id}-${exercise.id}`}
+                                                                          className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
+                                                                        >
+                                                                          par côté
+                                                                        </label>
+                                                                      </div>
+                                                                    )}
+                                                                  </>
+                                                                ) : (
+                                                                  <div className="space-y-1">
+                                                                    <div>{exercise.reps || "-"}{exercise.is_duration ? "s" : ""}</div>
+                                                                    {exercise.is_duration && (
+                                                                      <Badge variant="secondary" className="text-xs">
+                                                                        durée
+                                                                      </Badge>
+                                                                    )}
+                                                                    {exercise.per_side && (
+                                                                      <Badge variant="secondary" className="text-xs">
+                                                                        par côté
+                                                                      </Badge>
+                                                                    )}
+                                                                  </div>
+                                                                )}
+                                                              </div>
+                                                            </TableCell>
                                               <TableCell>
                                                 {isEditingHistorical ? (
                                                   <Input
