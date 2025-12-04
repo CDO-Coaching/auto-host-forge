@@ -214,15 +214,15 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {selectedSteps.length >= 2 && !disabled && (
-        <div className="flex gap-2 items-center p-3 bg-primary/10 rounded-lg border border-primary/20">
-          <Badge variant="secondary">{selectedSteps.length} étapes sélectionnées</Badge>
-          <Button size="sm" onClick={createBlockFromSelected}>
-            <Link2 className="h-4 w-4 mr-2" />
-            Créer un bloc répété
+        <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center p-2 sm:p-3 bg-primary/10 rounded-lg border border-primary/20">
+          <Badge variant="secondary" className="text-xs">{selectedSteps.length} étapes</Badge>
+          <Button size="sm" onClick={createBlockFromSelected} className="text-xs sm:text-sm w-full sm:w-auto">
+            <Link2 className="h-4 w-4 mr-1 sm:mr-2" />
+            Créer bloc
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setSelectedSteps([])}>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedSteps([])} className="text-xs sm:text-sm w-full sm:w-auto">
             Annuler
           </Button>
         </div>

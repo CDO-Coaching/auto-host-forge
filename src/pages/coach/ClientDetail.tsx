@@ -1453,15 +1453,17 @@ export default function ClientDetail() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList>
-          <TabsTrigger value="programmation">Programmation</TabsTrigger>
-          <TabsTrigger value="max">Max</TabsTrigger>
-          <TabsTrigger value="suivi">Suivi de fatigue</TabsTrigger>
-          <TabsTrigger value="poids">Poids</TabsTrigger>
-          <TabsTrigger value="course">Suivi de course</TabsTrigger>
-          <TabsTrigger value="objectifs">Objectifs</TabsTrigger>
-          <TabsTrigger value="historique">Historique</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto -mx-2 px-2 pb-2">
+          <TabsList className="inline-flex w-max min-w-full sm:w-auto">
+            <TabsTrigger value="programmation" className="text-xs sm:text-sm px-2 sm:px-3">Programmation</TabsTrigger>
+            <TabsTrigger value="max" className="text-xs sm:text-sm px-2 sm:px-3">Max</TabsTrigger>
+            <TabsTrigger value="suivi" className="text-xs sm:text-sm px-2 sm:px-3">Fatigue</TabsTrigger>
+            <TabsTrigger value="poids" className="text-xs sm:text-sm px-2 sm:px-3">Poids</TabsTrigger>
+            <TabsTrigger value="course" className="text-xs sm:text-sm px-2 sm:px-3">Course</TabsTrigger>
+            <TabsTrigger value="objectifs" className="text-xs sm:text-sm px-2 sm:px-3">Objectifs</TabsTrigger>
+            <TabsTrigger value="historique" className="text-xs sm:text-sm px-2 sm:px-3">Historique</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="programmation" className="space-y-4">
           {/* Alerte de fatigue */}
@@ -1673,7 +1675,7 @@ export default function ClientDetail() {
                   </span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[50vw] overflow-y-auto">
+              <SheetContent side="right" className="w-full sm:w-[50vw] overflow-y-auto">
                 <SheetHeader>
                   <SheetTitle className="flex items-center gap-2">
                     <MessageSquare className="h-5 w-5 text-primary" />
@@ -1794,8 +1796,8 @@ export default function ClientDetail() {
 
               {/* Bouton de validation en haut */}
               {!isValidated && sessions.length > 0 && (
-                <div className="flex justify-end items-center gap-2">
-                  <Button onClick={handleValidate} size="sm" disabled={!selectedWeekToProgram}>
+                <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2">
+                  <Button onClick={handleValidate} size="sm" disabled={!selectedWeekToProgram} className="w-full sm:w-auto">
                     <Check className="h-4 w-4 mr-2" />
                     Valider la programmation
                   </Button>
@@ -1825,19 +1827,19 @@ export default function ClientDetail() {
                         onDrop={(e) => handleSessionDrop(e, session.id)}
                       >
                         <div
-                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                           onClick={() => !isValidated && toggleSession(session.id)}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                             {!isValidated && (
-                              <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                              <GripVertical className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0" />
                             )}
                             {expandedSessionId === session.id ? (
-                              <ChevronDown className="h-5 w-5 text-primary" />
+                              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                             ) : (
-                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                             )}
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1 min-w-0">
                               {!isValidated ? (
                                 <Input
                                   value={session.name}
@@ -1849,30 +1851,30 @@ export default function ClientDetail() {
                                     setSessions(updatedSessions);
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-medium h-8 w-48"
+                                  className="font-medium h-7 sm:h-8 w-full sm:w-48 text-sm"
                                   placeholder="Nom de la séance"
                                 />
                               ) : (
-                                <span className="font-medium">{session.name}</span>
+                                <span className="font-medium text-sm sm:text-base truncate">{session.name}</span>
                               )}
                               {session.session_type === "renfo" && sessionExercises[session.id]?.length > 0 && (
-                                <span className="text-sm text-muted-foreground">
+                                <span className="text-xs sm:text-sm text-muted-foreground">
                                   ({formatSessionDuration(calculateSessionDuration(sessionExercises[session.id]))})
                                 </span>
                               )}
                             </div>
-                            <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"}>
-                              {session.session_type === "cardio" ? "Cardio" : "Renfo"}
+                            <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"} className="text-xs flex-shrink-0">
+                              {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline">{expandedSessionId === session.id ? "Ouvert" : "Fermé"}</Badge>
+                          <div className="flex items-center gap-2 justify-end">
+                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">{expandedSessionId === session.id ? "Ouvert" : "Fermé"}</Badge>
                             {!isValidated && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={(e) => handleDeleteSession(session.id, e)}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1881,8 +1883,8 @@ export default function ClientDetail() {
                         </div>
 
                         {expandedSessionId === session.id && (
-                          <div className="border-t p-4 bg-muted/20">
-                            <div className="space-y-4">
+                          <div className="border-t p-2 sm:p-4 bg-muted/20">
+                            <div className="space-y-3 sm:space-y-4">
                               {session.session_type === "cardio" ? (
                                 // Interface Cardio
                                 <div className="space-y-3">
@@ -2050,18 +2052,18 @@ export default function ClientDetail() {
                                 // Interface Renfo (existante)
                                 <>
                                   <div className="overflow-x-auto">
-                                    <Table>
+                                <Table className="text-xs sm:text-sm">
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead className="min-w-[150px]">Exercice</TableHead>
-                                          <TableHead className="min-w-[120px]">Récupération</TableHead>
-                                          <TableHead className="min-w-[100px]">Reps/Durée</TableHead>
-                                          <TableHead className="min-w-[100px]">Séries</TableHead>
-                                          <TableHead className="min-w-[100px]">RPE</TableHead>
-                                          <TableHead className="min-w-[100px]">Charge</TableHead>
-                                          <TableHead className="min-w-[100px]">Tempo</TableHead>
-                                          <TableHead className="min-w-[200px]">Commentaire</TableHead>
-                                          <TableHead className="w-[50px]"></TableHead>
+                                          <TableHead className="min-w-[120px] sm:min-w-[150px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[90px] sm:min-w-[120px]">Récup</TableHead>
+                                          <TableHead className="min-w-[80px] sm:min-w-[100px]">Reps</TableHead>
+                                          <TableHead className="min-w-[60px] sm:min-w-[80px]">Séries</TableHead>
+                                          <TableHead className="min-w-[50px] sm:min-w-[70px]">RPE</TableHead>
+                                          <TableHead className="min-w-[70px] sm:min-w-[90px]">Charge</TableHead>
+                                          <TableHead className="min-w-[70px] sm:min-w-[90px]">Tempo</TableHead>
+                                          <TableHead className="min-w-[100px] sm:min-w-[150px]">Comm.</TableHead>
+                                          <TableHead className="w-[40px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -2801,24 +2803,26 @@ export default function ClientDetail() {
               )}
 
               {!isValidated && (
-                <div className="mt-6 flex justify-between gap-2">
+                <div className="mt-6 space-y-3 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
                   {historicalWeeks.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setShowCopyDialog(true)}
                       disabled={!selectedWeekToProgram}
+                      className="w-full sm:w-auto"
                     >
                       <Copy className="h-3 w-3 mr-1" />
                       Copier d'une semaine
                     </Button>
                   )}
-                  <div className="flex gap-2 ml-auto">
+                  <div className="flex flex-wrap gap-2 sm:ml-auto justify-center sm:justify-end">
                     <Button
                       size="sm"
                       variant={newSessionType === "renfo" ? "default" : "outline"}
                       onClick={() => setNewSessionType("renfo")}
                       disabled={!selectedWeekToProgram}
+                      className="text-xs sm:text-sm"
                     >
                       Renfo
                     </Button>
@@ -2827,6 +2831,7 @@ export default function ClientDetail() {
                       variant={newSessionType === "cardio" ? "default" : "outline"}
                       onClick={() => setNewSessionType("cardio")}
                       disabled={!selectedWeekToProgram}
+                      className="text-xs sm:text-sm"
                     >
                       Cardio
                     </Button>
@@ -2835,12 +2840,13 @@ export default function ClientDetail() {
                       variant={newSessionType === "recup" ? "default" : "outline"}
                       onClick={() => setNewSessionType("recup")}
                       disabled={!selectedWeekToProgram}
+                      className="text-xs sm:text-sm"
                     >
-                      Récup/Mobilité
+                      Récup
                     </Button>
-                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Créer
+                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram} className="text-xs sm:text-sm">
+                      <Plus className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Créer</span>
                     </Button>
                   </div>
                 </div>
@@ -2915,10 +2921,10 @@ export default function ClientDetail() {
 
                   {selectedHistoricalWeek && (
                     <div className="space-y-4">
-                      <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <h3 className="font-semibold">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 sm:p-4 bg-muted/50 rounded-lg">
+                        <div className="space-y-1 sm:space-y-2">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                            <h3 className="font-semibold text-sm sm:text-base">
                               Semaine {selectedHistoricalWeek.week_number} - {selectedHistoricalWeek.year}
                             </h3>
                             {(() => {
@@ -2956,35 +2962,36 @@ export default function ClientDetail() {
                               });
                               
                               if (completedSessionCount === 0) {
-                                return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
+                                return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
                               } else if (completedSessionCount === totalSessionCount) {
-                                return <Badge className="bg-green-600 text-white">Semaine terminée</Badge>;
+                                return <Badge className="bg-green-600 text-white text-xs">Semaine terminée</Badge>;
                               } else {
-                                return <Badge className="bg-orange-500 text-white">En cours ({completedSessionCount}/{totalSessionCount} séances)</Badge>;
+                                return <Badge className="bg-orange-500 text-white text-xs">En cours ({completedSessionCount}/{totalSessionCount})</Badge>;
                               }
                             })()}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground">
                             Validée le {new Date(selectedHistoricalWeek.validated_at).toLocaleDateString()}
                           </p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           {!isEditingHistorical ? (
-                            <Button onClick={handleStartEditingHistorical} variant="outline">
+                            <Button onClick={handleStartEditingHistorical} variant="outline" size="sm" className="text-xs sm:text-sm">
                               Modifier
                             </Button>
                           ) : (
                             <>
-                              <Button onClick={handleSaveHistoricalChanges} variant="default">
-                                <Check className="h-4 w-4 mr-2" />
+                              <Button onClick={handleSaveHistoricalChanges} variant="default" size="sm" className="text-xs sm:text-sm">
+                                <Check className="h-4 w-4 mr-1 sm:mr-2" />
                                 Enregistrer
                               </Button>
-                              <Button onClick={handleCancelEditingHistorical} variant="outline">
+                              <Button onClick={handleCancelEditingHistorical} variant="outline" size="sm" className="text-xs sm:text-sm">
                                 Annuler
                               </Button>
-                              <Button onClick={() => setShowDeleteWeekDialog(true)} variant="destructive">
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Supprimer la semaine
+                              <Button onClick={() => setShowDeleteWeekDialog(true)} variant="destructive" size="sm" className="text-xs sm:text-sm">
+                                <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+                                <span className="hidden sm:inline">Supprimer la semaine</span>
+                                <span className="sm:hidden">Supprimer</span>
                               </Button>
                             </>
                           )}
@@ -2996,11 +3003,12 @@ export default function ClientDetail() {
                           <Card className="bg-primary/5 border-primary/20">
                             <CardContent className="pt-4">
                               <div className="space-y-3">
-                                <div className="flex gap-2">
+                                <div className="flex flex-wrap gap-2">
                                   <Button
                                     variant={newHistoricalSessionType === "renfo" ? "default" : "outline"}
                                     onClick={() => setNewHistoricalSessionType("renfo")}
                                     size="sm"
+                                    className="text-xs sm:text-sm"
                                   >
                                     Renfo
                                   </Button>
@@ -3008,6 +3016,7 @@ export default function ClientDetail() {
                                     variant={newHistoricalSessionType === "cardio" ? "default" : "outline"}
                                     onClick={() => setNewHistoricalSessionType("cardio")}
                                     size="sm"
+                                    className="text-xs sm:text-sm"
                                   >
                                     Cardio
                                   </Button>
@@ -3015,18 +3024,20 @@ export default function ClientDetail() {
                                     variant={newHistoricalSessionType === "recup" ? "default" : "outline"}
                                     onClick={() => setNewHistoricalSessionType("recup")}
                                     size="sm"
+                                    className="text-xs sm:text-sm"
                                   >
-                                    Récup/Mobilité
+                                    Récup
                                   </Button>
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col sm:flex-row gap-2">
                                   <Input
                                     placeholder="Nom de la séance"
                                     value={newHistoricalSessionName}
                                     onChange={(e) => setNewHistoricalSessionName(e.target.value)}
                                     onKeyPress={(e) => e.key === "Enter" && handleAddHistoricalSession()}
+                                    className="flex-1"
                                   />
-                                  <Button onClick={handleAddHistoricalSession} size="sm">
+                                  <Button onClick={handleAddHistoricalSession} size="sm" className="w-full sm:w-auto">
                                     <Plus className="h-4 w-4 mr-2" />
                                     Ajouter séance
                                   </Button>
@@ -3039,24 +3050,24 @@ export default function ClientDetail() {
                         {historicalSessions.map((session) => (
                           <div key={session.id} className="border rounded-lg">
                             <div
-                              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
                               onClick={() => toggleHistoricalSession(session.id)}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                                 {expandedHistoricalSessionId === session.id ? (
-                                  <ChevronDown className="h-5 w-5 text-primary" />
+                                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
                                 ) : (
-                                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                                 )}
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{session.name}</span>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                  <span className="font-medium text-sm sm:text-base">{session.name}</span>
                                   {session.session_type === "renfo" && session.session_exercises?.length > 0 && (
-                                    <span className="text-sm text-muted-foreground">
+                                    <span className="text-xs sm:text-sm text-muted-foreground">
                                       ({formatSessionDuration(calculateSessionDuration(session.session_exercises))})
                                     </span>
                                   )}
                                 </div>
-                                <Badge variant={session.session_type === "cardio" ? "secondary" : session.session_type === "recup" ? "outline" : "outline"}>
+                                <Badge variant={session.session_type === "cardio" ? "secondary" : session.session_type === "recup" ? "outline" : "outline"} className="text-xs">
                                   {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
                                 </Badge>
                                 {(() => {
@@ -3066,9 +3077,9 @@ export default function ClientDetail() {
                                   // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
                                   if (session.session_type === "recup") {
                                     if (session.duration_minutes !== null && session.duration_minutes !== undefined) {
-                                      return <Badge className="bg-green-600 text-white">Terminée</Badge>;
+                                      return <Badge className="bg-green-600 text-white text-xs">Terminée</Badge>;
                                     }
-                                    return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
+                                    return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
                                   }
                                   
                                   // Pour les autres séances: compter les exercices avec feedback
@@ -3090,21 +3101,21 @@ export default function ClientDetail() {
                                   const totalWithFeedback = completedCount + skippedCount;
                                   
                                   if (totalWithFeedback === 0) {
-                                    return <Badge variant="outline" className="text-muted-foreground">Non commencée</Badge>;
+                                    return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
                                   } else if (totalWithFeedback === exercises.length) {
                                     if (skippedCount > 0) {
-                                      return <Badge className="bg-orange-600 text-white">Terminée ({skippedCount} non fait{skippedCount > 1 ? 's' : ''})</Badge>;
+                                      return <Badge className="bg-orange-600 text-white text-xs">Terminée ({skippedCount} non fait{skippedCount > 1 ? 's' : ''})</Badge>;
                                     }
-                                    return <Badge className="bg-green-600 text-white">Terminée</Badge>;
+                                    return <Badge className="bg-green-600 text-white text-xs">Terminée</Badge>;
                                   } else {
-                                    return <Badge className="bg-orange-500 text-white">En cours ({totalWithFeedback}/{exercises.length})</Badge>;
+                                    return <Badge className="bg-orange-500 text-white text-xs">En cours ({totalWithFeedback}/{exercises.length})</Badge>;
                                   }
                                 })()}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline">{session.session_exercises?.length || 0} exercices</Badge>
+                              <div className="flex items-center gap-2 justify-end">
+                                <Badge variant="outline" className="text-xs">{session.session_exercises?.length || 0} ex.</Badge>
                                 {session.duration_minutes && (
-                                  <Badge variant="secondary">{session.duration_minutes} min</Badge>
+                                  <Badge variant="secondary" className="text-xs">{session.duration_minutes} min</Badge>
                                 )}
                                 {isEditingHistorical && (
                                   <Button
@@ -3114,7 +3125,7 @@ export default function ClientDetail() {
                                       e.stopPropagation();
                                       handleDeleteHistoricalSession(session.id);
                                     }}
-                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
@@ -3123,13 +3134,13 @@ export default function ClientDetail() {
                             </div>
 
                             {expandedHistoricalSessionId === session.id && (
-                              <div className="border-t p-4 bg-muted/20">
+                              <div className="border-t p-3 sm:p-4 bg-muted/20">
                                 {/* Info de la séance */}
-                                <div className="flex gap-6 mb-4 p-3 bg-background rounded-md">
+                                <div className="flex flex-col sm:flex-row sm:gap-6 gap-2 mb-4 p-2 sm:p-3 bg-background rounded-md text-sm">
                                   {session.completed_at && (
                                     <div>
-                                      <span className="text-sm text-muted-foreground">Date de réalisation: </span>
-                                      <span className="font-medium">
+                                      <span className="text-xs sm:text-sm text-muted-foreground">Date: </span>
+                                      <span className="font-medium text-xs sm:text-sm">
                                         {new Date(session.completed_at).toLocaleDateString()} à{" "}
                                         {new Date(session.completed_at).toLocaleTimeString()}
                                       </span>
@@ -3137,36 +3148,36 @@ export default function ClientDetail() {
                                   )}
                                   {session.duration_minutes && (
                                     <div>
-                                      <span className="text-sm text-muted-foreground">Durée: </span>
-                                      <span className="font-medium">{session.duration_minutes} min</span>
+                                      <span className="text-xs sm:text-sm text-muted-foreground">Durée: </span>
+                                      <span className="font-medium text-xs sm:text-sm">{session.duration_minutes} min</span>
                                     </div>
                                   )}
                                 </div>
 
-                                <div className="overflow-x-auto">
+                                <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
                                   <Table>
                                     <TableHeader>
                                       <TableRow>
                                         {session.session_type === "recup" ? (
                                           <>
-                                            <TableHead>Exercice</TableHead>
-                                            <TableHead>Durée/Répétitions</TableHead>
-                                            <TableHead>Commentaire</TableHead>
-                                            {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                            <TableHead className="text-xs">Exercice</TableHead>
+                                            <TableHead className="text-xs">Durée/Reps</TableHead>
+                                            <TableHead className="text-xs">Comm.</TableHead>
+                                            {isEditingHistorical && <TableHead className="w-[40px]"></TableHead>}
                                           </>
                                         ) : (
                                           <>
-                                            <TableHead>Exercice</TableHead>
-                                            <TableHead>Récup</TableHead>
-                                            <TableHead>Reps/Durée</TableHead>
-                                            <TableHead>Séries</TableHead>
-                                            <TableHead>Charge</TableHead>
-                                            <TableHead>RPE prescrit</TableHead>
-                                            <TableHead>RPE ressenti</TableHead>
-                                            <TableHead>Tempo</TableHead>
-                                            <TableHead>Commentaire coach</TableHead>
-                                            <TableHead>Retour sportif</TableHead>
-                                            {isEditingHistorical && <TableHead className="w-[50px]"></TableHead>}
+                                            <TableHead className="text-xs min-w-[100px]">Exercice</TableHead>
+                                            <TableHead className="text-xs min-w-[60px]">Récup</TableHead>
+                                            <TableHead className="text-xs min-w-[60px]">Reps</TableHead>
+                                            <TableHead className="text-xs min-w-[50px]">Séries</TableHead>
+                                            <TableHead className="text-xs min-w-[60px]">Charge</TableHead>
+                                            <TableHead className="text-xs min-w-[50px]">RPE</TableHead>
+                                            <TableHead className="text-xs min-w-[60px]">Ressenti</TableHead>
+                                            <TableHead className="text-xs min-w-[60px]">Tempo</TableHead>
+                                            <TableHead className="text-xs min-w-[80px]">Comm.</TableHead>
+                                            <TableHead className="text-xs min-w-[80px]">Retour</TableHead>
+                                            {isEditingHistorical && <TableHead className="w-[40px]"></TableHead>}
                                           </>
                                         )}
                                       </TableRow>
@@ -3838,12 +3849,11 @@ export default function ClientDetail() {
 
       {/* Dialog pour copier une semaine */}
       <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Copier une semaine précédente</DialogTitle>
-            <DialogDescription>
-              Sélectionnez une semaine à copier. Vous pourrez voir les retours du sportif et modifier les exercices
-              avant validation.
+            <DialogTitle className="text-base sm:text-lg">Copier une semaine précédente</DialogTitle>
+            <DialogDescription className="text-xs sm:text-sm">
+              Sélectionnez une semaine à copier. Vous pourrez modifier les exercices avant validation.
             </DialogDescription>
           </DialogHeader>
 
