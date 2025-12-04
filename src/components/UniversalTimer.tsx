@@ -36,6 +36,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
   const {
     settings,
     isRunning,
+    isCountingDown,
+    countdownValue,
     timeRemaining,
     currentRound,
     isWorkPhase,
@@ -116,7 +118,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
                 updateSettings({ type: value as TimerType });
                 resetTimer();
               }}
-              disabled={isRunning}
+              disabled={isRunning || isCountingDown}
             >
               <SelectTrigger className="h-12 text-lg">
                 <SelectValue />
@@ -133,38 +135,58 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
 
           {/* Affichage principal du temps - GRAND */}
           <div className="bg-card border-2 border-primary/20 rounded-2xl p-12 text-center space-y-6">
-            <div className="font-mono font-bold text-foreground tabular-nums leading-none text-[clamp(3rem,18vw,6rem)] sm:text-[clamp(4rem,14vw,7rem)]">
-              {formatTime(timeRemaining)}
-            </div>
-
-            {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
+            {isCountingDown ? (
               <div className="space-y-4">
-                <div className="text-2xl font-semibold">
-                  {settings.type === 'emom' ? (
-                    `Tour ${currentRound} / ${getTotalRounds()}`
-                  ) : (
-                    <>
-                      <span className={isWorkPhase ? "text-green-500" : "text-blue-500"}>
-                        {isWorkPhase ? "🔥 TRAVAIL" : "💤 REPOS"}
-                      </span>
-                      <div className="text-lg text-muted-foreground mt-2">
-                        Tour {currentRound} / {getTotalRounds()}
-                      </div>
-                    </>
-                  )}
+                <div className="font-mono font-bold text-primary tabular-nums leading-none text-[clamp(5rem,25vw,10rem)] animate-pulse">
+                  {countdownValue > 0 ? countdownValue : "GO!"}
                 </div>
-                <Progress value={getProgress()} className="h-4" />
+                <p className="text-xl text-muted-foreground">Prépare-toi...</p>
               </div>
-            )}
+            ) : (
+              <>
+                <div className="font-mono font-bold text-foreground tabular-nums leading-none text-[clamp(3rem,18vw,6rem)] sm:text-[clamp(4rem,14vw,7rem)]">
+                  {formatTime(timeRemaining)}
+                </div>
 
-            {settings.type === 'countdown' && (
-              <Progress value={getProgress()} className="h-4" />
+                {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
+                  <div className="space-y-4">
+                    <div className="text-2xl font-semibold">
+                      {settings.type === 'emom' ? (
+                        `Tour ${currentRound} / ${getTotalRounds()}`
+                      ) : (
+                        <>
+                          <span className={isWorkPhase ? "text-green-500" : "text-blue-500"}>
+                            {isWorkPhase ? "🔥 TRAVAIL" : "💤 REPOS"}
+                          </span>
+                          <div className="text-lg text-muted-foreground mt-2">
+                            Tour {currentRound} / {getTotalRounds()}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <Progress value={getProgress()} className="h-4" />
+                  </div>
+                )}
+
+                {settings.type === 'countdown' && (
+                  <Progress value={getProgress()} className="h-4" />
+                )}
+              </>
             )}
           </div>
 
           {/* Contrôles */}
           <div className="flex gap-4 justify-center">
-            {!isRunning ? (
+            {isCountingDown ? (
+              <Button
+                size="lg"
+                disabled
+                className="px-12 h-16 text-lg bg-amber-600"
+              >
+                <Timer className="h-6 w-6 mr-2 animate-spin" />
+                Préparation...
+              </Button>
+            ) : !isRunning ? (
               <Button
                 size="lg"
                 onClick={startTimer}
@@ -189,6 +211,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
               onClick={resetTimer}
               variant="outline"
               className="px-8 h-16"
+              disabled={isCountingDown}
             >
               <RotateCcw className="h-6 w-6" />
             </Button>
