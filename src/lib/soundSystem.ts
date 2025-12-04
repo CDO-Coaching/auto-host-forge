@@ -92,43 +92,50 @@ export class SoundSystem {
     });
   }
 
-  // Son de transition (passage au tour suivant)
+  // Son de transition PUISSANT (passage au tour suivant ou travail/repos)
   transition() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     
-    // Swoosh descendant + bip
-    const osc1 = this.createOscillator(1200, 'sawtooth');
-    const gain1 = this.createGain(0.2);
+    // Triple accord puissant descendant
+    const frequencies = [1200, 900, 600];
+    frequencies.forEach((freq, i) => {
+      const osc = this.createOscillator(freq, 'square');
+      const gain = this.createGain(0.5);
+      
+      if (!osc || !gain) return;
+      
+      osc.connect(gain);
+      gain.connect(this.ctx!.destination);
+      
+      const startTime = now + i * 0.05;
+      gain.gain.setValueAtTime(0.5, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+      
+      osc.start(startTime);
+      osc.stop(startTime + 0.25);
+    });
     
-    if (!osc1 || !gain1) return;
-    
-    osc1.connect(gain1);
-    gain1.connect(this.ctx.destination);
-    
-    osc1.frequency.exponentialRampToValueAtTime(600, now + 0.2);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-    
-    osc1.start(now);
-    osc1.stop(now + 0.2);
-    
-    // Bip de confirmation après le swoosh
+    // Double bip de confirmation puissant
     setTimeout(() => {
       if (!this.ctx) return;
-      const osc2 = this.createOscillator(800, 'sine');
-      const gain2 = this.createGain(0.3);
-      
-      if (!osc2 || !gain2) return;
-      
-      osc2.connect(gain2);
-      gain2.connect(this.ctx.destination);
-      
-      const startTime = this.ctx.currentTime;
-      gain2.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
-      
-      osc2.start(startTime);
-      osc2.stop(startTime + 0.15);
-    }, 200);
+      [800, 1000].forEach((freq, i) => {
+        const osc = this.createOscillator(freq, 'triangle');
+        const gain = this.createGain(0.6);
+        
+        if (!osc || !gain) return;
+        
+        osc.connect(gain);
+        gain.connect(this.ctx!.destination);
+        
+        const startTime = this.ctx!.currentTime + i * 0.1;
+        gain.gain.setValueAtTime(0.6, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
+        
+        osc.start(startTime);
+        osc.stop(startTime + 0.2);
+      });
+    }, 150);
   }
 
   // Son de fin complète (mélodie de victoire)
