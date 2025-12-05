@@ -1429,23 +1429,28 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="space-y-3 overflow-x-hidden max-w-full">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate("/coach/mes-clients")} className="text-sm px-2">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          <span className="hidden sm:inline">Retour à mes clients</span>
-          <span className="sm:hidden">Retour</span>
+    <div className="space-y-2 sm:space-y-3 overflow-x-hidden max-w-full px-1 sm:px-0">
+      {/* Header compact */}
+      <div className="flex items-center justify-between py-1">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate("/coach/mes-clients")} 
+          className="text-xs sm:text-sm px-1.5 sm:px-2 h-8 sm:h-9"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span className="hidden sm:inline ml-1">Retour à mes clients</span>
         </Button>
       </div>
 
-      <div className="flex items-center justify-between bg-muted/30 p-2 rounded-md gap-2">
+      {/* Infos athlète compact */}
+      <div className="flex items-center justify-between bg-muted/30 p-1.5 sm:p-2 rounded-md gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold truncate">
+          <h2 className="text-sm sm:text-base font-semibold truncate">
             {athlete.first_name} {athlete.last_name}
           </h2>
-          <p className="text-xs text-muted-foreground truncate">{athlete.email}</p>
+          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
         </div>
-        <div className="text-xs text-muted-foreground text-right flex-shrink-0">
+        <div className="text-[10px] sm:text-xs text-muted-foreground text-right flex-shrink-0">
           {athlete.gender && (
             <p>{athlete.gender === "female" ? "F" : athlete.gender === "male" ? "H" : "A"}</p>
           )}
@@ -1453,17 +1458,22 @@ export default function ClientDetail() {
         </div>
       </div>
 
+      {/* Tabs avec indicateur de scroll */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-hide">
-          <TabsList className="inline-flex w-max min-w-full sm:w-auto">
-            <TabsTrigger value="programmation" className="text-xs sm:text-sm px-2 sm:px-3">Programmation</TabsTrigger>
-            <TabsTrigger value="max" className="text-xs sm:text-sm px-2 sm:px-3">Max</TabsTrigger>
-            <TabsTrigger value="suivi" className="text-xs sm:text-sm px-2 sm:px-3">Fatigue</TabsTrigger>
-            <TabsTrigger value="poids" className="text-xs sm:text-sm px-2 sm:px-3">Poids</TabsTrigger>
-            <TabsTrigger value="course" className="text-xs sm:text-sm px-2 sm:px-3">Course</TabsTrigger>
-            <TabsTrigger value="objectifs" className="text-xs sm:text-sm px-2 sm:px-3">Objectifs</TabsTrigger>
-            <TabsTrigger value="historique" className="text-xs sm:text-sm px-2 sm:px-3">Historique</TabsTrigger>
-          </TabsList>
+        <div className="relative">
+          <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
+            <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
+              <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
+              <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
+              <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
+              <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
+              <TabsTrigger value="course" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Course</TabsTrigger>
+              <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
+              <TabsTrigger value="historique" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Historique</TabsTrigger>
+            </TabsList>
+          </div>
+          {/* Indicateur de scroll */}
+          <div className="absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
@@ -1756,21 +1766,18 @@ export default function ClientDetail() {
           )}
 
           <Card>
-            <CardHeader className="py-3 px-4">
-              <CardTitle className="text-base">Nouvelle programmation</CardTitle>
+            <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
+              <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4">
-              {/* Sélecteur de semaine - toujours visible */}
+            <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-3 sm:pb-4">
+              {/* Sélecteur de semaine compact */}
               {!isValidated && (
                 <Card className="border-primary/30 bg-primary/5">
-                  <CardHeader className="py-2 px-3">
-                    <CardTitle className="text-sm">Sélectionne la semaine à programmer</CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">Tu peux programmer jusqu'à 12 semaines à l'avance</p>
+                  <CardContent className="p-2 sm:p-3">
+                    <div className="space-y-1.5 sm:space-y-2">
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">Semaine à programmer (jusqu'à 12 sem.)</p>
                       <select
-                        className="w-full p-2 border rounded-md bg-background text-foreground text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                        className="w-full p-1.5 sm:p-2 border rounded-md bg-background text-foreground text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                         value={
                           selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""
                         }
@@ -1783,10 +1790,10 @@ export default function ClientDetail() {
                           setSelectedWeekToProgram({ week, year });
                         }}
                       >
-                        <option value="">-- Choisir une semaine --</option>
+                        <option value="">-- Choisir --</option>
                         {availableWeeks.map((w) => (
                           <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
-                            Semaine {w.week} - {w.year} ({formatWeekRange(w.monday)})
+                            S{w.week} - {w.year} ({formatWeekRange(w.monday)})
                           </option>
                         ))}
                       </select>
@@ -1795,29 +1802,34 @@ export default function ClientDetail() {
                 </Card>
               )}
 
-              {/* Bouton de validation en haut */}
+              {/* Bouton de validation compact */}
               {!isValidated && sessions.length > 0 && (
-                <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-2">
-                  <Button onClick={handleValidate} size="sm" disabled={!selectedWeekToProgram} className="w-full sm:w-auto">
-                    <Check className="h-4 w-4 mr-2" />
-                    Valider la programmation
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleValidate} 
+                    size="sm" 
+                    disabled={!selectedWeekToProgram} 
+                    className="w-full sm:w-auto h-9 sm:h-8 text-xs sm:text-sm"
+                  >
+                    <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                    Valider
                   </Button>
                 </div>
               )}
               {sessions.length === 0 ? (
-                <div className="text-center py-6 space-y-2">
-                  <p className="text-sm text-muted-foreground">Aucune séance créée.</p>
+                <div className="text-center py-4 sm:py-6 space-y-1.5 sm:space-y-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground">Aucune séance créée.</p>
                   {historicalWeeks.length > 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      Vous pouvez créer une nouvelle séance ou copier une semaine précédente.
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      Créez une séance ou copiez une semaine.
                     </p>
                   ) : (
-                    <p className="text-xs text-muted-foreground">Cliquez sur "Créer une séance" pour commencer.</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">Créez une séance pour commencer.</p>
                   )}
                 </div>
               ) : (
                 <>
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {sessions.map((session) => (
                       <div 
                         key={session.id} 
@@ -1828,19 +1840,19 @@ export default function ClientDetail() {
                         onDrop={(e) => handleSessionDrop(e, session.id)}
                       >
                         <div
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
+                          className="flex items-center justify-between p-2 sm:p-3 cursor-pointer hover:bg-muted/50 transition-colors gap-1.5 sm:gap-2"
                           onClick={() => !isValidated && toggleSession(session.id)}
                         >
-                          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                             {!isValidated && (
-                              <GripVertical className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0" />
+                              <GripVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0" />
                             )}
                             {expandedSessionId === session.id ? (
-                              <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                              <ChevronDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary flex-shrink-0" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                             )}
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
                               {!isValidated ? (
                                 <Input
                                   value={session.name}
@@ -1852,32 +1864,31 @@ export default function ClientDetail() {
                                     setSessions(updatedSessions);
                                   }}
                                   onClick={(e) => e.stopPropagation()}
-                                  className="font-medium h-7 sm:h-8 w-full sm:w-48 text-sm"
-                                  placeholder="Nom de la séance"
+                                  className="font-medium h-7 w-24 sm:w-40 text-xs sm:text-sm"
+                                  placeholder="Nom séance"
                                 />
                               ) : (
-                                <span className="font-medium text-sm sm:text-base truncate">{session.name}</span>
+                                <span className="font-medium text-xs sm:text-sm truncate">{session.name}</span>
                               )}
                               {session.session_type === "renfo" && sessionExercises[session.id]?.length > 0 && (
-                                <span className="text-xs sm:text-sm text-muted-foreground">
+                                <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:inline">
                                   ({formatSessionDuration(calculateSessionDuration(sessionExercises[session.id]))})
                                 </span>
                               )}
                             </div>
-                            <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"} className="text-xs flex-shrink-0">
+                            <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"} className="text-[10px] sm:text-xs flex-shrink-0">
                               {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-2 justify-end">
-                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">{expandedSessionId === session.id ? "Ouvert" : "Fermé"}</Badge>
+                          <div className="flex items-center gap-1 sm:gap-2">
                             {!isValidated && (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={(e) => handleDeleteSession(session.id, e)}
-                                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                               </Button>
                             )}
                           </div>
@@ -2803,27 +2814,30 @@ export default function ClientDetail() {
                 </>
               )}
 
+              {/* Boutons de création - optimisés mobile */}
               {!isValidated && (
-                <div className="mt-6 space-y-3 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
                   {historicalWeeks.length > 0 && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setShowCopyDialog(true)}
                       disabled={!selectedWeekToProgram}
-                      className="w-full sm:w-auto"
+                      className="w-full sm:w-auto h-9 sm:h-8 text-xs"
                     >
                       <Copy className="h-3 w-3 mr-1" />
-                      Copier d'une semaine
+                      <span className="sm:hidden">Copier semaine</span>
+                      <span className="hidden sm:inline">Copier d'une semaine</span>
                     </Button>
                   )}
-                  <div className="flex flex-wrap gap-2 sm:ml-auto justify-center sm:justify-end">
+                  {/* Grille 2x2 sur mobile, inline sur desktop */}
+                  <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2 sm:ml-auto">
                     <Button
                       size="sm"
                       variant={newSessionType === "renfo" ? "default" : "outline"}
                       onClick={() => setNewSessionType("renfo")}
                       disabled={!selectedWeekToProgram}
-                      className="text-xs sm:text-sm"
+                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
                     >
                       Renfo
                     </Button>
@@ -2832,7 +2846,7 @@ export default function ClientDetail() {
                       variant={newSessionType === "cardio" ? "default" : "outline"}
                       onClick={() => setNewSessionType("cardio")}
                       disabled={!selectedWeekToProgram}
-                      className="text-xs sm:text-sm"
+                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
                     >
                       Cardio
                     </Button>
@@ -2841,13 +2855,18 @@ export default function ClientDetail() {
                       variant={newSessionType === "recup" ? "default" : "outline"}
                       onClick={() => setNewSessionType("recup")}
                       disabled={!selectedWeekToProgram}
-                      className="text-xs sm:text-sm"
+                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
                     >
                       Récup
                     </Button>
-                    <Button size="sm" onClick={handleCreateSession} disabled={!selectedWeekToProgram} className="text-xs sm:text-sm">
-                      <Plus className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">Créer</span>
+                    <Button 
+                      size="sm" 
+                      onClick={handleCreateSession} 
+                      disabled={!selectedWeekToProgram} 
+                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Créer</span>
                     </Button>
                   </div>
                 </div>
