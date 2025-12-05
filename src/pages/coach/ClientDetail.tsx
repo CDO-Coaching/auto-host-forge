@@ -1429,31 +1429,32 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-x-hidden max-w-full">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate("/coach/mes-clients")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à mes clients
+        <Button variant="ghost" onClick={() => navigate("/coach/mes-clients")} className="text-sm px-2">
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          <span className="hidden sm:inline">Retour à mes clients</span>
+          <span className="sm:hidden">Retour</span>
         </Button>
       </div>
 
-      <div className="flex items-center justify-between bg-muted/30 p-2 rounded-md">
-        <div>
-          <h2 className="text-base font-semibold">
+      <div className="flex items-center justify-between bg-muted/30 p-2 rounded-md gap-2">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold truncate">
             {athlete.first_name} {athlete.last_name}
           </h2>
-          <p className="text-xs text-muted-foreground">{athlete.email}</p>
+          <p className="text-xs text-muted-foreground truncate">{athlete.email}</p>
         </div>
-        <div className="text-xs text-muted-foreground text-right">
+        <div className="text-xs text-muted-foreground text-right flex-shrink-0">
           {athlete.gender && (
-            <p>{athlete.gender === "female" ? "Femme" : athlete.gender === "male" ? "Homme" : "Autre"}</p>
+            <p>{athlete.gender === "female" ? "F" : athlete.gender === "male" ? "H" : "A"}</p>
           )}
           {athlete.date_of_birth && <p>{new Date(athlete.date_of_birth).toLocaleDateString("fr-FR")}</p>}
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="overflow-x-auto -mx-2 px-2 pb-2">
+        <div className="overflow-x-auto -mx-2 px-2 pb-2 scrollbar-hide">
           <TabsList className="inline-flex w-max min-w-full sm:w-auto">
             <TabsTrigger value="programmation" className="text-xs sm:text-sm px-2 sm:px-3">Programmation</TabsTrigger>
             <TabsTrigger value="max" className="text-xs sm:text-sm px-2 sm:px-3">Max</TabsTrigger>

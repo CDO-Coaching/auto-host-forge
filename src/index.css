@@ -105,4 +105,13 @@ All colors MUST be HSL.
   .writing-mode-vertical-rl {
     writing-mode: vertical-rl;
   }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
