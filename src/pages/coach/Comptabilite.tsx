@@ -60,7 +60,7 @@ export default function Comptabilite() {
   const [hasBackup, setHasBackup] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [hideClientNames, setHideClientNames] = useState(false);
+  const [hideClientNames, setHideClientNames] = useState(true);
 
   useEffect(() => {
     // Vérifier s'il y a des modifications non sauvegardées avant de changer de mois
