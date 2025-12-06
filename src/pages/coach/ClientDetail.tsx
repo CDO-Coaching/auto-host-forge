@@ -1895,7 +1895,7 @@ export default function ClientDetail() {
                         </div>
 
                         {expandedSessionId === session.id && (
-                          <div className="border-t p-2 sm:p-4 bg-muted/20">
+                          <div className="border-t p-1.5 sm:p-4 bg-muted/20 overflow-hidden">
                             <div className="space-y-3 sm:space-y-4">
                               {session.session_type === "cardio" ? (
                                 // Interface Cardio
@@ -1964,14 +1964,14 @@ export default function ClientDetail() {
                               ) : session.session_type === "recup" ? (
                                 // Interface Récup/Mobilité
                                 <>
-                                  <div className="overflow-x-auto">
-                                    <Table>
+                                  <div className="overflow-x-auto -mx-2 px-2">
+                                    <Table className="text-xs sm:text-sm">
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead className="min-w-[200px]">Exercice</TableHead>
-                                          <TableHead className="min-w-[150px]">Durée/Répétitions</TableHead>
-                                          <TableHead className="min-w-[250px]">Commentaire</TableHead>
-                                          <TableHead className="w-[50px]"></TableHead>
+                                          <TableHead className="min-w-[100px] sm:min-w-[180px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[70px] sm:min-w-[120px]">Durée/Reps</TableHead>
+                                          <TableHead className="min-w-[80px] sm:min-w-[200px]">Notes</TableHead>
+                                          <TableHead className="w-[36px] sm:w-[50px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -2054,28 +2054,29 @@ export default function ClientDetail() {
                                   </div>
 
                                   {!isValidated && (
-                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm">
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Ajouter une ligne
+                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm" className="text-xs sm:text-sm">
+                                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                                      <span className="hidden sm:inline">Ajouter une ligne</span>
+                                      <span className="sm:hidden">Ajouter</span>
                                     </Button>
                                   )}
                                 </>
                               ) : (
                                 // Interface Renfo (existante)
                                 <>
-                                  <div className="overflow-x-auto">
-                                <Table className="text-xs sm:text-sm">
+                                  <div className="overflow-x-auto -mx-2 px-2">
+                                <Table className="text-[10px] sm:text-xs md:text-sm">
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead className="min-w-[120px] sm:min-w-[150px]">Exercice</TableHead>
-                                          <TableHead className="min-w-[90px] sm:min-w-[120px]">Récup</TableHead>
-                                          <TableHead className="min-w-[80px] sm:min-w-[100px]">Reps</TableHead>
-                                          <TableHead className="min-w-[60px] sm:min-w-[80px]">Séries</TableHead>
-                                          <TableHead className="min-w-[50px] sm:min-w-[70px]">RPE</TableHead>
-                                          <TableHead className="min-w-[70px] sm:min-w-[90px]">Charge</TableHead>
-                                          <TableHead className="min-w-[70px] sm:min-w-[90px]">Tempo</TableHead>
-                                          <TableHead className="min-w-[100px] sm:min-w-[150px]">Comm.</TableHead>
-                                          <TableHead className="w-[40px]"></TableHead>
+                                          <TableHead className="min-w-[90px] sm:min-w-[130px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[65px] sm:min-w-[90px]">Récup</TableHead>
+                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Reps</TableHead>
+                                          <TableHead className="min-w-[40px] sm:min-w-[60px]">Séries</TableHead>
+                                          <TableHead className="min-w-[35px] sm:min-w-[50px]">RPE</TableHead>
+                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Charge</TableHead>
+                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Tempo</TableHead>
+                                          <TableHead className="min-w-[60px] sm:min-w-[120px]">Comm.</TableHead>
+                                          <TableHead className="w-[32px] sm:w-[40px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -2789,9 +2790,10 @@ export default function ClientDetail() {
                                   </div>
 
                                   {!isValidated && (
-                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm">
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Ajouter une ligne
+                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm" className="text-xs sm:text-sm">
+                                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                                      <span className="hidden sm:inline">Ajouter une ligne</span>
+                                      <span className="sm:hidden">Ajouter</span>
                                     </Button>
                                   )}
                                 </>

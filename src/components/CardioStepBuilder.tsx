@@ -240,18 +240,18 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
           return (
             <div key={step.id}>
               {isFirstInBlock && stepBlock && (
-                <div className="mb-2 p-3 bg-accent/50 rounded-t-lg border border-border flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Badge className="bg-primary">Bloc répété</Badge>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Répétitions:</span>
+                <div className="mb-2 p-2 sm:p-3 bg-accent/50 rounded-t-lg border border-border flex flex-col sm:flex-row sm:items-center gap-2 sm:justify-between">
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <Badge className="bg-primary text-xs">Bloc</Badge>
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <span className="text-xs sm:text-sm">Rép:</span>
                       <Input
                         type="number"
                         min="1"
                         max="20"
                         value={stepBlock.repetitions}
                         onChange={(e) => updateBlockRepetitions(stepBlock.id, parseInt(e.target.value) || 1)}
-                        className="w-16 h-8"
+                        className="w-12 sm:w-16 h-7 sm:h-8 text-sm"
                         disabled={disabled}
                       />
                     </div>
@@ -261,9 +261,11 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                       variant="ghost"
                       size="sm"
                       onClick={() => removeBlock(stepBlock.id)}
+                      className="text-xs h-7 px-2"
                     >
-                      <Unlink className="h-4 w-4 mr-1" />
-                      Délier le bloc
+                      <Unlink className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1" />
+                      <span className="hidden sm:inline">Délier le bloc</span>
+                      <span className="sm:hidden">Délier</span>
                     </Button>
                   )}
                 </div>
@@ -276,25 +278,25 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                 onDragOver={handleStepDragOver}
                 onDrop={(e) => handleStepDrop(e, step.id)}
               >
-                <CardContent className="pt-6 space-y-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
+                <CardContent className="pt-4 sm:pt-6 space-y-3 sm:space-y-4 px-3 sm:px-6">
+                  <div className="flex justify-between items-center mb-1 sm:mb-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       {!disabled && (
-                        <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab active:cursor-grabbing" />
+                        <GripVertical className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground cursor-grab active:cursor-grabbing" />
                       )}
                       {!disabled && !step.block_id && (
                         <input
                           type="checkbox"
                           checked={selectedSteps.includes(step.id)}
                           onChange={() => toggleStepSelection(step.id)}
-                          className="h-4 w-4 rounded border-border"
+                          className="h-3.5 w-3.5 sm:h-4 sm:w-4 rounded border-border"
                         />
                       )}
-                      <h4 className="font-medium">
+                      <h4 className="font-medium text-sm sm:text-base">
                         Étape {index + 1}
                         {stepBlock && (
-                          <Badge variant="outline" className="ml-2 text-xs">
-                            Dans bloc {stepBlock.id}
+                          <Badge variant="outline" className="ml-1 sm:ml-2 text-[10px] sm:text-xs">
+                            Bloc {stepBlock.id}
                           </Badge>
                         )}
                       </h4>
@@ -304,17 +306,17 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteStep(step.id)}
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
+                        className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       </Button>
                     )}
                   </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {/* Type de mouvement */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Type de mouvement</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Mouvement</label>
                   <Select
                     value={step.movement_type}
                     onValueChange={(value) => handleStepChange(step.id, "movement_type", value)}
@@ -332,7 +334,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
 
                 {/* Type d'effort */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Type d'effort</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Effort</label>
                   <Select
                     value={step.effort_type}
                     onValueChange={(value) => handleStepChange(step.id, "effort_type", value)}
@@ -352,7 +354,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
               {/* Durée ou Distance */}
               {step.effort_type === "duration" ? (
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Durée (mm:ss)</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Durée (mm:ss)</label>
                   <Input
                     type="text"
                     value={formatDuration(step.duration || 0)}
@@ -362,9 +364,9 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-2 sm:gap-4">
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Distance</label>
+                    <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Distance</label>
                     <Input
                       type="number"
                       value={step.distance || ""}
@@ -374,7 +376,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium mb-2 block">Unité</label>
+                    <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Unité</label>
                     <Select
                       value={step.distance_unit || "m"}
                       onValueChange={(value) => handleStepChange(step.id, "distance_unit", value)}
@@ -392,44 +394,45 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2 sm:gap-4">
                 {/* Objectif % VMA ou Allure de marche */}
                 <div>
                   {step.movement_type === "marche" ? (
                     <>
-                      <label className="text-sm font-medium mb-2 block">Allure de marche</label>
-                      <div className="p-3 bg-muted rounded-md">
-                        <span className="font-medium text-foreground">{WALKING_PACE}</span>
+                      <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Allure</label>
+                      <div className="p-2 sm:p-3 bg-muted rounded-md">
+                        <span className="font-medium text-foreground text-xs sm:text-sm">{WALKING_PACE}</span>
                         <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED_KMH} km/h)</span>
                       </div>
                     </>
                   ) : (
                     <>
-                      <label className="text-sm font-medium mb-2 block">
-                        Objectif (% VMA)
+                      <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
+                        % VMA
                         {athleteVma && (
-                          <span className="text-xs text-muted-foreground ml-2">
-                            VMA: {athleteVma} km/h
+                          <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">
+                            ({athleteVma} km/h)
                           </span>
                         )}
                       </label>
-                      <div className="space-y-2">
+                      <div className="space-y-1 sm:space-y-2">
                         <Input
                           type="number"
                           min="30"
                           max="120"
                           value={step.vma_percentage || ""}
                           onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
-                          placeholder="ex: 65"
+                          placeholder="65"
                           disabled={disabled || !athleteVma}
+                          className="text-sm"
                         />
                         {athleteVma ? (
-                          <div className="text-sm text-muted-foreground">
-                            Allure calculée: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
+                          <div className="text-xs sm:text-sm text-muted-foreground">
+                            Allure: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
                           </div>
                         ) : (
-                          <div className="text-sm text-destructive">
-                            VMA non renseignée dans les max
+                          <div className="text-xs text-destructive">
+                            VMA non renseignée
                           </div>
                         )}
                       </div>
@@ -439,13 +442,14 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
 
                 {/* Objectif de fréquence cardiaque */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Fréquence cardiaque</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">FC cible</label>
                   <Input
                     type="text"
                     value={step.target_heart_rate || ""}
                     onChange={(e) => handleStepChange(step.id, "target_heart_rate", e.target.value)}
-                    placeholder="ex: 150 bpm ou Zone 3"
+                    placeholder="150 bpm"
                     disabled={disabled}
+                    className="text-sm"
                   />
                 </div>
               </div>
@@ -460,10 +464,11 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
         <Button
           onClick={handleAddStep}
           variant="outline"
-          className="w-full"
+          className="w-full text-xs sm:text-sm"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          Ajouter une étape
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+          <span className="hidden sm:inline">Ajouter une étape</span>
+          <span className="sm:hidden">Ajouter étape</span>
         </Button>
       )}
     </div>
