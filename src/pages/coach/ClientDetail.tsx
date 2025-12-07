@@ -1962,23 +1962,98 @@ export default function ClientDetail() {
                                   )}
                                 </div>
                               ) : session.session_type === "recup" ? (
-                                // Interface Récup/Mobilité
+                                // Interface Récup/Mobilité - Mobile optimized
                                 <>
-                                  <div className="overflow-x-auto -mx-2 px-2">
-                                    <Table className="text-xs sm:text-sm">
+                                  <div className="space-y-2 sm:hidden">
+                                    {/* Vue mobile en cartes empilées */}
+                                    {(sessionExercises[session.id] || []).length === 0 ? (
+                                      <div className="text-center text-muted-foreground py-8 text-xs">
+                                        Aucun exercice ajouté.
+                                      </div>
+                                    ) : (
+                                      (sessionExercises[session.id] || []).map((exercise) => (
+                                        <div 
+                                          key={exercise.id}
+                                          className="border rounded-lg p-2 bg-muted/20 space-y-2"
+                                          draggable={!isValidated}
+                                          onDragStart={() => handleExerciseDragStart(session.id, exercise.id)}
+                                          onDragOver={handleExerciseDragOver}
+                                          onDrop={(e) => handleExerciseDrop(e, session.id, exercise.id)}
+                                        >
+                                          <div className="flex items-center gap-1">
+                                            {!isValidated && (
+                                              <GripVertical className="h-3.5 w-3.5 text-muted-foreground cursor-grab active:cursor-grabbing flex-shrink-0" />
+                                            )}
+                                            <div className="flex-1">
+                                              <ExerciseCombobox
+                                                value={exercise.exercice}
+                                                onChange={(value) =>
+                                                  handleExerciseChange(session.id, exercise.id, "exercice", value)
+                                                }
+                                                exercises={libraryExercises.filter(
+                                                  (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
+                                                )}
+                                                disabled={isValidated}
+                                              />
+                                            </div>
+                                            {!isValidated && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                                className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                                              >
+                                                <X className="h-3 w-3" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                              <label className="text-[9px] text-muted-foreground">Durée/Reps</label>
+                                              <Input
+                                                value={exercise.reps}
+                                                onChange={(e) =>
+                                                  handleExerciseChange(session.id, exercise.id, "reps", e.target.value)
+                                                }
+                                                placeholder="3x30sec"
+                                                disabled={isValidated}
+                                                className="h-7 text-xs"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="text-[9px] text-muted-foreground">Notes</label>
+                                              <Input
+                                                value={exercise.commentaire}
+                                                onChange={(e) =>
+                                                  handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)
+                                                }
+                                                placeholder="Notes..."
+                                                disabled={isValidated}
+                                                className="h-7 text-xs"
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))
+                                    )}
+                                  </div>
+                                  
+                                  {/* Vue desktop en table */}
+                                  <div className="overflow-x-auto hidden sm:block">
+                                    <Table className="text-sm">
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead className="min-w-[100px] sm:min-w-[180px]">Exercice</TableHead>
-                                          <TableHead className="min-w-[70px] sm:min-w-[120px]">Durée/Reps</TableHead>
-                                          <TableHead className="min-w-[80px] sm:min-w-[200px]">Notes</TableHead>
-                                          <TableHead className="w-[36px] sm:w-[50px]"></TableHead>
+                                          <TableHead className="min-w-[180px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[120px]">Durée/Reps</TableHead>
+                                          <TableHead className="min-w-[200px]">Notes</TableHead>
+                                          <TableHead className="w-[50px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
                                         {(sessionExercises[session.id] || []).length === 0 ? (
                                           <TableRow>
                                             <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                              Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                              Aucun exercice ajouté.
                                             </TableCell>
                                           </TableRow>
                                          ) : (
@@ -2023,12 +2098,7 @@ export default function ClientDetail() {
                                                 <Input
                                                   value={exercise.commentaire}
                                                   onChange={(e) =>
-                                                    handleExerciseChange(
-                                                      session.id,
-                                                      exercise.id,
-                                                      "commentaire",
-                                                      e.target.value,
-                                                    )
+                                                    handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)
                                                   }
                                                   placeholder="Notes..."
                                                   disabled={isValidated}
@@ -2062,28 +2132,275 @@ export default function ClientDetail() {
                                   )}
                                 </>
                               ) : (
-                                // Interface Renfo (existante)
+                                // Interface Renfo
                                 <>
-                                  <div className="overflow-x-auto -mx-2 px-2">
-                                <Table className="text-[10px] sm:text-xs md:text-sm">
+                                  {/* Vue mobile en cartes empilées */}
+                                  <div className="space-y-2 sm:hidden">
+                                    {(sessionExercises[session.id] || []).length === 0 ? (
+                                      <div className="text-center text-muted-foreground py-8 text-xs">
+                                        Aucun exercice ajouté.
+                                      </div>
+                                    ) : (
+                                      (() => {
+                                        const exercises = sessionExercises[session.id] || [];
+                                        const result: JSX.Element[] = [];
+                                        let i = 0;
+
+                                        while (i < exercises.length) {
+                                          const exercise = exercises[i];
+
+                                          // Si l'exercice fait partie d'un super-set
+                                          if (exercise.super_set_group) {
+                                            const groupExercises: Exercise[] = [];
+                                            let j = i;
+                                            while (
+                                              j < exercises.length &&
+                                              exercises[j].super_set_group === exercise.super_set_group
+                                            ) {
+                                              groupExercises.push(exercises[j]);
+                                              j++;
+                                            }
+
+                                            // Bloc super-set mobile
+                                            result.push(
+                                              <div key={`mobile-superset-${exercise.super_set_group}`} className="border-2 border-primary rounded-lg p-2 bg-primary/5 space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                  <Badge variant="default" className="text-[10px]">
+                                                    Super-set ({groupExercises.length})
+                                                  </Badge>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className="text-[10px] text-muted-foreground">Séries:</span>
+                                                    <Input
+                                                      value={exercise.series}
+                                                      onChange={(e) =>
+                                                        handleExerciseChange(session.id, exercise.id, "series", e.target.value)
+                                                      }
+                                                      disabled={isValidated}
+                                                      className="h-6 w-10 text-xs text-center p-0"
+                                                    />
+                                                  </div>
+                                                </div>
+                                                {groupExercises.map((ex) => (
+                                                  <div key={ex.id} className="border rounded p-2 bg-background space-y-1.5">
+                                                    <div className="flex items-center gap-1">
+                                                      {!isValidated && (
+                                                        <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                                      )}
+                                                      <div className="flex-1">
+                                                        <ExerciseCombobox
+                                                          value={ex.exercice}
+                                                          onChange={(value) => handleExerciseChange(session.id, ex.id, "exercice", value)}
+                                                          exercises={libraryExercises}
+                                                          disabled={isValidated}
+                                                        />
+                                                      </div>
+                                                      {!isValidated && (
+                                                        <Button
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          onClick={() => handleDeleteExercise(session.id, ex.id)}
+                                                          className="h-5 w-5 p-0 text-destructive"
+                                                        >
+                                                          <X className="h-3 w-3" />
+                                                        </Button>
+                                                      )}
+                                                    </div>
+                                                    <div className="grid grid-cols-4 gap-1">
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">Récup</label>
+                                                        <Select
+                                                          value={ex.recuperation}
+                                                          onValueChange={(value) => handleExerciseChange(session.id, ex.id, "recuperation", value)}
+                                                          disabled={isValidated}
+                                                        >
+                                                          <SelectTrigger className="h-6 text-[10px] px-1">
+                                                            <SelectValue placeholder="--" />
+                                                          </SelectTrigger>
+                                                          <SelectContent>
+                                                            {recuperationOptions.map((option) => (
+                                                              <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                {option.label}
+                                                              </SelectItem>
+                                                            ))}
+                                                          </SelectContent>
+                                                        </Select>
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">{ex.is_duration ? "Durée" : "Reps"}</label>
+                                                        <Input value={ex.reps} onChange={(e) => handleExerciseChange(session.id, ex.id, "reps", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="10" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">RPE</label>
+                                                        <Input value={ex.rpe} onChange={(e) => handleExerciseChange(session.id, ex.id, "rpe", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="8" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">Charge</label>
+                                                        <Input value={ex.charge} onChange={(e) => handleExerciseChange(session.id, ex.id, "charge", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="kg" />
+                                                      </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-1">
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">Tempo</label>
+                                                        <Input value={ex.tempo} onChange={(e) => handleExerciseChange(session.id, ex.id, "tempo", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="3010" />
+                                                      </div>
+                                                      <div>
+                                                        <label className="text-[8px] text-muted-foreground">Comm.</label>
+                                                        <Input value={ex.commentaire} onChange={(e) => handleExerciseChange(session.id, ex.id, "commentaire", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="..." />
+                                                      </div>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                      <div className="flex items-center gap-1">
+                                                        <Checkbox id={`mobile-dur-${ex.id}`} checked={ex.is_duration || false} onCheckedChange={(c) => handleExerciseChange(session.id, ex.id, "is_duration", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                        <label htmlFor={`mobile-dur-${ex.id}`} className="text-[9px]">durée</label>
+                                                      </div>
+                                                      {ex.is_unilateral && (
+                                                        <div className="flex items-center gap-1">
+                                                          <Checkbox id={`mobile-side-${ex.id}`} checked={ex.per_side || false} onCheckedChange={(c) => handleExerciseChange(session.id, ex.id, "per_side", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                          <label htmlFor={`mobile-side-${ex.id}`} className="text-[9px]">par côté</label>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            );
+                                            i = j;
+                                          } else {
+                                            // Exercice normal mobile
+                                            result.push(
+                                              <div 
+                                                key={exercise.id} 
+                                                className="border rounded-lg p-2 bg-muted/20 space-y-1.5"
+                                                draggable={!isValidated}
+                                                onDragStart={() => handleExerciseDragStart(session.id, exercise.id)}
+                                                onDragOver={handleExerciseDragOver}
+                                                onDrop={(e) => handleExerciseDrop(e, session.id, exercise.id)}
+                                              >
+                                                <div className="flex items-center gap-1">
+                                                  {!isValidated && (
+                                                    <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                                  )}
+                                                  <div className="flex-1">
+                                                    <ExerciseCombobox
+                                                      value={exercise.exercice}
+                                                      onChange={(value) => handleExerciseChange(session.id, exercise.id, "exercice", value)}
+                                                      exercises={libraryExercises}
+                                                      disabled={isValidated}
+                                                    />
+                                                  </div>
+                                                  {!isValidated && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleDeleteExercise(session.id, exercise.id)}
+                                                      className="h-5 w-5 p-0 text-destructive"
+                                                    >
+                                                      <X className="h-3 w-3" />
+                                                    </Button>
+                                                  )}
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-1">
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">Récup</label>
+                                                    <Select
+                                                      value={exercise.recuperation}
+                                                      onValueChange={(value) => handleExerciseChange(session.id, exercise.id, "recuperation", value)}
+                                                      disabled={isValidated}
+                                                    >
+                                                      <SelectTrigger className="h-6 text-[10px] px-1">
+                                                        <SelectValue placeholder="--" />
+                                                      </SelectTrigger>
+                                                      <SelectContent>
+                                                        {recuperationOptions.map((option) => (
+                                                          <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                            {option.label}
+                                                          </SelectItem>
+                                                        ))}
+                                                      </SelectContent>
+                                                    </Select>
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">{exercise.is_duration ? "Durée" : "Reps"}</label>
+                                                    <Input value={exercise.reps} onChange={(e) => handleExerciseChange(session.id, exercise.id, "reps", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="10" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">Séries</label>
+                                                    <Input value={exercise.series} onChange={(e) => handleExerciseChange(session.id, exercise.id, "series", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="3" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">RPE</label>
+                                                    <Input value={exercise.rpe} onChange={(e) => handleExerciseChange(session.id, exercise.id, "rpe", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="8" />
+                                                  </div>
+                                                </div>
+                                                <div className="grid grid-cols-3 gap-1">
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">Charge</label>
+                                                    <Input value={exercise.charge} onChange={(e) => handleExerciseChange(session.id, exercise.id, "charge", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="kg" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">Tempo</label>
+                                                    <Input value={exercise.tempo} onChange={(e) => handleExerciseChange(session.id, exercise.id, "tempo", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="3010" />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[8px] text-muted-foreground">Comm.</label>
+                                                    <Input value={exercise.commentaire} onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="..." />
+                                                  </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                  <div className="flex items-center gap-1">
+                                                    <Checkbox id={`mobile-dur-normal-${exercise.id}`} checked={exercise.is_duration || false} onCheckedChange={(c) => handleExerciseChange(session.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                    <label htmlFor={`mobile-dur-normal-${exercise.id}`} className="text-[9px]">durée</label>
+                                                  </div>
+                                                  {exercise.is_unilateral && (
+                                                    <div className="flex items-center gap-1">
+                                                      <Checkbox id={`mobile-side-normal-${exercise.id}`} checked={exercise.per_side || false} onCheckedChange={(c) => handleExerciseChange(session.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                      <label htmlFor={`mobile-side-normal-${exercise.id}`} className="text-[9px]">par côté</label>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                                {/* Bouton super-set mobile */}
+                                                {i < exercises.length - 1 && !isValidated && (
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleToggleSuperSet(session.id, exercise.id)}
+                                                    className="w-full h-6 text-[10px] mt-1"
+                                                  >
+                                                    <Plus className="h-2.5 w-2.5 mr-1" />
+                                                    Super-set
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            );
+                                            i++;
+                                          }
+                                        }
+                                        return result;
+                                      })()
+                                    )}
+                                  </div>
+
+                                  {/* Vue desktop en table */}
+                                  <div className="overflow-x-auto hidden sm:block">
+                                    <Table className="text-xs md:text-sm">
                                       <TableHeader>
                                         <TableRow>
-                                          <TableHead className="min-w-[90px] sm:min-w-[130px]">Exercice</TableHead>
-                                          <TableHead className="min-w-[65px] sm:min-w-[90px]">Récup</TableHead>
-                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Reps</TableHead>
-                                          <TableHead className="min-w-[40px] sm:min-w-[60px]">Séries</TableHead>
-                                          <TableHead className="min-w-[35px] sm:min-w-[50px]">RPE</TableHead>
-                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Charge</TableHead>
-                                          <TableHead className="min-w-[45px] sm:min-w-[70px]">Tempo</TableHead>
-                                          <TableHead className="min-w-[60px] sm:min-w-[120px]">Comm.</TableHead>
-                                          <TableHead className="w-[32px] sm:w-[40px]"></TableHead>
+                                          <TableHead className="min-w-[130px]">Exercice</TableHead>
+                                          <TableHead className="min-w-[90px]">Récup</TableHead>
+                                          <TableHead className="min-w-[70px]">Reps</TableHead>
+                                          <TableHead className="min-w-[60px]">Séries</TableHead>
+                                          <TableHead className="min-w-[50px]">RPE</TableHead>
+                                          <TableHead className="min-w-[70px]">Charge</TableHead>
+                                          <TableHead className="min-w-[70px]">Tempo</TableHead>
+                                          <TableHead className="min-w-[120px]">Comm.</TableHead>
+                                          <TableHead className="w-[40px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
                                         {(sessionExercises[session.id] || []).length === 0 ? (
                                           <TableRow>
                                             <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
-                                              Aucun exercice ajouté. Clique sur "Ajouter une ligne" pour commencer.
+                                              Aucun exercice ajouté.
                                             </TableCell>
                                           </TableRow>
                                         ) : (
