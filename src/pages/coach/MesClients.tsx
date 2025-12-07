@@ -406,59 +406,60 @@ export default function MesClients() {
           />
         </div>
 
-        <TabsContent value="pending" className="space-y-4">
+        <TabsContent value="pending" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Demandes en attente de validation</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Demandes en attente de validation</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Ces athlètes aimeraient que tu sois leur coach, {firstName}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {filteredPending.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   {searchQuery ? "Aucune demande ne correspond à ta recherche" : "Aucune demande en attente"}
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {filteredPending.map((request) => (
                     <div
                       key={request.id}
-                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 sm:p-4 border rounded-lg gap-3 sm:gap-4"
+                      className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg gap-2 sm:gap-4"
                     >
-                      <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                          <User className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                      <div className="flex items-center gap-2.5 sm:gap-4 w-full sm:w-auto">
+                        <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-4 w-4 sm:h-6 sm:w-6 text-primary" />
                         </div>
-                        <div className="flex-1">
-                          <p className="font-medium text-sm sm:text-base">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base truncate">
                             {request.athlete.first_name} {request.athlete.last_name}
                           </p>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {request.athlete.email}
                           </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <Clock className="h-3 w-3 inline mr-1" />
+                          <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
+                            <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 inline mr-0.5 sm:mr-1" />
                             Demandé le {new Date(request.requested_at).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <div className="flex gap-2 w-full sm:w-auto">
+                      <div className="flex gap-1.5 sm:gap-2 w-full sm:w-auto">
                         <Button
                           size="sm"
                           onClick={() => handleResponse(request.id, "approved")}
-                          className="flex-1 sm:flex-none"
+                          className="flex-1 sm:flex-none h-8 text-xs"
                         >
-                          <Check className="h-4 w-4 sm:mr-1" />
+                          <Check className="h-3.5 w-3.5 sm:mr-1" />
                           <span className="hidden sm:inline">Accepter</span>
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
                           onClick={() => handleResponse(request.id, "rejected")}
+                          className="h-8 text-xs"
                         >
-                          <X className="h-4 w-4 mr-1" />
-                          Refuser
+                          <X className="h-3.5 w-3.5 sm:mr-1" />
+                          <span className="hidden sm:inline">Refuser</span>
                         </Button>
                       </div>
                     </div>
@@ -469,48 +470,46 @@ export default function MesClients() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="approved" className="space-y-4">
+        <TabsContent value="approved" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Tes athlètes</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Tes athlètes</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Liste des athlètes que tu accompagnes
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {filteredApproved.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   {searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {filteredApproved.map((relationship) => (
                      <div
                       key={relationship.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg hover:border-primary transition-colors gap-2 sm:gap-4 cursor-pointer"
+                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
                     >
-                      <div 
-                        className="flex items-center gap-4 flex-1 cursor-pointer"
-                        onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
-                      >
-                        <div className="h-12 w-12 rounded-full bg-green-600/10 flex items-center justify-center">
-                          <User className="h-6 w-6 text-green-600" />
+                      <div className="flex items-center gap-2.5 sm:gap-4 flex-1">
+                        <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-green-600/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
                         </div>
-                        <div>
-                          <p className="font-medium">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base truncate">
                             {relationship.athlete.first_name} {relationship.athlete.last_name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {relationship.athlete.email}
                           </p>
                           {relationship.athlete.date_of_birth && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
                               Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
                         <Button
                           size="sm"
                           variant="outline"
@@ -518,22 +517,25 @@ export default function MesClients() {
                             e.stopPropagation();
                             handlePauseToggle(relationship.id, relationship.status);
                           }}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                         >
-                          <Pause className="h-4 w-4 mr-1" />
-                          Pause
+                          <Pause className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Pause</span>
                         </Button>
                         {relationship.hasCurrentWeekProgrammed ? (
-                          <Badge className="bg-green-600">
-                            <Check className="h-3 w-3 mr-1" />
-                            Validé
+                          <Badge className="bg-green-600 text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
+                            <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Validé</span>
+                            <span className="sm:hidden">✓</span>
                           </Badge>
                         ) : (
-                          <Badge variant="secondary">
-                            <X className="h-3 w-3 mr-1" />
-                            Non validé
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
+                            <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                            <span className="hidden sm:inline">Non validé</span>
+                            <span className="sm:hidden">✗</span>
                           </Badge>
                         )}
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                       </div>
                     </div>
                   ))}
@@ -543,63 +545,63 @@ export default function MesClients() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="paused" className="space-y-4">
+        <TabsContent value="paused" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Athlètes en pause</CardTitle>
-              <CardDescription>
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Athlètes en pause</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 Liste des athlètes dont le suivi est actuellement en pause
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {pausedAthletes.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   {searchQuery ? "Aucun athlète en pause ne correspond à ta recherche" : "Aucun athlète en pause"}
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {filteredPaused.map((relationship) => (
                     <div
                       key={relationship.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg hover:border-primary transition-colors gap-2 sm:gap-4 cursor-pointer"
+                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
                     >
-                      <div 
-                        className="flex items-center gap-4 flex-1 cursor-pointer"
-                        onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
-                      >
-                        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                          <User className="h-6 w-6 text-muted-foreground" />
+                      <div className="flex items-center gap-2.5 sm:gap-4 flex-1">
+                        <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <User className="h-4 w-4 sm:h-6 sm:w-6 text-muted-foreground" />
                         </div>
-                        <div>
-                          <p className="font-medium">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base truncate">
                             {relationship.athlete.first_name} {relationship.athlete.last_name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {relationship.athlete.email}
                           </p>
                           {relationship.athlete.date_of_birth && (
-                            <p className="text-xs text-muted-foreground mt-1">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
                               Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
                         <Button
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePauseToggle(relationship.id, relationship.status);
                           }}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                         >
-                          <Play className="h-4 w-4 mr-1" />
-                          Réactiver
+                          <Play className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">Réactiver</span>
                         </Button>
-                        <Badge variant="outline">
-                          <Pause className="h-3 w-3 mr-1" />
-                          En pause
+                        <Badge variant="outline" className="text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
+                          <Pause className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
+                          <span className="hidden sm:inline">En pause</span>
+                          <span className="sm:hidden">Pause</span>
                         </Badge>
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                       </div>
                     </div>
                   ))}
@@ -609,57 +611,60 @@ export default function MesClients() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="external" className="space-y-4">
+        <TabsContent value="external" className="space-y-3 sm:space-y-4">
           <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+            <CardHeader className="p-3 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                 <div>
-                  <CardTitle>Clients externes</CardTitle>
-                  <CardDescription>
+                  <CardTitle className="text-base sm:text-lg">Clients externes</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">
                     Clients présentiels n'utilisant pas l'application
                   </CardDescription>
                 </div>
                 <Dialog open={showAddExternalDialog} onOpenChange={setShowAddExternalDialog}>
                   <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
+                    <Button className="h-8 text-xs sm:h-9 sm:text-sm w-full sm:w-auto">
+                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Ajouter un client
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Ajouter un client externe</DialogTitle>
+                      <DialogTitle className="text-base sm:text-lg">Ajouter un client externe</DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       <div>
-                        <Label htmlFor="firstName">Prénom *</Label>
+                        <Label htmlFor="firstName" className="text-xs sm:text-sm">Prénom *</Label>
                         <Input
                           id="firstName"
                           value={newExternalFirstName}
                           onChange={(e) => setNewExternalFirstName(e.target.value)}
                           placeholder="Prénom"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="lastName">Nom *</Label>
+                        <Label htmlFor="lastName" className="text-xs sm:text-sm">Nom *</Label>
                         <Input
                           id="lastName"
                           value={newExternalLastName}
                           onChange={(e) => setNewExternalLastName(e.target.value)}
                           placeholder="Nom"
+                          className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="email">Email (optionnel)</Label>
+                        <Label htmlFor="email" className="text-xs sm:text-sm">Email (optionnel)</Label>
                         <Input
                           id="email"
                           type="email"
                           value={newExternalEmail}
                           onChange={(e) => setNewExternalEmail(e.target.value)}
                           placeholder="email@exemple.com"
+                          className="h-9 text-sm"
                         />
                       </div>
-                      <Button onClick={handleAddExternalClient} className="w-full">
+                      <Button onClick={handleAddExternalClient} className="w-full h-9 text-sm">
                         Ajouter
                       </Button>
                     </div>
@@ -667,48 +672,49 @@ export default function MesClients() {
                 </Dialog>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
               {filteredExternalClients.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">
+                <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
                   {searchQuery ? "Aucun client externe ne correspond à ta recherche" : "Aucun client externe"}
                 </p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-4">
                   {filteredExternalClients.map((client) => (
                     <div
                       key={client.id}
-                      className="flex items-center justify-between p-4 border rounded-lg hover:border-primary transition-colors"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg hover:border-primary transition-colors gap-2 sm:gap-4"
                     >
-                      <div className="flex items-center gap-4 flex-1">
-                        <div className={`h-12 w-12 rounded-full ${client.is_active ? 'bg-blue-600/10' : 'bg-muted'} flex items-center justify-center`}>
-                          <User className={`h-6 w-6 ${client.is_active ? 'text-blue-600' : 'text-muted-foreground'}`} />
+                      <div className="flex items-center gap-2.5 sm:gap-4 flex-1">
+                        <div className={`h-9 w-9 sm:h-12 sm:w-12 rounded-full ${client.is_active ? 'bg-blue-600/10' : 'bg-muted'} flex items-center justify-center flex-shrink-0`}>
+                          <User className={`h-4 w-4 sm:h-6 sm:w-6 ${client.is_active ? 'text-blue-600' : 'text-muted-foreground'}`} />
                         </div>
-                        <div>
-                          <p className="font-medium">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm sm:text-base truncate">
                             {client.first_name} {client.last_name}
                           </p>
                           {client.email && (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">
                               {client.email}
                             </p>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
                         <Button
                           size="sm"
                           variant={client.is_active ? "outline" : "default"}
                           onClick={() => handleToggleExternalClient(client.id, client.is_active)}
+                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                         >
                           {client.is_active ? (
                             <>
-                              <Pause className="h-4 w-4 mr-1" />
-                              Désactiver
+                              <Pause className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Désactiver</span>
                             </>
                           ) : (
                             <>
-                              <Play className="h-4 w-4 mr-1" />
-                              Activer
+                              <Play className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Activer</span>
                             </>
                           )}
                         </Button>
@@ -717,29 +723,30 @@ export default function MesClients() {
                             <Button
                               size="sm"
                               variant="destructive"
+                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent>
+                          <AlertDialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md">
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Supprimer ce client ?</AlertDialogTitle>
-                              <AlertDialogDescription>
+                              <AlertDialogTitle className="text-base sm:text-lg">Supprimer ce client ?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-xs sm:text-sm">
                                 Cette action est irréversible. Le client "{client.first_name} {client.last_name}" sera définitivement supprimé.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogFooter className="flex-row gap-2 sm:gap-0">
+                              <AlertDialogCancel className="flex-1 sm:flex-none h-9 text-sm">Annuler</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteExternalClient(client.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                className="flex-1 sm:flex-none h-9 text-sm bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Supprimer
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
-                        <Badge variant={client.is_active ? "default" : "outline"} className={client.is_active ? "bg-blue-600" : ""}>
+                        <Badge variant={client.is_active ? "default" : "outline"} className={`text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2 ${client.is_active ? "bg-blue-600" : ""}`}>
                           {client.is_active ? "Actif" : "Inactif"}
                         </Badge>
                       </div>
