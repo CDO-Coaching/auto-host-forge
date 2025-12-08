@@ -310,16 +310,16 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
     : null;
 
   const MUSCLE_COLORS = [
-    "hsl(var(--primary))",
-    "hsl(var(--chart-1))",
-    "hsl(var(--chart-2))",
-    "hsl(var(--chart-3))",
-    "hsl(var(--chart-4))",
-    "hsl(var(--chart-5))",
-    "hsl(45, 93%, 47%)",
-    "hsl(280, 80%, 60%)",
-    "hsl(160, 70%, 45%)",
-    "hsl(10, 80%, 55%)",
+    "hsl(45, 93%, 47%)",    // Jaune/Or (primary)
+    "hsl(200, 80%, 55%)",   // Bleu clair
+    "hsl(340, 75%, 55%)",   // Rose/Magenta
+    "hsl(160, 70%, 45%)",   // Vert émeraude
+    "hsl(280, 70%, 60%)",   // Violet
+    "hsl(25, 90%, 55%)",    // Orange
+    "hsl(180, 60%, 50%)",   // Cyan
+    "hsl(60, 80%, 50%)",    // Jaune citron
+    "hsl(320, 70%, 55%)",   // Fuchsia
+    "hsl(100, 60%, 45%)",   // Vert lime
   ];
 
   return (
@@ -448,9 +448,9 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
                 <Line 
                   type="monotone" 
                   dataKey="averageRpe" 
-                  stroke="hsl(var(--chart-2))" 
+                  stroke="hsl(45, 93%, 47%)" 
                   strokeWidth={2}
-                  dot={{ fill: "hsl(var(--chart-2))" }}
+                  dot={{ fill: "hsl(45, 93%, 47%)", r: 5 }}
                 />
               </LineChart>
             </ResponsiveContainer>
