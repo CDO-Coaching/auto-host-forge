@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Edit2, Save, X, Activity, Heart } from "lucide-react";
+import { Edit2, Save, X, Activity, Heart, HeartPulse } from "lucide-react";
 
 interface VmaCardProps {
   athleteId: string;
@@ -16,9 +16,11 @@ interface VmaCardProps {
 export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCardProps) {
   const [vma, setVma] = useState<number | null>(null);
   const [fcMax, setFcMax] = useState<number | null>(null);
+  const [fcRepos, setFcRepos] = useState<number | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [vmaInputValue, setVmaInputValue] = useState("");
   const [fcMaxInputValue, setFcMaxInputValue] = useState("");
+  const [fcReposInputValue, setFcReposInputValue] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("vma, fc_max")
+        .select("vma, fc_max, fc_repos")
         .eq("id", athleteId)
         .single();
 
@@ -43,6 +45,10 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
         setFcMax(data.fc_max);
         setFcMaxInputValue(data.fc_max.toString());
       }
+      if (data?.fc_repos) {
+        setFcRepos(data.fc_repos);
+        setFcReposInputValue(data.fc_repos.toString());
+      }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
     }
@@ -51,6 +57,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
   const handleSave = async () => {
     const vmaValue = vmaInputValue ? parseFloat(vmaInputValue) : null;
     const fcMaxValue = fcMaxInputValue ? parseInt(fcMaxInputValue) : null;
+    const fcReposValue = fcReposInputValue ? parseInt(fcReposInputValue) : null;
     
     if (vmaInputValue && (isNaN(vmaValue!) || vmaValue! < 8 || vmaValue! > 30)) {
       toast.error("La VMA doit être entre 8 et 30 km/h");
@@ -62,13 +69,25 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       return;
     }
 
+    if (fcReposInputValue && (isNaN(fcReposValue!) || fcReposValue! < 30 || fcReposValue! > 120)) {
+      toast.error("La FC de repos doit être entre 30 et 120 bpm");
+      return;
+    }
+
+    // Vérifier que FC repos < FC max si les deux sont renseignées
+    if (fcReposValue && fcMaxValue && fcReposValue >= fcMaxValue) {
+      toast.error("La FC de repos doit être inférieure à la FC Max");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
         .from("user_profiles")
         .update({ 
           vma: vmaValue,
-          fc_max: fcMaxValue 
+          fc_max: fcMaxValue,
+          fc_repos: fcReposValue
         })
         .eq("id", athleteId);
 
@@ -76,6 +95,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
 
       setVma(vmaValue);
       setFcMax(fcMaxValue);
+      setFcRepos(fcReposValue);
       setIsEditing(false);
       toast.success("Données mises à jour !");
       
@@ -94,6 +114,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
   const handleCancel = () => {
     setVmaInputValue(vma?.toString() || "");
     setFcMaxInputValue(fcMax?.toString() || "");
+    setFcReposInputValue(fcRepos?.toString() || "");
     setIsEditing(false);
   };
 
@@ -115,7 +136,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       <CardContent>
         {isEditing ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vma" className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
@@ -156,6 +177,26 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
                   Entre 100 et 250 bpm
                 </p>
               </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="fcrepos" className="flex items-center gap-2">
+                  <HeartPulse className="h-4 w-4 text-blue-500" />
+                  FC Repos (bpm)
+                </Label>
+                <Input
+                  id="fcrepos"
+                  type="number"
+                  min="30"
+                  max="120"
+                  value={fcReposInputValue}
+                  onChange={(e) => setFcReposInputValue(e.target.value)}
+                  placeholder="Ex: 55"
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Entre 30 et 120 bpm
+                </p>
+              </div>
             </div>
             
             <div className="flex gap-2">
@@ -181,7 +222,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Activity className="h-4 w-4 text-primary" />
@@ -210,6 +251,25 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
                 <div className="flex items-baseline gap-1">
                   <span className="text-2xl font-bold text-red-500">
                     {fcMax}
+                  </span>
+                  <span className="text-sm text-muted-foreground">bpm</span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Non renseignée
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <HeartPulse className="h-4 w-4 text-blue-500" />
+                FC Repos
+              </div>
+              {fcRepos ? (
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-blue-500">
+                    {fcRepos}
                   </span>
                   <span className="text-sm text-muted-foreground">bpm</span>
                 </div>
