@@ -3,11 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, CheckCircle2, Clock } from "lucide-react";
+import { ChevronRight, CheckCircle2, Clock, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { getWeekNumber, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
-
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 export default function Seances() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
@@ -17,6 +29,24 @@ export default function Seances() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingCustomSession, setEditingCustomSession] = useState<any>(null);
+
+  const handleDeleteCustomSession = async (sessionId: string) => {
+    try {
+      const { error } = await supabase
+        .from("custom_sessions")
+        .delete()
+        .eq("id", sessionId);
+
+      if (error) throw error;
+      
+      toast.success("Séance perso supprimée");
+      loadCustomSessions();
+    } catch (error) {
+      console.error("Erreur suppression:", error);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
 
   useEffect(() => {
     loadWeeks();
@@ -297,9 +327,13 @@ export default function Seances() {
               })
             )}
 
-            {/* Bouton pour ajouter une séance perso */}
+            {/* Bouton pour ajouter une séance perso + Dialog d'édition */}
             <div className="mt-4 sm:mt-6">
-              <CustomSessionDialog onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} />
+              <CustomSessionDialog 
+                onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} 
+                editSession={editingCustomSession}
+                onClose={() => setEditingCustomSession(null)}
+              />
             </div>
 
             {/* Séances perso de la semaine */}
@@ -326,7 +360,7 @@ export default function Seances() {
                     .map((customSession) => (
                       <Card key={customSession.id} className="border-primary/30 bg-primary/5">
                         <CardContent className="p-4 sm:p-5">
-                          <div className="flex items-start justify-between">
+                          <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
@@ -348,6 +382,48 @@ export default function Seances() {
                                   {customSession.description}
                                 </p>
                               )}
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCustomSession(customSession);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Supprimer cette séance ?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Cette action est irréversible. La séance "{customSession.session_name}" sera définitivement supprimée.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                    <AlertDialogAction 
+                                      onClick={() => handleDeleteCustomSession(customSession.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Supprimer
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
                         </CardContent>

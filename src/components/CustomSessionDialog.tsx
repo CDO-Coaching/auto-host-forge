@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CalendarIcon } from "lucide-react";
+import { Plus, CalendarIcon, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -20,17 +20,53 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
-interface CustomSessionDialogProps {
-  onSessionCreated?: () => void;
+interface CustomSession {
+  id: string;
+  session_name: string;
+  description: string | null;
+  duration_minutes: number;
+  completed_at: string;
 }
 
-export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogProps) {
+interface CustomSessionDialogProps {
+  onSessionCreated?: () => void;
+  editSession?: CustomSession | null;
+  onClose?: () => void;
+}
+
+export function CustomSessionDialog({ onSessionCreated, editSession, onClose }: CustomSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
+
+  // Sync open state when editSession changes
+  useEffect(() => {
+    if (editSession) {
+      setOpen(true);
+      setSessionName(editSession.session_name);
+      setDescription(editSession.description || "");
+      setDuration(editSession.duration_minutes.toString());
+      setSelectedDate(new Date(editSession.completed_at));
+    }
+  }, [editSession]);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      resetForm();
+      onClose?.();
+    }
+  };
+
+  const resetForm = () => {
+    setSessionName("");
+    setDescription("");
+    setDuration("");
+    setSelectedDate(new Date());
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,23 +87,37 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
-      const { error } = await supabase
-        .from("custom_sessions")
-        .insert({
-          user_id: user.id,
-          session_name: sessionName.trim(),
-          description: description.trim() || null,
-          duration_minutes: durationValue,
-          completed_at: selectedDate.toISOString(),
-        });
+      if (editSession) {
+        // Update existing session
+        const { error } = await supabase
+          .from("custom_sessions")
+          .update({
+            session_name: sessionName.trim(),
+            description: description.trim() || null,
+            duration_minutes: durationValue,
+            completed_at: selectedDate.toISOString(),
+          })
+          .eq("id", editSession.id);
 
-      if (error) throw error;
+        if (error) throw error;
+        toast.success("Séance perso modifiée !");
+      } else {
+        // Create new session
+        const { error } = await supabase
+          .from("custom_sessions")
+          .insert({
+            user_id: user.id,
+            session_name: sessionName.trim(),
+            description: description.trim() || null,
+            duration_minutes: durationValue,
+            completed_at: selectedDate.toISOString(),
+          });
 
-      toast.success("Séance perso enregistrée !");
-      setSessionName("");
-      setDescription("");
-      setDuration("");
-      setSelectedDate(new Date());
+        if (error) throw error;
+        toast.success("Séance perso enregistrée !");
+      }
+
+      resetForm();
       setOpen(false);
       onSessionCreated?.();
     } catch (error) {
@@ -78,19 +128,26 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
     }
   };
 
+  const isEditing = !!editSession;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2 w-full sm:w-auto text-sm sm:text-base">
-          <Plus className="h-4 w-4" />
-          Ajouter une séance perso
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      {!isEditing && (
+        <DialogTrigger asChild>
+          <Button className="gap-2 w-full sm:w-auto text-sm sm:text-base">
+            <Plus className="h-4 w-4" />
+            Ajouter une séance perso
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto mx-4">
         <DialogHeader>
-          <DialogTitle>Créer une séance perso</DialogTitle>
+          <DialogTitle>{isEditing ? "Modifier la séance perso" : "Créer une séance perso"}</DialogTitle>
           <DialogDescription>
-            Enregistre une séance supplémentaire que tu as réalisée en dehors du programme
+            {isEditing 
+              ? "Modifie les informations de ta séance personnelle"
+              : "Enregistre une séance supplémentaire que tu as réalisée en dehors du programme"
+            }
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -164,13 +221,13 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
             <Button
               type="button"
               variant="outline"
-              onClick={() => setOpen(false)}
+              onClick={() => handleOpenChange(false)}
               disabled={submitting}
             >
               Annuler
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Enregistrement..." : "Enregistrer"}
+              {submitting ? "Enregistrement..." : isEditing ? "Modifier" : "Enregistrer"}
             </Button>
           </div>
         </form>

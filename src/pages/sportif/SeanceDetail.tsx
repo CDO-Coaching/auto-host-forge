@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -30,6 +30,18 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 
 export default function SeanceDetail() {
   const { weekId, sessionId } = useParams();
@@ -47,6 +59,13 @@ export default function SeanceDetail() {
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  
+  // États pour l'édition des feedbacks
+  const [editFeedbackDialogOpen, setEditFeedbackDialogOpen] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<any>(null);
+  const [editRpe, setEditRpe] = useState("");
+  const [editComment, setEditComment] = useState("");
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   // Charger la VMA de l'athlète
   useEffect(() => {
@@ -480,6 +499,66 @@ export default function SeanceDetail() {
     setSelectedCardioExercise(null);
   };
 
+  // Fonctions pour l'édition des feedbacks
+  const handleOpenEditFeedback = (exercise: any, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setEditingExercise(exercise);
+    setEditRpe(exercise.sportif_rpe?.toString() || "");
+    setEditComment(exercise.sportif_comment || "");
+    setEditFeedbackDialogOpen(true);
+  };
+
+  const handleSaveEditFeedback = async () => {
+    if (!editingExercise) return;
+
+    const rpeValue = editRpe.trim();
+    
+    if (rpeValue) {
+      const rpeNumber = Number(rpeValue);
+      
+      if (isNaN(rpeNumber) || !Number.isInteger(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
+        toast({
+          title: "RPE invalide",
+          description: "Le RPE doit être un chiffre rond entre 1 et 10",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setIsEditSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from("session_exercises")
+        .update({
+          sportif_rpe: rpeValue ? parseInt(rpeValue) : null,
+          sportif_comment: editComment.trim() || null,
+          sportif_feedback_at: new Date().toISOString(),
+        })
+        .eq("id", editingExercise.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Modifié !",
+        description: "Ton retour a été mis à jour",
+      });
+
+      setEditFeedbackDialogOpen(false);
+      setEditingExercise(null);
+      loadSessionDetail();
+    } catch (error) {
+      console.error("Erreur lors de la modification:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le retour",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
   const handleInvalidateSession = async () => {
     // Récupérer tous les IDs des exercices de la séance
     const exerciseIds = exercises.flatMap((item: any) => {
@@ -720,20 +799,30 @@ export default function SeanceDetail() {
 
                             {isCompleted && allCompleted && (
                               <>
-                                <div className="flex items-center gap-2 text-xs flex-wrap border-t pt-2">
-                                  <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                    RPE ressenti: {ex.sportif_rpe || "-"}
-                                  </Badge>
-                                  {ex.sportif_feedback_at && (
-                                    <span className="text-muted-foreground">
-                                      {new Date(ex.sportif_feedback_at).toLocaleDateString("fr-FR", {
-                                        day: "2-digit",
-                                        month: "2-digit",
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      })}
-                                    </span>
-                                  )}
+                                <div className="flex items-center justify-between gap-2 border-t pt-2">
+                                  <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
+                                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                      RPE ressenti: {ex.sportif_rpe || "-"}
+                                    </Badge>
+                                    {ex.sportif_feedback_at && (
+                                      <span className="text-muted-foreground">
+                                        {new Date(ex.sportif_feedback_at).toLocaleDateString("fr-FR", {
+                                          day: "2-digit",
+                                          month: "2-digit",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                        })}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 flex-shrink-0"
+                                    onClick={(e) => handleOpenEditFeedback(ex, e)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
                                 </div>
                                 {ex.sportif_comment && (
                                   <p className="text-xs text-muted-foreground italic">💬 {ex.sportif_comment}</p>
@@ -955,20 +1044,30 @@ export default function SeanceDetail() {
 
                         {isCompleted && allCompleted && (
                           <div className="border-t pt-3 space-y-2">
-                            <div className="flex items-center gap-2 text-xs flex-wrap">
-                              <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                RPE ressenti: {item.sportif_rpe || "-"}
-                              </Badge>
-                              {item.sportif_feedback_at && (
-                                <span className="text-muted-foreground">
-                                  {new Date(item.sportif_feedback_at).toLocaleDateString("fr-FR", {
-                                    day: "2-digit",
-                                    month: "2-digit",
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              )}
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
+                                <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                  RPE ressenti: {item.sportif_rpe || "-"}
+                                </Badge>
+                                {item.sportif_feedback_at && (
+                                  <span className="text-muted-foreground">
+                                    {new Date(item.sportif_feedback_at).toLocaleDateString("fr-FR", {
+                                      day: "2-digit",
+                                      month: "2-digit",
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 flex-shrink-0"
+                                onClick={(e) => handleOpenEditFeedback(item, e)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                             {item.sportif_comment && (
                               <p className="text-xs text-muted-foreground italic">💬 {item.sportif_comment}</p>
@@ -1025,6 +1124,62 @@ export default function SeanceDetail() {
         onValidate={handleCardioFeedback}
         onCancel={handleCancelCardioFeedback}
       />
+
+      {/* Dialog d'édition des feedbacks */}
+      <Dialog open={editFeedbackDialogOpen} onOpenChange={setEditFeedbackDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Modifier le retour</DialogTitle>
+            <DialogDescription>
+              {editingExercise?.exercice ? `Modifier ton retour pour ${editingExercise.exercice}` : "Modifier ton retour"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="edit-rpe">RPE ressenti (1-10)</Label>
+                <RPEExplanationDialog />
+              </div>
+              <Input
+                id="edit-rpe"
+                type="number"
+                min="1"
+                max="10"
+                placeholder="Ex: 8"
+                value={editRpe}
+                onChange={(e) => setEditRpe(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-comment">Commentaires</Label>
+              <Textarea
+                id="edit-comment"
+                placeholder="Comment t'es-tu senti pendant l'exercice ?"
+                value={editComment}
+                onChange={(e) => setEditComment(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setEditFeedbackDialogOpen(false)} 
+              disabled={isEditSubmitting}
+              className="w-full sm:w-auto"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleSaveEditFeedback} 
+              disabled={isEditSubmitting}
+              className="w-full sm:w-auto"
+            >
+              {isEditSubmitting ? "Enregistrement..." : "Enregistrer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
