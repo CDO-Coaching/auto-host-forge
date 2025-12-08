@@ -11,9 +11,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus } from "lucide-react";
+import { Plus, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface CustomSessionDialogProps {
   onSessionCreated?: () => void;
@@ -24,6 +29,7 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,6 +58,7 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
           session_name: sessionName.trim(),
           description: description.trim() || null,
           duration_minutes: durationValue,
+          completed_at: selectedDate.toISOString(),
         });
 
       if (error) throw error;
@@ -60,6 +67,7 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
       setSessionName("");
       setDescription("");
       setDuration("");
+      setSelectedDate(new Date());
       setOpen(false);
       onSessionCreated?.();
     } catch (error) {
@@ -96,6 +104,34 @@ export function CustomSessionDialog({ onSessionCreated }: CustomSessionDialogPro
               maxLength={100}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Date de la séance *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "EEEE d MMMM yyyy", { locale: fr }) : "Choisir une date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  disabled={(date) => date > new Date()}
+                  initialFocus
+                  locale={fr}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
