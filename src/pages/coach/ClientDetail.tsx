@@ -123,6 +123,7 @@ export default function ClientDetail() {
   const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
+  const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [activeTab, setActiveTab] = useState("programmation");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
@@ -1485,25 +1486,31 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
-          {/* Panneau collapsible Progression des exercices */}
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" className="w-full justify-between group">
-                <div className="flex items-center gap-2">
-                  <Dumbbell className="h-4 w-4 text-primary" />
-                  <span>Progression des exercices</span>
-                </div>
-                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+          {/* Bouton flottant Progression des exercices */}
+          <Sheet open={showExerciseProgressSheet} onOpenChange={setShowExerciseProgressSheet}>
+            <SheetTrigger asChild>
+              <Button
+                variant="default"
+                className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-primary/90 hover:bg-primary transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
+              >
+                <ChevronLeft className="h-3 w-3" />
+                <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
+                  Exercices
+                </span>
               </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <Card className="border-primary/20">
-                <CardContent className="pt-4">
-                  <CoachExerciseProgressPanel athleteId={athleteId!} />
-                </CardContent>
-              </Card>
-            </CollapsibleContent>
-          </Collapsible>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle className="flex items-center gap-2">
+                  <Dumbbell className="h-5 w-5 text-primary" />
+                  Progression des exercices
+                </SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <CoachExerciseProgressPanel athleteId={athleteId!} />
+              </div>
+            </SheetContent>
+          </Sheet>
 
           {/* Alerte de fatigue */}
           {athlete && (
