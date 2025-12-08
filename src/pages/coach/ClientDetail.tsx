@@ -21,6 +21,7 @@ import {
   Target,
   ChevronLeft,
   GripVertical,
+  Dumbbell,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -1483,6 +1484,29 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
+          {/* Panneau collapsible Suivi Renfo */}
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <div className="flex items-center gap-2">
+                  <Dumbbell className="h-4 w-4 text-primary" />
+                  <span>Suivi renforcement</span>
+                </div>
+                <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <Card className="border-primary/20">
+                <CardContent className="pt-4 max-h-[400px] overflow-y-auto">
+                  <CoachStrengthView 
+                    athleteId={athleteId!} 
+                    athleteName={athlete?.first_name || "l'athlète"} 
+                  />
+                </CardContent>
+              </Card>
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Alerte de fatigue */}
           {athlete && (
             <CoachFatigueAlert 
