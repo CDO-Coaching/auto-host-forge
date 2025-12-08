@@ -47,6 +47,7 @@ import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
 import { CoachCyclingView } from "@/components/CoachCyclingView";
 import { CoachSwimmingView } from "@/components/CoachSwimmingView";
+import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
@@ -1466,6 +1467,7 @@ export default function ClientDetail() {
           <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
               <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
+              <TabsTrigger value="renfo" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Renfo</TabsTrigger>
               <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
@@ -3238,6 +3240,13 @@ export default function ClientDetail() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="renfo" className="space-y-4">
+          <CoachStrengthView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
         </TabsContent>
 
         <TabsContent value="max" className="space-y-4">
