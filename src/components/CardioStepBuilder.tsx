@@ -8,14 +8,17 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { WALKING_SPEED_KMH, WALKING_PACE } from "@/lib/cardioCalculations";
 
+export type CardioSportType = "course" | "velo" | "natation";
+
 export interface CardioStep {
   id: number;
-  movement_type: "course" | "marche";
+  movement_type: "course" | "marche" | "velo" | "natation";
   effort_type: "duration" | "distance";
   duration?: number; // en secondes
   distance?: number; // en nombre (selon l'unité)
   distance_unit?: "m" | "km";
-  vma_percentage?: number; // pourcentage de VMA (ex: 65)
+  vma_percentage?: number; // pourcentage de VMA (ex: 65) - pour course
+  rpe?: number; // RPE 1-10 - pour vélo/natation
   target_heart_rate?: string; // ex: "150" ou "Zone 3"
   block_id?: number; // ID du bloc auquel appartient cette étape
 }
@@ -37,9 +40,17 @@ interface CardioStepBuilderProps {
   onChange: (data: CardioData) => void;
   athleteVma?: number | null;
   disabled?: boolean;
+  sportType?: CardioSportType;
 }
 
-export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange, athleteVma, disabled = false }: CardioStepBuilderProps) {
+export function CardioStepBuilder({ 
+  steps, 
+  blocks: initialBlocks = [], 
+  onChange, 
+  athleteVma, 
+  disabled = false,
+  sportType = "course"
+}: CardioStepBuilderProps) {
   const [blocks, setBlocks] = useState<CardioBlock[]>(initialBlocks);
   const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
   const [draggedStepId, setDraggedStepId] = useState<number | null>(null);
@@ -56,13 +67,20 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
     return `${minutes}:${seconds.toString().padStart(2, '0')}/km`;
   };
 
+  const getDefaultMovementType = (): CardioStep["movement_type"] => {
+    if (sportType === "velo") return "velo";
+    if (sportType === "natation") return "natation";
+    return "course";
+  };
+
   const handleAddStep = () => {
+    const defaultMovement = getDefaultMovementType();
     const newStep: CardioStep = {
       id: steps.length > 0 ? Math.max(...steps.map(s => s.id)) + 1 : 1,
-      movement_type: "course",
+      movement_type: defaultMovement,
       effort_type: "duration",
       duration: 600, // 10 minutes par défaut
-      vma_percentage: 70,
+      ...(sportType === "course" ? { vma_percentage: 70 } : { rpe: 5 }),
       target_heart_rate: "",
     };
     onChange({ steps: [...steps, newStep], blocks });
@@ -84,7 +102,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
             delete updatedStep.distance;
             delete updatedStep.distance_unit;
           } else {
-            updatedStep.distance = 1000;
+            updatedStep.distance = sportType === "natation" ? 100 : 1000;
             updatedStep.distance_unit = "m";
             delete updatedStep.duration;
           }
@@ -93,6 +111,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
         // Si on passe en marche, on retire le pourcentage VMA (allure fixe)
         if (field === "movement_type" && value === "marche") {
           delete updatedStep.vma_percentage;
+          delete updatedStep.rpe;
         }
         
         return updatedStep;
@@ -213,6 +232,37 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
     toast.success("Étape réorganisée");
   };
 
+  const getSportLabel = () => {
+    if (sportType === "velo") return "Vélo";
+    if (sportType === "natation") return "Natation";
+    return "Course";
+  };
+
+  const getMovementOptions = () => {
+    if (sportType === "course") {
+      return [
+        { value: "course", label: "Course à pied" },
+        { value: "marche", label: "Marche" },
+      ];
+    }
+    if (sportType === "velo") {
+      return [
+        { value: "velo", label: "Vélo" },
+      ];
+    }
+    if (sportType === "natation") {
+      return [
+        { value: "natation", label: "Natation" },
+      ];
+    }
+    return [];
+  };
+
+  const getDistanceUnit = () => {
+    if (sportType === "natation") return "m"; // La natation utilise principalement les mètres
+    return "km";
+  };
+
   return (
     <div className="space-y-3 sm:space-y-4">
       {selectedSteps.length >= 2 && !disabled && (
@@ -236,6 +286,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
         steps.map((step, index) => {
           const stepBlock = getStepBlock(step.id);
           const isFirstInBlock = stepBlock && stepBlock.steps[0]?.id === step.id;
+          const isRunning = sportType === "course";
           
           return (
             <div key={step.id}>
@@ -314,26 +365,29 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                   </div>
 
               <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                {/* Type de mouvement */}
-                <div>
-                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Mouvement</label>
-                  <Select
-                    value={step.movement_type}
-                    onValueChange={(value) => handleStepChange(step.id, "movement_type", value)}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="course">Course à pied</SelectItem>
-                      <SelectItem value="marche">Marche</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                {/* Type de mouvement - uniquement pour course */}
+                {isRunning && (
+                  <div>
+                    <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Mouvement</label>
+                    <Select
+                      value={step.movement_type}
+                      onValueChange={(value) => handleStepChange(step.id, "movement_type", value)}
+                      disabled={disabled}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getMovementOptions().map(option => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 {/* Type d'effort */}
-                <div>
+                <div className={!isRunning ? "col-span-2" : ""}>
                   <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Effort</label>
                   <Select
                     value={step.effort_type}
@@ -371,7 +425,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                       type="number"
                       value={step.distance || ""}
                       onChange={(e) => handleStepChange(step.id, "distance", parseFloat(e.target.value) || 0)}
-                      placeholder="ex: 1000"
+                      placeholder={sportType === "natation" ? "ex: 100" : "ex: 1000"}
                       disabled={disabled}
                     />
                   </div>
@@ -387,7 +441,7 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="m">Mètres</SelectItem>
-                        <SelectItem value="km">Kilomètres</SelectItem>
+                        {sportType !== "natation" && <SelectItem value="km">Kilomètres</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
@@ -395,46 +449,78 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
               )}
 
               <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                {/* Objectif % VMA ou Allure de marche */}
+                {/* Objectif % VMA (course) ou RPE (vélo/natation) */}
                 <div>
-                  {step.movement_type === "marche" ? (
-                    <>
-                      <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Allure</label>
-                      <div className="p-2 sm:p-3 bg-muted rounded-md">
-                        <span className="font-medium text-foreground text-xs sm:text-sm">{WALKING_PACE}</span>
-                        <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED_KMH} km/h)</span>
-                      </div>
-                    </>
+                  {isRunning ? (
+                    step.movement_type === "marche" ? (
+                      <>
+                        <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Allure</label>
+                        <div className="p-2 sm:p-3 bg-muted rounded-md">
+                          <span className="font-medium text-foreground text-xs sm:text-sm">{WALKING_PACE}</span>
+                          <span className="text-xs text-muted-foreground ml-2">(~{WALKING_SPEED_KMH} km/h)</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
+                          % VMA
+                          {athleteVma && (
+                            <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">
+                              ({athleteVma} km/h)
+                            </span>
+                          )}
+                        </label>
+                        <div className="space-y-1 sm:space-y-2">
+                          <Input
+                            type="number"
+                            min="30"
+                            max="120"
+                            value={step.vma_percentage || ""}
+                            onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
+                            placeholder="65"
+                            disabled={disabled || !athleteVma}
+                            className="text-sm"
+                          />
+                          {athleteVma ? (
+                            <div className="text-xs sm:text-sm text-muted-foreground">
+                              Allure: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
+                            </div>
+                          ) : (
+                            <div className="text-xs text-destructive">
+                              VMA non renseignée
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )
                   ) : (
+                    // RPE pour vélo/natation
                     <>
                       <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
-                        % VMA
-                        {athleteVma && (
-                          <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">
-                            ({athleteVma} km/h)
-                          </span>
-                        )}
+                        RPE (intensité)
+                        <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">
+                          (1-10)
+                        </span>
                       </label>
                       <div className="space-y-1 sm:space-y-2">
                         <Input
                           type="number"
-                          min="30"
-                          max="120"
-                          value={step.vma_percentage || ""}
-                          onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
-                          placeholder="65"
-                          disabled={disabled || !athleteVma}
+                          min="1"
+                          max="10"
+                          value={step.rpe || ""}
+                          onChange={(e) => handleStepChange(step.id, "rpe", parseInt(e.target.value) || 0)}
+                          placeholder="5"
+                          disabled={disabled}
                           className="text-sm"
                         />
-                        {athleteVma ? (
-                          <div className="text-xs sm:text-sm text-muted-foreground">
-                            Allure: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
-                          </div>
-                        ) : (
-                          <div className="text-xs text-destructive">
-                            VMA non renseignée
-                          </div>
-                        )}
+                        <div className="text-xs text-muted-foreground">
+                          {step.rpe ? (
+                            step.rpe <= 3 ? "Facile" :
+                            step.rpe <= 5 ? "Modéré" :
+                            step.rpe <= 7 ? "Difficile" :
+                            "Très difficile"
+                          ) : "-"}
+                        </div>
                       </div>
                     </>
                   )}
@@ -442,33 +528,31 @@ export function CardioStepBuilder({ steps, blocks: initialBlocks = [], onChange,
 
                 {/* Objectif de fréquence cardiaque */}
                 <div>
-                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">FC cible</label>
+                  <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">
+                    FC cible
+                    <span className="text-[10px] sm:text-xs text-muted-foreground ml-1">(optionnel)</span>
+                  </label>
                   <Input
                     type="text"
                     value={step.target_heart_rate || ""}
                     onChange={(e) => handleStepChange(step.id, "target_heart_rate", e.target.value)}
-                    placeholder="150 bpm"
+                    placeholder="ex: 150 ou Zone 3"
                     disabled={disabled}
                     className="text-sm"
                   />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
             </div>
           );
         })
       )}
 
       {!disabled && (
-        <Button
-          onClick={handleAddStep}
-          variant="outline"
-          className="w-full text-xs sm:text-sm"
-        >
+        <Button onClick={handleAddStep} variant="outline" className="w-full text-xs sm:text-sm">
           <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-          <span className="hidden sm:inline">Ajouter une étape</span>
-          <span className="sm:hidden">Ajouter étape</span>
+          Ajouter une étape
         </Button>
       )}
     </div>
