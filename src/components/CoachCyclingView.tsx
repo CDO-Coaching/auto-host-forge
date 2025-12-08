@@ -20,6 +20,7 @@ interface CardioSessionData {
   actualAverageSpeed: number | null;
   actualAverageHeartRate: number | null;
   actualAverageRpe: number | null;
+  actualIntensityFcMax: number | null;
 }
 
 interface PlannedVolume {
@@ -37,6 +38,7 @@ interface CoachCyclingViewProps {
 export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewProps) {
   const [loading, setLoading] = useState(true);
   const [cardioSessions, setCardioSessions] = useState<CardioSessionData[]>([]);
+  const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [plannedVolume, setPlannedVolume] = useState<PlannedVolume | null>(null);
 
   useEffect(() => {
@@ -113,6 +115,18 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
 
   const loadData = async () => {
     setLoading(true);
+
+    // Charger la FCmax de l'athlète
+    const { data: profileData } = await supabase
+      .from("user_profiles")
+      .select("fc_max")
+      .eq("id", athleteId)
+      .single();
+    
+    if (profileData?.fc_max) {
+      setAthleteFcMax(profileData.fc_max);
+    }
+    const fcMax = profileData?.fc_max || null;
 
     await loadPlannedVolume(athleteId);
 
@@ -226,6 +240,10 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             const currentHRCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
             const currentHRSum = (existing.actualAverageHeartRate || 0) * currentHRCount;
             existing.actualAverageHeartRate = Math.round((currentHRSum + actualHeartRate) / (currentHRCount + 1));
+            // Recalculer intensité FC/FCmax
+            if (fcMax) {
+              existing.actualIntensityFcMax = Math.round((existing.actualAverageHeartRate / fcMax) * 100);
+            }
           }
           
           if (actualRpe > 0) {
@@ -235,6 +253,11 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           }
         }
       } else {
+        // Calculer intensité FC/FCmax initiale
+        const intensityFcMax = (actualHeartRate > 0 && fcMax) 
+          ? Math.round((actualHeartRate / fcMax) * 100) 
+          : null;
+          
         weeklyData.set(weekKey, {
           week: weekKey,
           weekNumber,
@@ -249,7 +272,8 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           actualSessionCount: isValidated ? 1 : 0,
           actualAverageSpeed: actualSpeed > 0 ? actualSpeed : null,
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
-          actualAverageRpe: actualRpe > 0 ? actualRpe : null
+          actualAverageRpe: actualRpe > 0 ? actualRpe : null,
+          actualIntensityFcMax: intensityFcMax
         });
       }
     });
@@ -308,10 +332,15 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       }
     : null;
 
-  const intensityChangeVsPlanned = lastWeek && previousWeek && previousWeek.actualAverageIntensity > 0
+  // Comparaison intensité basée sur FC/FCmax
+  const sessionsWithIntensity = cardioSessions.filter(s => s.actualIntensityFcMax !== null);
+  const lastWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 1];
+  const previousWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 2];
+  
+  const intensityChangeVsPlanned = lastWeekWithIntensity && previousWeekWithIntensity && previousWeekWithIntensity.actualIntensityFcMax
     ? {
-        value: Math.abs(((lastWeek.plannedAverageIntensity - previousWeek.actualAverageIntensity) / previousWeek.actualAverageIntensity) * 100),
-        isIncrease: lastWeek.plannedAverageIntensity >= previousWeek.actualAverageIntensity
+        value: Math.abs(((lastWeekWithIntensity.actualIntensityFcMax! - previousWeekWithIntensity.actualIntensityFcMax) / previousWeekWithIntensity.actualIntensityFcMax) * 100),
+        isIncrease: lastWeekWithIntensity.actualIntensityFcMax! >= previousWeekWithIntensity.actualIntensityFcMax
       }
     : null;
 
@@ -495,41 +524,52 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Intensité moyenne par semaine</CardTitle>
-            {intensityChangeVsPlanned && previousWeek && (
+            <CardTitle>Intensité moyenne par semaine (FC / FCmax)</CardTitle>
+            {athleteFcMax ? (
+              intensityChangeVsPlanned && previousWeekWithIntensity && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {previousWeekWithIntensity.actualIntensityFcMax}% FCmax ({previousWeekWithIntensity.week}) vs {lastWeekWithIntensity?.actualIntensityFcMax}% FCmax ({lastWeekWithIntensity?.week})
+                  <span className={intensityChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
+                    {intensityChangeVsPlanned.isIncrease ? "↑" : "↓"} {intensityChangeVsPlanned.value.toFixed(1)}%
+                  </span>
+                </p>
+              )
+            ) : (
               <p className="text-sm text-muted-foreground mt-1">
-                {previousWeek.actualAverageIntensity}% RPE réalisé vs {lastWeek.plannedAverageIntensity}% RPE programmé
-                <span className={intensityChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
-                  {intensityChangeVsPlanned.isIncrease ? "↑" : "↓"} {intensityChangeVsPlanned.value.toFixed(1)}%
-                </span>
+                FCmax non renseignée pour cet athlète
               </p>
             )}
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip 
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
-                          <p className="text-sm text-yellow-600">Programmée: {payload[0].payload.plannedAverageIntensity}% RPE</p>
-                          <p className="text-sm text-green-600">Réalisée: {payload[0].payload.actualAverageIntensity}% RPE</p>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="plannedAverageIntensity" fill="hsl(48 100% 50%)" name="Programmée (% RPE)" />
-                <Bar dataKey="actualAverageIntensity" fill="hsl(142 71% 45%)" name="Réalisée (% RPE)" />
-              </BarChart>
-            </ResponsiveContainer>
+            {athleteFcMax ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={cardioSessions.filter(s => s.actualIntensityFcMax !== null)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <YAxis domain={[0, 100]} />
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border rounded-lg p-3 shadow-lg">
+                            <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                            <p className="text-sm text-green-600">Intensité: {payload[0].payload.actualIntensityFcMax}% FCmax</p>
+                            <p className="text-sm text-muted-foreground">FC moy: {payload[0].payload.actualAverageHeartRate} bpm</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="actualIntensityFcMax" fill="hsl(0 84% 60%)" name="Intensité (% FCmax)" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                <p>Renseignez la FCmax de l'athlète dans l'onglet "Max" pour afficher ce graphique</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
