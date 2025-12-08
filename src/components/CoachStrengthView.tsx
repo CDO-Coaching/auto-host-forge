@@ -3,8 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, TrendingUp, Activity, Target, Calendar } from "lucide-react";
+import { Dumbbell, TrendingUp, Activity, Target, Calendar, Search } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
+import { Input } from "@/components/ui/input";
 
 interface WeeklyStrengthData {
   week: string;
@@ -40,6 +41,7 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgressData[]>([]);
   const [recentExercises, setRecentExercises] = useState<string[]>([]);
+  const [exerciseSearch, setExerciseSearch] = useState("");
 
   useEffect(() => {
     loadData();
@@ -530,10 +532,21 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
             <p className="text-sm text-muted-foreground">
               Seuls les exercices programmés ces 2 dernières semaines sont affichés
             </p>
+            <div className="relative mt-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un exercice..."
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {exerciseProgress.map((exercise) => {
+              {exerciseProgress
+                .filter((ex) => ex.exerciseName.toLowerCase().includes(exerciseSearch.toLowerCase()))
+                .map((exercise) => {
                 const lastWeekData = exercise.weeks[exercise.weeks.length - 1];
                 const previousWeekData = exercise.weeks[exercise.weeks.length - 2];
                 const chargeChange = previousWeekData
