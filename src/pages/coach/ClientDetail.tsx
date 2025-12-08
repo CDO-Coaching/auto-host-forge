@@ -79,7 +79,7 @@ interface Exercise {
   rpe: string;
   tempo: string;
   commentaire: string;
-  cardio_sport?: "course" | "natation" | "vélo" | "yoga" | "hiit" | "";
+  cardio_sport?: "course" | "natation" | "velo" | "yoga" | "hiit" | "";
   cardio_content?: string;
   cardio_pace?: string;
   super_set_group?: string | null;
@@ -1919,11 +1919,41 @@ export default function ClientDetail() {
                                         console.error("Erreur lors du parsing de cardio_content:", e);
                                       }
 
+                                      const currentSportType = (exercise.cardio_sport === "velo" || exercise.cardio_sport === "natation" || exercise.cardio_sport === "course") 
+                                        ? exercise.cardio_sport 
+                                        : "course";
+
                                       return (
                                         <div
                                           key={exercise.id}
                                           className="space-y-3"
                                         >
+                                          {/* Sélecteur de sport cardio */}
+                                          <div className="flex items-center gap-3 flex-wrap">
+                                            <label className="text-sm font-medium">Type de sport :</label>
+                                            <Select
+                                              value={currentSportType}
+                                              onValueChange={(value: "course" | "velo" | "natation") => {
+                                                handleExerciseChange(session.id, exercise.id, "cardio_sport", value);
+                                                // Reset le contenu cardio quand on change de sport
+                                                handleExerciseChange(session.id, exercise.id, "cardio_content", JSON.stringify({ steps: [], blocks: [] }));
+                                                // Mettre à jour le nom de l'exercice
+                                                const sportLabels: Record<string, string> = { course: "Séance Course", velo: "Séance Vélo", natation: "Séance Natation" };
+                                                handleExerciseChange(session.id, exercise.id, "exercice", sportLabels[value]);
+                                              }}
+                                              disabled={isValidated}
+                                            >
+                                              <SelectTrigger className="w-[140px]">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="course">🏃 Course</SelectItem>
+                                                <SelectItem value="velo">🚴 Vélo</SelectItem>
+                                                <SelectItem value="natation">🏊 Natation</SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </div>
+
                                           <CardioStepBuilder
                                             steps={cardioData.steps}
                                             blocks={cardioData.blocks}
@@ -1937,6 +1967,7 @@ export default function ClientDetail() {
                                             }}
                                             athleteVma={athleteVma}
                                             disabled={isValidated}
+                                            sportType={currentSportType}
                                           />
                                           
                                           <div className="space-y-2">
@@ -3649,6 +3680,7 @@ export default function ClientDetail() {
                                                             );
                                                           }}
                                                           athleteVma={athleteVma}
+                                                          sportType={(exercise.cardio_sport === "velo" || exercise.cardio_sport === "natation" || exercise.cardio_sport === "course") ? exercise.cardio_sport : "course"}
                                                         />
                                                         
                                                         <div className="space-y-2 mt-3">

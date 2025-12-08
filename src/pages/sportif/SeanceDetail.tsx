@@ -623,8 +623,8 @@ export default function SeanceDetail() {
   // Trier les exercices en fonction de leur état de complétion
   const sortedExercises = getSortedExercises(exercises);
 
-  // Vérifier si c'est une séance cardio (course)
-  const isCardioSession = session.session_type === 'course' || exercises.some((ex: any) => ex.cardio_sport === 'course');
+  // Vérifier si c'est une séance cardio (course, vélo, natation)
+  const isCardioSession = session.session_type === 'course' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
   
   // Vérifier si c'est une séance de récup/mobilité
   const isRecupMobilitySession = session.session_type === 'recup';
