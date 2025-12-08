@@ -5,7 +5,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, CheckCircle2, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { getWeekNumber, formatWeekRangeFromNumber } from "@/lib/weekUtils";
+import { getWeekNumber, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 
 export default function Seances() {
@@ -305,9 +305,10 @@ export default function Seances() {
             {/* Séances perso de la semaine */}
             {selectedWeek && customSessions.filter(cs => {
               const sessionDate = new Date(cs.completed_at);
-              const weekStart = new Date(selectedWeek.year, 0, 1 + (selectedWeek.week_number - 1) * 7);
-              const weekEnd = new Date(weekStart);
-              weekEnd.setDate(weekStart.getDate() + 6);
+              const weekRefDate = getDateFromWeekNumber(selectedWeek.week_number, selectedWeek.year);
+              const weekStart = getMondayOfWeek(weekRefDate);
+              const weekEnd = getSundayOfWeek(weekRefDate);
+              weekEnd.setHours(23, 59, 59, 999);
               return sessionDate >= weekStart && sessionDate <= weekEnd;
             }).length > 0 && (
               <div className="mt-4 sm:mt-6">
@@ -316,9 +317,10 @@ export default function Seances() {
                   {customSessions
                     .filter(cs => {
                       const sessionDate = new Date(cs.completed_at);
-                      const weekStart = new Date(selectedWeek.year, 0, 1 + (selectedWeek.week_number - 1) * 7);
-                      const weekEnd = new Date(weekStart);
-                      weekEnd.setDate(weekStart.getDate() + 6);
+                      const weekRefDate = getDateFromWeekNumber(selectedWeek.week_number, selectedWeek.year);
+                      const weekStart = getMondayOfWeek(weekRefDate);
+                      const weekEnd = getSundayOfWeek(weekRefDate);
+                      weekEnd.setHours(23, 59, 59, 999);
                       return sessionDate >= weekStart && sessionDate <= weekEnd;
                     })
                     .map((customSession) => (
