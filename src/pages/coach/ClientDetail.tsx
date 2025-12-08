@@ -45,6 +45,8 @@ import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
+import { CoachCyclingView } from "@/components/CoachCyclingView";
+import { CoachSwimmingView } from "@/components/CoachSwimmingView";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
@@ -1468,6 +1470,8 @@ export default function ClientDetail() {
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="course" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Course</TabsTrigger>
+              <TabsTrigger value="velo" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Vélo</TabsTrigger>
+              <TabsTrigger value="natation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Natation</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
               <TabsTrigger value="historique" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Historique</TabsTrigger>
             </TabsList>
@@ -3259,6 +3263,20 @@ export default function ClientDetail() {
 
         <TabsContent value="course" className="space-y-4">
           <CoachRunningView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
+        </TabsContent>
+
+        <TabsContent value="velo" className="space-y-4">
+          <CoachCyclingView 
+            athleteId={athleteId!} 
+            athleteName={athlete.first_name || "l'athlète"} 
+          />
+        </TabsContent>
+
+        <TabsContent value="natation" className="space-y-4">
+          <CoachSwimmingView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
           />
