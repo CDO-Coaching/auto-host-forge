@@ -49,6 +49,7 @@ import { CoachRunningView } from "@/components/CoachRunningView";
 import { CoachCyclingView } from "@/components/CoachCyclingView";
 import { CoachSwimmingView } from "@/components/CoachSwimmingView";
 import { CoachStrengthView } from "@/components/CoachStrengthView";
+import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
@@ -1484,24 +1485,21 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
-          {/* Panneau collapsible Suivi Renfo */}
+          {/* Panneau collapsible Progression des exercices */}
           <Collapsible>
             <CollapsibleTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
+              <Button variant="outline" className="w-full justify-between group">
                 <div className="flex items-center gap-2">
                   <Dumbbell className="h-4 w-4 text-primary" />
-                  <span>Suivi renforcement</span>
+                  <span>Progression des exercices</span>
                 </div>
                 <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
               <Card className="border-primary/20">
-                <CardContent className="pt-4 max-h-[400px] overflow-y-auto">
-                  <CoachStrengthView 
-                    athleteId={athleteId!} 
-                    athleteName={athlete?.first_name || "l'athlète"} 
-                  />
+                <CardContent className="pt-4">
+                  <CoachExerciseProgressPanel athleteId={athleteId!} />
                 </CardContent>
               </Card>
             </CollapsibleContent>
