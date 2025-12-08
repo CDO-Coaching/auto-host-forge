@@ -1934,12 +1934,23 @@ export default function ClientDetail() {
                                             <Select
                                               value={currentSportType}
                                               onValueChange={(value: "course" | "velo" | "natation") => {
-                                                handleExerciseChange(session.id, exercise.id, "cardio_sport", value);
-                                                // Reset le contenu cardio quand on change de sport
-                                                handleExerciseChange(session.id, exercise.id, "cardio_content", JSON.stringify({ steps: [], blocks: [] }));
-                                                // Mettre à jour le nom de l'exercice
+                                                // Mettre à jour tous les champs en une seule fois pour éviter les conflits d'état
                                                 const sportLabels: Record<string, string> = { course: "Séance Course", velo: "Séance Vélo", natation: "Séance Natation" };
-                                                handleExerciseChange(session.id, exercise.id, "exercice", sportLabels[value]);
+                                                const currentExercises = sessionExercises[session.id] || [];
+                                                const updatedExercises = currentExercises.map((ex) => 
+                                                  ex.id === exercise.id 
+                                                    ? { 
+                                                        ...ex, 
+                                                        cardio_sport: value,
+                                                        cardio_content: JSON.stringify({ steps: [], blocks: [] }),
+                                                        exercice: sportLabels[value]
+                                                      }
+                                                    : ex
+                                                );
+                                                setSessionExercises({
+                                                  ...sessionExercises,
+                                                  [session.id]: updatedExercises,
+                                                });
                                               }}
                                               disabled={isValidated}
                                             >
