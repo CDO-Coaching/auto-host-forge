@@ -1486,31 +1486,208 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
-          {/* Bouton flottant Progression des exercices */}
-          <Sheet open={showExerciseProgressSheet} onOpenChange={setShowExerciseProgressSheet}>
-            <SheetTrigger asChild>
-              <Button
-                variant="default"
-                className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-primary/90 hover:bg-primary transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
-              >
-                <ChevronLeft className="h-3 w-3" />
-                <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
-                  Exercices
-                </span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle className="flex items-center gap-2">
-                  <Dumbbell className="h-5 w-5 text-primary" />
-                  Progression des exercices
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-4">
-                <CoachExerciseProgressPanel athleteId={athleteId!} />
-              </div>
-            </SheetContent>
-          </Sheet>
+          {/* Boutons flottants en haut */}
+          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
+            {/* Bouton Exercices */}
+            <Sheet open={showExerciseProgressSheet} onOpenChange={setShowExerciseProgressSheet}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                >
+                  <Dumbbell className="h-4 w-4 mr-1 text-primary" />
+                  <span className="text-xs">Exercices</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Dumbbell className="h-5 w-5 text-primary" />
+                    Progression des exercices
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <CoachExerciseProgressPanel athleteId={athleteId!} />
+                </div>
+              </SheetContent>
+            </Sheet>
+
+            {/* Bouton Objectifs */}
+            {athleteObjectives && (athleteObjectives.main_objective || athleteObjectives.secondary_objective || athleteMilestones.length > 0) && (
+              <Sheet open={showObjectivesSheet} onOpenChange={setShowObjectivesSheet}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                  >
+                    <Target className="h-4 w-4 mr-1 text-primary" />
+                    <span className="text-xs">Objectifs</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Objectifs de {athlete?.first_name}
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-6">
+                    {/* Objectif Principal */}
+                    {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            <Target className="h-4 w-4 text-primary" />
+                            Objectif Principal
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm">{athleteObjectives.main_objective}</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground">Progression</span>
+                              <Badge variant="default" className="text-sm font-semibold">
+                                {(() => {
+                                  const today = new Date();
+                                  const deadline = new Date(athleteObjectives.main_objective_deadline);
+                                  const createdAt = athleteObjectives.created_at 
+                                    ? new Date(athleteObjectives.created_at)
+                                    : new Date();
+                                  
+                                  const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                  const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                  const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
+                                  
+                                  return `Semaine ${currentWeek} / ${totalWeeks}`;
+                                })()}
+                              </Badge>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-primary transition-all duration-300"
+                                style={{
+                                  width: `${(() => {
+                                    const today = new Date();
+                                    const deadline = new Date(athleteObjectives.main_objective_deadline);
+                                    const createdAt = athleteObjectives.created_at 
+                                      ? new Date(athleteObjectives.created_at)
+                                      : new Date();
+                                    
+                                    const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                    const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
+                                    
+                                    return Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100));
+                                  })()}%`
+                                }}
+                              />
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Échéance : {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR")}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {/* Objectif Secondaire */}
+                    {athleteObjectives.secondary_objective && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">Objectif Secondaire</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">{athleteObjectives.secondary_objective}</p>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Milestones */}
+                    {athleteMilestones.length > 0 && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-base">Dates clés</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {athleteMilestones.map((milestone) => (
+                              <div key={milestone.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
+                                <div className={`mt-1 h-3 w-3 rounded-full ${milestone.is_completed ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm">{milestone.label}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(milestone.target_date).toLocaleDateString("fr-FR")}
+                                  </p>
+                                  {milestone.notes && (
+                                    <p className="text-xs text-muted-foreground mt-1">{milestone.notes}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+
+            {/* Bouton Retours */}
+            {lastWeekData && (
+              <Sheet open={showFeedbackSheet} onOpenChange={setShowFeedbackSheet}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-1 text-primary" />
+                    <span className="text-xs">Retours</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5" />
+                      Retours de la dernière semaine
+                    </SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-6 space-y-4">
+                    {lastWeekData.sessions.map((session: any) => (
+                      <Card key={session.id}>
+                        <CardHeader className="py-3">
+                          <CardTitle className="text-sm flex items-center justify-between">
+                            <span>{session.name}</span>
+                            {session.sportif_rpe && (
+                              <Badge variant="outline">RPE: {session.sportif_rpe}</Badge>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="py-2">
+                          {session.session_exercises?.filter((ex: any) => ex.sportif_feedback).length > 0 ? (
+                            <div className="space-y-2">
+                              {session.session_exercises
+                                .filter((ex: any) => ex.sportif_feedback)
+                                .map((ex: any) => (
+                                  <div key={ex.id} className="text-sm p-2 bg-muted/50 rounded">
+                                    <span className="font-medium">{ex.exercice}</span>
+                                    <p className="text-muted-foreground text-xs mt-1">{ex.sportif_feedback}</p>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">Aucun retour pour cette séance</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+          </div>
 
           {/* Alerte de fatigue */}
           {athlete && (
@@ -1529,276 +1706,6 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* Bouton flottant pour les objectifs */}
-          {athleteObjectives && (athleteObjectives.main_objective || athleteObjectives.secondary_objective || athleteMilestones.length > 0) && (
-            <Sheet open={showObjectivesSheet} onOpenChange={setShowObjectivesSheet}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="default"
-                  className="fixed right-0 top-1/3 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-primary/90 hover:bg-primary transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                  <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
-                    Objectifs
-                  </span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:max-w-xl overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5" />
-                    Objectifs de {athlete?.first_name}
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="mt-6 space-y-6">
-                  {/* Objectif Principal */}
-                  {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Target className="h-4 w-4 text-primary" />
-                          Objectif Principal
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <p className="text-sm">{athleteObjectives.main_objective}</p>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-muted-foreground">Progression</span>
-                            <Badge variant="default" className="text-sm font-semibold">
-                              {(() => {
-                                const today = new Date();
-                                const deadline = new Date(athleteObjectives.main_objective_deadline);
-                                const createdAt = athleteObjectives.created_at 
-                                  ? new Date(athleteObjectives.created_at)
-                                  : new Date();
-                                
-                                const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
-                                
-                                return `Semaine ${currentWeek} / ${totalWeeks}`;
-                              })()}
-                            </Badge>
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-primary transition-all duration-300"
-                              style={{
-                                width: `${(() => {
-                                  const today = new Date();
-                                  const deadline = new Date(athleteObjectives.main_objective_deadline);
-                                  const createdAt = athleteObjectives.created_at 
-                                    ? new Date(athleteObjectives.created_at)
-                                    : new Date();
-                                  
-                                  const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                  const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                  
-                                  return Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100));
-                                })()}%`
-                              }}
-                            />
-                          </div>
-                        </div>
-                        <div className="text-xs text-muted-foreground pt-2 border-t">
-                          <p>Date cible: {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR", { 
-                            weekday: "long", 
-                            day: "numeric", 
-                            month: "long", 
-                            year: "numeric" 
-                          })}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Objectif Secondaire */}
-                  {athleteObjectives.secondary_objective && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Target className="h-4 w-4 text-secondary" />
-                          Objectif Secondaire
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm">{athleteObjectives.secondary_objective}</p>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Dates d'objectifs */}
-                  {athleteMilestones.length > 0 && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-primary" />
-                          Dates d'objectifs ({athleteMilestones.filter(m => !m.completed).length} restantes)
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {athleteMilestones.map(milestone => {
-                          const today = new Date();
-                          const targetDate = new Date(milestone.target_date);
-                          const createdAt = milestone.created_at 
-                            ? new Date(milestone.created_at)
-                            : new Date();
-                          
-                          const totalWeeks = Math.ceil((targetDate.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                          const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                          const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
-                          const remainingWeeks = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                          
-                          return (
-                            <div key={milestone.id} className={`p-3 rounded-lg border ${milestone.completed ? 'bg-muted/50' : 'bg-background'}`}>
-                              <div className="flex items-start justify-between gap-3 mb-2">
-                                <div className="flex-1">
-                                  <p className="font-semibold text-sm">{milestone.label}</p>
-                                  {milestone.notes && (
-                                    <p className="text-xs text-muted-foreground mt-1">{milestone.notes}</p>
-                                  )}
-                                </div>
-                                <Badge 
-                                  variant={
-                                    milestone.completed 
-                                      ? "default" 
-                                      : remainingWeeks <= 1 
-                                      ? "destructive" 
-                                      : remainingWeeks <= 2 
-                                      ? "secondary" 
-                                      : "outline"
-                                  }
-                                  className="whitespace-nowrap"
-                                >
-                                  {milestone.completed 
-                                    ? "Atteint" 
-                                    : `Semaine ${currentWeek} / ${totalWeeks}`}
-                                </Badge>
-                              </div>
-                              {!milestone.completed && (
-                                <div className="space-y-1">
-                                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                    <div 
-                                      className="h-full bg-primary transition-all duration-300"
-                                      style={{
-                                        width: `${Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100))}%`
-                                      }}
-                                    />
-                                  </div>
-                                  <p className="text-xs text-muted-foreground">
-                                    {targetDate.toLocaleDateString("fr-FR", { 
-                                      day: "numeric", 
-                                      month: "long", 
-                                      year: "numeric" 
-                                    })}
-                                    {remainingWeeks > 0 && ` • ${remainingWeeks} semaine${remainingWeeks > 1 ? 's' : ''} restante${remainingWeeks > 1 ? 's' : ''}`}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
-          
-          {/* Bouton flottant pour ouvrir les retours */}
-          {lastWeekData && (
-            <Sheet open={showFeedbackSheet} onOpenChange={setShowFeedbackSheet}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="default"
-                  className="fixed right-0 top-1/2 -translate-y-1/2 rounded-l-md rounded-r-none z-50 px-2 py-3 bg-gradient-cta hover:opacity-90 transition-all duration-200 border border-primary/30 flex items-center gap-1 h-auto shadow-md hover:shadow-lg"
-                >
-                  <ChevronLeft className="h-3 w-3" />
-                  <span className="text-[10px] font-medium whitespace-nowrap writing-mode-vertical-rl rotate-180">
-                    Retours
-                  </span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-full sm:w-[50vw] overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5 text-primary" />
-                    Retours de la semaine {lastWeekData.week.week_number} - {lastWeekData.week.year}
-                  </SheetTitle>
-                </SheetHeader>
-                <div className="mt-6 space-y-3">
-                  {lastWeekData.sessions.map((session: any) => (
-                    <div key={session.id} className="border rounded-lg p-3 bg-card">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-sm">{session.name}</h4>
-                        <div className="flex gap-2 text-xs text-muted-foreground">
-                          {session.completed_at && (
-                            <span>{new Date(session.completed_at).toLocaleDateString()}</span>
-                          )}
-                          {session.duration_minutes && <span>{session.duration_minutes} min</span>}
-                        </div>
-                      </div>
-
-                      {session.session_exercises && session.session_exercises.length > 0 ? (
-                        <div className="space-y-2">
-                          {session.session_exercises
-                            .filter((ex: any) => ex.sportif_rpe || ex.sportif_comment || ex.skipped)
-                            .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-                            .map((ex: any) => (
-                              <div key={ex.id} className="pl-3 border-l-2 border-primary/40 py-2">
-                                {ex.skipped ? (
-                                  <div className="flex items-center gap-2">
-                                    <div className="flex-1">
-                                      <div className="font-medium text-sm">{ex.exercice}</div>
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
-                                      </div>
-                                    </div>
-                                    <Badge variant="outline" className="text-orange-600 border-orange-600 shrink-0 text-xs">
-                                      Non fait
-                                    </Badge>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="flex-1">
-                                        <div className="font-medium text-sm">{ex.exercice}</div>
-                                        <div className="text-xs text-muted-foreground mt-1">
-                                          Prescrit: {ex.series}x{ex.reps} @ {ex.charge} • RPE {ex.rpe}
-                                        </div>
-                                      </div>
-                                      {ex.sportif_rpe && (
-                                        <Badge variant="secondary" className="shrink-0 text-xs">
-                                          RPE: {ex.sportif_rpe}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    {ex.sportif_comment && (
-                                      <div className="mt-2 text-xs italic text-muted-foreground bg-muted/50 p-2 rounded">
-                                        "{ex.sportif_comment}"
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            ))}
-                          {!session.session_exercises.some((ex: any) => ex.sportif_rpe || ex.sportif_comment || ex.skipped) && (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                              Aucun retour du sportif pour cette séance
-                            </p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-muted-foreground text-center py-2">Aucun exercice</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </SheetContent>
-            </Sheet>
-          )}
 
           <Card>
             <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
