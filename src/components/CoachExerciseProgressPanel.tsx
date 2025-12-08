@@ -138,7 +138,8 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
             totalReps: data.reps,
             tonnage: data.tonnage,
           }))
-          .sort((a, b) => a.week.localeCompare(b.week));
+          .sort((a, b) => a.week.localeCompare(b.week))
+          .slice(-5); // Garder seulement les 5 dernières semaines
 
         if (weeksArray.length > 0) {
           const totalTonnage = weeksArray.reduce((sum, w) => sum + w.tonnage, 0);
