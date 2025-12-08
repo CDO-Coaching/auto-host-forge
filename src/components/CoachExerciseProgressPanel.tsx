@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -218,49 +218,117 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
                   <span>•</span>
                   <span>Reps totales: <strong className="text-foreground">{exercise.totalReps}</strong></span>
                 </div>
-                <div className="h-[80px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={exercise.weeks}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis
-                        dataKey="week"
-                        tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                        tickFormatter={(value) => `S${value.split("-W")[1]}`}
-                      />
-                      <YAxis
-                        tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
-                        tickFormatter={(value) => `${value}kg`}
-                        width={35}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--background))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          fontSize: "12px",
-                        }}
-                        formatter={(value: number, name: string) => [
-                          `${value.toFixed(1)}kg`,
-                          name === "avgCharge" ? "Moy" : "Max",
-                        ]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="avgCharge"
-                        stroke="hsl(45, 93%, 47%)"
-                        strokeWidth={2}
-                        dot={{ fill: "hsl(45, 93%, 47%)", r: 3 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="maxCharge"
-                        stroke="hsl(200, 80%, 55%)"
-                        strokeWidth={1.5}
-                        strokeDasharray="4 4"
-                        dot={{ fill: "hsl(200, 80%, 55%)", r: 2 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Graphique Charge */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground text-center mb-1">Charge (kg)</p>
+                    <div className="h-[70px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={exercise.weeks}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis
+                            dataKey="week"
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            tickFormatter={(value) => `S${value.split("-W")[1]}`}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            width={25}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--background))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                            }}
+                            formatter={(value: number) => [`${value.toFixed(1)}kg`]}
+                            labelFormatter={(label) => `S${label.split("-W")[1]}`}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="avgCharge"
+                            stroke="hsl(45, 93%, 47%)"
+                            strokeWidth={2}
+                            dot={{ fill: "hsl(45, 93%, 47%)", r: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Graphique Reps */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground text-center mb-1">Reps/sem</p>
+                    <div className="h-[70px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={exercise.weeks}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis
+                            dataKey="week"
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            tickFormatter={(value) => `S${value.split("-W")[1]}`}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            width={25}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--background))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                            }}
+                            formatter={(value: number) => [`${value} reps`]}
+                            labelFormatter={(label) => `S${label.split("-W")[1]}`}
+                          />
+                          <Bar
+                            dataKey="totalReps"
+                            fill="hsl(200, 80%, 55%)"
+                            radius={[2, 2, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Graphique Tonnage */}
+                  <div>
+                    <p className="text-[10px] text-muted-foreground text-center mb-1">Tonnage/sem</p>
+                    <div className="h-[70px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={exercise.weeks}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis
+                            dataKey="week"
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            tickFormatter={(value) => `S${value.split("-W")[1]}`}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 8, fill: "hsl(var(--muted-foreground))" }}
+                            tickFormatter={(value) => `${(value / 1000).toFixed(1)}t`}
+                            width={30}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "hsl(var(--background))",
+                              border: "1px solid hsl(var(--border))",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                            }}
+                            formatter={(value: number) => [`${(value / 1000).toFixed(2)}t`]}
+                            labelFormatter={(label) => `S${label.split("-W")[1]}`}
+                          />
+                          <Bar
+                            dataKey="tonnage"
+                            fill="hsl(160, 70%, 45%)"
+                            radius={[2, 2, 0, 0]}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
                 </div>
               </div>
             );
