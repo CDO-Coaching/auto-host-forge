@@ -6,9 +6,20 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getWeekNumber } from "@/lib/weekUtils";
 
+interface ExerciseWeekData {
+  week: string;
+  avgCharge: number;
+  maxCharge: number;
+  totalSets: number;
+  totalReps: number;
+  tonnage: number;
+}
+
 interface ExerciseProgressData {
   exerciseName: string;
-  weeks: { week: string; avgCharge: number; maxCharge: number; totalSets: number }[];
+  weeks: ExerciseWeekData[];
+  avgWeeklyTonnage: number;
+  totalReps: number;
 }
 
 interface CoachExerciseProgressPanelProps {
@@ -81,7 +92,7 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
         }
       });
 
-      const exerciseDataMap = new Map<string, Map<string, { charges: number[]; sets: number }>>();
+      const exerciseDataMap = new Map<string, Map<string, { charges: number[]; sets: number; reps: number; tonnage: number }>>();
 
       sessions?.forEach((session: any) => {
         const weekNumber = session.training_weeks.week_number;
@@ -93,6 +104,9 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
 
           const charge = parseCharge(exercise.charge);
           const series = parseInt(exercise.series?.replace(/[^0-9]/g, "") || "0", 10);
+          const reps = parseInt(exercise.reps?.replace(/[^0-9]/g, "") || "0", 10);
+          const totalReps = reps * series;
+          const tonnage = charge * totalReps;
 
           if (recentExercisesSet.has(exercise.exercice) && charge > 0) {
             if (!exerciseDataMap.has(exercise.exercice)) {
@@ -104,8 +118,10 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
               const existing = exerciseWeeks.get(weekKey)!;
               existing.charges.push(charge);
               existing.sets += series;
+              existing.reps += totalReps;
+              existing.tonnage += tonnage;
             } else {
-              exerciseWeeks.set(weekKey, { charges: [charge], sets: series });
+              exerciseWeeks.set(weekKey, { charges: [charge], sets: series, reps: totalReps, tonnage });
             }
           }
         });
@@ -113,17 +129,26 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
 
       const exerciseProgressArray: ExerciseProgressData[] = [];
       exerciseDataMap.forEach((weeks, exerciseName) => {
-        const weeksArray = Array.from(weeks.entries())
+        const weeksArray: ExerciseWeekData[] = Array.from(weeks.entries())
           .map(([week, data]) => ({
             week,
             avgCharge: data.charges.reduce((a, b) => a + b, 0) / data.charges.length,
             maxCharge: Math.max(...data.charges),
             totalSets: data.sets,
+            totalReps: data.reps,
+            tonnage: data.tonnage,
           }))
           .sort((a, b) => a.week.localeCompare(b.week));
 
         if (weeksArray.length > 0) {
-          exerciseProgressArray.push({ exerciseName, weeks: weeksArray });
+          const totalTonnage = weeksArray.reduce((sum, w) => sum + w.tonnage, 0);
+          const totalReps = weeksArray.reduce((sum, w) => sum + w.totalReps, 0);
+          exerciseProgressArray.push({
+            exerciseName,
+            weeks: weeksArray,
+            avgWeeklyTonnage: totalTonnage / weeksArray.length,
+            totalReps,
+          });
         }
       });
 
@@ -175,7 +200,7 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
 
             return (
               <div key={exercise.exerciseName} className="p-3 rounded-lg bg-muted/50">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-1">
                   <h4 className="font-medium text-sm">{exercise.exerciseName}</h4>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
@@ -187,6 +212,11 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
                       </Badge>
                     )}
                   </div>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                  <span>Tonnage moy: <strong className="text-foreground">{(exercise.avgWeeklyTonnage / 1000).toFixed(2)}t/sem</strong></span>
+                  <span>•</span>
+                  <span>Reps totales: <strong className="text-foreground">{exercise.totalReps}</strong></span>
                 </div>
                 <div className="h-[80px]">
                   <ResponsiveContainer width="100%" height="100%">
