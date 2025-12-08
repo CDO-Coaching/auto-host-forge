@@ -26,8 +26,8 @@ interface CardioSessionData {
   actualAveragePace: number | null;
   actualAverageHeartRate: number | null;
   actualAverageRpe: number | null;
-  // Intensité basée sur FC / FCmax
-  actualIntensityFcMax: number | null;
+  // Intensité basée sur Karvonen (FC moyenne - FC repos) / (FC max - FC repos)
+  actualIntensityKarvonen: number | null;
 }
 
 interface PlannedVolume {
@@ -47,6 +47,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
   const [cardioSessions, setCardioSessions] = useState<CardioSessionData[]>([]);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
+  const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
   const [plannedVolume, setPlannedVolume] = useState<PlannedVolume | null>(null);
 
   useEffect(() => {
@@ -128,10 +129,10 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
   const loadData = async () => {
     setLoading(true);
 
-    // Charger la VMA et FCmax de l'athlète
+    // Charger la VMA, FCmax et FC repos de l'athlète
     const { data: profileData } = await supabase
       .from("user_profiles")
-      .select("vma, fc_max")
+      .select("vma, fc_max, fc_repos")
       .eq("id", athleteId)
       .single();
     
@@ -141,7 +142,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     if (profileData?.fc_max) {
       setAthleteFcMax(profileData.fc_max);
     }
+    if (profileData?.fc_repos) {
+      setAthleteFcRepos(profileData.fc_repos);
+    }
     const fcMax = profileData?.fc_max || null;
+    const fcRepos = profileData?.fc_repos || null;
 
     // Charger le volume prévu pour la semaine en cours
     await loadPlannedVolume(athleteId, profileData?.vma || null);
@@ -272,9 +277,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             const currentHRCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
             const currentHRSum = (existing.actualAverageHeartRate || 0) * currentHRCount;
             existing.actualAverageHeartRate = Math.round((currentHRSum + actualHeartRate) / (currentHRCount + 1));
-            // Recalculer intensité FC/FCmax
-            if (fcMax) {
-              existing.actualIntensityFcMax = Math.round((existing.actualAverageHeartRate / fcMax) * 100);
+            // Recalculer intensité avec méthode Karvonen
+            if (fcMax && fcRepos && fcMax > fcRepos) {
+              existing.actualIntensityKarvonen = Math.round(((existing.actualAverageHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
             }
           }
           
@@ -286,9 +291,9 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           }
         }
       } else {
-        // Calculer intensité FC/FCmax initiale
-        const intensityFcMax = (actualHeartRate > 0 && fcMax) 
-          ? Math.round((actualHeartRate / fcMax) * 100) 
+        // Calculer intensité Karvonen initiale
+        const intensityKarvonen = (actualHeartRate > 0 && fcMax && fcRepos && fcMax > fcRepos) 
+          ? Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100) 
           : null;
           
         weeklyData.set(weekKey, {
@@ -306,7 +311,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           actualAveragePace: actualPace > 0 ? actualPace : null,
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
           actualAverageRpe: actualRpe > 0 ? actualRpe : null,
-          actualIntensityFcMax: intensityFcMax
+          actualIntensityKarvonen: intensityKarvonen
         });
       }
     });
@@ -374,17 +379,20 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
       }
     : null;
 
-  // Comparaison intensité basée sur FC/FCmax
-  const sessionsWithIntensity = cardioSessions.filter(s => s.actualIntensityFcMax !== null);
+  // Comparaison intensité basée sur Karvonen
+  const sessionsWithIntensity = cardioSessions.filter(s => s.actualIntensityKarvonen !== null);
   const lastWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 1];
   const previousWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 2];
   
-  const intensityChangeVsPlanned = lastWeekWithIntensity && previousWeekWithIntensity && previousWeekWithIntensity.actualIntensityFcMax
+  const intensityChangeVsPlanned = lastWeekWithIntensity && previousWeekWithIntensity && previousWeekWithIntensity.actualIntensityKarvonen
     ? {
-        value: Math.abs(((lastWeekWithIntensity.actualIntensityFcMax! - previousWeekWithIntensity.actualIntensityFcMax) / previousWeekWithIntensity.actualIntensityFcMax) * 100),
-        isIncrease: lastWeekWithIntensity.actualIntensityFcMax! >= previousWeekWithIntensity.actualIntensityFcMax
+        value: Math.abs(((lastWeekWithIntensity.actualIntensityKarvonen! - previousWeekWithIntensity.actualIntensityKarvonen) / previousWeekWithIntensity.actualIntensityKarvonen) * 100),
+        isIncrease: lastWeekWithIntensity.actualIntensityKarvonen! >= previousWeekWithIntensity.actualIntensityKarvonen
       }
     : null;
+    
+  // Vérifier si on peut calculer Karvonen
+  const canCalculateKarvonen = athleteFcMax && athleteFcRepos && athleteFcMax > athleteFcRepos;
 
   return (
     <div className="space-y-6">
@@ -591,11 +599,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Intensité moyenne par semaine (FC / FCmax)</CardTitle>
-            {athleteFcMax ? (
+            <CardTitle>Intensité moyenne par semaine (Karvonen)</CardTitle>
+            {canCalculateKarvonen ? (
               intensityChangeVsPlanned && previousWeekWithIntensity && (
                 <p className="text-sm text-muted-foreground mt-1">
-                  {previousWeekWithIntensity.actualIntensityFcMax}% FCmax ({previousWeekWithIntensity.week}) vs {lastWeekWithIntensity?.actualIntensityFcMax}% FCmax ({lastWeekWithIntensity?.week})
+                  {previousWeekWithIntensity.actualIntensityKarvonen}% ({previousWeekWithIntensity.week}) vs {lastWeekWithIntensity?.actualIntensityKarvonen}% ({lastWeekWithIntensity?.week})
                   <span className={intensityChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                     {intensityChangeVsPlanned.isIncrease ? "↑" : "↓"} {intensityChangeVsPlanned.value.toFixed(1)}%
                   </span>
@@ -603,14 +611,18 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
               )
             ) : (
               <p className="text-sm text-muted-foreground mt-1">
-                FCmax non renseignée pour cet athlète
+                {!athleteFcMax && !athleteFcRepos 
+                  ? "FC Max et FC Repos non renseignées" 
+                  : !athleteFcMax 
+                    ? "FC Max non renseignée" 
+                    : "FC Repos non renseignée"}
               </p>
             )}
           </CardHeader>
           <CardContent>
-            {athleteFcMax ? (
+            {canCalculateKarvonen ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={cardioSessions.filter(s => s.actualIntensityFcMax !== null)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+                <BarChart data={cardioSessions.filter(s => s.actualIntensityKarvonen !== null)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="week" 
@@ -627,11 +639,16 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                           <div className="bg-background border rounded-lg p-3 shadow-lg">
                             <p className="font-medium mb-2">{payload[0].payload.week}</p>
                             <p className="text-sm text-green-600">
-                              Intensité: {payload[0].payload.actualIntensityFcMax}% FCmax
+                              Intensité Karvonen: {payload[0].payload.actualIntensityKarvonen}%
                             </p>
                             <p className="text-sm text-muted-foreground">
                               FC moy: {payload[0].payload.actualAverageHeartRate} bpm
                             </p>
+                            {payload[0].payload.actualAverageRpe && (
+                              <p className="text-sm text-purple-600">
+                                RPE moy: {payload[0].payload.actualAverageRpe}/10
+                              </p>
+                            )}
                           </div>
                         );
                       }
@@ -639,12 +656,12 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                     }}
                   />
                   <Legend />
-                  <Bar dataKey="actualIntensityFcMax" fill="hsl(0 84% 60%)" name="Intensité (% FCmax)" />
+                  <Bar dataKey="actualIntensityKarvonen" fill="hsl(0 84% 60%)" name="Intensité Karvonen %" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                <p>Renseignez la FCmax de l'athlète dans l'onglet "Max" pour afficher ce graphique</p>
+                <p>Renseignez la FC Max et FC Repos de l'athlète dans l'onglet "Max" pour afficher ce graphique</p>
               </div>
             )}
           </CardContent>
