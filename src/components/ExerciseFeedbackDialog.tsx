@@ -130,6 +130,9 @@ export function ExerciseFeedbackDialog({
               onChange={(e) => setRpe(e.target.value)}
               required={isRpeRequired}
             />
+            <p className="text-xs text-muted-foreground">
+              {isRpeRequired ? "Obligatoire" : "Optionnel"} - Ressenti de l'effort (1 = très facile, 10 = maximum)
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="comment">Commentaires <span className="text-muted-foreground text-sm font-normal">(optionnel)</span></Label>
