@@ -32,7 +32,7 @@ export default function Fatigue() {
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(true);
+  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [canAnswerToday, setCanAnswerToday] = useState(false);
   const { toast } = useToast();
@@ -40,6 +40,7 @@ export default function Fatigue() {
   useEffect(() => {
     loadFatigueLogs();
     loadNotificationPreference();
+    loadInjuryTrackingPreference();
     checkIfCanAnswerToday();
   }, []);
 
@@ -71,6 +72,37 @@ export default function Fatigue() {
       setNotificationsEnabled(preference !== 'false');
     } catch (error) {
       console.error("Error loading notification preference:", error);
+    }
+  };
+
+  const loadInjuryTrackingPreference = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const preference = localStorage.getItem(`injury_tracking_${user.id}`);
+      setInjuryTrackingEnabled(preference === 'true');
+    } catch (error) {
+      console.error("Error loading injury tracking preference:", error);
+    }
+  };
+
+  const handleInjuryTrackingToggle = async (checked: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      localStorage.setItem(`injury_tracking_${user.id}`, checked.toString());
+      setInjuryTrackingEnabled(checked);
+      
+      toast({
+        title: checked ? "Suivi des douleurs activé" : "Suivi des douleurs désactivé",
+        description: checked 
+          ? "Les questions sur les douleurs apparaîtront dans le questionnaire." 
+          : "Les questions sur les douleurs ne seront plus affichées.",
+      });
+    } catch (error) {
+      console.error("Error saving injury tracking preference:", error);
     }
   };
 
@@ -379,7 +411,7 @@ export default function Fatigue() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg">Paramètres</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-0.5 flex-1 min-w-0">
                 <Label htmlFor="notifications" className="text-sm font-medium">
@@ -393,6 +425,22 @@ export default function Fatigue() {
                 id="notifications"
                 checked={notificationsEnabled}
                 onCheckedChange={handleNotificationToggle}
+                className="shrink-0"
+              />
+            </div>
+            <div className="flex items-start justify-between gap-3 pt-2 border-t">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="injury-tracking" className="text-sm font-medium">
+                  Suivi des douleurs
+                </Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Ajouter les questions sur les blessures et douleurs
+                </p>
+              </div>
+              <Switch
+                id="injury-tracking"
+                checked={injuryTrackingEnabled}
+                onCheckedChange={handleInjuryTrackingToggle}
                 className="shrink-0"
               />
             </div>
