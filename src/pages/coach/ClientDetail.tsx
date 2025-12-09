@@ -56,6 +56,7 @@ import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
 import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics } from "@/lib/cardioCalculations";
+import { getISOWeek } from "date-fns";
 
 interface AthleteProfile {
   id: string;
@@ -229,23 +230,35 @@ export default function ClientDetail() {
   const loadLastWeekFeedback = async () => {
     if (!athleteId) return;
 
-    // Trouver la dernière semaine validée (même si toutes les séances ne sont pas terminées)
+    // Calculer la semaine précédente (semaine actuelle - 1)
+    const now = new Date();
+    const currentWeek = getISOWeek(now);
+    const currentYear = now.getFullYear();
+    
+    // Calculer la semaine précédente
+    let previousWeek = currentWeek - 1;
+    let previousYear = currentYear;
+    if (previousWeek <= 0) {
+      previousWeek = 52;
+      previousYear = currentYear - 1;
+    }
+
+    // Trouver la semaine précédente validée
     const { data: weeks, error: weeksError } = await supabase
       .from("training_weeks")
       .select("*")
       .eq("athlete_id", athleteId)
       .eq("validated", true)
-      .order("year", { ascending: false })
-      .order("week_number", { ascending: false })
+      .eq("week_number", previousWeek)
+      .eq("year", previousYear)
       .limit(1);
 
     if (weeksError || !weeks || weeks.length === 0) {
-      console.error("Pas de semaine validée:", weeksError);
+      console.error("Pas de semaine précédente validée:", weeksError);
       setLastWeekData(null);
       return;
     }
 
-    // Prendre la première semaine (la plus récente)
     const lastWeek = weeks[0];
 
     // Charger toutes les sessions de cette semaine (complétées ou non)
@@ -1651,7 +1664,7 @@ export default function ClientDetail() {
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
                       <MessageSquare className="h-5 w-5" />
-                      Retours de la dernière semaine
+                      Retours de la semaine {lastWeekData.week.week_number}
                     </SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 space-y-4">
