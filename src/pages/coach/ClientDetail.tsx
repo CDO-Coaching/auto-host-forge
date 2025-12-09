@@ -1681,8 +1681,14 @@ export default function ClientDetail() {
                                         <Badge variant="secondary" className="text-xs">RPE: {ex.sportif_rpe}</Badge>
                                       )}
                                     </div>
+                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+                                      {ex.series && <span>{ex.series} séries</span>}
+                                      {ex.reps && <span>× {ex.reps} reps</span>}
+                                      {ex.charge && <span>@ {ex.charge}</span>}
+                                      {ex.recuperation && <span>• Récup: {ex.recuperation}</span>}
+                                    </div>
                                     {(ex.sportif_feedback || ex.sportif_comment) && (
-                                      <p className="text-muted-foreground text-xs mt-1">
+                                      <p className="text-muted-foreground text-xs mt-1 italic border-l-2 border-primary/30 pl-2">
                                         {ex.sportif_feedback || ex.sportif_comment}
                                       </p>
                                     )}
