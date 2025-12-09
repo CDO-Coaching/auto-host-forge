@@ -1655,34 +1655,47 @@ export default function ClientDetail() {
                     </SheetTitle>
                   </SheetHeader>
                   <div className="mt-6 space-y-4">
-                    {lastWeekData.sessions.map((session: any) => (
-                      <Card key={session.id}>
-                        <CardHeader className="py-3">
-                          <CardTitle className="text-sm flex items-center justify-between">
-                            <span>{session.name}</span>
-                            {session.sportif_rpe && (
-                              <Badge variant="outline">RPE: {session.sportif_rpe}</Badge>
-                            )}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="py-2">
-                          {session.session_exercises?.filter((ex: any) => ex.sportif_feedback).length > 0 ? (
-                            <div className="space-y-2">
-                              {session.session_exercises
-                                .filter((ex: any) => ex.sportif_feedback)
-                                .map((ex: any) => (
+                    {lastWeekData.sessions.map((session: any) => {
+                      const exercisesWithFeedback = session.session_exercises?.filter(
+                        (ex: any) => ex.sportif_feedback || ex.sportif_comment || ex.sportif_rpe
+                      ) || [];
+                      
+                      return (
+                        <Card key={session.id}>
+                          <CardHeader className="py-3">
+                            <CardTitle className="text-sm flex items-center justify-between">
+                              <span>{session.name}</span>
+                              {session.sportif_rpe && (
+                                <Badge variant="outline">RPE Séance: {session.sportif_rpe}</Badge>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="py-2">
+                            {exercisesWithFeedback.length > 0 ? (
+                              <div className="space-y-2">
+                                {exercisesWithFeedback.map((ex: any) => (
                                   <div key={ex.id} className="text-sm p-2 bg-muted/50 rounded">
-                                    <span className="font-medium">{ex.exercice}</span>
-                                    <p className="text-muted-foreground text-xs mt-1">{ex.sportif_feedback}</p>
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium">{ex.exercice}</span>
+                                      {ex.sportif_rpe && (
+                                        <Badge variant="secondary" className="text-xs">RPE: {ex.sportif_rpe}</Badge>
+                                      )}
+                                    </div>
+                                    {(ex.sportif_feedback || ex.sportif_comment) && (
+                                      <p className="text-muted-foreground text-xs mt-1">
+                                        {ex.sportif_feedback || ex.sportif_comment}
+                                      </p>
+                                    )}
                                   </div>
                                 ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">Aucun retour pour cette séance</p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">Aucun retour pour cette séance</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 </SheetContent>
               </Sheet>
