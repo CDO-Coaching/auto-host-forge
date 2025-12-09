@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 
 interface CardioFeedbackDialogProps {
   open: boolean;
@@ -95,9 +96,12 @@ export function CardioFeedbackDialog({
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="rpe" className="text-sm font-medium">
-              RPE (1-10) <span className="text-destructive">*</span>
-            </Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="rpe" className="text-sm font-medium">
+                RPE (1-10) <span className="text-destructive">*</span>
+              </Label>
+              <RPEExplanationDialog />
+            </div>
             <Input
               id="rpe"
               type="number"
