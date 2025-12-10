@@ -22,6 +22,7 @@ import {
   ChevronLeft,
   GripVertical,
   Dumbbell,
+  Droplet,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -52,7 +53,7 @@ import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
-import { CoachMenstrualRestAlert } from "@/components/CoachMenstrualRestAlert";
+
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
@@ -67,6 +68,7 @@ interface AthleteProfile {
   date_of_birth: string | null;
   gender: string | null;
   role: string;
+  menstrual_period_active?: boolean;
 }
 
 interface Session {
@@ -1464,11 +1466,24 @@ export default function ClientDetail() {
 
       {/* Infos athlète compact */}
       <div className="flex items-center justify-between bg-muted/30 p-1.5 sm:p-2 rounded-md gap-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-sm sm:text-base font-semibold truncate">
-            {athlete.first_name} {athlete.last_name}
-          </h2>
-          <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
+        <div className="min-w-0 flex-1 flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm sm:text-base font-semibold truncate">
+                {athlete.first_name} {athlete.last_name}
+              </h2>
+              {/* Icône période menstruelle */}
+              {athlete.gender === 'female' && (athlete as any).menstrual_period_active && (
+                <span 
+                  className="flex items-center justify-center h-5 w-5 rounded-full bg-pink-500/20 border border-pink-500/50"
+                  title="Période de règles - Réduire l'intensité"
+                >
+                  <Droplet className="h-3 w-3 text-pink-400 fill-pink-400" />
+                </span>
+              )}
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
+          </div>
         </div>
         <div className="text-[10px] sm:text-xs text-muted-foreground text-right flex-shrink-0">
           {athlete.gender && (
@@ -1739,13 +1754,6 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* Alerte période de repos menstruel */}
-          {athlete && athlete.gender === 'femme' && (
-            <CoachMenstrualRestAlert 
-              athleteId={athleteId!} 
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
-          )}
 
 
           <Card>

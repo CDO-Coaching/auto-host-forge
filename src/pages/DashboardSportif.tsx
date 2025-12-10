@@ -143,6 +143,7 @@ export default function DashboardSportif() {
         open={shouldShowDialog && !isChecking} 
         onClose={handleClose}
         includeInjuryQuestions={injuryTrackingEnabled}
+        isFemale={profile?.gender === 'female'}
       />
     </SidebarProvider>
   );

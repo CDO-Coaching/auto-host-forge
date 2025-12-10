@@ -7,11 +7,13 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Droplet } from "lucide-react";
 
 interface DailyFatigueDialogProps {
   open: boolean;
   onClose: () => void;
   includeInjuryQuestions?: boolean;
+  isFemale?: boolean;
 }
 
 const questions = [
@@ -39,7 +41,7 @@ const questions = [
 
 const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 
-export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false }: DailyFatigueDialogProps) {
+export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false, isFemale = false }: DailyFatigueDialogProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({
     fatigue: 4,
     courbatures: 4,
@@ -49,10 +51,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [hasInjury, setHasInjury] = useState(false);
   const [injuryLevel, setInjuryLevel] = useState(4);
   const [injuryLocation, setInjuryLocation] = useState("");
+  const [menstrualPeriodActive, setMenstrualPeriodActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Réinitialiser les états quand le dialog s'ouvre
+  // Charger l'état de la période menstruelle et réinitialiser les autres états quand le dialog s'ouvre
   useEffect(() => {
     if (open) {
       setAnswers({
@@ -64,8 +67,58 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       setHasInjury(false);
       setInjuryLevel(4);
       setInjuryLocation("");
+      
+      // Charger l'état actuel de la période menstruelle
+      if (isFemale) {
+        loadMenstrualPeriodStatus();
+      }
     }
-  }, [open]);
+  }, [open, isFemale]);
+
+  const loadMenstrualPeriodStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("menstrual_period_active")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        setMenstrualPeriodActive(data.menstrual_period_active || false);
+      }
+    } catch (error) {
+      console.error("Erreur chargement période menstruelle:", error);
+    }
+  };
+
+  const handleMenstrualPeriodToggle = async (checked: boolean) => {
+    setMenstrualPeriodActive(checked);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("user_profiles")
+        .update({ menstrual_period_active: checked })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: checked ? "Période de règles activée" : "Période de règles désactivée",
+        description: checked 
+          ? "Ton coach sera informé de réduire l'intensité." 
+          : "Ton coach ne verra plus l'indicateur.",
+      });
+    } catch (error) {
+      console.error("Erreur mise à jour période menstruelle:", error);
+      setMenstrualPeriodActive(!checked); // Revert on error
+    }
+  };
 
   const handleSliderChange = (id: string, value: number[]) => {
     setAnswers({ ...answers, [id]: value[0] });
@@ -225,6 +278,31 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                 )}
               </div>
             </>
+          )}
+
+          {/* Bouton période de règles pour les femmes */}
+          {isFemale && (
+            <div className="pt-2 sm:pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => handleMenstrualPeriodToggle(!menstrualPeriodActive)}
+                className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${
+                  menstrualPeriodActive 
+                    ? "bg-pink-500/20 text-pink-400 border border-pink-500/50" 
+                    : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                }`}
+              >
+                <Droplet className={`h-4 w-4 ${menstrualPeriodActive ? "fill-pink-400" : ""}`} />
+                <span className="text-xs sm:text-sm font-medium">
+                  Période de règles
+                </span>
+              </button>
+              {menstrualPeriodActive && (
+                <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-1">
+                  Ton coach verra une indication pour adapter l'intensité
+                </p>
+              )}
+            </div>
           )}
         </div>
 
