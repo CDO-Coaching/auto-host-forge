@@ -52,6 +52,7 @@ import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
+import { CoachMenstrualRestAlert } from "@/components/CoachMenstrualRestAlert";
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
@@ -1735,6 +1736,14 @@ export default function ClientDetail() {
               athleteId={athleteId!} 
               athleteName={athlete.first_name || "l'athlète"}
               onNavigateToObjectives={() => setActiveTab("objectifs")}
+            />
+          )}
+
+          {/* Alerte période de repos menstruel */}
+          {athlete && athlete.gender === 'femme' && (
+            <CoachMenstrualRestAlert 
+              athleteId={athleteId!} 
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
           )}
 
