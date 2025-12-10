@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
-import { MenstrualRestDialog } from "@/components/MenstrualRestDialog";
+
 
 interface FatigueLog {
   id: string;
@@ -448,15 +448,12 @@ export default function Fatigue() {
           </CardContent>
         </Card>
 
-        {/* Section période de repos menstruel - visible uniquement pour les femmes */}
-        {profile?.gender === 'femme' && (
-          <MenstrualRestDialog />
-        )}
 
         <DailyFatigueDialog 
           open={showDialog} 
           onClose={handleDialogClose}
           includeInjuryQuestions={true}
+          isFemale={profile?.gender === 'female'}
         />
       </div>
     </div>
