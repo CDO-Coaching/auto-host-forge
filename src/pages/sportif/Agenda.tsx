@@ -241,7 +241,7 @@ export default function Agenda() {
 
   const modifiersStyles = {
     training: {
-      backgroundColor: 'hsl(var(--primary) / 0.2)',
+      border: '2px solid hsl(142 76% 36%)',
       borderRadius: '50%'
     },
     appointment: {
@@ -280,7 +280,7 @@ export default function Agenda() {
       {/* Legend */}
       <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-full bg-primary/20" />
+          <div className="w-4 h-4 rounded-full border-2 border-green-600" />
           <span>Jour d'entraînement</span>
         </div>
         <div className="flex items-center gap-2">
@@ -322,8 +322,8 @@ export default function Agenda() {
               <div className="space-y-4">
                 {/* Training info */}
                 {selectedTraining && (
-                  <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                    <div className="flex items-center gap-2 text-primary font-medium">
+                  <div className="p-4 rounded-lg bg-green-500/10 border border-green-600/30">
+                    <div className="flex items-center gap-2 text-green-600 font-medium">
                       <Dumbbell className="h-5 w-5" />
                       <span>
                         {selectedTraining.sessionCount} séance{selectedTraining.sessionCount > 1 ? 's' : ''} d'entraînement
