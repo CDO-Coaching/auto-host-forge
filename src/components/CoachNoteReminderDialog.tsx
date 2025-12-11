@@ -28,7 +28,8 @@ export function CoachNoteReminderDialog({
 
   const handleMakeNote = () => {
     onAcknowledge(true);
-    navigate("/coach/notes");
+    // Pass email via URL search params
+    navigate(`/coach/notes?email=${encodeURIComponent(clientEmail)}`);
   };
 
   const handleLater = () => {

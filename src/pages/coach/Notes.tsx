@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ interface Athlete {
   id: string;
   first_name: string;
   last_name: string;
+  email?: string;
 }
 
 interface Note {
@@ -38,6 +40,7 @@ interface Note {
 
 export default function Notes() {
   const { profile } = useUserProfile();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [selectedAthleteId, setSelectedAthleteId] = useState<string>("");
   const [notes, setNotes] = useState<Note[]>([]);
@@ -73,7 +76,7 @@ export default function Notes() {
       const athleteIds = relationships.map(r => r.athlete_id);
       const { data: profiles, error: profileError } = await supabase
         .from("user_profiles")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, email")
         .in("id", athleteIds);
 
       if (profileError) {
@@ -87,6 +90,19 @@ export default function Notes() {
         );
 
       setAthletes(athletesList);
+
+      // Auto-select athlete if email is in URL params
+      const emailParam = searchParams.get('email');
+      if (emailParam) {
+        const matchingAthlete = athletesList.find(
+          (a: Athlete) => a.email?.toLowerCase() === emailParam.toLowerCase()
+        );
+        if (matchingAthlete) {
+          setSelectedAthleteId(matchingAthlete.id);
+          // Clear the URL param
+          setSearchParams({});
+        }
+      }
     };
 
     loadAthletes();
