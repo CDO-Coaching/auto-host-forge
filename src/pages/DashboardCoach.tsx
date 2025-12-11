@@ -11,6 +11,8 @@ import { Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCoachDailyPaymentReminder } from "@/hooks/useCoachDailyPaymentReminder";
 import { CoachPaymentReminderDialog } from "@/components/CoachPaymentReminderDialog";
+import { useCoachPauseReminders } from "@/hooks/useCoachPauseReminders";
+import { CoachPauseReminderAlert } from "@/components/CoachPauseReminderAlert";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -26,6 +28,7 @@ export default function DashboardCoach() {
   const { profile } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
   const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
+  const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -112,6 +115,14 @@ export default function DashboardCoach() {
             </p>
           </header>
           <main className="flex-1 p-6">
+            {pauseReminders.length > 0 && (
+              <div className="mb-6">
+                <CoachPauseReminderAlert
+                  reminders={pauseReminders}
+                  onDismiss={dismissPauseReminder}
+                />
+              </div>
+            )}
             {pendingCount > 0 && (
               <Alert className="mb-6 border-primary bg-primary/10">
                 <Bell className="h-5 w-5 text-primary" />
