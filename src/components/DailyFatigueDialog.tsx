@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Droplet } from "lucide-react";
+import { Activity } from "lucide-react";
 
 interface DailyFatigueDialogProps {
   open: boolean;
@@ -41,6 +41,8 @@ const questions = [
 
 const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 
+type AdaptationLevel = "legere" | "moyenne" | "grosse" | null;
+
 export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false, isFemale = false }: DailyFatigueDialogProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({
     fatigue: 4,
@@ -51,11 +53,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [hasInjury, setHasInjury] = useState(false);
   const [injuryLevel, setInjuryLevel] = useState(4);
   const [injuryLocation, setInjuryLocation] = useState("");
-  const [menstrualPeriodActive, setMenstrualPeriodActive] = useState(false);
+  const [adaptationLevel, setAdaptationLevel] = useState<AdaptationLevel>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Charger l'état de la période menstruelle et réinitialiser les autres états quand le dialog s'ouvre
+  // Charger l'état de la période d'adaptation et réinitialiser les autres états quand le dialog s'ouvre
   useEffect(() => {
     if (open) {
       setAnswers({
@@ -68,34 +70,33 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       setInjuryLevel(4);
       setInjuryLocation("");
       
-      // Charger l'état actuel de la période menstruelle
-      if (isFemale) {
-        loadMenstrualPeriodStatus();
-      }
+      // Charger l'état actuel de la période d'adaptation
+      loadAdaptationStatus();
     }
-  }, [open, isFemale]);
+  }, [open]);
 
-  const loadMenstrualPeriodStatus = async () => {
+  const loadAdaptationStatus = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data } = await supabase
         .from("user_profiles")
-        .select("menstrual_period_active")
+        .select("adaptation_period_level")
         .eq("id", user.id)
         .single();
 
       if (data) {
-        setMenstrualPeriodActive(data.menstrual_period_active || false);
+        setAdaptationLevel(data.adaptation_period_level as AdaptationLevel || null);
       }
     } catch (error) {
-      console.error("Erreur chargement période menstruelle:", error);
+      console.error("Erreur chargement période d'adaptation:", error);
     }
   };
 
-  const handleMenstrualPeriodToggle = async (checked: boolean) => {
-    setMenstrualPeriodActive(checked);
+  const handleAdaptationLevelChange = async (level: AdaptationLevel) => {
+    const newLevel = adaptationLevel === level ? null : level;
+    setAdaptationLevel(newLevel);
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -103,20 +104,26 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       const { error } = await supabase
         .from("user_profiles")
-        .update({ menstrual_period_active: checked })
+        .update({ adaptation_period_level: newLevel })
         .eq("id", user.id);
 
       if (error) throw error;
 
+      const levelLabels: Record<string, string> = {
+        legere: "légère",
+        moyenne: "moyenne",
+        grosse: "grosse"
+      };
+
       toast({
-        title: checked ? "Période de règles activée" : "Période de règles désactivée",
-        description: checked 
-          ? "Ton coach sera informé de réduire l'intensité." 
+        title: newLevel ? "Période d'adaptation activée" : "Période d'adaptation désactivée",
+        description: newLevel 
+          ? `Réduction d'intensité ${levelLabels[newLevel]} signalée à ton coach.` 
           : "Ton coach ne verra plus l'indicateur.",
       });
     } catch (error) {
-      console.error("Erreur mise à jour période menstruelle:", error);
-      setMenstrualPeriodActive(!checked); // Revert on error
+      console.error("Erreur mise à jour période d'adaptation:", error);
+      setAdaptationLevel(adaptationLevel); // Revert on error
     }
   };
 
@@ -280,30 +287,42 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
             </>
           )}
 
-          {/* Bouton période de règles pour les femmes */}
-          {isFemale && (
-            <div className="pt-2 sm:pt-3 border-t">
-              <button
-                type="button"
-                onClick={() => handleMenstrualPeriodToggle(!menstrualPeriodActive)}
-                className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-md transition-colors ${
-                  menstrualPeriodActive 
-                    ? "bg-pink-500/20 text-pink-400 border border-pink-500/50" 
-                    : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
-                }`}
-              >
-                <Droplet className={`h-4 w-4 ${menstrualPeriodActive ? "fill-pink-400" : ""}`} />
-                <span className="text-xs sm:text-sm font-medium">
-                  Période de règles
-                </span>
-              </button>
-              {menstrualPeriodActive && (
-                <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-1">
-                  Ton coach verra une indication pour adapter l'intensité
-                </p>
-              )}
+          {/* Période d'adaptation */}
+          <div className="pt-2 sm:pt-3 border-t">
+            <p className="text-xs sm:text-sm font-medium mb-2 flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Période d'adaptation (réduction d'intensité)
+            </p>
+            <div className="flex gap-2">
+              {[
+                { level: "legere" as AdaptationLevel, label: "Légère", color: "yellow" },
+                { level: "moyenne" as AdaptationLevel, label: "Moyenne", color: "orange" },
+                { level: "grosse" as AdaptationLevel, label: "Grosse", color: "red" },
+              ].map(({ level, label, color }) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => handleAdaptationLevelChange(level)}
+                  className={`flex-1 py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                    adaptationLevel === level
+                      ? color === "yellow"
+                        ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50"
+                        : color === "orange"
+                        ? "bg-orange-500/20 text-orange-400 border border-orange-500/50"
+                        : "bg-red-500/20 text-red-400 border border-red-500/50"
+                      : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-          )}
+            {adaptationLevel && (
+              <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-1">
+                Ton coach verra cette indication pour adapter l'intensité
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex justify-between items-center pt-2 sm:pt-3 border-t mt-2 flex-shrink-0">
