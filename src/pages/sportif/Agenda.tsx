@@ -28,6 +28,7 @@ interface TrainingSession {
   week_id: string;
   session_type: string;
   completed_at: string;
+  isCustom?: boolean;
 }
 
 interface TrainingDay {
@@ -82,9 +83,9 @@ export default function Agenda() {
     fetchCoachName();
   }, [profile?.id]);
 
-  // Fetch training sessions for the month
+  // Fetch training sessions and custom sessions for the month
   useEffect(() => {
-    const fetchTrainingSessions = async () => {
+    const fetchAllSessions = async () => {
       if (!profile?.id) return;
 
       const monthStart = startOfMonth(currentMonth);
@@ -96,30 +97,38 @@ export default function Agenda() {
         .select("id")
         .eq("athlete_id", profile.id);
 
-      if (weeksError || !weeks?.length) {
-        console.error("Error fetching weeks:", weeksError);
-        return;
+      const weekIds = weeks?.map(w => w.id) || [];
+
+      // Fetch regular sessions if we have weeks
+      let regularSessions: any[] = [];
+      if (weekIds.length > 0) {
+        const { data: sessions, error } = await supabase
+          .from("training_sessions")
+          .select("id, name, week_id, session_type, completed_at")
+          .in("week_id", weekIds)
+          .not("completed_at", "is", null)
+          .gte("completed_at", monthStart.toISOString())
+          .lte("completed_at", monthEnd.toISOString());
+
+        if (!error && sessions) {
+          regularSessions = sessions;
+        }
       }
 
-      const weekIds = weeks.map(w => w.id);
-
-      // Then get completed sessions for those weeks
-      const { data: sessions, error } = await supabase
-        .from("training_sessions")
-        .select("id, name, week_id, session_type, completed_at")
-        .in("week_id", weekIds)
+      // Fetch custom sessions
+      const { data: customSessions, error: customError } = await supabase
+        .from("custom_sessions")
+        .select("id, session_name, session_type, completed_at")
+        .eq("user_id", profile.id)
         .not("completed_at", "is", null)
         .gte("completed_at", monthStart.toISOString())
         .lte("completed_at", monthEnd.toISOString());
 
-      if (error) {
-        console.error("Error fetching training sessions:", error);
-        return;
-      }
-
-      // Group sessions by date
+      // Group all sessions by date
       const dayMap = new Map<string, TrainingSession[]>();
-      sessions?.forEach(session => {
+      
+      // Add regular sessions
+      regularSessions.forEach(session => {
         if (session.completed_at) {
           const dateKey = format(new Date(session.completed_at), "yyyy-MM-dd");
           const existing = dayMap.get(dateKey) || [];
@@ -128,11 +137,31 @@ export default function Agenda() {
             name: session.name || 'Séance',
             week_id: session.week_id,
             session_type: session.session_type || 'renfo',
-            completed_at: session.completed_at
+            completed_at: session.completed_at,
+            isCustom: false
           });
           dayMap.set(dateKey, existing);
         }
       });
+
+      // Add custom sessions
+      if (customSessions) {
+        customSessions.forEach(session => {
+          if (session.completed_at) {
+            const dateKey = format(new Date(session.completed_at), "yyyy-MM-dd");
+            const existing = dayMap.get(dateKey) || [];
+            existing.push({
+              id: session.id,
+              name: session.session_name || 'Séance perso',
+              week_id: '',
+              session_type: session.session_type || 'renfo',
+              completed_at: session.completed_at,
+              isCustom: true
+            });
+            dayMap.set(dateKey, existing);
+          }
+        });
+      }
 
       const trainingDaysArray: TrainingDay[] = [];
       dayMap.forEach((sessionsForDay, dateKey) => {
@@ -145,7 +174,7 @@ export default function Agenda() {
       setTrainingDays(trainingDaysArray);
     };
 
-    fetchTrainingSessions();
+    fetchAllSessions();
   }, [profile?.id, currentMonth]);
 
   // Fetch appointments from Google Calendar
@@ -344,16 +373,39 @@ export default function Agenda() {
                   <div className="space-y-2">
                     {selectedTraining.sessions.map(session => {
                       const getSessionRoute = () => {
+                        if (session.isCustom) return null;
                         if (session.session_type === 'recup') {
                           return `/sportif/recup/${session.week_id}/${session.id}`;
                         }
                         return `/sportif/seance/${session.week_id}/${session.id}`;
                       };
 
+                      const route = getSessionRoute();
+
+                      if (session.isCustom) {
+                        // Séance perso - non cliquable
+                        return (
+                          <div
+                            key={session.id}
+                            className="w-full p-4 rounded-lg bg-blue-500/10 border border-blue-600/30"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-blue-600 font-medium">
+                                <Dumbbell className="h-5 w-5" />
+                                <span>{session.name}</span>
+                              </div>
+                              <Badge variant="outline" className="border-blue-600 text-blue-600 text-xs">
+                                Perso
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       return (
                         <button
                           key={session.id}
-                          onClick={() => navigate(getSessionRoute())}
+                          onClick={() => route && navigate(route)}
                           className="w-full p-4 rounded-lg bg-green-500/10 border border-green-600/30 hover:bg-green-500/20 transition-colors text-left"
                         >
                           <div className="flex items-center justify-between">
