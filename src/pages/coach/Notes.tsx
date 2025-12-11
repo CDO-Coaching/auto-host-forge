@@ -1,0 +1,242 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserProfile } from "@/hooks/useUserProfile";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, StickyNote, Calendar, User } from "lucide-react";
+
+interface Athlete {
+  id: string;
+  first_name: string;
+  last_name: string;
+}
+
+interface Note {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+export default function Notes() {
+  const { profile } = useUserProfile();
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [selectedAthleteId, setSelectedAthleteId] = useState<string>("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [newNote, setNewNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingNotes, setLoadingNotes] = useState(false);
+
+  // Charger les athlètes actifs
+  useEffect(() => {
+    const loadAthletes = async () => {
+      if (!profile?.id) return;
+
+      const { data, error } = await supabase
+        .from("coach_athlete_relationships")
+        .select(`
+          athlete_id,
+          user_profiles!coach_athlete_relationships_athlete_id_fkey (
+            id,
+            first_name,
+            last_name
+          )
+        `)
+        .eq("coach_id", profile.id)
+        .eq("status", "approved")
+        .eq("is_paused", false);
+
+      if (error) {
+        toast.error("Erreur lors du chargement des athlètes");
+        return;
+      }
+
+      const athletesList = data
+        ?.map((rel: any) => rel.user_profiles)
+        .filter(Boolean)
+        .sort((a: Athlete, b: Athlete) => 
+          `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
+        ) || [];
+
+      setAthletes(athletesList);
+    };
+
+    loadAthletes();
+  }, [profile?.id]);
+
+  // Charger les notes quand un athlète est sélectionné
+  useEffect(() => {
+    const loadNotes = async () => {
+      if (!profile?.id || !selectedAthleteId) {
+        setNotes([]);
+        return;
+      }
+
+      setLoadingNotes(true);
+      const { data, error } = await supabase
+        .from("coach_notes")
+        .select("id, content, created_at")
+        .eq("coach_id", profile.id)
+        .eq("athlete_id", selectedAthleteId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        toast.error("Erreur lors du chargement des notes");
+      } else {
+        setNotes(data || []);
+      }
+      setLoadingNotes(false);
+    };
+
+    loadNotes();
+  }, [profile?.id, selectedAthleteId]);
+
+  const handleAddNote = async () => {
+    if (!profile?.id || !selectedAthleteId || !newNote.trim()) {
+      toast.error("Veuillez sélectionner un client et écrire une note");
+      return;
+    }
+
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("coach_notes")
+      .insert({
+        coach_id: profile.id,
+        athlete_id: selectedAthleteId,
+        content: newNote.trim()
+      })
+      .select("id, content, created_at")
+      .single();
+
+    if (error) {
+      toast.error("Erreur lors de l'ajout de la note");
+    } else {
+      setNotes([data, ...notes]);
+      setNewNote("");
+      toast.success("Note ajoutée");
+    }
+    setLoading(false);
+  };
+
+  const selectedAthlete = athletes.find(a => a.id === selectedAthleteId);
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <StickyNote className="h-6 w-6" />
+          Notes
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Gérez vos notes personnelles sur vos clients
+        </p>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Sélection client et ajout de note */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Nouvelle note
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sélectionner un client</label>
+              <Select value={selectedAthleteId} onValueChange={setSelectedAthleteId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir un client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {athletes.map((athlete) => (
+                    <SelectItem key={athlete.id} value={athlete.id}>
+                      {athlete.last_name} {athlete.first_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedAthleteId && (
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Note du {format(new Date(), "dd MMMM yyyy", { locale: fr })}
+                  </label>
+                  <Textarea
+                    placeholder="Écrire une note..."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    rows={4}
+                    className="resize-none"
+                  />
+                </div>
+                <Button 
+                  onClick={handleAddNote} 
+                  disabled={loading || !newNote.trim()}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter la note
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Historique des notes */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Historique des notes
+              {selectedAthlete && (
+                <span className="text-muted-foreground font-normal text-sm ml-2">
+                  - {selectedAthlete.first_name} {selectedAthlete.last_name}
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!selectedAthleteId ? (
+              <p className="text-muted-foreground text-center py-8">
+                Sélectionnez un client pour voir ses notes
+              </p>
+            ) : loadingNotes ? (
+              <p className="text-muted-foreground text-center py-8">
+                Chargement...
+              </p>
+            ) : notes.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                Aucune note pour ce client
+              </p>
+            ) : (
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-4">
+                  {notes.map((note) => (
+                    <div 
+                      key={note.id} 
+                      className="p-4 rounded-lg border bg-muted/30"
+                    >
+                      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                        <Calendar className="h-3 w-3" />
+                        {format(new Date(note.created_at), "EEEE dd MMMM yyyy 'à' HH:mm", { locale: fr })}
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
