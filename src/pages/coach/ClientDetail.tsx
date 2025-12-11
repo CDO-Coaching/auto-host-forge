@@ -22,7 +22,7 @@ import {
   ChevronLeft,
   GripVertical,
   Dumbbell,
-  Droplet,
+  Activity,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -68,7 +68,7 @@ interface AthleteProfile {
   date_of_birth: string | null;
   gender: string | null;
   role: string;
-  menstrual_period_active?: boolean;
+  adaptation_period_level?: "legere" | "moyenne" | "grosse" | null;
 }
 
 interface Session {
@@ -1472,13 +1472,28 @@ export default function ClientDetail() {
               <h2 className="text-sm sm:text-base font-semibold truncate">
                 {athlete.first_name} {athlete.last_name}
               </h2>
-              {/* Icône période menstruelle */}
-              {athlete.gender === 'female' && (athlete as any).menstrual_period_active && (
+              {/* Icône période d'adaptation */}
+              {(athlete as any).adaptation_period_level && (
                 <span 
-                  className="flex items-center justify-center h-5 w-5 rounded-full bg-pink-500/20 border border-pink-500/50"
-                  title="Période de règles - Réduire l'intensité"
+                  className={`flex items-center justify-center h-5 w-5 rounded-full ${
+                    (athlete as any).adaptation_period_level === "legere"
+                      ? "bg-yellow-500/20 border border-yellow-500/50"
+                      : (athlete as any).adaptation_period_level === "moyenne"
+                      ? "bg-orange-500/20 border border-orange-500/50"
+                      : "bg-red-500/20 border border-red-500/50"
+                  }`}
+                  title={`Période d'adaptation - Réduction ${
+                    (athlete as any).adaptation_period_level === "legere" ? "légère" :
+                    (athlete as any).adaptation_period_level === "moyenne" ? "moyenne" : "grosse"
+                  }`}
                 >
-                  <Droplet className="h-3 w-3 text-pink-400 fill-pink-400" />
+                  <Activity className={`h-3 w-3 ${
+                    (athlete as any).adaptation_period_level === "legere"
+                      ? "text-yellow-400"
+                      : (athlete as any).adaptation_period_level === "moyenne"
+                      ? "text-orange-400"
+                      : "text-red-400"
+                  }`} />
                 </span>
               )}
             </div>
