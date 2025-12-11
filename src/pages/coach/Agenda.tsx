@@ -137,10 +137,20 @@ export default function Agenda() {
     });
   };
 
-  // Week days
+  // Week days - today first, then following days
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
-
+  const allWeekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
+  
+  // Reorder: put today first, then sort remaining days
+  const today = new Date();
+  const todayInThisWeek = allWeekDays.find(d => isSameDay(d, today));
+  
+  let weekDays = allWeekDays;
+  if (todayInThisWeek) {
+    // Today is in this week - show from today onwards, then days before
+    const todayIndex = allWeekDays.findIndex(d => isSameDay(d, today));
+    weekDays = [...allWeekDays.slice(todayIndex), ...allWeekDays.slice(0, todayIndex)];
+  }
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
   const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
