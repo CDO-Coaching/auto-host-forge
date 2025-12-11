@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.notify-contact]
 verify_jwt = false
+
+[functions.google-calendar-auth]
+verify_jwt = false
+
+[functions.google-calendar-events]
+verify_jwt = false
