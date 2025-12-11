@@ -151,6 +151,10 @@ export default function Agenda() {
     const todayIndex = allWeekDays.findIndex(d => isSameDay(d, today));
     weekDays = [...allWeekDays.slice(todayIndex), ...allWeekDays.slice(0, todayIndex)];
   }
+  
+  // Filter out days with no events
+  const daysWithEvents = weekDays.filter(day => getEventsForDay(day).length > 0);
+
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
   const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -215,7 +219,13 @@ export default function Agenda() {
 
       {/* Week view */}
       <div className="grid grid-cols-1 gap-3">
-        {weekDays.map(day => {
+        {daysWithEvents.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Aucun événement cette semaine
+            </CardContent>
+          </Card>
+        ) : daysWithEvents.map(day => {
           const dayEvents = getEventsForDay(day);
           const isCurrentDay = isToday(day);
           
