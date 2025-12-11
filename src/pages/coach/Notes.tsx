@@ -7,9 +7,22 @@ import { fr } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, StickyNote, Calendar, User } from "lucide-react";
+import { Plus, StickyNote, Calendar, User, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface Athlete {
   id: string;
@@ -31,6 +44,7 @@ export default function Notes() {
   const [newNote, setNewNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
+  const [comboboxOpen, setComboboxOpen] = useState(false);
 
   // Charger les athlètes actifs
   useEffect(() => {
@@ -158,18 +172,51 @@ export default function Notes() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Sélectionner un athlète</label>
-              <Select value={selectedAthleteId} onValueChange={setSelectedAthleteId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choisir un athlète..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {athletes.map((athlete) => (
-                    <SelectItem key={athlete.id} value={athlete.id}>
-                      {athlete.last_name} {athlete.first_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={comboboxOpen}
+                    className="w-full justify-between"
+                  >
+                    {selectedAthleteId
+                      ? athletes.find((a) => a.id === selectedAthleteId)
+                        ? `${athletes.find((a) => a.id === selectedAthleteId)?.last_name} ${athletes.find((a) => a.id === selectedAthleteId)?.first_name}`
+                        : "Choisir un athlète..."
+                      : "Choisir un athlète..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Rechercher un athlète..." />
+                    <CommandList>
+                      <CommandEmpty>Aucun athlète trouvé.</CommandEmpty>
+                      <CommandGroup>
+                        {athletes.map((athlete) => (
+                          <CommandItem
+                            key={athlete.id}
+                            value={`${athlete.last_name} ${athlete.first_name}`}
+                            onSelect={() => {
+                              setSelectedAthleteId(athlete.id);
+                              setComboboxOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedAthleteId === athlete.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {athlete.last_name} {athlete.first_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {selectedAthleteId && (
