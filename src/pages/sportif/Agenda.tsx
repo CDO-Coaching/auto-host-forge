@@ -90,6 +90,10 @@ export default function Agenda() {
 
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
+      
+      // Use date strings for comparison (YYYY-MM-DD format)
+      const monthStartStr = format(monthStart, "yyyy-MM-dd");
+      const monthEndStr = format(monthEnd, "yyyy-MM-dd");
 
       // First get athlete's weeks
       const { data: weeks, error: weeksError } = await supabase
@@ -107,22 +111,26 @@ export default function Agenda() {
           .select("id, name, week_id, session_type, completed_at")
           .in("week_id", weekIds)
           .not("completed_at", "is", null)
-          .gte("completed_at", monthStart.toISOString())
-          .lte("completed_at", monthEnd.toISOString());
+          .gte("completed_at", `${monthStartStr}T00:00:00`)
+          .lte("completed_at", `${monthEndStr}T23:59:59`);
 
         if (!error && sessions) {
           regularSessions = sessions;
         }
       }
 
-      // Fetch custom sessions
+      // Fetch custom sessions - use broader date filtering
       const { data: customSessions, error: customError } = await supabase
         .from("custom_sessions")
         .select("id, session_name, session_type, completed_at")
         .eq("user_id", profile.id)
         .not("completed_at", "is", null)
-        .gte("completed_at", monthStart.toISOString())
-        .lte("completed_at", monthEnd.toISOString());
+        .gte("completed_at", `${monthStartStr}T00:00:00`)
+        .lte("completed_at", `${monthEndStr}T23:59:59`);
+
+      if (customError) {
+        console.error("Error fetching custom sessions:", customError);
+      }
 
       // Group all sessions by date
       const dayMap = new Map<string, TrainingSession[]>();
