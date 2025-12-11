@@ -22,6 +22,7 @@ import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 import MesSeances from "./sportif/MesSeances";
 import Install from "./sportif/Install";
+import Agenda from "./sportif/Agenda";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -123,6 +124,7 @@ export default function DashboardSportif() {
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
               <Route path="/seances" element={<Seances />} />
+              <Route path="/agenda" element={<Agenda />} />
               <Route path="/mes-seances" element={<MesSeances />} />
               <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
               <Route path="/recup/:weekId/:sessionId" element={<RecupDetail />} />
