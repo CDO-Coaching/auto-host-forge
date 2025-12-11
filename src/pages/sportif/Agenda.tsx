@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,16 +14,25 @@ import {
   Dumbbell,
   User,
   Clock,
-  MapPin
+  MapPin,
+  ChevronRight
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isSameDay, parseISO, isAfter, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
 
+interface TrainingSession {
+  id: string;
+  name: string;
+  week_id: string;
+  session_type: string;
+  completed_at: string;
+}
+
 interface TrainingDay {
   date: Date;
-  sessionCount: number;
+  sessions: TrainingSession[];
 }
 
 interface Appointment {
@@ -36,6 +46,7 @@ interface Appointment {
 
 export default function Agenda() {
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([]);
@@ -95,7 +106,7 @@ export default function Agenda() {
       // Then get completed sessions for those weeks
       const { data: sessions, error } = await supabase
         .from("training_sessions")
-        .select("completed_at")
+        .select("id, name, week_id, session_type, completed_at")
         .in("week_id", weekIds)
         .not("completed_at", "is", null)
         .gte("completed_at", monthStart.toISOString())
@@ -107,19 +118,27 @@ export default function Agenda() {
       }
 
       // Group sessions by date
-      const dayMap = new Map<string, number>();
+      const dayMap = new Map<string, TrainingSession[]>();
       sessions?.forEach(session => {
         if (session.completed_at) {
           const dateKey = format(new Date(session.completed_at), "yyyy-MM-dd");
-          dayMap.set(dateKey, (dayMap.get(dateKey) || 0) + 1);
+          const existing = dayMap.get(dateKey) || [];
+          existing.push({
+            id: session.id,
+            name: session.name || 'Séance',
+            week_id: session.week_id,
+            session_type: session.session_type || 'renfo',
+            completed_at: session.completed_at
+          });
+          dayMap.set(dateKey, existing);
         }
       });
 
       const trainingDaysArray: TrainingDay[] = [];
-      dayMap.forEach((count, dateKey) => {
+      dayMap.forEach((sessionsForDay, dateKey) => {
         trainingDaysArray.push({
           date: new Date(dateKey),
-          sessionCount: count
+          sessions: sessionsForDay
         });
       });
 
@@ -321,17 +340,32 @@ export default function Agenda() {
             <ScrollArea className="h-[300px]">
               <div className="space-y-4">
                 {/* Training info */}
-                {selectedTraining && (
-                  <div className="p-4 rounded-lg bg-green-500/10 border border-green-600/30">
-                    <div className="flex items-center gap-2 text-green-600 font-medium">
-                      <Dumbbell className="h-5 w-5" />
-                      <span>
-                        {selectedTraining.sessionCount} séance{selectedTraining.sessionCount > 1 ? 's' : ''} d'entraînement
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Tu t'es entraîné ce jour-là ! 💪
-                    </p>
+                {selectedTraining && selectedTraining.sessions.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedTraining.sessions.map(session => {
+                      const getSessionRoute = () => {
+                        if (session.session_type === 'recup') {
+                          return `/sportif/recup/${session.week_id}/${session.id}`;
+                        }
+                        return `/sportif/seance/${session.week_id}/${session.id}`;
+                      };
+
+                      return (
+                        <button
+                          key={session.id}
+                          onClick={() => navigate(getSessionRoute())}
+                          className="w-full p-4 rounded-lg bg-green-500/10 border border-green-600/30 hover:bg-green-500/20 transition-colors text-left"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-green-600 font-medium">
+                              <Dumbbell className="h-5 w-5" />
+                              <span>{session.name}</span>
+                            </div>
+                            <ChevronRight className="h-5 w-5 text-green-600" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
