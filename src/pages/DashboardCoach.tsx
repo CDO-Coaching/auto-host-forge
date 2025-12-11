@@ -13,6 +13,8 @@ import { useCoachDailyPaymentReminder } from "@/hooks/useCoachDailyPaymentRemind
 import { CoachPaymentReminderDialog } from "@/components/CoachPaymentReminderDialog";
 import { useCoachPauseReminders } from "@/hooks/useCoachPauseReminders";
 import { CoachPauseReminderAlert } from "@/components/CoachPauseReminderAlert";
+import { useCoachNoteReminder } from "@/hooks/useCoachNoteReminder";
+import { CoachNoteReminderDialog } from "@/components/CoachNoteReminderDialog";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -31,6 +33,7 @@ export default function DashboardCoach() {
   const { session, loading: authLoading } = useAuth();
   const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
   const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
+  const { pendingReminder, acknowledgeReminder } = useCoachNoteReminder();
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -102,6 +105,12 @@ export default function DashboardCoach() {
       <CoachPaymentReminderDialog
         open={shouldShowReminder && !isChecking}
         onDismiss={handleDismiss}
+      />
+      <CoachNoteReminderDialog
+        open={!!pendingReminder}
+        clientEmail={pendingReminder?.clientEmail || ''}
+        eventTitle={pendingReminder?.eventTitle || ''}
+        onAcknowledge={acknowledgeReminder}
       />
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
