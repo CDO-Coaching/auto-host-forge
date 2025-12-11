@@ -2,21 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { 
-  Calendar as CalendarIcon, 
   RefreshCw, 
   Clock, 
   MapPin, 
   Users,
   ChevronLeft,
   ChevronRight,
-  Search,
   ExternalLink
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
@@ -24,29 +21,54 @@ const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.ssl
 interface CalendarEvent {
   id: string;
   title: string;
+  summary?: string;
   description?: string;
-  start: string;
-  end: string;
+  start: string | { dateTime?: string; date?: string };
+  end: string | { dateTime?: string; date?: string };
   location?: string;
   htmlLink?: string;
   isAllDay?: boolean;
   attendees?: { email: string; displayName?: string; responseStatus?: string }[];
 }
 
+// Normalize event to extract start/end as string
+const normalizeEvent = (event: any): CalendarEvent | null => {
+  const startStr = typeof event.start === 'object' 
+    ? (event.start?.dateTime || event.start?.date) 
+    : event.start;
+  const endStr = typeof event.end === 'object' 
+    ? (event.end?.dateTime || event.end?.date) 
+    : event.end;
+  
+  if (!startStr) return null;
+  
+  return {
+    id: event.id,
+    title: event.summary || event.title || 'Sans titre',
+    description: event.description,
+    start: startStr,
+    end: endStr,
+    location: event.location,
+    htmlLink: event.htmlLink,
+    isAllDay: typeof event.start === 'object' && !!event.start?.date && !event.start?.dateTime,
+    attendees: event.attendees || [],
+  };
+};
+
 export default function Agenda() {
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [searchQuery, setSearchQuery] = useState("");
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
+    startOfWeek(new Date(), { weekStartsOn: 1 })
+  );
 
   // Fetch events from n8n webhook
   const fetchEvents = useCallback(async () => {
     setLoadingEvents(true);
     try {
-      const timeMin = startOfMonth(currentMonth).toISOString();
-      const timeMax = endOfMonth(currentMonth).toISOString();
+      const timeMin = currentWeekStart.toISOString();
+      const timeMax = endOfWeek(currentWeekStart, { weekStartsOn: 1 }).toISOString();
 
       const response = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
@@ -56,7 +78,6 @@ export default function Agenda() {
         body: JSON.stringify({
           timeMin,
           timeMax,
-          searchQuery: searchQuery || undefined,
         }),
       });
 
@@ -65,26 +86,28 @@ export default function Agenda() {
       }
 
       const data = await response.json();
+      console.log('N8N Response:', data);
       
       // Handle different response formats from n8n
       let eventsList: CalendarEvent[] = [];
+      
       if (Array.isArray(data)) {
-        eventsList = data;
+        // n8n returns array of items directly
+        eventsList = data
+          .map((item: any) => normalizeEvent(item))
+          .filter((e): e is CalendarEvent => e !== null);
       } else if (data.events && Array.isArray(data.events)) {
-        eventsList = data.events;
+        eventsList = data.events
+          .map((item: any) => normalizeEvent(item))
+          .filter((e): e is CalendarEvent => e !== null);
       } else if (data.items && Array.isArray(data.items)) {
-        // Google Calendar API format
-        eventsList = data.items.map((item: any) => ({
-          id: item.id,
-          title: item.summary || 'Sans titre',
-          description: item.description,
-          start: item.start?.dateTime || item.start?.date,
-          end: item.end?.dateTime || item.end?.date,
-          location: item.location,
-          htmlLink: item.htmlLink,
-          isAllDay: !!item.start?.date && !item.start?.dateTime,
-          attendees: item.attendees || [],
-        }));
+        eventsList = data.items
+          .map((item: any) => normalizeEvent(item))
+          .filter((e): e is CalendarEvent => e !== null);
+      } else if (data.id && (data.start || data.summary)) {
+        // Single event returned
+        const normalized = normalizeEvent(data);
+        if (normalized) eventsList = [normalized];
       }
 
       setEvents(eventsList);
@@ -95,7 +118,7 @@ export default function Agenda() {
       setLoadingEvents(false);
       setLoading(false);
     }
-  }, [currentMonth, searchQuery]);
+  }, [currentWeekStart]);
 
   useEffect(() => {
     fetchEvents();
@@ -105,24 +128,22 @@ export default function Agenda() {
   const getEventsForDay = (date: Date) => {
     return events.filter(event => {
       if (!event.start) return false;
-      const eventDate = parseISO(event.start);
-      return isSameDay(eventDate, date);
+      try {
+        const eventDate = parseISO(event.start as string);
+        return isSameDay(eventDate, date);
+      } catch {
+        return false;
+      }
     });
   };
 
-  // Get events for selected date
-  const selectedDateEvents = selectedDate ? getEventsForDay(selectedDate) : [];
+  // Week days
+  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+  const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
 
-  // Calendar days
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  // Day names
-  const dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-  // Get starting day offset (Monday = 0)
-  const startDayOffset = (monthStart.getDay() + 6) % 7;
+  const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+  const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+  const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   if (loading) {
     return (
@@ -133,187 +154,147 @@ export default function Agenda() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4 p-2 sm:p-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-xl sm:text-2xl font-bold">Agenda</h1>
         
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => fetchEvents()}
-          disabled={loadingEvents}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loadingEvents ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={goToToday}
+          >
+            Aujourd'hui
+          </Button>
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => fetchEvents()}
+            disabled={loadingEvents}
+          >
+            <RefreshCw className={`h-4 w-4 ${loadingEvents ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Calendar view */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-              <CardTitle className="text-lg capitalize">
-                {format(currentMonth, 'MMMM yyyy', { locale: fr })}
-              </CardTitle>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Search */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Filtrer par mot-clé (coaching, séance...)"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && fetchEvents()}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Day names */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {dayNames.map(day => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
-              ))}
-            </div>
-
-            {/* Calendar grid */}
-            <div className="grid grid-cols-7 gap-1">
-              {/* Empty cells for offset */}
-              {Array.from({ length: startDayOffset }).map((_, i) => (
-                <div key={`empty-${i}`} className="aspect-square" />
-              ))}
-              
-              {/* Days */}
-              {monthDays.map(day => {
-                const dayEvents = getEventsForDay(day);
-                const isSelected = selectedDate && isSameDay(day, selectedDate);
-                const isCurrentDay = isToday(day);
-                
-                return (
-                  <button
-                    key={day.toISOString()}
-                    onClick={() => setSelectedDate(day)}
-                    className={`
-                      aspect-square p-1 rounded-lg text-sm relative transition-colors
-                      ${isSelected ? 'bg-primary text-primary-foreground' : ''}
-                      ${isCurrentDay && !isSelected ? 'bg-primary/20 font-bold' : ''}
-                      ${!isSelected && !isCurrentDay ? 'hover:bg-muted' : ''}
-                    `}
-                  >
-                    <span>{format(day, 'd')}</span>
-                    {dayEvents.length > 0 && (
-                      <div className={`
-                        absolute bottom-1 left-1/2 -translate-x-1/2 
-                        w-1.5 h-1.5 rounded-full
-                        ${isSelected ? 'bg-primary-foreground' : 'bg-primary'}
-                      `} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Events list */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">
-              {selectedDate 
-                ? format(selectedDate, "EEEE d MMMM", { locale: fr })
-                : "Sélectionnez une date"
-              }
+      {/* Week navigation */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={goToPreviousWeek}
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            <CardTitle className="text-base sm:text-lg capitalize text-center">
+              Semaine du {format(currentWeekStart, "d MMM", { locale: fr })} au {format(weekEnd, "d MMM yyyy", { locale: fr })}
             </CardTitle>
-            {selectedDateEvents.length > 0 && (
-              <Badge variant="secondary">{selectedDateEvents.length} événement(s)</Badge>
-            )}
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[400px] pr-4">
-              {selectedDateEvents.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  Aucun événement ce jour
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  {selectedDateEvents.map(event => (
-                    <div 
-                      key={event.id} 
-                      className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-medium text-sm">{event.title}</h3>
-                        {event.htmlLink && (
-                          <a
-                            href={event.htmlLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                          </a>
-                        )}
-                      </div>
-                      
-                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                        {!event.isAllDay && event.start && event.end && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {format(parseISO(event.start), 'HH:mm')} - {format(parseISO(event.end), 'HH:mm')}
-                          </div>
-                        )}
-                        {event.isAllDay && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            Toute la journée
-                          </div>
-                        )}
-                        {event.location && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {event.location}
-                          </div>
-                        )}
-                        {event.attendees && event.attendees.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            {event.attendees.length} participant(s)
-                          </div>
-                        )}
-                      </div>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={goToNextWeek}
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
 
-                      {event.description && (
-                        <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
-                          {event.description}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+      {/* Week view */}
+      <div className="grid grid-cols-1 gap-3">
+        {weekDays.map(day => {
+          const dayEvents = getEventsForDay(day);
+          const isCurrentDay = isToday(day);
+          
+          return (
+            <Card 
+              key={day.toISOString()} 
+              className={`${isCurrentDay ? 'ring-2 ring-primary' : ''}`}
+            >
+              <CardHeader className="py-3 pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className={`text-sm sm:text-base capitalize ${isCurrentDay ? 'text-primary' : ''}`}>
+                    {format(day, "EEEE d MMMM", { locale: fr })}
+                  </CardTitle>
+                  {dayEvents.length > 0 && (
+                    <Badge variant="secondary">{dayEvents.length}</Badge>
+                  )}
+                  {isCurrentDay && (
+                    <Badge variant="default" className="ml-2">Aujourd'hui</Badge>
+                  )}
                 </div>
-              )}
-            </ScrollArea>
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {dayEvents.length === 0 ? (
+                  <p className="text-muted-foreground text-sm py-2">
+                    Aucun événement
+                  </p>
+                ) : (
+                  <ScrollArea className={dayEvents.length > 3 ? "h-[200px]" : ""}>
+                    <div className="space-y-2">
+                      {dayEvents.map(event => (
+                        <div 
+                          key={event.id} 
+                          className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-medium text-sm">{event.title}</h3>
+                            {event.htmlLink && (
+                              <a
+                                href={event.htmlLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary shrink-0"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                          
+                          <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            {!event.isAllDay && event.start && event.end && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(parseISO(event.start as string), 'HH:mm')} - {format(parseISO(event.end as string), 'HH:mm')}
+                              </div>
+                            )}
+                            {event.isAllDay && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                Journée
+                              </div>
+                            )}
+                            {event.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                <span className="truncate max-w-[150px]">{event.location}</span>
+                              </div>
+                            )}
+                            {event.attendees && event.attendees.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {event.attendees.length}
+                              </div>
+                            )}
+                          </div>
+
+                          {event.description && (
+                            <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
