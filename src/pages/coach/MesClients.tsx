@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { getWeekNumber } from "@/lib/weekUtils";
+import { PauseReminderDialog } from "@/components/PauseReminderDialog";
 
 interface Athlete {
   id: string;
@@ -54,6 +55,8 @@ export default function MesClients() {
   const [newExternalFirstName, setNewExternalFirstName] = useState("");
   const [newExternalLastName, setNewExternalLastName] = useState("");
   const [newExternalEmail, setNewExternalEmail] = useState("");
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
 
   useEffect(() => {
     if (profile?.id) {
@@ -203,36 +206,70 @@ export default function MesClients() {
     }
   };
 
-  const handlePauseToggle = async (relationshipId: string, currentStatus: string) => {
-    try {
-      const newStatus = currentStatus === "paused" ? "approved" : "paused";
-      
-      console.log("Tentative de changement de statut:", { relationshipId, currentStatus, newStatus });
-      
-      const { data, error } = await supabase
-        .from("coach_athlete_relationships")
-        .update({ status: newStatus })
-        .eq("id", relationshipId)
-        .select();
+  const handlePauseClick = (relationship: AthleteRelationship) => {
+    if (relationship.status === "paused") {
+      // Réactivation directe sans dialog
+      handleReactivate(relationship.id);
+    } else {
+      // Mise en pause: afficher le dialog
+      setSelectedAthleteForPause(relationship);
+      setShowPauseDialog(true);
+    }
+  };
 
-      console.log("Résultat de l'update:", { data, error });
+  const handleReactivate = async (relationshipId: string) => {
+    try {
+      const { error } = await supabase
+        .from("coach_athlete_relationships")
+        .update({ status: "approved", reminder_date: null })
+        .eq("id", relationshipId);
 
       if (error) {
         console.error("Erreur SQL détaillée:", error);
-        toast.error(`Erreur: ${error.message}. As-tu exécuté la migration SQL ?`);
+        toast.error(`Erreur: ${error.message}`);
         return;
       }
 
-      toast.success(
-        newStatus === "paused" 
-          ? "Athlète mis en pause" 
-          : "Athlète réactivé"
-      );
-      
+      toast.success("Athlète réactivé");
       await loadRelationships();
     } catch (error: any) {
-      console.error("Erreur lors de la modification du statut:", error);
-      toast.error(`Erreur: ${error.message || "Impossible de modifier le statut"}`);
+      console.error("Erreur lors de la réactivation:", error);
+      toast.error(`Erreur: ${error.message || "Impossible de réactiver"}`);
+    }
+  };
+
+  const handlePauseConfirm = async (reminderDate: Date | null) => {
+    if (!selectedAthleteForPause) return;
+
+    try {
+      const updateData: { status: string; reminder_date: string | null } = {
+        status: "paused",
+        reminder_date: reminderDate ? reminderDate.toISOString().split("T")[0] : null,
+      };
+
+      const { error } = await supabase
+        .from("coach_athlete_relationships")
+        .update(updateData)
+        .eq("id", selectedAthleteForPause.id);
+
+      if (error) {
+        console.error("Erreur SQL détaillée:", error);
+        toast.error(`Erreur: ${error.message}`);
+        return;
+      }
+
+      if (reminderDate) {
+        toast.success(`Athlète mis en pause. Rappel programmé pour le ${reminderDate.toLocaleDateString("fr-FR")}`);
+      } else {
+        toast.success("Athlète mis en pause (sans rappel)");
+      }
+
+      setShowPauseDialog(false);
+      setSelectedAthleteForPause(null);
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur lors de la mise en pause:", error);
+      toast.error(`Erreur: ${error.message || "Impossible de mettre en pause"}`);
     }
   };
 
@@ -515,7 +552,7 @@ export default function MesClients() {
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePauseToggle(relationship.id, relationship.status);
+                            handlePauseClick(relationship);
                           }}
                           className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                         >
@@ -589,7 +626,7 @@ export default function MesClients() {
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handlePauseToggle(relationship.id, relationship.status);
+                            handlePauseClick(relationship);
                           }}
                           className="h-7 sm:h-8 text-xs px-2 sm:px-3"
                         >
@@ -758,6 +795,13 @@ export default function MesClients() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <PauseReminderDialog
+        open={showPauseDialog}
+        onOpenChange={setShowPauseDialog}
+        athleteName={selectedAthleteForPause ? `${selectedAthleteForPause.athlete.first_name || ""} ${selectedAthleteForPause.athlete.last_name || ""}`.trim() : ""}
+        onConfirm={handlePauseConfirm}
+      />
     </div>
   );
 }
