@@ -7,6 +7,7 @@ import { ArrowLeft, Play, Square, CheckCircle2, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
+import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { UniversalTimer } from "@/components/UniversalTimer";
 import {
   Table,
@@ -42,6 +43,7 @@ export default function RecupDetail() {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [feedback, setFeedback] = useState<string>("");
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
 
   useEffect(() => {
     const savedTimer = localStorage.getItem(`session_timer_${sessionId}`);
@@ -168,7 +170,13 @@ export default function RecupDetail() {
     setTimerInterval(interval);
   };
 
-  const endSession = async () => {
+  // Ouvre le dialog de validation
+  const requestEndSession = () => {
+    setCompletionDialogOpen(true);
+  };
+
+  // Validation finale avec date et RPE
+  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string }) => {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -181,7 +189,9 @@ export default function RecupDetail() {
       .from("training_sessions")
       .update({
         duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
-        completed_at: new Date().toISOString(),
+        completed_at: data.date.toISOString(),
+        session_rpe: data.rpe || null,
+        session_comment: data.comment || null,
       })
       .eq("id", sessionId);
 
@@ -203,7 +213,12 @@ export default function RecupDetail() {
         .eq("session_id", sessionId);
     }
 
+    setCompletionDialogOpen(false);
     setShowCelebration(true);
+  };
+
+  const handleCancelCompletion = () => {
+    setCompletionDialogOpen(false);
   };
 
   const formatDuration = (seconds: number) => {
@@ -320,7 +335,7 @@ export default function RecupDetail() {
         )}
 
         {isSessionActive && !isCompleted && (
-          <Button onClick={endSession} variant="destructive" className="w-full" size="lg">
+          <Button onClick={requestEndSession} variant="destructive" className="w-full" size="lg">
             <Square className="h-5 w-5 mr-2" />
             Terminer la séance
           </Button>
@@ -426,6 +441,16 @@ export default function RecupDetail() {
           </Card>
         )}
       </div>
+
+      {/* Dialog de validation de séance */}
+      <SessionCompletionDialog
+        open={completionDialogOpen}
+        onOpenChange={setCompletionDialogOpen}
+        onValidate={handleSessionCompletion}
+        onCancel={handleCancelCompletion}
+        sessionName={session?.name}
+        sessionType="recup"
+      />
     </div>
   );
 }

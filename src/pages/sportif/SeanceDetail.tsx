@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
+import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
 import {
@@ -66,6 +67,9 @@ export default function SeanceDetail() {
   const [editRpe, setEditRpe] = useState("");
   const [editComment, setEditComment] = useState("");
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  
+  // État pour le dialog de validation de séance
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
 
   // Charger la VMA de l'athlète
   useEffect(() => {
@@ -146,7 +150,8 @@ export default function SeanceDetail() {
     const allExercisesCompleted = exercises.every(isExerciseCompleted);
     
     if (allExercisesCompleted && exercises.length > 0 && isSessionActive) {
-      endSession();
+      // Ouvrir le dialog de validation au lieu de terminer directement
+      setCompletionDialogOpen(true);
     }
   }, [exercises, isSessionActive]);
 
@@ -295,7 +300,13 @@ export default function SeanceDetail() {
     setTimerInterval(interval);
   };
 
-  const endSession = async () => {
+  // Ouvre le dialog de validation
+  const requestEndSession = () => {
+    setCompletionDialogOpen(true);
+  };
+
+  // Validation finale avec date et RPE
+  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string }) => {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -340,25 +351,28 @@ export default function SeanceDetail() {
       }
     }
 
-    const { data, error, status } = await supabase
+    // Sauvegarder la séance avec la date choisie et le RPE global
+    const { error } = await supabase
       .from("training_sessions")
       .update({
         duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
-        completed_at: new Date().toISOString(),
+        completed_at: data.date.toISOString(),
+        session_rpe: data.rpe || null,
+        session_comment: data.comment || null,
       })
-      .eq("id", sessionId)
-      .select("id, duration_minutes, completed_at")
-      .maybeSingle();
+      .eq("id", sessionId);
 
     if (error) {
       console.error("Erreur lors de l'enregistrement de la durée:", error);
       toast({
         title: "Erreur",
-        description: "Impossible d'enregistrer la durée de la séance",
+        description: "Impossible d'enregistrer la séance",
         variant: "destructive",
       });
       return;
     }
+
+    setCompletionDialogOpen(false);
 
     if (allExercisesCompleted) {
       setShowCelebration(true);
@@ -369,6 +383,10 @@ export default function SeanceDetail() {
       });
       navigate("/sportif/seances");
     }
+  };
+
+  const handleCancelCompletion = () => {
+    setCompletionDialogOpen(false);
   };
 
   const formatDuration = (seconds: number) => {
@@ -674,7 +692,7 @@ export default function SeanceDetail() {
                     Démarrer la séance
                   </Button>
                 ) : (
-                  <Button onClick={endSession} variant="destructive" className="flex-1" size="lg">
+                  <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
                     <Square className="h-4 w-4 mr-2" />
                     Terminer la séance
                   </Button>
@@ -1180,6 +1198,16 @@ export default function SeanceDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de validation de séance */}
+      <SessionCompletionDialog
+        open={completionDialogOpen}
+        onOpenChange={setCompletionDialogOpen}
+        onValidate={handleSessionCompletion}
+        onCancel={handleCancelCompletion}
+        sessionName={session?.name}
+        sessionType={session?.session_type === "course" ? "cardio" : session?.session_type === "recup" ? "recup" : "renfo"}
+      />
     </div>
   );
 }
