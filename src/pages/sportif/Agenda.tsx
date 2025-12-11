@@ -79,10 +79,24 @@ export default function Agenda() {
       const monthStart = startOfMonth(currentMonth);
       const monthEnd = endOfMonth(currentMonth);
 
+      // First get athlete's weeks
+      const { data: weeks, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", profile.id);
+
+      if (weeksError || !weeks?.length) {
+        console.error("Error fetching weeks:", weeksError);
+        return;
+      }
+
+      const weekIds = weeks.map(w => w.id);
+
+      // Then get completed sessions for those weeks
       const { data: sessions, error } = await supabase
         .from("training_sessions")
         .select("completed_at")
-        .eq("athlete_id", profile.id)
+        .in("week_id", weekIds)
         .not("completed_at", "is", null)
         .gte("completed_at", monthStart.toISOString())
         .lte("completed_at", monthEnd.toISOString());
