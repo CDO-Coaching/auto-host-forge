@@ -20,6 +20,7 @@ export function useCoachPauseReminders(coachId: string | undefined) {
 
     const checkReminders = async () => {
       const today = new Date().toISOString().split("T")[0];
+      console.log("[PauseReminders] Checking reminders for today:", today);
 
       // Get paused relationships with reminder_date = today (exact match)
       const { data: relationships, error } = await supabase
@@ -28,6 +29,8 @@ export function useCoachPauseReminders(coachId: string | undefined) {
         .eq("coach_id", coachId)
         .eq("status", "paused")
         .eq("reminder_date", today);
+
+      console.log("[PauseReminders] Query result:", { relationships, error });
 
       if (error) {
         console.error("Error fetching pause reminders:", error);
