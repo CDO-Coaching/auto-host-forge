@@ -122,7 +122,7 @@ export default function Agenda() {
       // Fetch custom sessions - use broader date filtering
       const { data: customSessions, error: customError } = await supabase
         .from("custom_sessions")
-        .select("id, session_name, session_type, completed_at")
+        .select("id, session_name, completed_at")
         .eq("user_id", profile.id)
         .not("completed_at", "is", null)
         .gte("completed_at", `${monthStartStr}T00:00:00`)
@@ -162,7 +162,7 @@ export default function Agenda() {
               id: session.id,
               name: session.session_name || 'Séance perso',
               week_id: '',
-              session_type: session.session_type || 'renfo',
+              session_type: 'renfo', // Custom sessions default to renfo
               completed_at: session.completed_at,
               isCustom: true
             });
