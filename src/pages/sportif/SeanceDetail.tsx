@@ -146,14 +146,16 @@ export default function SeanceDetail() {
   }, [timerInterval]);
 
   // Arrêter automatiquement le timer de séance quand tous les exercices sont validés
+  // Ne pas déclencher pour les séances cardio (gérées par CardioFeedbackDialog)
   useEffect(() => {
+    const isCardio = session?.session_type === "course" || session?.session_type === "velo" || session?.session_type === "natation";
     const allExercisesCompleted = exercises.every(isExerciseCompleted);
     
-    if (allExercisesCompleted && exercises.length > 0 && isSessionActive) {
+    if (allExercisesCompleted && exercises.length > 0 && isSessionActive && !isCardio) {
       // Ouvrir le dialog de validation au lieu de terminer directement
       setCompletionDialogOpen(true);
     }
-  }, [exercises, isSessionActive]);
+  }, [exercises, isSessionActive, session?.session_type]);
 
   // --- Sauvegarder le timer dans localStorage ---
   useEffect(() => {
@@ -417,6 +419,7 @@ export default function SeanceDetail() {
   const handleCardioFeedback = async (data: {
     rpe: string;
     comment: string;
+    date: Date;
     actualDistance?: number;
     actualDuration?: number;
     actualPace?: string;
@@ -424,7 +427,7 @@ export default function SeanceDetail() {
   }) => {
     if (!selectedCardioExercise) return;
 
-    const { rpe, comment, actualDistance, actualDuration, actualPace, actualAvgHeartRate } = data;
+    const { rpe, comment, date, actualDistance, actualDuration, actualPace, actualAvgHeartRate } = data;
 
     // Validation obligatoire du RPE pour les séances cardio
     if (!rpe || rpe.trim() === '') {
@@ -502,14 +505,31 @@ export default function SeanceDetail() {
       return;
     }
 
-    toast({
-      title: "Retour enregistré !",
-      description: "Ton RPE et tes données ont bien été sauvegardés",
-    });
+    // Pour les séances cardio, marquer aussi la séance comme terminée avec la date et le RPE
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+    setTimerInterval(null);
+    setIsSessionActive(false);
+    localStorage.removeItem(`session_timer_${sessionId}`);
+
+    const { error: sessionError } = await supabase
+      .from("training_sessions")
+      .update({
+        duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
+        completed_at: date.toISOString(),
+        session_rpe: rpeNumber,
+        session_comment: comment || null,
+      })
+      .eq("id", sessionId);
+
+    if (sessionError) {
+      console.error("Erreur lors de l'enregistrement de la séance:", sessionError);
+    }
 
     setCardioFeedbackDialogOpen(false);
     setSelectedCardioExercise(null);
-    loadSessionDetail();
+    setShowCelebration(true);
   };
 
   const handleCancelCardioFeedback = () => {

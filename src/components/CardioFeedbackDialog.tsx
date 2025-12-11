@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon } from "lucide-react";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface CardioFeedbackDialogProps {
   open: boolean;
@@ -13,6 +18,7 @@ interface CardioFeedbackDialogProps {
   onValidate: (data: {
     rpe: string;
     comment: string;
+    date: Date;
     actualDistance?: number;
     actualDuration?: number;
     actualPace?: string;
@@ -31,11 +37,19 @@ export function CardioFeedbackDialog({
 }: CardioFeedbackDialogProps) {
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
+  const [date, setDate] = useState<Date>(new Date());
   const [actualDistance, setActualDistance] = useState("");
   const [actualDuration, setActualDuration] = useState("");
   const [actualPace, setActualPace] = useState("");
   const [actualAvgHeartRate, setActualAvgHeartRate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset date when dialog opens
+  useEffect(() => {
+    if (open) {
+      setDate(new Date());
+    }
+  }, [open]);
 
   const handleValidate = () => {
     setIsSubmitting(true);
@@ -43,6 +57,7 @@ export function CardioFeedbackDialog({
     const data: any = {
       rpe: rpe.trim(),
       comment: comment.trim(),
+      date,
     };
 
     // Ajouter les données optionnelles si elles sont renseignées
@@ -78,6 +93,7 @@ export function CardioFeedbackDialog({
   const handleCancel = () => {
     setRpe("");
     setComment("");
+    setDate(new Date());
     setActualDistance("");
     setActualDuration("");
     setActualPace("");
@@ -91,10 +107,39 @@ export function CardioFeedbackDialog({
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Retour sur la séance</DialogTitle>
-          {exerciseName && <p className="text-sm text-muted-foreground">{exerciseName}</p>}
+          {exerciseName && <DialogDescription>{exerciseName}</DialogDescription>}
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Date picker */}
+          <div className="space-y-2">
+            <Label>Date de la séance</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP", { locale: fr }) : "Sélectionner une date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={(d) => d && setDate(d)}
+                  initialFocus
+                  className="pointer-events-auto"
+                  locale={fr}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Label htmlFor="rpe" className="text-sm font-medium">
