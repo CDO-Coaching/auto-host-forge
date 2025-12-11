@@ -37,31 +37,40 @@ export default function Notes() {
     const loadAthletes = async () => {
       if (!profile?.id) return;
 
-      const { data, error } = await supabase
+      // Récupérer les relationships approuvées et non en pause
+      const { data: relationships, error: relError } = await supabase
         .from("coach_athlete_relationships")
-        .select(`
-          athlete_id,
-          user_profiles!coach_athlete_relationships_athlete_id_fkey (
-            id,
-            first_name,
-            last_name
-          )
-        `)
+        .select("athlete_id")
         .eq("coach_id", profile.id)
         .eq("status", "approved")
-        .eq("is_paused", false);
+        .neq("status", "paused");
 
-      if (error) {
+      if (relError) {
         toast.error("Erreur lors du chargement des athlètes");
         return;
       }
 
-      const athletesList = data
-        ?.map((rel: any) => rel.user_profiles)
-        .filter(Boolean)
+      if (!relationships || relationships.length === 0) {
+        setAthletes([]);
+        return;
+      }
+
+      // Récupérer les profils des athlètes
+      const athleteIds = relationships.map(r => r.athlete_id);
+      const { data: profiles, error: profileError } = await supabase
+        .from("user_profiles")
+        .select("id, first_name, last_name")
+        .in("id", athleteIds);
+
+      if (profileError) {
+        toast.error("Erreur lors du chargement des profils");
+        return;
+      }
+
+      const athletesList = (profiles || [])
         .sort((a: Athlete, b: Athlete) => 
           `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
-        ) || [];
+        );
 
       setAthletes(athletesList);
     };
@@ -98,7 +107,7 @@ export default function Notes() {
 
   const handleAddNote = async () => {
     if (!profile?.id || !selectedAthleteId || !newNote.trim()) {
-      toast.error("Veuillez sélectionner un client et écrire une note");
+      toast.error("Veuillez sélectionner un athlète et écrire une note");
       return;
     }
 
@@ -133,7 +142,7 @@ export default function Notes() {
           Notes
         </h1>
         <p className="text-muted-foreground mt-1">
-          Gérez vos notes personnelles sur vos clients
+          Gérez vos notes personnelles sur vos athlètes
         </p>
       </div>
 
@@ -148,10 +157,10 @@ export default function Notes() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sélectionner un client</label>
+              <label className="text-sm font-medium">Sélectionner un athlète</label>
               <Select value={selectedAthleteId} onValueChange={setSelectedAthleteId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choisir un client..." />
+                  <SelectValue placeholder="Choisir un athlète..." />
                 </SelectTrigger>
                 <SelectContent>
                   {athletes.map((athlete) => (
@@ -206,7 +215,7 @@ export default function Notes() {
           <CardContent>
             {!selectedAthleteId ? (
               <p className="text-muted-foreground text-center py-8">
-                Sélectionnez un client pour voir ses notes
+                Sélectionnez un athlète pour voir ses notes
               </p>
             ) : loadingNotes ? (
               <p className="text-muted-foreground text-center py-8">
@@ -214,7 +223,7 @@ export default function Notes() {
               </p>
             ) : notes.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Aucune note pour ce client
+                Aucune note pour cet athlète
               </p>
             ) : (
               <ScrollArea className="h-[400px] pr-4">

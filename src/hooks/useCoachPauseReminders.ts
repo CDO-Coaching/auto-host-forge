@@ -26,7 +26,7 @@ export function useCoachPauseReminders(coachId: string | undefined) {
         .from("coach_athlete_relationships")
         .select("id, athlete_id, reminder_date")
         .eq("coach_id", coachId)
-        .eq("is_paused", true)
+        .eq("status", "paused")
         .eq("reminder_date", today);
 
       if (error) {
