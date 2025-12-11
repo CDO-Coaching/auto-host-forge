@@ -21,6 +21,7 @@ import Messagerie from "./coach/Messagerie";
 import Questions from "./coach/Questions";
 import Comptabilite from "./coach/Comptabilite";
 import SuiviSalaire from "./coach/SuiviSalaire";
+import Notes from "./coach/Notes";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
@@ -142,6 +143,7 @@ export default function DashboardCoach() {
             <Routes>
               <Route path="/" element={<Navigate to="/coach/mes-clients" replace />} />
               <Route path="/mes-clients" element={<MesClients />} />
+              <Route path="/notes" element={<Notes />} />
               <Route path="/client/:athleteId" element={<ClientDetail />} />
               <Route path="/messagerie" element={<Messagerie />} />
               <Route path="/questions" element={<Questions />} />
