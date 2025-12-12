@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity } from "lucide-react";
+import { Activity, X, ArrowDown, ArrowUp, Equal, Ban } from "lucide-react";
 
 interface DailyFatigueDialogProps {
   open: boolean;
@@ -42,6 +42,12 @@ const questions = [
 const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 
 type AdaptationLevel = "legere" | "moyenne" | "grosse" | null;
+type InjuryEvolution = "same" | "better" | "worse" | "gone" | null;
+
+interface PreviousInjury {
+  injury_level: number;
+  injury_location: string | null;
+}
 
 export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = false, isFemale = false }: DailyFatigueDialogProps) {
   const [answers, setAnswers] = useState<Record<string, number>>({
@@ -57,7 +63,12 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Charger l'état de la période d'adaptation et réinitialiser les autres états quand le dialog s'ouvre
+  // État pour la blessure précédente
+  const [previousInjury, setPreviousInjury] = useState<PreviousInjury | null>(null);
+  const [injuryEvolution, setInjuryEvolution] = useState<InjuryEvolution>(null);
+  const [isNewInjury, setIsNewInjury] = useState(false);
+
+  // Charger l'état de la période d'adaptation et la blessure précédente
   useEffect(() => {
     if (open) {
       setAnswers({
@@ -69,11 +80,47 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       setHasInjury(false);
       setInjuryLevel(4);
       setInjuryLocation("");
+      setInjuryEvolution(null);
+      setIsNewInjury(false);
       
-      // Charger l'état actuel de la période d'adaptation
       loadAdaptationStatus();
+      if (includeInjuryQuestions) {
+        loadPreviousInjury();
+      }
     }
-  }, [open]);
+  }, [open, includeInjuryQuestions]);
+
+  const loadPreviousInjury = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Chercher la dernière entrée avec une blessure
+      const { data } = await supabase
+        .from("daily_fatigue_log")
+        .select("injury_level, injury_location")
+        .eq("user_id", user.id)
+        .eq("has_injury", true)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (data && data.injury_level) {
+        setPreviousInjury({
+          injury_level: data.injury_level,
+          injury_location: data.injury_location
+        });
+        // Pré-remplir avec les données précédentes
+        setInjuryLevel(data.injury_level);
+        setInjuryLocation(data.injury_location || "");
+      } else {
+        setPreviousInjury(null);
+      }
+    } catch (error) {
+      console.error("Erreur chargement blessure précédente:", error);
+      setPreviousInjury(null);
+    }
+  };
 
   const loadAdaptationStatus = async () => {
     try {
@@ -127,6 +174,49 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
     }
   };
 
+  const handleRemoveAdaptation = async () => {
+    setAdaptationLevel(null);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("user_profiles")
+        .update({ adaptation_period_level: null })
+        .eq("id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Période d'adaptation désactivée",
+        description: "Ton coach ne verra plus l'indicateur.",
+      });
+    } catch (error) {
+      console.error("Erreur suppression période d'adaptation:", error);
+    }
+  };
+
+  const handleInjuryEvolutionChange = (evolution: InjuryEvolution) => {
+    setInjuryEvolution(evolution);
+    
+    if (evolution === "gone") {
+      setHasInjury(false);
+      setInjuryLevel(1);
+    } else if (evolution === "better" && previousInjury) {
+      setHasInjury(true);
+      // Diminuer le niveau de douleur de 1 (minimum 1)
+      setInjuryLevel(Math.max(1, previousInjury.injury_level - 1));
+    } else if (evolution === "worse" && previousInjury) {
+      setHasInjury(true);
+      // Augmenter le niveau de douleur de 1 (maximum 7)
+      setInjuryLevel(Math.min(7, previousInjury.injury_level + 1));
+    } else if (evolution === "same" && previousInjury) {
+      setHasInjury(true);
+      setInjuryLevel(previousInjury.injury_level);
+    }
+  };
+
   const handleSliderChange = (id: string, value: number[]) => {
     setAnswers({ ...answers, [id]: value[0] });
   };
@@ -139,6 +229,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       const today = new Date().toISOString().split('T')[0];
 
+      // Déterminer si on a une blessure à enregistrer
+      const finalHasInjury = previousInjury 
+        ? (injuryEvolution !== "gone" && injuryEvolution !== null) || isNewInjury
+        : hasInjury;
+
       const insertData: any = {
         user_id: user.id,
         date: today,
@@ -149,9 +244,9 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       };
 
       if (includeInjuryQuestions) {
-        insertData.has_injury = hasInjury;
-        insertData.injury_level = hasInjury ? injuryLevel : null;
-        insertData.injury_location = hasInjury && injuryLocation ? injuryLocation : null;
+        insertData.has_injury = finalHasInjury;
+        insertData.injury_level = finalHasInjury ? injuryLevel : null;
+        insertData.injury_location = finalHasInjury && injuryLocation ? injuryLocation : null;
       }
 
       const { error } = await supabase
@@ -180,6 +275,15 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
   const handleSkip = () => {
     onClose();
+  };
+
+  const getAdaptationLevelLabel = (level: AdaptationLevel): string => {
+    const labels: Record<string, string> = {
+      legere: "Légère",
+      moyenne: "Moyenne",
+      grosse: "Grosse"
+    };
+    return level ? labels[level] : "";
   };
 
   return (
@@ -227,60 +331,196 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
           {includeInjuryQuestions && (
             <>
               <div className="pt-2 sm:pt-3 border-t space-y-2 sm:space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="has-injury" className="text-xs sm:text-base font-medium">
-                    Blessure ou douleur ?
-                  </Label>
-                  <Switch
-                    id="has-injury"
-                    checked={hasInjury}
-                    onCheckedChange={setHasInjury}
-                  />
-                </div>
-
-                {hasInjury && (
+                {/* Si blessure précédente existe - afficher les options d'évolution */}
+                {previousInjury && !isNewInjury ? (
                   <>
-                    <div className="space-y-1 sm:space-y-2">
-                      <Label className="text-xs sm:text-base font-medium">Niveau de douleur</Label>
+                    <div className="bg-destructive/10 rounded-lg p-3 space-y-2">
+                      <p className="text-xs sm:text-sm font-medium text-destructive">
+                        Douleur précédente : {injuryLevelLabels[previousInjury.injury_level - 1]}
+                        {previousInjury.injury_location && ` (${previousInjury.injury_location})`}
+                      </p>
+                      <p className="text-xs sm:text-sm font-medium">Comment évolue ta douleur ?</p>
                       
-                      <Slider
-                        value={[injuryLevel]}
-                        onValueChange={(value) => setInjuryLevel(value[0])}
-                        min={1}
-                        max={7}
-                        step={1}
-                        className="w-full"
-                      />
-                      
-                      <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
-                        <span>1</span>
-                        <span>2</span>
-                        <span>3</span>
-                        <span>4</span>
-                        <span>5</span>
-                        <span>6</span>
-                        <span>7</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleInjuryEvolutionChange("same")}
+                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                            injuryEvolution === "same"
+                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/50"
+                              : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                          }`}
+                        >
+                          <Equal className="h-3 w-3" />
+                          Pareil
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInjuryEvolutionChange("better")}
+                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                            injuryEvolution === "better"
+                              ? "bg-green-500/20 text-green-400 border border-green-500/50"
+                              : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                          }`}
+                        >
+                          <ArrowDown className="h-3 w-3" />
+                          Mieux
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInjuryEvolutionChange("worse")}
+                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                            injuryEvolution === "worse"
+                              ? "bg-orange-500/20 text-orange-400 border border-orange-500/50"
+                              : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                          }`}
+                        >
+                          <ArrowUp className="h-3 w-3" />
+                          Pire
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleInjuryEvolutionChange("gone")}
+                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                            injuryEvolution === "gone"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"
+                              : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                          }`}
+                        >
+                          <Ban className="h-3 w-3" />
+                          Terminée
+                        </button>
                       </div>
-                      
-                      <div className="text-center">
-                        <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-destructive/10 text-destructive rounded text-[10px] sm:text-sm font-medium">
-                          {injuryLevelLabels[injuryLevel - 1]}
-                        </span>
-                      </div>
+
+                      {/* Afficher le slider si pas "gone" et une évolution est sélectionnée */}
+                      {injuryEvolution && injuryEvolution !== "gone" && (
+                        <div className="space-y-1 sm:space-y-2 pt-2">
+                          <Label className="text-xs sm:text-base font-medium">Niveau actuel de douleur</Label>
+                          
+                          <Slider
+                            value={[injuryLevel]}
+                            onValueChange={(value) => setInjuryLevel(value[0])}
+                            min={1}
+                            max={7}
+                            step={1}
+                            className="w-full"
+                          />
+                          
+                          <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
+                            <span>1</span>
+                            <span>2</span>
+                            <span>3</span>
+                            <span>4</span>
+                            <span>5</span>
+                            <span>6</span>
+                            <span>7</span>
+                          </div>
+                          
+                          <div className="text-center">
+                            <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-destructive/10 text-destructive rounded text-[10px] sm:text-sm font-medium">
+                              {injuryLevelLabels[injuryLevel - 1]}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="injury-location" className="text-xs sm:text-base">
-                        Localisation <span className="text-muted-foreground">(optionnel)</span>
+                    {/* Bouton pour signaler une nouvelle blessure différente */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsNewInjury(true);
+                        setHasInjury(true);
+                        setInjuryLevel(4);
+                        setInjuryLocation("");
+                      }}
+                      className="w-full text-xs"
+                    >
+                      Signaler une nouvelle douleur
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    {/* Formulaire classique pour nouvelle blessure */}
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="has-injury" className="text-xs sm:text-base font-medium">
+                        Blessure ou douleur ?
                       </Label>
-                      <Input
-                        id="injury-location"
-                        placeholder="Ex: Genou droit, épaule gauche..."
-                        value={injuryLocation}
-                        onChange={(e) => setInjuryLocation(e.target.value)}
-                        className="text-xs sm:text-sm"
+                      <Switch
+                        id="has-injury"
+                        checked={hasInjury}
+                        onCheckedChange={(checked) => {
+                          setHasInjury(checked);
+                          if (!checked && isNewInjury) {
+                            setIsNewInjury(false);
+                          }
+                        }}
                       />
                     </div>
+
+                    {hasInjury && (
+                      <>
+                        <div className="space-y-1 sm:space-y-2">
+                          <Label className="text-xs sm:text-base font-medium">Niveau de douleur</Label>
+                          
+                          <Slider
+                            value={[injuryLevel]}
+                            onValueChange={(value) => setInjuryLevel(value[0])}
+                            min={1}
+                            max={7}
+                            step={1}
+                            className="w-full"
+                          />
+                          
+                          <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
+                            <span>1</span>
+                            <span>2</span>
+                            <span>3</span>
+                            <span>4</span>
+                            <span>5</span>
+                            <span>6</span>
+                            <span>7</span>
+                          </div>
+                          
+                          <div className="text-center">
+                            <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-destructive/10 text-destructive rounded text-[10px] sm:text-sm font-medium">
+                              {injuryLevelLabels[injuryLevel - 1]}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="injury-location" className="text-xs sm:text-base">
+                            Localisation <span className="text-muted-foreground">(optionnel)</span>
+                          </Label>
+                          <Input
+                            id="injury-location"
+                            placeholder="Ex: Genou droit, épaule gauche..."
+                            value={injuryLocation}
+                            onChange={(e) => setInjuryLocation(e.target.value)}
+                            className="text-xs sm:text-sm"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    {/* Bouton retour si on était sur nouvelle blessure */}
+                    {isNewInjury && previousInjury && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setIsNewInjury(false);
+                          setHasInjury(false);
+                          setInjuryLevel(previousInjury.injury_level);
+                          setInjuryLocation(previousInjury.injury_location || "");
+                        }}
+                        className="w-full text-xs"
+                      >
+                        Retour à la douleur précédente
+                      </Button>
+                    )}
                   </>
                 )}
               </div>
@@ -293,34 +533,96 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
               <Activity className="h-4 w-4" />
               Période d'adaptation (réduction d'intensité)
             </p>
-            <div className="flex gap-2">
-              {[
-                { level: "legere" as AdaptationLevel, label: "Légère", color: "yellow" },
-                { level: "moyenne" as AdaptationLevel, label: "Moyenne", color: "orange" },
-                { level: "grosse" as AdaptationLevel, label: "Grosse", color: "red" },
-              ].map(({ level, label, color }) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => handleAdaptationLevelChange(level)}
-                  className={`flex-1 py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
-                    adaptationLevel === level
-                      ? color === "yellow"
-                        ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50"
-                        : color === "orange"
-                        ? "bg-orange-500/20 text-orange-400 border border-orange-500/50"
-                        : "bg-red-500/20 text-red-400 border border-red-500/50"
-                      : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            {adaptationLevel && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-1">
-                Ton coach verra cette indication pour adapter l'intensité
-              </p>
+            
+            {/* Si période d'adaptation déjà active - afficher le statut avec bouton supprimer */}
+            {adaptationLevel ? (
+              <div className="space-y-2">
+                <div className={`p-3 rounded-lg flex items-center justify-between ${
+                  adaptationLevel === "legere"
+                    ? "bg-yellow-500/20 border border-yellow-500/50"
+                    : adaptationLevel === "moyenne"
+                    ? "bg-orange-500/20 border border-orange-500/50"
+                    : "bg-red-500/20 border border-red-500/50"
+                }`}>
+                  <span className={`text-sm font-medium ${
+                    adaptationLevel === "legere"
+                      ? "text-yellow-400"
+                      : adaptationLevel === "moyenne"
+                      ? "text-orange-400"
+                      : "text-red-400"
+                  }`}>
+                    Période {getAdaptationLevelLabel(adaptationLevel)} active
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveAdaptation}
+                    className="h-7 px-2 text-xs hover:bg-destructive/20 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Enlever
+                  </Button>
+                </div>
+                
+                <p className="text-[10px] sm:text-xs text-muted-foreground">
+                  Tu peux changer le niveau si besoin :
+                </p>
+                
+                <div className="flex gap-2">
+                  {[
+                    { level: "legere" as AdaptationLevel, label: "Légère", color: "yellow" },
+                    { level: "moyenne" as AdaptationLevel, label: "Moyenne", color: "orange" },
+                    { level: "grosse" as AdaptationLevel, label: "Grosse", color: "red" },
+                  ].map(({ level, label, color }) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => handleAdaptationLevelChange(level)}
+                      className={`flex-1 py-1.5 px-2 rounded-md text-[10px] sm:text-xs font-medium transition-colors ${
+                        adaptationLevel === level
+                          ? color === "yellow"
+                            ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50"
+                            : color === "orange"
+                            ? "bg-orange-500/20 text-orange-400 border border-orange-500/50"
+                            : "bg-red-500/20 text-red-400 border border-red-500/50"
+                          : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-2">
+                  {[
+                    { level: "legere" as AdaptationLevel, label: "Légère", color: "yellow" },
+                    { level: "moyenne" as AdaptationLevel, label: "Moyenne", color: "orange" },
+                    { level: "grosse" as AdaptationLevel, label: "Grosse", color: "red" },
+                  ].map(({ level, label, color }) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => handleAdaptationLevelChange(level)}
+                      className={`flex-1 py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors ${
+                        adaptationLevel === level
+                          ? color === "yellow"
+                            ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/50"
+                            : color === "orange"
+                            ? "bg-orange-500/20 text-orange-400 border border-orange-500/50"
+                            : "bg-red-500/20 text-red-400 border border-red-500/50"
+                          : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] sm:text-xs text-muted-foreground text-center mt-1">
+                  Ton coach verra cette indication pour adapter l'intensité
+                </p>
+              </>
             )}
           </div>
         </div>
