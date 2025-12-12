@@ -139,7 +139,11 @@ export default function ClientDetail() {
 
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
+    { value: "35s", label: "35 secondes" },
+    { value: "40s", label: "40 secondes" },
     { value: "45s", label: "45 secondes" },
+    { value: "50s", label: "50 secondes" },
+    { value: "55s", label: "55 secondes" },
     { value: "1min", label: "1 minute" },
     { value: "1min30s", label: "1 min 30 sec" },
     { value: "2min", label: "2 minutes" },
