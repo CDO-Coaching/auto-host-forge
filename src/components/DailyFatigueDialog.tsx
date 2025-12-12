@@ -201,8 +201,9 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
     setInjuryEvolution(evolution);
     
     if (evolution === "gone") {
+      // Douleur terminée = niveau 0
       setHasInjury(false);
-      setInjuryLevel(1);
+      setInjuryLevel(0);
     } else if (evolution === "better" && previousInjury) {
       setHasInjury(true);
       // Diminuer le niveau de douleur de 1 (minimum 1)
@@ -230,9 +231,39 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       const today = new Date().toISOString().split('T')[0];
 
       // Déterminer si on a une blessure à enregistrer
-      const finalHasInjury = previousInjury 
-        ? (injuryEvolution !== "gone" && injuryEvolution !== null) || isNewInjury
-        : hasInjury;
+      let finalHasInjury: boolean;
+      let finalInjuryLevel: number | null = null;
+      let finalInjuryLocation: string | null = null;
+
+      if (previousInjury && !isNewInjury) {
+        // Cas où une blessure précédente existe
+        if (injuryEvolution === "gone") {
+          // Douleur terminée = on enregistre explicitement 0
+          finalHasInjury = false;
+          finalInjuryLevel = 0;
+          finalInjuryLocation = null;
+        } else if (injuryEvolution === null) {
+          // Pas de réponse = on garde les données précédentes
+          finalHasInjury = true;
+          finalInjuryLevel = previousInjury.injury_level;
+          finalInjuryLocation = previousInjury.injury_location;
+        } else {
+          // Réponse donnée (same, better, worse)
+          finalHasInjury = true;
+          finalInjuryLevel = injuryLevel;
+          finalInjuryLocation = previousInjury.injury_location || injuryLocation || null;
+        }
+      } else if (isNewInjury || hasInjury) {
+        // Nouvelle blessure signalée
+        finalHasInjury = true;
+        finalInjuryLevel = injuryLevel;
+        finalInjuryLocation = injuryLocation || null;
+      } else {
+        // Aucune blessure
+        finalHasInjury = false;
+        finalInjuryLevel = null;
+        finalInjuryLocation = null;
+      }
 
       const insertData: any = {
         user_id: user.id,
@@ -245,8 +276,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       if (includeInjuryQuestions) {
         insertData.has_injury = finalHasInjury;
-        insertData.injury_level = finalHasInjury ? injuryLevel : null;
-        insertData.injury_location = finalHasInjury && injuryLocation ? injuryLocation : null;
+        insertData.injury_level = finalInjuryLevel;
+        insertData.injury_location = finalInjuryLocation;
       }
 
       const { error } = await supabase
