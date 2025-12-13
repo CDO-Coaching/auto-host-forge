@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { useUniversalTimer, TimerType, EmomInterval, TimerSettings } from "@/hooks/useUniversalTimer";
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 const TIMER_TYPES: { value: TimerType; label: string }[] = [
   { value: 'chrono', label: 'Chrono simple' },
@@ -46,6 +47,9 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     resetTimer,
     updateSettings,
   } = useUniversalTimer();
+
+  // Keep screen on when timer dialog is open and running
+  useWakeLock(open && (isRunning || isCountingDown));
 
   useImperativeHandle(ref, () => ({
     openWithSettings: (newSettings: Partial<TimerSettings>) => {
