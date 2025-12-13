@@ -29,8 +29,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export default function RecupDetail() {
+  // Keep screen on during workout
+  useWakeLock(true);
   const { weekId, sessionId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();

@@ -43,8 +43,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export default function SeanceDetail() {
+  // Keep screen on during workout
+  useWakeLock(true);
   const { weekId, sessionId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
