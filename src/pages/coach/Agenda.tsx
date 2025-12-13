@@ -64,8 +64,8 @@ interface SessionExercise {
   reps: string;
   charge: string;
   sportif_rpe: number | null;
-  sportif_feedback: string | null;
   sportif_comment: string | null;
+  sportif_feedback_at: string | null;
   skipped: boolean;
 }
 
@@ -137,8 +137,8 @@ export default function Agenda() {
             reps,
             charge,
             sportif_rpe,
-            sportif_feedback,
             sportif_comment,
+            sportif_feedback_at,
             skipped
           )
         `)
@@ -757,12 +757,12 @@ export default function Agenda() {
                     )}
 
                     {/* Feedback */}
-                    {(ex.sportif_feedback || ex.sportif_comment) && (
+                    {ex.sportif_comment && (
                       <div className="mt-2 ml-6 p-2 rounded bg-muted/50">
                         <div className="flex items-start gap-2">
                           <MessageSquare className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                           <p className="text-xs text-muted-foreground">
-                            {ex.sportif_feedback || ex.sportif_comment}
+                            {ex.sportif_comment}
                           </p>
                         </div>
                       </div>
