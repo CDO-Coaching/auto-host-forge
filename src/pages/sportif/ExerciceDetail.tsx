@@ -15,8 +15,11 @@ import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export default function ExerciceDetail() {
+  // Keep screen on during workout
+  useWakeLock(true);
   const { exerciceId } = useParams();
   const navigate = useNavigate();
   const [exercise, setExercise] = useState<any>(null);

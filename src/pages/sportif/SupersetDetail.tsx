@@ -16,8 +16,11 @@ import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { UniversalTimer } from "@/components/UniversalTimer";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export default function SupersetDetail() {
+  // Keep screen on during workout
+  useWakeLock(true);
   const { sessionId, supersetId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
