@@ -2,7 +2,6 @@ import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, Sti
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
-import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Sidebar,
   SidebarContent,
@@ -28,14 +27,13 @@ const menuItems = [
 ];
 
 export function CoachSidebar() {
-  const { open, setOpen } = useSidebar();
+  const { setOpenMobile, isMobile } = useSidebar();
   const { unreadCount } = useMessages();
-  const isMobile = useIsMobile();
 
   const handleLinkClick = () => {
     // Sur mobile, fermer la sidebar après un clic
     if (isMobile) {
-      setOpen(false);
+      setOpenMobile(false);
     }
   };
 
