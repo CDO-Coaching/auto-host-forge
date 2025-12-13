@@ -42,25 +42,25 @@ export class SoundSystem {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Sifflet aigu montant puis descendant (typique du sifflet de coach)
-    const osc = this.createOscillator(1800, "sine");
-    const gain = this.createGain(0.5);
+    // Sifflet de coach : montée rapide puis descente (typique du sifflet de coach)
+    const osc = this.createOscillator(1900, "sine");
+    const gain = this.createGain(0.6);
 
     if (!osc || !gain) return;
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
-    // Montée rapide puis descente
-    osc.frequency.setValueAtTime(1800, now);
-    osc.frequency.linearRampToValueAtTime(2400, now + 0.1); // Montée
-    osc.frequency.linearRampToValueAtTime(1600, now + 0.25); // Descente
+    // Montée rapide puis descente caractéristique
+    osc.frequency.setValueAtTime(1900, now);
+    osc.frequency.linearRampToValueAtTime(2600, now + 0.1); // Montée
+    osc.frequency.linearRampToValueAtTime(1700, now + 0.3); // Descente
 
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
 
     osc.start(now);
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.35);
   }
 
   // Alerte 10 secondes avant la prochaine minute EMOM
@@ -93,23 +93,25 @@ export class SoundSystem {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Sifflet court et énergique (GO!)
-    const osc = this.createOscillator(2000, "sine");
-    const gain = this.createGain(0.55);
+    // Sifflet court et énergique de coach
+    const osc = this.createOscillator(2100, "sine");
+    const gain = this.createGain(0.6);
 
     if (!osc || !gain) return;
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
-    osc.frequency.setValueAtTime(2000, now);
-    osc.frequency.linearRampToValueAtTime(2200, now + 0.08);
+    // Montée rapide typique d'un sifflet
+    osc.frequency.setValueAtTime(2100, now);
+    osc.frequency.linearRampToValueAtTime(2600, now + 0.08);
+    osc.frequency.linearRampToValueAtTime(2000, now + 0.2);
 
-    gain.gain.setValueAtTime(0.55, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
 
     osc.start(now);
-    osc.stop(now + 0.2);
+    osc.stop(now + 0.25);
   }
 
   // Double sifflet pour repos (10s) - REPOS !
@@ -118,9 +120,9 @@ export class SoundSystem {
     const now = this.ctx.currentTime;
 
     // Deux sifflets courts
-    [0, 0.15].forEach((delay) => {
-      const osc = this.createOscillator(1400, "sine");
-      const gain = this.createGain(0.4);
+    [0, 0.2].forEach((delay) => {
+      const osc = this.createOscillator(1800, "sine");
+      const gain = this.createGain(0.5);
 
       if (!osc || !gain) return;
 
@@ -128,11 +130,15 @@ export class SoundSystem {
       gain.connect(this.ctx!.destination);
 
       const startTime = now + delay;
-      gain.gain.setValueAtTime(0.4, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.12);
+      // Sifflet court descendant
+      osc.frequency.setValueAtTime(1800, startTime);
+      osc.frequency.linearRampToValueAtTime(1500, startTime + 0.15);
+
+      gain.gain.setValueAtTime(0.5, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.18);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.12);
+      osc.stop(startTime + 0.18);
     });
   }
 
@@ -142,10 +148,10 @@ export class SoundSystem {
     const now = this.ctx.currentTime;
 
     // Trois sifflets montants (victoire)
-    [0, 0.2, 0.4].forEach((delay, i) => {
-      const freq = 1600 + i * 200; // Montée progressive
-      const osc = this.createOscillator(freq, "sine");
-      const gain = this.createGain(0.45);
+    [0, 0.3, 0.6].forEach((delay, i) => {
+      const baseFreq = 1800 + i * 200; // Montée progressive
+      const osc = this.createOscillator(baseFreq, "sine");
+      const gain = this.createGain(0.55);
 
       if (!osc || !gain) return;
 
@@ -153,11 +159,16 @@ export class SoundSystem {
       gain.connect(this.ctx!.destination);
 
       const startTime = now + delay;
-      gain.gain.setValueAtTime(0.45, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
+      // Sifflet montant
+      osc.frequency.setValueAtTime(baseFreq, startTime);
+      osc.frequency.linearRampToValueAtTime(baseFreq + 400, startTime + 0.12);
+      osc.frequency.linearRampToValueAtTime(baseFreq + 200, startTime + 0.25);
+
+      gain.gain.setValueAtTime(0.55, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.28);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.15);
+      osc.stop(startTime + 0.28);
     });
   }
 
@@ -191,26 +202,26 @@ export class SoundSystem {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Long sifflet puissant (3-2-1 GO!)
-    const osc = this.createOscillator(2200, "sine");
-    const gain = this.createGain(0.6);
+    // Sifflet de coach puissant
+    const osc = this.createOscillator(2000, "sine");
+    const gain = this.createGain(0.65);
 
     if (!osc || !gain) return;
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
-    osc.frequency.setValueAtTime(2200, now);
-    osc.frequency.linearRampToValueAtTime(2600, now + 0.15);
-    osc.frequency.setValueAtTime(2600, now + 0.15);
-    osc.frequency.linearRampToValueAtTime(2000, now + 0.4);
+    // Sifflet : montée rapide puis descente
+    osc.frequency.setValueAtTime(2000, now);
+    osc.frequency.linearRampToValueAtTime(2800, now + 0.12);
+    osc.frequency.linearRampToValueAtTime(1800, now + 0.35);
 
-    gain.gain.setValueAtTime(0.6, now);
-    gain.gain.setValueAtTime(0.6, now + 0.3);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+    gain.gain.setValueAtTime(0.65, now);
+    gain.gain.setValueAtTime(0.65, now + 0.25);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
 
     osc.start(now);
-    osc.stop(now + 0.5);
+    osc.stop(now + 0.4);
   }
 
   // Sifflet de fin de workout
@@ -219,9 +230,9 @@ export class SoundSystem {
     const now = this.ctx.currentTime;
 
     // Triple sifflet long (TEMPS ÉCOULÉ / WORKOUT TERMINÉ)
-    [0, 0.25, 0.5].forEach((delay) => {
-      const osc = this.createOscillator(1800, "sine");
-      const gain = this.createGain(0.5);
+    [0, 0.35, 0.7].forEach((delay) => {
+      const osc = this.createOscillator(2000, "sine");
+      const gain = this.createGain(0.55);
 
       if (!osc || !gain) return;
 
@@ -229,14 +240,15 @@ export class SoundSystem {
       gain.connect(this.ctx!.destination);
 
       const startTime = now + delay;
-      osc.frequency.setValueAtTime(1800, startTime);
-      osc.frequency.linearRampToValueAtTime(1400, startTime + 0.2);
+      // Sifflet descendant
+      osc.frequency.setValueAtTime(2000, startTime);
+      osc.frequency.linearRampToValueAtTime(1400, startTime + 0.3);
 
-      gain.gain.setValueAtTime(0.5, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+      gain.gain.setValueAtTime(0.55, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.35);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.25);
+      osc.stop(startTime + 0.35);
     });
   }
 
@@ -335,9 +347,31 @@ export class SoundSystem {
     osc.stop(now + 0.3);
   }
 
-  // GO! après le 3-2-1
+  // GO! après le 3-2-1 - Sifflet de coach sportif
   go() {
-    this.workoutStart();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // Sifflet de coach : montée rapide et puissante
+    const osc = this.createOscillator(2000, "sine");
+    const gain = this.createGain(0.65);
+
+    if (!osc || !gain) return;
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    // Sifflet typique : montée rapide puis descente
+    osc.frequency.setValueAtTime(2000, now);
+    osc.frequency.linearRampToValueAtTime(2800, now + 0.12); // Montée puissante
+    osc.frequency.linearRampToValueAtTime(1800, now + 0.35); // Descente
+
+    gain.gain.setValueAtTime(0.65, now);
+    gain.gain.setValueAtTime(0.65, now + 0.25);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+
+    osc.start(now);
+    osc.stop(now + 0.4);
   }
 
   // ============================================
