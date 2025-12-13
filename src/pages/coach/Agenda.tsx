@@ -82,7 +82,7 @@ export default function Agenda() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
 
-  // Fetch athlete sessions for the current week
+  // Fetch athlete sessions completed during the current week
   const fetchAthleteSessions = useCallback(async () => {
     if (!user) return;
 
@@ -104,7 +104,7 @@ export default function Agenda() {
 
       const athleteIds = relationships.map(r => r.athlete_id);
 
-      // Get training weeks for these athletes that overlap with current week
+      // Get training weeks for these athletes
       const { data: weeks } = await supabase
         .from('training_weeks')
         .select(`
@@ -119,8 +119,7 @@ export default function Agenda() {
           )
         `)
         .in('athlete_id', athleteIds)
-        .gte('start_date', format(weekStart, 'yyyy-MM-dd'))
-        .lte('start_date', format(weekEnd, 'yyyy-MM-dd'));
+        .not('training_sessions.completed_at', 'is', null);
 
       // Get athlete profiles
       const { data: profiles } = await supabase
@@ -133,15 +132,21 @@ export default function Agenda() {
       const sessions: AthleteSession[] = [];
       weeks?.forEach(week => {
         week.training_sessions?.forEach((session: any) => {
-          sessions.push({
-            id: session.id,
-            athleteId: week.athlete_id,
-            athleteName: profileMap.get(week.athlete_id) || 'Inconnu',
-            sessionName: session.name,
-            sessionType: session.type,
-            completedAt: session.completed_at ? new Date(session.completed_at) : null,
-            weekNumber: week.week_number
-          });
+          if (!session.completed_at) return;
+          
+          const completedDate = new Date(session.completed_at);
+          // Only include sessions completed within the current week
+          if (completedDate >= weekStart && completedDate <= weekEnd) {
+            sessions.push({
+              id: session.id,
+              athleteId: week.athlete_id,
+              athleteName: profileMap.get(week.athlete_id) || 'Inconnu',
+              sessionName: session.name,
+              sessionType: session.type,
+              completedAt: completedDate,
+              weekNumber: week.week_number
+            });
+          }
         });
       });
 
