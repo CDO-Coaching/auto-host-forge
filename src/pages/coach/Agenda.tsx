@@ -89,70 +89,78 @@ export default function Agenda() {
     try {
       const weekStart = currentWeekStart;
       const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+      const weekStartStr = format(weekStart, "yyyy-MM-dd");
+      const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
       // Get coach's athletes
       const { data: relationships } = await supabase
-        .from('coach_athlete_relationships')
-        .select('athlete_id')
-        .eq('coach_id', user.id)
-        .eq('status', 'approved');
+        .from("coach_athlete_relationships")
+        .select("athlete_id")
+        .eq("coach_id", user.id)
+        .eq("status", "approved");
 
       if (!relationships || relationships.length === 0) {
         setAthleteSessions([]);
         return;
       }
 
-      const athleteIds = relationships.map(r => r.athlete_id);
-
-      // Get training weeks for these athletes
-      const { data: weeks } = await supabase
-        .from('training_weeks')
-        .select(`
-          id,
-          week_number,
-          athlete_id,
-          training_sessions (
-            id,
-            name,
-            type,
-            completed_at
-          )
-        `)
-        .in('athlete_id', athleteIds)
-        .not('training_sessions.completed_at', 'is', null);
+      const athleteIds = relationships.map((r) => r.athlete_id);
 
       // Get athlete profiles
       const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('id, first_name, last_name')
-        .in('id', athleteIds);
+        .from("user_profiles")
+        .select("id, first_name, last_name")
+        .in("id", athleteIds);
 
-      const profileMap = new Map(profiles?.map(p => [p.id, `${p.first_name} ${p.last_name}`]) || []);
+      const profileMap = new Map(
+        profiles?.map((p) => [p.id, `${p.first_name} ${p.last_name}`]) || []
+      );
 
-      const sessions: AthleteSession[] = [];
-      weeks?.forEach(week => {
-        week.training_sessions?.forEach((session: any) => {
-          if (!session.completed_at) return;
-          
-          const completedDate = new Date(session.completed_at);
-          // Only include sessions completed within the current week
-          if (completedDate >= weekStart && completedDate <= weekEnd) {
-            sessions.push({
-              id: session.id,
-              athleteId: week.athlete_id,
-              athleteName: profileMap.get(week.athlete_id) || 'Inconnu',
-              sessionName: session.name,
-              sessionType: session.type,
-              completedAt: completedDate,
-              weekNumber: week.week_number
-            });
-          }
-        });
+      // Get all sessions completed this calendar week for these athletes
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from("training_sessions")
+        .select(
+          `
+          id,
+          name,
+          session_type,
+          completed_at,
+          athlete_custom_name,
+          training_weeks!inner(
+            athlete_id,
+            week_number
+          )
+        `
+        )
+        .in("training_weeks.athlete_id", athleteIds)
+        .not("completed_at", "is", null)
+        .gte("completed_at", `${weekStartStr}T00:00:00`)
+        .lte("completed_at", `${weekEndStr}T23:59:59`);
+
+      if (sessionsError || !sessionsData) {
+        console.error("Error fetching athlete sessions:", sessionsError);
+        setAthleteSessions([]);
+        return;
+      }
+
+      const sessions: AthleteSession[] = sessionsData.map((session: any) => {
+        const athleteId = session.training_weeks.athlete_id;
+        const athleteName = profileMap.get(athleteId) || "Inconnu";
+        return {
+          id: session.id,
+          athleteId,
+          athleteName,
+          sessionName: session.athlete_custom_name || session.name,
+          sessionType: session.session_type,
+          completedAt: session.completed_at ? new Date(session.completed_at) : null,
+          weekNumber: session.training_weeks.week_number,
+        };
       });
 
       setAthleteSessions(sessions);
     } catch (error) {
-      console.error('Error fetching athlete sessions:', error);
+      console.error("Error fetching athlete sessions:", error);
+      setAthleteSessions([]);
     }
   }, [user, currentWeekStart]);
 
