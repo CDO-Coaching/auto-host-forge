@@ -13,6 +13,7 @@ import { Plus, ChevronDown } from "lucide-react";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 
 type ChartPeriod = "7d" | "1m" | "3m" | "6m";
 
@@ -421,6 +422,8 @@ export default function Fatigue() {
                 </CardContent>
               </Card>
             )}
+
+            <FatigueDetailedCharts logs={logs} />
 
             <Card className="w-full">
               <CardHeader className="pb-3">
