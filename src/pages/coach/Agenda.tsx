@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,10 +23,14 @@ import {
   ExternalLink,
   Dumbbell,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  XCircle,
+  MessageSquare,
+  User
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 
 const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
 
@@ -45,6 +55,27 @@ interface AthleteSession {
   sessionType: string;
   completedAt: Date | null;
   weekNumber: number;
+}
+
+interface SessionExercise {
+  id: string;
+  exercice: string;
+  series: string;
+  reps: string;
+  charge: string;
+  sportif_rpe: number | null;
+  sportif_feedback: string | null;
+  sportif_comment: string | null;
+  skipped: boolean;
+}
+
+interface SessionDetails {
+  id: string;
+  name: string;
+  session_type: string;
+  session_rpe: number | null;
+  completed_at: string | null;
+  session_exercises: SessionExercise[];
 }
 
 // Normalize event to extract start/end as string
@@ -73,15 +104,62 @@ const normalizeEvent = (event: any): CalendarEvent | null => {
 
 export default function Agenda() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [athleteSessions, setAthleteSessions] = useState<AthleteSession[]>([]);
   const [activeTab, setActiveTab] = useState("rdv");
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
+  const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+
+  // Fetch session details when a session is selected
+  const fetchSessionDetails = useCallback(async (sessionId: string) => {
+    setLoadingDetails(true);
+    try {
+      const { data, error } = await supabase
+        .from("training_sessions")
+        .select(`
+          id,
+          name,
+          session_type,
+          session_rpe,
+          completed_at,
+          session_exercises (
+            id,
+            exercice,
+            series,
+            reps,
+            charge,
+            sportif_rpe,
+            sportif_feedback,
+            sportif_comment,
+            skipped
+          )
+        `)
+        .eq("id", sessionId)
+        .single();
+
+      if (error) throw error;
+      setSessionDetails(data as SessionDetails);
+    } catch (error) {
+      console.error("Error fetching session details:", error);
+      toast.error("Erreur lors du chargement des détails");
+    } finally {
+      setLoadingDetails(false);
+    }
+  }, []);
+
+  // Handle session click
+  const handleSessionClick = (session: AthleteSession) => {
+    setSelectedSession(session);
+    fetchSessionDetails(session.id);
+  };
 
   // Fetch athlete sessions completed during the current week
   const fetchAthleteSessions = useCallback(async () => {
@@ -548,9 +626,10 @@ export default function Agenda() {
                       const typeBadge = getSessionTypeBadge(session.sessionType);
                       
                       return (
-                        <div 
+                        <button 
                           key={session.id}
-                          className="p-2 rounded-lg border bg-green-500/10 border-green-500/30"
+                          onClick={() => handleSessionClick(session)}
+                          className="w-full p-2 rounded-lg border bg-green-500/10 border-green-500/30 hover:bg-green-500/20 transition-colors text-left"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
@@ -567,7 +646,7 @@ export default function Agenda() {
                               <span>{format(session.completedAt, "HH:mm")}</span>
                             )}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -593,6 +672,125 @@ export default function Agenda() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Session Details Dialog */}
+      <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Dumbbell className="h-5 w-5" />
+              {selectedSession?.sessionName}
+            </DialogTitle>
+            {selectedSession && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <User className="h-4 w-4" />
+                <span>{selectedSession.athleteName}</span>
+                {selectedSession.completedAt && (
+                  <>
+                    <span>•</span>
+                    <span>{format(selectedSession.completedAt, "d MMM à HH:mm", { locale: fr })}</span>
+                  </>
+                )}
+              </div>
+            )}
+          </DialogHeader>
+
+          {loadingDetails ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : sessionDetails ? (
+            <ScrollArea className="flex-1 -mx-6 px-6">
+              {/* Session RPE */}
+              {sessionDetails.session_rpe && (
+                <div className="mb-4 p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">RPE Global</span>
+                    <Badge variant="outline" className="text-lg px-3">
+                      {sessionDetails.session_rpe}/10
+                    </Badge>
+                  </div>
+                </div>
+              )}
+
+              {/* Exercises list */}
+              <div className="space-y-2">
+                {sessionDetails.session_exercises.map((ex) => (
+                  <div
+                    key={ex.id}
+                    className={`p-3 rounded-lg border ${
+                      ex.skipped
+                        ? "bg-red-500/10 border-red-500/30"
+                        : "bg-muted/30"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {ex.skipped ? (
+                          <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                        ) : (
+                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                        )}
+                        <span className={`font-medium text-sm ${ex.skipped ? "line-through text-muted-foreground" : ""}`}>
+                          {ex.exercice}
+                        </span>
+                      </div>
+                      {ex.skipped && (
+                        <Badge variant="destructive" className="text-xs">Non fait</Badge>
+                      )}
+                    </div>
+
+                    {!ex.skipped && (
+                      <div className="mt-2 ml-6 text-xs text-muted-foreground">
+                        <span>{ex.series} × {ex.reps}</span>
+                        {ex.charge && <span> @ {ex.charge}</span>}
+                      </div>
+                    )}
+
+                    {/* Exercise RPE */}
+                    {ex.sportif_rpe && (
+                      <div className="mt-2 ml-6 flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          RPE: {ex.sportif_rpe}/10
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Feedback */}
+                    {(ex.sportif_feedback || ex.sportif_comment) && (
+                      <div className="mt-2 ml-6 p-2 rounded bg-muted/50">
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                          <p className="text-xs text-muted-foreground">
+                            {ex.sportif_feedback || ex.sportif_comment}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : null}
+
+          {/* Footer with action */}
+          {selectedSession && (
+            <div className="pt-4 border-t mt-4">
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  navigate(`/coach/mes-clients/${selectedSession.athleteId}`);
+                  setSelectedSession(null);
+                }}
+              >
+                <User className="h-4 w-4 mr-2" />
+                Voir la fiche de {selectedSession.athleteName}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
