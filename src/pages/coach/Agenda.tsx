@@ -453,72 +453,92 @@ export default function Agenda() {
 
         {/* Athlete Sessions Tab */}
         <TabsContent value="seances" className="mt-4">
-          <div className="space-y-4">
-            {Object.keys(sessionsByAthlete).length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  Aucune séance programmée cette semaine
-                </CardContent>
-              </Card>
-            ) : Object.entries(sessionsByAthlete).map(([athleteId, { athleteName, sessions }]) => {
-              const completedCount = sessions.filter(s => s.completedAt).length;
-              const totalCount = sessions.length;
+          <div className="grid grid-cols-1 gap-3">
+            {(() => {
+              // Get days with completed sessions
+              const daysWithCompletedSessions = allWeekDays.filter(day => getSessionsForDay(day).length > 0);
               
-              return (
-                <Card key={athleteId}>
-                  <CardHeader className="py-3 pb-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <CardTitle className="text-sm sm:text-base">
-                        {athleteName}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={completedCount === totalCount ? "default" : "secondary"}
-                          className={completedCount === totalCount ? "bg-green-500" : ""}
-                        >
-                          {completedCount}/{totalCount} faites
-                        </Badge>
+              // Reorder: put today first if in this week
+              let orderedDays = daysWithCompletedSessions;
+              if (todayInThisWeek) {
+                const todayIndex = daysWithCompletedSessions.findIndex(d => isSameDay(d, today));
+                if (todayIndex > 0) {
+                  orderedDays = [...daysWithCompletedSessions.slice(todayIndex), ...daysWithCompletedSessions.slice(0, todayIndex)];
+                }
+              }
+
+              if (orderedDays.length === 0) {
+                return (
+                  <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                      Aucune séance validée cette semaine
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              return orderedDays.map(day => {
+                const daySessions = getSessionsForDay(day);
+                const isCurrentDay = isToday(day);
+                
+                return (
+                  <Card 
+                    key={day.toISOString()} 
+                    className={`${isCurrentDay ? 'ring-2 ring-primary' : ''}`}
+                  >
+                    <CardHeader className="py-3 pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className={`text-sm sm:text-base capitalize ${isCurrentDay ? 'text-primary' : ''}`}>
+                          {format(day, "EEEE d MMMM", { locale: fr })}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
+                          {daySessions.length > 0 && (
+                            <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:text-green-300">
+                              {daySessions.length} séance{daySessions.length > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                          {isCurrentDay && (
+                            <Badge variant="default">Aujourd'hui</Badge>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-2">
-                      {sessions.map(session => {
-                        const typeBadge = getSessionTypeBadge(session.sessionType);
-                        
-                        return (
-                          <div 
-                            key={session.id}
-                            className={`p-3 rounded-lg border transition-colors ${
-                              session.completedAt 
-                                ? 'bg-green-500/10 border-green-500/30' 
-                                : 'bg-muted/30'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2 flex-wrap">
-                              <div className="flex items-center gap-2">
-                                {session.completedAt && (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                                )}
-                                <span className="font-medium text-sm">{session.sessionName}</span>
-                                <Badge className={typeBadge.className} variant="secondary">
-                                  {typeBadge.label}
-                                </Badge>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <ScrollArea className={daySessions.length > 4 ? "h-[250px]" : ""}>
+                        <div className="space-y-2">
+                          {daySessions.map(session => {
+                            const typeBadge = getSessionTypeBadge(session.sessionType);
+                            
+                            return (
+                              <div 
+                                key={session.id}
+                                className="p-3 rounded-lg border bg-green-500/10 border-green-500/30 transition-colors"
+                              >
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                                    <span className="font-medium text-sm">{session.athleteName}</span>
+                                  </div>
+                                  <Badge className={typeBadge.className} variant="secondary">
+                                    {typeBadge.label}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
+                                  <span>{session.sessionName}</span>
+                                  {session.completedAt && (
+                                    <span>{format(session.completedAt, "HH:mm", { locale: fr })}</span>
+                                  )}
+                                </div>
                               </div>
-                              {session.completedAt && (
-                                <span className="text-xs text-muted-foreground">
-                                  {format(session.completedAt, "EEEE d/MM à HH:mm", { locale: fr })}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                            );
+                          })}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
           </div>
         </TabsContent>
       </Tabs>
