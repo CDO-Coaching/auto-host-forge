@@ -3,12 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, CheckCircle2, Clock, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, CheckCircle2, Clock, Pencil, Trash2, CalendarPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getWeekNumber, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
+import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +33,7 @@ export default function Seances() {
   const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCustomSession, setEditingCustomSession] = useState<any>(null);
+  const [schedulingSession, setSchedulingSession] = useState<any>(null);
 
   const handleDeleteCustomSession = async (sessionId: string) => {
     try {
@@ -253,31 +257,42 @@ export default function Seances() {
               sessions.map((session, index) => {
                 const completed = isSessionCompleted(session);
                 const isFirstToDo = index === 0 && !completed;
+                const displayName = session.athlete_custom_name || session.name;
+                const hasSchedule = session.scheduled_date && !completed;
 
                 return (
                   <Card
                     key={session.id}
-                    className={`cursor-pointer transition-all active:scale-[0.98] ${
+                    className={`transition-all ${
                       completed
                         ? "border-green-500 bg-green-500/10"
-                        : isFirstToDo
-                          ? "border-primary border-2 bg-primary/5 animate-pulse shadow-lg"
-                          : "hover:border-primary hover:shadow-md"
+                        : hasSchedule
+                          ? "border-orange-500 bg-orange-500/10"
+                          : isFirstToDo
+                            ? "border-primary border-2 bg-primary/5 shadow-lg"
+                            : "hover:border-primary hover:shadow-md"
                     }`}
-                    onClick={() => {
-                      if (session.session_type === "recup") {
-                        navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
-                      } else {
-                        navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
-                      }
-                    }}
                   >
                     <CardContent className="p-4 sm:p-5">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="flex-1 min-w-0">
+                        <div 
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => {
+                            if (session.session_type === "recup") {
+                              navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                            } else {
+                              navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                            }
+                          }}
+                        >
                            <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
                             <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
-                              {session.name}
+                              {displayName}
+                              {session.athlete_custom_name && (
+                                <span className="text-xs text-muted-foreground font-normal">
+                                  ({session.name})
+                                </span>
+                              )}
                               {completed && (
                                 <div className="flex items-center gap-1 text-green-500 text-xs sm:text-sm font-normal">
                                   <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -291,8 +306,14 @@ export default function Seances() {
                               )}
                             </h3>
 
-                            {isFirstToDo && (
-                              <Badge variant="default" className="bg-primary text-primary-foreground animate-bounce text-xs">
+                            {hasSchedule && (
+                              <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 text-xs">
+                                📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
+                              </Badge>
+                            )}
+
+                            {isFirstToDo && !hasSchedule && (
+                              <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
                                 À faire
                               </Badge>
                             )}
@@ -315,11 +336,33 @@ export default function Seances() {
                           </div>
                         </div>
 
-                        <ChevronRight
-                          className={`h-5 w-5 sm:h-7 sm:w-7 flex-shrink-0 ${
-                            completed ? "text-green-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
-                          }`}
-                        />
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {!completed && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 sm:h-10 sm:w-10"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSchedulingSession(session);
+                              }}
+                            >
+                              <CalendarPlus className={`h-4 w-4 sm:h-5 sm:w-5 ${hasSchedule ? "text-orange-500" : "text-muted-foreground"}`} />
+                            </Button>
+                          )}
+                          <ChevronRight
+                            className={`h-5 w-5 sm:h-7 sm:w-7 cursor-pointer ${
+                              completed ? "text-green-500" : hasSchedule ? "text-orange-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
+                            }`}
+                            onClick={() => {
+                              if (session.session_type === "recup") {
+                                navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                              } else {
+                                navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                              }
+                            }}
+                          />
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -435,6 +478,18 @@ export default function Seances() {
           </div>
         )
       )}
+
+      {/* Dialog pour programmer/renommer une séance */}
+      <ScheduleSessionDialog
+        open={!!schedulingSession}
+        onOpenChange={(open) => !open && setSchedulingSession(null)}
+        session={schedulingSession}
+        onUpdate={() => {
+          if (selectedWeek) {
+            loadWeekSessions(selectedWeek.id);
+          }
+        }}
+      />
     </div>
   );
 }

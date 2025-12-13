@@ -29,6 +29,9 @@ interface TrainingSession {
   session_type: string;
   completed_at: string;
   isCustom?: boolean;
+  isScheduled?: boolean;
+  scheduled_date?: string;
+  athlete_custom_name?: string;
 }
 
 interface TrainingDay {
@@ -83,7 +86,7 @@ export default function Agenda() {
     fetchCoachName();
   }, [profile?.id]);
 
-  // Fetch training sessions and custom sessions for the month
+  // Fetch training sessions, custom sessions and scheduled sessions for the month
   useEffect(() => {
     const fetchAllSessions = async () => {
       if (!profile?.id) return;
@@ -103,19 +106,36 @@ export default function Agenda() {
 
       const weekIds = weeks?.map(w => w.id) || [];
 
-      // Fetch regular sessions if we have weeks
+      // Fetch regular sessions (completed) if we have weeks
       let regularSessions: any[] = [];
+      let scheduledSessions: any[] = [];
+      
       if (weekIds.length > 0) {
-        const { data: sessions, error } = await supabase
+        // Completed sessions
+        const { data: completed, error } = await supabase
           .from("training_sessions")
-          .select("id, name, week_id, session_type, completed_at")
+          .select("id, name, week_id, session_type, completed_at, athlete_custom_name")
           .in("week_id", weekIds)
           .not("completed_at", "is", null)
           .gte("completed_at", `${monthStartStr}T00:00:00`)
           .lte("completed_at", `${monthEndStr}T23:59:59`);
 
-        if (!error && sessions) {
-          regularSessions = sessions;
+        if (!error && completed) {
+          regularSessions = completed;
+        }
+
+        // Scheduled sessions (not completed yet)
+        const { data: scheduled, error: scheduledError } = await supabase
+          .from("training_sessions")
+          .select("id, name, week_id, session_type, scheduled_date, athlete_custom_name")
+          .in("week_id", weekIds)
+          .is("completed_at", null)
+          .not("scheduled_date", "is", null)
+          .gte("scheduled_date", monthStartStr)
+          .lte("scheduled_date", monthEndStr);
+
+        if (!scheduledError && scheduled) {
+          scheduledSessions = scheduled;
         }
       }
 
@@ -135,18 +155,39 @@ export default function Agenda() {
       // Group all sessions by date
       const dayMap = new Map<string, TrainingSession[]>();
       
-      // Add regular sessions
+      // Add completed regular sessions
       regularSessions.forEach(session => {
         if (session.completed_at) {
           const dateKey = format(new Date(session.completed_at), "yyyy-MM-dd");
           const existing = dayMap.get(dateKey) || [];
           existing.push({
             id: session.id,
-            name: session.name || 'Séance',
+            name: session.athlete_custom_name || session.name || 'Séance',
             week_id: session.week_id,
             session_type: session.session_type || 'renfo',
             completed_at: session.completed_at,
-            isCustom: false
+            isCustom: false,
+            isScheduled: false
+          });
+          dayMap.set(dateKey, existing);
+        }
+      });
+
+      // Add scheduled sessions
+      scheduledSessions.forEach(session => {
+        if (session.scheduled_date) {
+          const dateKey = session.scheduled_date;
+          const existing = dayMap.get(dateKey) || [];
+          existing.push({
+            id: session.id,
+            name: session.athlete_custom_name || session.name || 'Séance',
+            week_id: session.week_id,
+            session_type: session.session_type || 'renfo',
+            completed_at: '',
+            isCustom: false,
+            isScheduled: true,
+            scheduled_date: session.scheduled_date,
+            athlete_custom_name: session.athlete_custom_name
           });
           dayMap.set(dateKey, existing);
         }
@@ -164,7 +205,8 @@ export default function Agenda() {
               week_id: '',
               session_type: 'renfo', // Custom sessions default to renfo
               completed_at: session.completed_at,
-              isCustom: true
+              isCustom: true,
+              isScheduled: false
             });
             dayMap.set(dateKey, existing);
           }
@@ -284,8 +326,17 @@ export default function Agenda() {
   };
 
   // Custom day render for calendar
+  const scheduledDates = trainingDays
+    .filter(td => td.sessions.some(s => s.isScheduled))
+    .map(td => td.date);
+  
+  const completedDates = trainingDays
+    .filter(td => td.sessions.some(s => !s.isScheduled && !s.isCustom))
+    .map(td => td.date);
+
   const modifiers = {
-    training: trainingDays.map(td => td.date),
+    training: completedDates,
+    scheduled: scheduledDates,
     appointment: appointments.map(apt => {
       try {
         return parseISO(apt.start);
@@ -299,6 +350,11 @@ export default function Agenda() {
     training: {
       border: '2px solid hsl(142 76% 36%)',
       borderRadius: '50%'
+    },
+    scheduled: {
+      border: '2px solid hsl(25 95% 53%)',
+      borderRadius: '50%',
+      backgroundColor: 'hsl(25 95% 53% / 0.1)'
     },
     appointment: {
       border: '2px solid hsl(var(--destructive))',
@@ -337,7 +393,11 @@ export default function Agenda() {
       <div className="flex flex-wrap gap-4 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full border-2 border-green-600" />
-          <span>Jour d'entraînement</span>
+          <span>Séance faite</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border-2 border-orange-500 bg-orange-500/10" />
+          <span>Séance programmée</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full border-2 border-destructive" />
@@ -410,6 +470,31 @@ export default function Agenda() {
                         );
                       }
 
+                      if (session.isScheduled) {
+                        // Séance programmée - à faire
+                        return (
+                          <button
+                            key={session.id}
+                            onClick={() => route && navigate(route)}
+                            className="w-full p-4 rounded-lg bg-orange-500/10 border border-orange-500/30 hover:bg-orange-500/20 transition-colors text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-medium">
+                                <Dumbbell className="h-5 w-5" />
+                                <span>{session.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 text-xs">
+                                  À faire
+                                </Badge>
+                                <ChevronRight className="h-5 w-5 text-orange-500" />
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      }
+
+                      // Séance complétée
                       return (
                         <button
                           key={session.id}
