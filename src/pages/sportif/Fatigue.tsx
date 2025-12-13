@@ -1,17 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format } from "date-fns";
+import { format, subDays, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, ChevronDown } from "lucide-react";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
+type ChartPeriod = "7d" | "1m" | "3m" | "6m";
 
 
 interface FatigueLog {
@@ -36,6 +39,9 @@ export default function Fatigue() {
   const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [canAnswerToday, setCanAnswerToday] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("7d");
+  const [injuryChartPeriod, setInjuryChartPeriod] = useState<ChartPeriod>("7d");
+  const [showAllHistory, setShowAllHistory] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -152,19 +158,62 @@ export default function Fatigue() {
     checkIfCanAnswerToday();
   };
 
-  // Limiter les données du graphique pour mobile (7 derniers jours sur petit écran)
-  const getChartData = () => {
-    const reversedLogs = [...logs].reverse();
-    const isMobile = window.innerWidth < 640;
-    const dataToShow = isMobile ? reversedLogs.slice(-7) : reversedLogs;
+  // Fonction pour filtrer les données par période
+  const filterByPeriod = (data: FatigueLog[], period: ChartPeriod) => {
+    const now = new Date();
+    let cutoffDate: Date;
     
-    return dataToShow.map(log => ({
-      date: format(new Date(log.date), isMobile ? "dd/MM" : "dd/MM", { locale: fr }),
+    switch (period) {
+      case "7d":
+        cutoffDate = subDays(now, 7);
+        break;
+      case "1m":
+        cutoffDate = subMonths(now, 1);
+        break;
+      case "3m":
+        cutoffDate = subMonths(now, 3);
+        break;
+      case "6m":
+        cutoffDate = subMonths(now, 6);
+        break;
+      default:
+        cutoffDate = subDays(now, 7);
+    }
+    
+    return data.filter(log => new Date(log.date) >= cutoffDate);
+  };
+
+  // Données filtrées pour le graphique de fatigue
+  const getChartData = useMemo(() => {
+    const filteredLogs = filterByPeriod(logs, chartPeriod);
+    const reversedLogs = [...filteredLogs].reverse();
+    
+    return reversedLogs.map(log => ({
+      date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
       injury: log.has_injury && log.injury_level ? log.injury_level : null,
       injuryLocation: log.injury_location || null,
     }));
-  };
+  }, [logs, chartPeriod]);
+
+  // Données filtrées pour le graphique des blessures
+  const getInjuryChartData = useMemo(() => {
+    const filteredLogs = filterByPeriod(logs, injuryChartPeriod);
+    const reversedLogs = [...filteredLogs].reverse();
+    
+    return reversedLogs.map(log => ({
+      date: format(new Date(log.date), "dd/MM", { locale: fr }),
+      score: log.score_total,
+      injury: log.has_injury && log.injury_level ? log.injury_level : null,
+      injuryLocation: log.injury_location || null,
+    }));
+  }, [logs, injuryChartPeriod]);
+
+  // Historique limité ou complet
+  const historyLogs = useMemo(() => {
+    if (showAllHistory) return logs;
+    return logs.slice(0, 7);
+  }, [logs, showAllHistory]);
 
   // Tooltip personnalisé pour le graphique des blessures
   const CustomInjuryTooltip = ({ active, payload }: any) => {
@@ -201,7 +250,8 @@ export default function Fatigue() {
     return null;
   };
 
-  const chartData = getChartData();
+  const chartData = getChartData;
+  const injuryChartData = getInjuryChartData;
   const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
 
   return (
@@ -244,10 +294,20 @@ export default function Fatigue() {
           <>
             <Card className="w-full">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base sm:text-lg">Évolution du score total</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
-                </p>
+                <div className="flex flex-col gap-2">
+                  <CardTitle className="text-base sm:text-lg">Évolution du score total</CardTitle>
+                  <ToggleGroup
+                    type="single"
+                    value={chartPeriod}
+                    onValueChange={(value) => value && setChartPeriod(value as ChartPeriod)}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="7d" size="sm" className="text-xs px-2 h-7">7j</ToggleGroupItem>
+                    <ToggleGroupItem value="1m" size="sm" className="text-xs px-2 h-7">1 mois</ToggleGroupItem>
+                    <ToggleGroupItem value="3m" size="sm" className="text-xs px-2 h-7">3 mois</ToggleGroupItem>
+                    <ToggleGroupItem value="6m" size="sm" className="text-xs px-2 h-7">6 mois</ToggleGroupItem>
+                  </ToggleGroup>
+                </div>
               </CardHeader>
               <CardContent className="pb-4" style={{ width: '100%', padding: '0 8px 16px 8px' }}>
                 <div style={{ width: '100%', height: '200px', maxWidth: '100%' }}>
@@ -293,15 +353,25 @@ export default function Fatigue() {
             {injuryLogs.length > 0 && (
               <Card className="w-full">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base sm:text-lg">Suivi des blessures</CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {window.innerWidth < 640 && logs.length > 7 ? "7 derniers jours" : "Tous les jours"}
-                  </p>
+                  <div className="flex flex-col gap-2">
+                    <CardTitle className="text-base sm:text-lg">Suivi des douleurs</CardTitle>
+                    <ToggleGroup
+                      type="single"
+                      value={injuryChartPeriod}
+                      onValueChange={(value) => value && setInjuryChartPeriod(value as ChartPeriod)}
+                      className="justify-start"
+                    >
+                      <ToggleGroupItem value="7d" size="sm" className="text-xs px-2 h-7">7j</ToggleGroupItem>
+                      <ToggleGroupItem value="1m" size="sm" className="text-xs px-2 h-7">1 mois</ToggleGroupItem>
+                      <ToggleGroupItem value="3m" size="sm" className="text-xs px-2 h-7">3 mois</ToggleGroupItem>
+                      <ToggleGroupItem value="6m" size="sm" className="text-xs px-2 h-7">6 mois</ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
                 </CardHeader>
                 <CardContent className="pb-4" style={{ width: '100%', padding: '0 8px 16px 8px' }}>
                   <div style={{ width: '100%', height: '200px', maxWidth: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ left: -25, right: 5, top: 10, bottom: 5 }}>
+                      <LineChart data={injuryChartData} margin={{ left: -25, right: 5, top: 10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                         <XAxis 
                           dataKey="date" 
@@ -315,15 +385,7 @@ export default function Fatigue() {
                           width={30}
                           tickMargin={5}
                         />
-                        <Tooltip 
-                          contentStyle={{
-                            backgroundColor: 'hsl(var(--card))',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: '6px',
-                            fontSize: '10px',
-                            padding: '6px 8px',
-                          }}
-                        />
+                        <Tooltip content={<CustomInjuryTooltip />} />
                         <Line 
                           type="monotone" 
                           dataKey="injury" 
@@ -363,6 +425,9 @@ export default function Fatigue() {
             <Card className="w-full">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Historique</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {showAllHistory ? "Toutes les entrées" : "7 derniers jours"}
+                </p>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="w-full overflow-x-auto" style={{ maxWidth: '100%' }}>
@@ -379,7 +444,7 @@ export default function Fatigue() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {logs.map((log) => (
+                      {historyLogs.map((log) => (
                         <TableRow key={log.id} className="border-b">
                           <TableCell className="text-[10px] px-2 py-2 font-medium sticky left-0 bg-card z-10 whitespace-nowrap">
                             {format(new Date(log.date), "dd/MM", { locale: fr })}
@@ -403,6 +468,20 @@ export default function Fatigue() {
                     </TableBody>
                   </Table>
                 </div>
+                
+                {logs.length > 7 && (
+                  <div className="p-3 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs text-muted-foreground"
+                      onClick={() => setShowAllHistory(!showAllHistory)}
+                    >
+                      <ChevronDown className={`h-4 w-4 mr-1 transition-transform ${showAllHistory ? "rotate-180" : ""}`} />
+                      {showAllHistory ? "Afficher moins" : `Voir tout l'historique (${logs.length} entrées)`}
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
