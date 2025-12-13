@@ -469,35 +469,24 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
             <div className="space-y-2">
               <Label>Date cible *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !milestoneForm.target_date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {milestoneForm.target_date ? (
-                      format(milestoneForm.target_date, "PPP", { locale: fr })
-                    ) : (
-                      <span>Sélectionner une date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[9999]" align="center" side="bottom" sideOffset={4}>
-                  <Calendar
-                    mode="single"
-                    selected={milestoneForm.target_date}
-                    onSelect={(date) => date && setMilestoneForm({ ...milestoneForm, target_date: date })}
-                    initialFocus
-                    locale={fr}
-                    weekStartsOn={1}
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                <CalendarIcon className="h-4 w-4" />
+                {milestoneForm.target_date ? (
+                  format(milestoneForm.target_date, "EEEE d MMMM yyyy", { locale: fr })
+                ) : (
+                  <span>Aucune date sélectionnée</span>
+                )}
+              </div>
+              <div className="border rounded-md p-2 bg-background">
+                <Calendar
+                  mode="single"
+                  selected={milestoneForm.target_date}
+                  onSelect={(date) => date && setMilestoneForm({ ...milestoneForm, target_date: date })}
+                  locale={fr}
+                  weekStartsOn={1}
+                  className="pointer-events-auto mx-auto"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
