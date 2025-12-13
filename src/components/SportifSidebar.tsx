@@ -1,4 +1,4 @@
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, Download } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -20,7 +20,7 @@ const menuItems = [
   { title: "Mes max", url: "/sportif/maxes", icon: TrendingUp },
   { title: "Mon poids", url: "/sportif/poids", icon: Scale },
   { title: "Mon profil", url: "/sportif/profil", icon: User },
-  { title: "Installer", url: "/sportif/installer", icon: Download },
+  { title: "Aide", url: "/sportif/aide", icon: HelpCircle },
 ];
 
 export function SportifSidebar() {
