@@ -67,6 +67,12 @@ interface SessionExercise {
   sportif_comment: string | null;
   sportif_feedback_at: string | null;
   skipped: boolean;
+  // Cardio metrics
+  actual_distance_km: number | null;
+  actual_duration_minutes: number | null;
+  actual_pace_min_per_km: number | null;
+  actual_avg_heart_rate: number | null;
+  cardio_sport: string | null;
 }
 
 interface SessionDetails {
@@ -139,7 +145,12 @@ export default function Agenda() {
             sportif_rpe,
             sportif_comment,
             sportif_feedback_at,
-            skipped
+            skipped,
+            actual_distance_km,
+            actual_duration_minutes,
+            actual_pace_min_per_km,
+            actual_avg_heart_rate,
+            cardio_sport
           )
         `)
         .eq("id", sessionId)
@@ -740,10 +751,42 @@ export default function Agenda() {
                       )}
                     </div>
 
-                    {!ex.skipped && (
+                    {!ex.skipped && sessionDetails?.session_type !== 'course' && (
                       <div className="mt-2 ml-6 text-xs text-muted-foreground">
                         <span>{ex.series} × {ex.reps}</span>
                         {ex.charge && <span> @ {ex.charge}</span>}
+                      </div>
+                    )}
+
+                    {/* Cardio metrics for running/cycling/swimming */}
+                    {!ex.skipped && (sessionDetails?.session_type === 'course' || ex.cardio_sport) && (
+                      <div className="mt-2 ml-6 grid grid-cols-2 gap-2 text-xs">
+                        {ex.actual_distance_km && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">Distance:</span>
+                            <span className="font-medium">{ex.actual_distance_km.toFixed(2)} km</span>
+                          </div>
+                        )}
+                        {ex.actual_duration_minutes && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">Durée:</span>
+                            <span className="font-medium">{Math.floor(ex.actual_duration_minutes)}min</span>
+                          </div>
+                        )}
+                        {ex.actual_pace_min_per_km && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">Allure:</span>
+                            <span className="font-medium">
+                              {Math.floor(ex.actual_pace_min_per_km)}'{String(Math.round((ex.actual_pace_min_per_km % 1) * 60)).padStart(2, '0')}/km
+                            </span>
+                          </div>
+                        )}
+                        {ex.actual_avg_heart_rate && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-muted-foreground">FC moy:</span>
+                            <span className="font-medium">{ex.actual_avg_heart_rate} bpm</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
