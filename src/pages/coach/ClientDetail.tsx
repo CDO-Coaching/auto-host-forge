@@ -1704,9 +1704,22 @@ export default function ClientDetail() {
                   </SheetHeader>
                   <div className="mt-6 space-y-4">
                     {lastWeekData.sessions.map((session: any) => {
-                      const exercisesWithFeedback = session.session_exercises?.filter(
-                        (ex: any) => ex.sportif_feedback || ex.sportif_comment || ex.sportif_rpe
-                      ) || [];
+                      const isCardioSession = session.session_type === 'course' || session.session_type === 'velo' || session.session_type === 'natation';
+                      const allExercises = session.session_exercises || [];
+                      
+                      // Pour cardio: afficher toutes les données
+                      // Pour renfo: afficher exercices avec feedback OU skipped
+                      const exercisesToShow = isCardioSession 
+                        ? allExercises.filter((ex: any) => 
+                            ex.sportif_rpe !== null || 
+                            ex.actual_distance_km !== null || 
+                            ex.actual_duration_minutes !== null ||
+                            ex.actual_pace_min_per_km !== null ||
+                            ex.actual_avg_heart_rate !== null
+                          )
+                        : allExercises.filter((ex: any) => 
+                            ex.sportif_feedback || ex.sportif_comment || ex.sportif_rpe || ex.skipped
+                          );
                       
                       return (
                         <Card key={session.id}>
@@ -1719,22 +1732,64 @@ export default function ClientDetail() {
                             </CardTitle>
                           </CardHeader>
                           <CardContent className="py-2">
-                            {exercisesWithFeedback.length > 0 ? (
+                            {exercisesToShow.length > 0 ? (
                               <div className="space-y-2">
-                                {exercisesWithFeedback.map((ex: any) => (
-                                  <div key={ex.id} className="text-sm p-2 bg-muted/50 rounded">
+                                {exercisesToShow.map((ex: any) => (
+                                  <div key={ex.id} className={`text-sm p-2 rounded ${ex.skipped ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/50'}`}>
                                     <div className="flex items-center justify-between">
-                                      <span className="font-medium">{ex.exercice}</span>
-                                      {ex.sportif_rpe && (
-                                        <Badge variant="secondary" className="text-xs">RPE: {ex.sportif_rpe}</Badge>
-                                      )}
+                                      <span className={`font-medium ${ex.skipped ? 'text-destructive line-through' : ''}`}>
+                                        {ex.exercice}
+                                      </span>
+                                      <div className="flex gap-1">
+                                        {ex.skipped && (
+                                          <Badge variant="destructive" className="text-xs">Non fait</Badge>
+                                        )}
+                                        {ex.sportif_rpe && (
+                                          <Badge variant="secondary" className="text-xs">RPE: {ex.sportif_rpe}</Badge>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
-                                      {ex.series && <span>{ex.series} séries</span>}
-                                      {ex.reps && <span>× {ex.reps} reps</span>}
-                                      {ex.charge && <span>@ {ex.charge}</span>}
-                                      {ex.recuperation && <span>• Récup: {ex.recuperation}</span>}
-                                    </div>
+                                    
+                                    {/* Données cardio complètes */}
+                                    {isCardioSession && (
+                                      <div className="flex flex-wrap gap-3 text-xs mt-2 p-2 bg-background/50 rounded">
+                                        {ex.actual_distance_km !== null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Distance:</span>
+                                            <span className="font-medium">{ex.actual_distance_km} km</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_duration_minutes !== null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Durée:</span>
+                                            <span className="font-medium">{Math.floor(ex.actual_duration_minutes)}min{ex.actual_duration_minutes % 1 > 0 ? Math.round((ex.actual_duration_minutes % 1) * 60) + 's' : ''}</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_pace_min_per_km !== null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Allure:</span>
+                                            <span className="font-medium">{Math.floor(ex.actual_pace_min_per_km)}'{Math.round((ex.actual_pace_min_per_km % 1) * 60).toString().padStart(2, '0')}/km</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_avg_heart_rate !== null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">FC moy:</span>
+                                            <span className="font-medium">{ex.actual_avg_heart_rate} bpm</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    
+                                    {/* Données renfo */}
+                                    {!isCardioSession && !ex.skipped && (
+                                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+                                        {ex.series && <span>{ex.series} séries</span>}
+                                        {ex.reps && <span>× {ex.reps} reps</span>}
+                                        {ex.charge && <span>@ {ex.charge}</span>}
+                                        {ex.recuperation && <span>• Récup: {ex.recuperation}</span>}
+                                      </div>
+                                    )}
+                                    
                                     {(ex.sportif_feedback || ex.sportif_comment) && (
                                       <p className="text-muted-foreground text-xs mt-1 italic border-l-2 border-primary/30 pl-2">
                                         {ex.sportif_feedback || ex.sportif_comment}
