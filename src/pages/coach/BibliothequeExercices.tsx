@@ -113,8 +113,32 @@ export default function BibliothequeExercices() {
       filtered = filtered.filter((ex) => ex.muscle_principal === selectedMuscle);
     }
 
-    // Tri alphabétique par nom
-    filtered = filtered.sort((a, b) => a.name.localeCompare(b.name));
+    // Tri: exercices sans muscles secondaires en premier, puis par muscles secondaires alphabétique
+    filtered = filtered.sort((a, b) => {
+      const aHasSecond = a.muscles_second && a.muscles_second.length > 0;
+      const bHasSecond = b.muscles_second && b.muscles_second.length > 0;
+      
+      // Si l'un n'a pas de muscles secondaires et l'autre oui
+      if (!aHasSecond && bHasSecond) return -1;
+      if (aHasSecond && !bHasSecond) return 1;
+      
+      // Si les deux n'ont pas de muscles secondaires, tri par nom
+      if (!aHasSecond && !bHasSecond) {
+        return a.name.localeCompare(b.name);
+      }
+      
+      // Les deux ont des muscles secondaires, tri par le premier muscle secondaire
+      const aFirst = a.muscles_second![0];
+      const bFirst = b.muscles_second![0];
+      const muscleCompare = aFirst.localeCompare(bFirst);
+      
+      // Si même muscle secondaire, tri par nom
+      if (muscleCompare === 0) {
+        return a.name.localeCompare(b.name);
+      }
+      
+      return muscleCompare;
+    });
 
     setFilteredExercises(filtered);
   };
