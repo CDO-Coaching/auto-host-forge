@@ -1,4 +1,4 @@
-// Système sonore élaboré pour les minuteurs
+// Système sonore sportif pour les minuteurs - Style buzzer de gym
 export class SoundSystem {
   private ctx: AudioContext | null = null;
 
@@ -25,144 +25,184 @@ export class SoundSystem {
     return gain;
   }
 
-  // Son de décompte 3-2-1 (bips courts montants)
+  private createBiquadFilter(type: BiquadFilterType, freq: number): BiquadFilterNode | null {
+    if (!this.ctx) return null;
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.value = freq;
+    return filter;
+  }
+
+  // Son de décompte 3-2-1 (bips sportifs graves)
   countdown321(count: number) {
     if (!this.ctx) return;
-    const freq = 800 + (count * 200); // 800, 1000, 1200 Hz
-    const osc = this.createOscillator(freq, 'sine');
-    const gain = this.createGain(0.4);
+    // Fréquences plus basses et sportives
+    const freq = 300 + (count * 100); // 300, 400, 500 Hz - plus grave
+    const osc = this.createOscillator(freq, 'square');
+    const gain = this.createGain(0.5);
+    const filter = this.createBiquadFilter('lowpass', 800);
     
-    if (!osc || !gain) return;
+    if (!osc || !gain || !filter) return;
     
-    osc.connect(gain);
+    osc.connect(filter);
+    filter.connect(gain);
     gain.connect(this.ctx.destination);
     
     const now = this.ctx.currentTime;
-    gain.gain.setValueAtTime(0.4, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    gain.gain.setValueAtTime(0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
     
     osc.start(now);
-    osc.stop(now + 0.15);
+    osc.stop(now + 0.2);
   }
 
-  // Son GO ! (accord puissant)
+  // Son GO ! (klaxon de départ sportif)
   go() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     
-    // Triple accord pour un son riche
-    [400, 600, 800].forEach((freq, i) => {
-      const osc = this.createOscillator(freq, 'triangle');
-      const gain = this.createGain(0.25);
+    // Double klaxon grave style départ de course
+    [220, 330, 440].forEach((freq, i) => {
+      const osc = this.createOscillator(freq, 'sawtooth');
+      const gain = this.createGain(0.4);
+      const filter = this.createBiquadFilter('lowpass', 1000);
       
-      if (!osc || !gain) return;
+      if (!osc || !gain || !filter) return;
       
-      osc.connect(gain);
+      osc.connect(filter);
+      filter.connect(gain);
       gain.connect(this.ctx!.destination);
       
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
       
-      osc.start(now + i * 0.02);
-      osc.stop(now + 0.4 + i * 0.02);
+      osc.start(now + i * 0.01);
+      osc.stop(now + 0.5 + i * 0.01);
     });
   }
 
-  // Alerte 5 secondes (série de bips rapides qui s'accélèrent)
+  // Alerte 5 secondes (buzzer d'avertissement sportif)
   alert5Seconds() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    const beeps = [0, 0.15, 0.3, 0.45, 0.55]; // Accélération progressive
+    
+    // Buzzer grave pulsé
+    const beeps = [0, 0.12, 0.24, 0.36, 0.48];
     
     beeps.forEach((delay) => {
-      const osc = this.createOscillator(1400, 'square');
-      const gain = this.createGain(0.35);
+      const osc = this.createOscillator(350, 'sawtooth');
+      const osc2 = this.createOscillator(352, 'sawtooth'); // Légère dissonance pour effet buzzer
+      const gain = this.createGain(0.45);
+      const filter = this.createBiquadFilter('lowpass', 600);
       
-      if (!osc || !gain) return;
+      if (!osc || !osc2 || !gain || !filter) return;
       
-      osc.connect(gain);
+      osc.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
       gain.connect(this.ctx!.destination);
       
       const startTime = now + delay;
-      gain.gain.setValueAtTime(0.35, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.08);
+      gain.gain.setValueAtTime(0.45, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
       
       osc.start(startTime);
-      osc.stop(startTime + 0.08);
+      osc2.start(startTime);
+      osc.stop(startTime + 0.1);
+      osc2.stop(startTime + 0.1);
     });
   }
 
-  // Son de transition PUISSANT (passage au tour suivant ou travail/repos)
+  // Son de transition PUISSANT (buzzer de gym pour changement de phase)
   transition() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     
-    // Triple accord puissant descendant
-    const frequencies = [1200, 900, 600];
-    frequencies.forEach((freq, i) => {
-      const osc = this.createOscillator(freq, 'square');
-      const gain = this.createGain(0.5);
+    // Buzzer de gym grave et puissant - style klaxon de match
+    const frequencies = [200, 250, 300];
+    frequencies.forEach((freq) => {
+      const osc = this.createOscillator(freq, 'sawtooth');
+      const osc2 = this.createOscillator(freq * 1.01, 'sawtooth'); // Effet riche
+      const gain = this.createGain(0.6);
+      const filter = this.createBiquadFilter('lowpass', 800);
       
-      if (!osc || !gain) return;
+      if (!osc || !osc2 || !gain || !filter) return;
       
-      osc.connect(gain);
+      osc.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
       gain.connect(this.ctx!.destination);
       
-      const startTime = now + i * 0.05;
-      gain.gain.setValueAtTime(0.5, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.25);
+      gain.gain.setValueAtTime(0.6, now);
+      gain.gain.setValueAtTime(0.6, now + 0.3);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
       
-      osc.start(startTime);
-      osc.stop(startTime + 0.25);
+      osc.start(now);
+      osc2.start(now);
+      osc.stop(now + 0.5);
+      osc2.stop(now + 0.5);
     });
     
-    // Double bip de confirmation puissant
+    // Deuxième coup de buzzer pour confirmer
     setTimeout(() => {
       if (!this.ctx) return;
-      [800, 1000].forEach((freq, i) => {
-        const osc = this.createOscillator(freq, 'triangle');
-        const gain = this.createGain(0.6);
-        
-        if (!osc || !gain) return;
-        
-        osc.connect(gain);
-        gain.connect(this.ctx!.destination);
-        
-        const startTime = this.ctx!.currentTime + i * 0.1;
-        gain.gain.setValueAtTime(0.6, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.2);
-        
-        osc.start(startTime);
-        osc.stop(startTime + 0.2);
-      });
-    }, 150);
+      const osc = this.createOscillator(280, 'sawtooth');
+      const osc2 = this.createOscillator(282, 'sawtooth');
+      const gain = this.createGain(0.5);
+      const filter = this.createBiquadFilter('lowpass', 700);
+      
+      if (!osc || !osc2 || !gain || !filter) return;
+      
+      osc.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx!.destination);
+      
+      const startTime = this.ctx!.currentTime;
+      gain.gain.setValueAtTime(0.5, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.3);
+      
+      osc.start(startTime);
+      osc2.start(startTime);
+      osc.stop(startTime + 0.3);
+      osc2.stop(startTime + 0.3);
+    }, 200);
   }
 
-  // Son de fin complète (mélodie de victoire)
+  // Son de fin complète (fanfare de victoire sportive)
   victory() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
+    
+    // Fanfare sportive grave et puissante
     const melody = [
-      { freq: 523, time: 0, duration: 0.15 },      // C
-      { freq: 659, time: 0.15, duration: 0.15 },   // E
-      { freq: 784, time: 0.3, duration: 0.3 },     // G
+      { freq: 262, time: 0, duration: 0.2 },      // C grave
+      { freq: 330, time: 0.15, duration: 0.2 },   // E
+      { freq: 392, time: 0.3, duration: 0.4 },    // G
+      { freq: 523, time: 0.5, duration: 0.5 },    // C aigu - final
     ];
     
     melody.forEach(note => {
-      const osc = this.createOscillator(note.freq, 'triangle');
-      const gain = this.createGain(0.3);
+      const osc = this.createOscillator(note.freq, 'sawtooth');
+      const osc2 = this.createOscillator(note.freq * 2, 'triangle'); // Harmonique
+      const gain = this.createGain(0.4);
+      const filter = this.createBiquadFilter('lowpass', 1200);
       
-      if (!osc || !gain) return;
+      if (!osc || !osc2 || !gain || !filter) return;
       
-      osc.connect(gain);
+      osc.connect(filter);
+      osc2.connect(filter);
+      filter.connect(gain);
       gain.connect(this.ctx!.destination);
       
       const startTime = now + note.time;
-      gain.gain.setValueAtTime(0.3, startTime);
+      gain.gain.setValueAtTime(0.4, startTime);
       gain.gain.exponentialRampToValueAtTime(0.01, startTime + note.duration);
       
       osc.start(startTime);
+      osc2.start(startTime);
       osc.stop(startTime + note.duration);
+      osc2.stop(startTime + note.duration);
     });
   }
 
