@@ -20,22 +20,22 @@ const questions = [
   {
     id: "fatigue",
     label: "Niveau de fatigue",
-    labels: ["Aucune", "Minime", "Légère", "Modérée", "Importante", "Forte", "Extrême"],
+    labels: ["Très frais", "Frais", "Légèrement fatigué", "Fatigué", "Très fatigué", "Épuisé", "Exténué"],
   },
   {
     id: "courbatures",
     label: "Niveau de courbatures",
-    labels: ["Aucune", "Très légères", "Légères", "Modérées", "Marquées", "Fortes", "Intenses"],
+    labels: ["Aucune", "Très légères", "Légères", "Modérées", "Importantes", "Très importantes", "Sévères"],
   },
   {
     id: "sommeil",
     label: "Qualité du sommeil",
-    labels: ["Très mauvais", "Mauvais", "Agité", "Moyen", "Bon", "Très bon", "Excellent"],
+    labels: ["Catastrophique", "Très mauvais", "Mauvais", "Moyen", "Bon", "Très bon", "Excellent"],
   },
   {
     id: "stress",
     label: "Niveau de stress",
-    labels: ["Zen", "Calme", "Détendu", "Neutre", "Tendu", "Stressé", "Très stressé"],
+    labels: ["Très calme", "Calme", "Légèrement tendu", "Modéré", "Élevé", "Très élevé", "Extrême"],
   },
 ];
 
