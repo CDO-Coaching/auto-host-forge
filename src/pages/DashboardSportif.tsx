@@ -21,7 +21,7 @@ import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 import MesSeances from "./sportif/MesSeances";
-import Install from "./sportif/Install";
+import Aide from "./sportif/Aide";
 import Agenda from "./sportif/Agenda";
 
 export default function DashboardSportif() {
@@ -135,7 +135,7 @@ export default function DashboardSportif() {
               <Route path="/poids" element={<Poids />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
-              <Route path="/installer" element={<Install />} />
+              <Route path="/aide" element={<Aide />} />
             </Routes>
           </main>
         </div>
