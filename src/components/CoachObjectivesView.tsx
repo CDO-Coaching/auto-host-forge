@@ -446,7 +446,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
       {/* Dialog pour ajouter/modifier une date d'objectif */}
       <Dialog open={showMilestoneDialog} onOpenChange={setShowMilestoneDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingMilestone ? "Modifier la date d'objectif" : "Ajouter une date d'objectif"}
@@ -456,7 +456,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto flex-1">
             <div className="space-y-2">
               <Label htmlFor="milestone-label">Label *</Label>
               <Input
@@ -519,7 +519,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             )}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0">
             <Button variant="outline" onClick={() => setShowMilestoneDialog(false)}>
               <X className="h-4 w-4 mr-2" />
               Annuler
