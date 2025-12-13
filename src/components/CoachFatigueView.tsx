@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
+import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 
 interface FatigueLog {
   id: string;
@@ -220,6 +221,8 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
           </CardContent>
         </Card>
       )}
+
+      <FatigueDetailedCharts logs={logs} />
 
       <Card>
         <CardHeader>
