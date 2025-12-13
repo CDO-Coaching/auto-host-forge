@@ -3,7 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   RefreshCw, 
   Clock, 
@@ -11,7 +14,10 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  ExternalLink
+  ExternalLink,
+  Dumbbell,
+  Calendar,
+  CheckCircle2
 } from "lucide-react";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -29,6 +35,16 @@ interface CalendarEvent {
   htmlLink?: string;
   isAllDay?: boolean;
   attendees?: { email: string; displayName?: string; responseStatus?: string }[];
+}
+
+interface AthleteSession {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  sessionName: string;
+  sessionType: string;
+  completedAt: Date | null;
+  weekNumber: number;
 }
 
 // Normalize event to extract start/end as string
@@ -56,12 +72,84 @@ const normalizeEvent = (event: any): CalendarEvent | null => {
 };
 
 export default function Agenda() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [athleteSessions, setAthleteSessions] = useState<AthleteSession[]>([]);
+  const [activeTab, setActiveTab] = useState("rdv");
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+
+  // Fetch athlete sessions for the current week
+  const fetchAthleteSessions = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const weekStart = currentWeekStart;
+      const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
+
+      // Get coach's athletes
+      const { data: relationships } = await supabase
+        .from('coach_athlete_relationships')
+        .select('athlete_id')
+        .eq('coach_id', user.id)
+        .eq('status', 'approved');
+
+      if (!relationships || relationships.length === 0) {
+        setAthleteSessions([]);
+        return;
+      }
+
+      const athleteIds = relationships.map(r => r.athlete_id);
+
+      // Get training weeks for these athletes that overlap with current week
+      const { data: weeks } = await supabase
+        .from('training_weeks')
+        .select(`
+          id,
+          week_number,
+          athlete_id,
+          training_sessions (
+            id,
+            name,
+            type,
+            completed_at
+          )
+        `)
+        .in('athlete_id', athleteIds)
+        .gte('start_date', format(weekStart, 'yyyy-MM-dd'))
+        .lte('start_date', format(weekEnd, 'yyyy-MM-dd'));
+
+      // Get athlete profiles
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, first_name, last_name')
+        .in('id', athleteIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, `${p.first_name} ${p.last_name}`]) || []);
+
+      const sessions: AthleteSession[] = [];
+      weeks?.forEach(week => {
+        week.training_sessions?.forEach((session: any) => {
+          sessions.push({
+            id: session.id,
+            athleteId: week.athlete_id,
+            athleteName: profileMap.get(week.athlete_id) || 'Inconnu',
+            sessionName: session.name,
+            sessionType: session.type,
+            completedAt: session.completed_at ? new Date(session.completed_at) : null,
+            weekNumber: week.week_number
+          });
+        });
+      });
+
+      setAthleteSessions(sessions);
+    } catch (error) {
+      console.error('Error fetching athlete sessions:', error);
+    }
+  }, [user, currentWeekStart]);
 
   // Fetch events from n8n webhook
   const fetchEvents = useCallback(async () => {
@@ -122,11 +210,17 @@ export default function Agenda() {
 
   useEffect(() => {
     fetchEvents();
-  }, [fetchEvents]);
+    fetchAthleteSessions();
+  }, [fetchEvents, fetchAthleteSessions]);
 
-  // Get events for a specific day
-  const getEventsForDay = (date: Date) => {
-    return events.filter(event => {
+  // Filter PT events only
+  const ptEvents = events.filter(event => 
+    event.title.toLowerCase().startsWith('pt')
+  );
+
+  // Get PT events for a specific day
+  const getPtEventsForDay = (date: Date) => {
+    return ptEvents.filter(event => {
       if (!event.start) return false;
       try {
         const eventDate = parseISO(event.start as string);
@@ -136,6 +230,26 @@ export default function Agenda() {
       }
     });
   };
+
+  // Get athlete sessions by completion date
+  const getSessionsForDay = (date: Date) => {
+    return athleteSessions.filter(session => {
+      if (!session.completedAt) return false;
+      return isSameDay(session.completedAt, date);
+    });
+  };
+
+  // Group sessions by athlete
+  const sessionsByAthlete = athleteSessions.reduce((acc, session) => {
+    if (!acc[session.athleteId]) {
+      acc[session.athleteId] = {
+        athleteName: session.athleteName,
+        sessions: []
+      };
+    }
+    acc[session.athleteId].sessions.push(session);
+    return acc;
+  }, {} as Record<string, { athleteName: string; sessions: AthleteSession[] }>);
 
   // Week days - today first, then following days
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
@@ -152,12 +266,24 @@ export default function Agenda() {
     weekDays = [...allWeekDays.slice(todayIndex), ...allWeekDays.slice(0, todayIndex)];
   }
   
-  // Filter out days with no events
-  const daysWithEvents = weekDays.filter(day => getEventsForDay(day).length > 0);
+  // Filter out days with PT events
+  const daysWithPtEvents = weekDays.filter(day => getPtEventsForDay(day).length > 0);
 
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
   const goToNextWeek = () => setCurrentWeekStart(addWeeks(currentWeekStart, 1));
   const goToToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+
+  // Get session type badge variant
+  const getSessionTypeBadge = (type: string) => {
+    switch (type) {
+      case 'renfo': return { label: 'Renfo', className: 'bg-blue-500/20 text-blue-700 dark:text-blue-300' };
+      case 'course': return { label: 'Course', className: 'bg-green-500/20 text-green-700 dark:text-green-300' };
+      case 'velo': return { label: 'Vélo', className: 'bg-purple-500/20 text-purple-700 dark:text-purple-300' };
+      case 'natation': return { label: 'Natation', className: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' };
+      case 'recup': return { label: 'Récup', className: 'bg-orange-500/20 text-orange-700 dark:text-orange-300' };
+      default: return { label: type, className: 'bg-muted' };
+    }
+  };
 
   if (loading) {
     return (
@@ -184,7 +310,10 @@ export default function Agenda() {
           <Button 
             variant="outline" 
             size="icon"
-            onClick={() => fetchEvents()}
+            onClick={() => {
+              fetchEvents();
+              fetchAthleteSessions();
+            }}
             disabled={loadingEvents}
           >
             <RefreshCw className={`h-4 w-4 ${loadingEvents ? 'animate-spin' : ''}`} />
@@ -217,105 +346,182 @@ export default function Agenda() {
         </CardHeader>
       </Card>
 
-      {/* Week view */}
-      <div className="grid grid-cols-1 gap-3">
-        {daysWithEvents.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Aucun événement cette semaine
-            </CardContent>
-          </Card>
-        ) : daysWithEvents.map(day => {
-          const dayEvents = getEventsForDay(day);
-          const isCurrentDay = isToday(day);
-          
-          return (
-            <Card 
-              key={day.toISOString()} 
-              className={`${isCurrentDay ? 'ring-2 ring-primary' : ''}`}
-            >
-              <CardHeader className="py-3 pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className={`text-sm sm:text-base capitalize ${isCurrentDay ? 'text-primary' : ''}`}>
-                    {format(day, "EEEE d MMMM", { locale: fr })}
-                  </CardTitle>
-                  {dayEvents.length > 0 && (
-                    <Badge variant="secondary">{dayEvents.length}</Badge>
-                  )}
-                  {isCurrentDay && (
-                    <Badge variant="default" className="ml-2">Aujourd'hui</Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {dayEvents.length === 0 ? (
-                  <p className="text-muted-foreground text-sm py-2">
-                    Aucun événement
-                  </p>
-                ) : (
-                  <ScrollArea className={dayEvents.length > 3 ? "h-[200px]" : ""}>
-                    <div className="space-y-2">
-                      {dayEvents.map(event => (
-                        <div 
-                          key={event.id} 
-                          className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-medium text-sm">{event.title}</h3>
-                            {event.htmlLink && (
-                              <a
-                                href={event.htmlLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted-foreground hover:text-primary shrink-0"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
-                            )}
-                          </div>
-                          
-                          <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                            {!event.isAllDay && event.start && event.end && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {format(parseISO(event.start as string), 'HH:mm')} - {format(parseISO(event.end as string), 'HH:mm')}
-                              </div>
-                            )}
-                            {event.isAllDay && (
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                Journée
-                              </div>
-                            )}
-                            {event.location && (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                <span className="truncate max-w-[150px]">{event.location}</span>
-                              </div>
-                            )}
-                            {event.attendees && event.attendees.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                {event.attendees.length}
-                              </div>
-                            )}
-                          </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="rdv" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">Rendez-vous PT</span>
+            <span className="sm:hidden">RDV</span>
+          </TabsTrigger>
+          <TabsTrigger value="seances" className="flex items-center gap-2">
+            <Dumbbell className="h-4 w-4" />
+            <span className="hidden sm:inline">Séances sportifs</span>
+            <span className="sm:hidden">Séances</span>
+          </TabsTrigger>
+        </TabsList>
 
-                          {event.description && (
-                            <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
-                              {event.description}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+        {/* PT Events Tab */}
+        <TabsContent value="rdv" className="mt-4">
+          <div className="grid grid-cols-1 gap-3">
+            {daysWithPtEvents.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Aucun rendez-vous PT cette semaine
+                </CardContent>
+              </Card>
+            ) : daysWithPtEvents.map(day => {
+              const dayEvents = getPtEventsForDay(day);
+              const isCurrentDay = isToday(day);
+              
+              return (
+                <Card 
+                  key={day.toISOString()} 
+                  className={`${isCurrentDay ? 'ring-2 ring-primary' : ''}`}
+                >
+                  <CardHeader className="py-3 pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className={`text-sm sm:text-base capitalize ${isCurrentDay ? 'text-primary' : ''}`}>
+                        {format(day, "EEEE d MMMM", { locale: fr })}
+                      </CardTitle>
+                      {dayEvents.length > 0 && (
+                        <Badge variant="secondary">{dayEvents.length}</Badge>
+                      )}
+                      {isCurrentDay && (
+                        <Badge variant="default" className="ml-2">Aujourd'hui</Badge>
+                      )}
                     </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <ScrollArea className={dayEvents.length > 3 ? "h-[200px]" : ""}>
+                      <div className="space-y-2">
+                        {dayEvents.map(event => (
+                          <div 
+                            key={event.id} 
+                            className="p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <h3 className="font-medium text-sm">{event.title}</h3>
+                              {event.htmlLink && (
+                                <a
+                                  href={event.htmlLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-muted-foreground hover:text-primary shrink-0"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </a>
+                              )}
+                            </div>
+                            
+                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                              {!event.isAllDay && event.start && event.end && (
+                                <div className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {format(parseISO(event.start as string), 'HH:mm')} - {format(parseISO(event.end as string), 'HH:mm')}
+                                </div>
+                              )}
+                              {event.location && (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  <span className="truncate max-w-[150px]">{event.location}</span>
+                                </div>
+                              )}
+                              {event.attendees && event.attendees.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Users className="h-3 w-3" />
+                                  {event.attendees.length}
+                                </div>
+                              )}
+                            </div>
+
+                            {event.description && (
+                              <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                                {event.description}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+
+        {/* Athlete Sessions Tab */}
+        <TabsContent value="seances" className="mt-4">
+          <div className="space-y-4">
+            {Object.keys(sessionsByAthlete).length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Aucune séance programmée cette semaine
+                </CardContent>
+              </Card>
+            ) : Object.entries(sessionsByAthlete).map(([athleteId, { athleteName, sessions }]) => {
+              const completedCount = sessions.filter(s => s.completedAt).length;
+              const totalCount = sessions.length;
+              
+              return (
+                <Card key={athleteId}>
+                  <CardHeader className="py-3 pb-2">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <CardTitle className="text-sm sm:text-base">
+                        {athleteName}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={completedCount === totalCount ? "default" : "secondary"}
+                          className={completedCount === totalCount ? "bg-green-500" : ""}
+                        >
+                          {completedCount}/{totalCount} faites
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-2">
+                      {sessions.map(session => {
+                        const typeBadge = getSessionTypeBadge(session.sessionType);
+                        
+                        return (
+                          <div 
+                            key={session.id}
+                            className={`p-3 rounded-lg border transition-colors ${
+                              session.completedAt 
+                                ? 'bg-green-500/10 border-green-500/30' 
+                                : 'bg-muted/30'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                {session.completedAt && (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                                )}
+                                <span className="font-medium text-sm">{session.sessionName}</span>
+                                <Badge className={typeBadge.className} variant="secondary">
+                                  {typeBadge.label}
+                                </Badge>
+                              </div>
+                              {session.completedAt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {format(session.completedAt, "EEEE d/MM à HH:mm", { locale: fr })}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
