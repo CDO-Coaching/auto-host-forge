@@ -100,7 +100,15 @@ export function FatigueDetailedCharts({ logs }: FatigueDetailedChartsProps) {
       const value = payload[0].value as number;
       const status = getStatusForValue(value);
       const labels = METRIC_LABELS[metricKey];
-      const valueLabel = labels ? labels[value - 1] : "";
+      
+      // Pour le sommeil, la valeur en base est inversée (1=excellent, 7=catastrophique)
+      // Donc on inverse le label
+      let valueLabel = "";
+      if (metricKey === "sommeil") {
+        valueLabel = labels ? labels[7 - value] : "";
+      } else {
+        valueLabel = labels ? labels[value - 1] : "";
+      }
       
       return (
         <div style={{
