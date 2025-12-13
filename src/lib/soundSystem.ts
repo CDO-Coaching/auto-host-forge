@@ -37,30 +37,54 @@ export class SoundSystem {
   // SONS POUR EMOM (Every Minute On the Minute)
   // ============================================
 
-  // Sifflet de départ de minute EMOM - SON UNIQUE ET PUISSANT
-  emomMinuteStart() {
+  // Sifflet d'arbitre réaliste avec trille
+  private playWhistle(duration: number = 0.5, intensity: number = 0.6) {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Sifflet de coach : montée rapide puis descente (typique du sifflet de coach)
-    const osc = this.createOscillator(1900, "sine");
-    const gain = this.createGain(0.6);
+    // Oscillateur principal - fréquence haute caractéristique du sifflet
+    const osc1 = this.createOscillator(3200, "sine");
+    const osc2 = this.createOscillator(6400, "sine"); // Harmonique
+    const lfo = this.createOscillator(25, "sine"); // Trille/vibrato rapide
+    const lfoGain = this.ctx.createGain();
+    const gain1 = this.createGain(intensity);
+    const gain2 = this.createGain(intensity * 0.3);
 
-    if (!osc || !gain) return;
+    if (!osc1 || !osc2 || !lfo || !gain1 || !gain2) return;
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // Modulation de fréquence pour le trille du sifflet
+    lfo.connect(lfoGain);
+    lfoGain.gain.value = 150; // Amplitude de la modulation
+    lfoGain.connect(osc1.frequency);
+    lfoGain.connect(osc2.frequency);
 
-    // Montée rapide puis descente caractéristique
-    osc.frequency.setValueAtTime(1900, now);
-    osc.frequency.linearRampToValueAtTime(2600, now + 0.1); // Montée
-    osc.frequency.linearRampToValueAtTime(1700, now + 0.3); // Descente
+    osc1.connect(gain1);
+    osc2.connect(gain2);
+    gain1.connect(this.ctx.destination);
+    gain2.connect(this.ctx.destination);
 
-    gain.gain.setValueAtTime(0.6, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+    // Enveloppe du sifflet - attaque rapide, sustain, release
+    gain1.gain.setValueAtTime(0, now);
+    gain1.gain.linearRampToValueAtTime(intensity, now + 0.02);
+    gain1.gain.setValueAtTime(intensity, now + duration - 0.1);
+    gain1.gain.exponentialRampToValueAtTime(0.01, now + duration);
 
-    osc.start(now);
-    osc.stop(now + 0.35);
+    gain2.gain.setValueAtTime(0, now);
+    gain2.gain.linearRampToValueAtTime(intensity * 0.3, now + 0.02);
+    gain2.gain.setValueAtTime(intensity * 0.3, now + duration - 0.1);
+    gain2.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+    lfo.start(now);
+    osc1.start(now);
+    osc2.start(now);
+    lfo.stop(now + duration);
+    osc1.stop(now + duration);
+    osc2.stop(now + duration);
+  }
+
+  // Sifflet de départ de minute EMOM - SON UNIQUE ET PUISSANT
+  emomMinuteStart() {
+    this.playWhistle(0.5, 0.65);
   }
 
   // Alerte 10 secondes avant la prochaine minute EMOM
@@ -90,86 +114,20 @@ export class SoundSystem {
 
   // Sifflet de départ de travail (20s) - TRAVAILLE !
   tabataWorkStart() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Sifflet court et énergique de coach
-    const osc = this.createOscillator(2100, "sine");
-    const gain = this.createGain(0.6);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    // Montée rapide typique d'un sifflet
-    osc.frequency.setValueAtTime(2100, now);
-    osc.frequency.linearRampToValueAtTime(2600, now + 0.08);
-    osc.frequency.linearRampToValueAtTime(2000, now + 0.2);
-
-    gain.gain.setValueAtTime(0.6, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-
-    osc.start(now);
-    osc.stop(now + 0.25);
+    this.playWhistle(0.3, 0.65);
   }
 
   // Double sifflet pour repos (10s) - REPOS !
   tabataRestStart() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Deux sifflets courts
-    [0, 0.2].forEach((delay) => {
-      const osc = this.createOscillator(1800, "sine");
-      const gain = this.createGain(0.5);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      const startTime = now + delay;
-      // Sifflet court descendant
-      osc.frequency.setValueAtTime(1800, startTime);
-      osc.frequency.linearRampToValueAtTime(1500, startTime + 0.15);
-
-      gain.gain.setValueAtTime(0.5, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.18);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.18);
-    });
+    this.playWhistle(0.2, 0.5);
+    setTimeout(() => this.playWhistle(0.2, 0.5), 250);
   }
 
   // Triple sifflet pour fin de Tabata - C'EST FINI !
   tabataComplete() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Trois sifflets montants (victoire)
-    [0, 0.3, 0.6].forEach((delay, i) => {
-      const baseFreq = 1800 + i * 200; // Montée progressive
-      const osc = this.createOscillator(baseFreq, "sine");
-      const gain = this.createGain(0.55);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      const startTime = now + delay;
-      // Sifflet montant
-      osc.frequency.setValueAtTime(baseFreq, startTime);
-      osc.frequency.linearRampToValueAtTime(baseFreq + 400, startTime + 0.12);
-      osc.frequency.linearRampToValueAtTime(baseFreq + 200, startTime + 0.25);
-
-      gain.gain.setValueAtTime(0.55, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.28);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.28);
-    });
+    this.playWhistle(0.3, 0.55);
+    setTimeout(() => this.playWhistle(0.3, 0.55), 350);
+    setTimeout(() => this.playWhistle(0.4, 0.6), 700);
   }
 
   // Alerte 3 secondes avant fin de période
@@ -199,57 +157,15 @@ export class SoundSystem {
 
   // Sifflet de départ de workout (AMRAP/FOR TIME)
   workoutStart() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Sifflet de coach puissant
-    const osc = this.createOscillator(2000, "sine");
-    const gain = this.createGain(0.65);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    // Sifflet : montée rapide puis descente
-    osc.frequency.setValueAtTime(2000, now);
-    osc.frequency.linearRampToValueAtTime(2800, now + 0.12);
-    osc.frequency.linearRampToValueAtTime(1800, now + 0.35);
-
-    gain.gain.setValueAtTime(0.65, now);
-    gain.gain.setValueAtTime(0.65, now + 0.25);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-
-    osc.start(now);
-    osc.stop(now + 0.4);
+    this.playWhistle(0.5, 0.7);
   }
 
-  // Sifflet de fin de workout
+  // Sifflet de fin de workout - Triple sifflet long
   workoutEnd() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Triple sifflet long (TEMPS ÉCOULÉ / WORKOUT TERMINÉ)
-    [0, 0.35, 0.7].forEach((delay) => {
-      const osc = this.createOscillator(2000, "sine");
-      const gain = this.createGain(0.55);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      const startTime = now + delay;
-      // Sifflet descendant
-      osc.frequency.setValueAtTime(2000, startTime);
-      osc.frequency.linearRampToValueAtTime(1400, startTime + 0.3);
-
-      gain.gain.setValueAtTime(0.55, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.35);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.35);
-    });
+    // Triple sifflet (TEMPS ÉCOULÉ / WORKOUT TERMINÉ)
+    this.playWhistle(0.4, 0.6);
+    setTimeout(() => this.playWhistle(0.4, 0.6), 450);
+    setTimeout(() => this.playWhistle(0.5, 0.65), 900);
   }
 
   // Alerte 1 minute restante (AMRAP)
@@ -329,8 +245,8 @@ export class SoundSystem {
   // Compte à rebours 3-2-1 avant départ
   countdown321(count: number) {
     if (!this.ctx) return;
-    // Bips graves qui montent: 3 (grave), 2 (moyen), 1 (aigu)
-    const freq = 800 + count * 200; // 800, 1000, 1200 Hz
+    // Bips courts qui montent
+    const freq = 1200 + count * 300;
     const osc = this.createOscillator(freq, "sine");
     const gain = this.createGain(0.45);
 
@@ -341,66 +257,24 @@ export class SoundSystem {
 
     const now = this.ctx.currentTime;
     gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
 
     osc.start(now);
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.2);
   }
 
-  // GO! après le 3-2-1 - Sifflet de coach sportif
+  // GO! après le 3-2-1 - Sifflet d'arbitre
   go() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Sifflet de coach : montée rapide et puissante
-    const osc = this.createOscillator(2000, "sine");
-    const gain = this.createGain(0.65);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    // Sifflet typique : montée rapide puis descente
-    osc.frequency.setValueAtTime(2000, now);
-    osc.frequency.linearRampToValueAtTime(2800, now + 0.12); // Montée puissante
-    osc.frequency.linearRampToValueAtTime(1800, now + 0.35); // Descente
-
-    gain.gain.setValueAtTime(0.65, now);
-    gain.gain.setValueAtTime(0.65, now + 0.25);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-
-    osc.start(now);
-    osc.stop(now + 0.4);
+    this.playWhistle(0.5, 0.7);
   }
 
   // ============================================
   // SONS GÉNÉRIQUES CONSERVÉS
   // ============================================
 
-  // Son de transition (changement de phase)
+  // Son de transition (changement de phase) - Sifflet
   transition() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Sifflet modulé
-    const osc = this.createOscillator(1600, "sine");
-    const gain = this.createGain(0.45);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.frequency.setValueAtTime(1600, now);
-    osc.frequency.linearRampToValueAtTime(1800, now + 0.1);
-    osc.frequency.linearRampToValueAtTime(1500, now + 0.25);
-
-    gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-
-    osc.start(now);
-    osc.stop(now + 0.3);
+    this.playWhistle(0.35, 0.5);
   }
 
   // Son de victoire (workout complété)
