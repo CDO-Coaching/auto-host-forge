@@ -45,6 +45,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { CoachMaxesView } from "@/components/CoachMaxesView";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
+import { CoachFcReminderAlert } from "@/components/CoachFcReminderAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
 import { CoachCyclingView } from "@/components/CoachCyclingView";
@@ -1511,6 +1512,13 @@ export default function ClientDetail() {
           {athlete.date_of_birth && <p>{new Date(athlete.date_of_birth).toLocaleDateString("fr-FR")}</p>}
         </div>
       </div>
+
+      {/* Rappel FC max / FC repos */}
+      <CoachFcReminderAlert
+        athleteId={athleteId!}
+        athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
+        onNavigateToMax={() => setActiveTab("max")}
+      />
 
       {/* Tabs avec indicateur de scroll */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
