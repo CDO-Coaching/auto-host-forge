@@ -125,7 +125,7 @@ export default function ClientDetail() {
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
   const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
   const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
-  const [athleteObjectives, setAthleteObjectives] = useState<any>(null);
+  const [athleteObjectives, setAthleteObjectives] = useState<any>({});
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
@@ -303,7 +303,7 @@ export default function ClientDetail() {
       if (objectivesError && objectivesError.code !== "PGRST116") {
         console.error("Erreur lors du chargement des objectifs:", objectivesError);
       } else {
-        setAthleteObjectives(objectivesData);
+        setAthleteObjectives(objectivesData || {});
       }
 
       // Charger les milestones
@@ -1570,22 +1570,26 @@ export default function ClientDetail() {
             </Sheet>
 
             {/* Bouton Objectifs */}
-            {athleteObjectives && (athleteObjectives.main_objective || athleteObjectives.secondary_objective || athleteMilestones.length > 0) && (
-              <Sheet open={showObjectivesSheet} onOpenChange={setShowObjectivesSheet}>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
-                  >
-                    <Target className="h-4 w-4 mr-1 text-primary" />
-                    <span className="text-xs">Objectifs</span>
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="top" className="h-[85vh] overflow-y-auto">
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5" />
+            <Sheet open={showObjectivesSheet} onOpenChange={(open) => {
+              setShowObjectivesSheet(open);
+              if (open) {
+                loadAthleteObjectives();
+              }
+            }}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                >
+                  <Target className="h-4 w-4 mr-1 text-primary" />
+                  <span className="text-xs">Objectifs</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5" />
                       Objectifs de {athlete?.first_name}
                     </SheetTitle>
                   </SheetHeader>
@@ -1688,7 +1692,6 @@ export default function ClientDetail() {
                   </div>
                 </SheetContent>
               </Sheet>
-            )}
 
             {/* Bouton Retours */}
             {lastWeekData && (
