@@ -23,6 +23,7 @@ import {
   GripVertical,
   Dumbbell,
   Activity,
+  StickyNote,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -129,6 +130,8 @@ export default function ClientDetail() {
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
+  const [showNotesSheet, setShowNotesSheet] = useState(false);
+  const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("programmation");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
@@ -320,6 +323,31 @@ export default function ClientDetail() {
       }
     } catch (error) {
       console.error("Erreur lors du chargement des objectifs:", error);
+    }
+  };
+
+  const loadAthleteNotes = async () => {
+    if (!athleteId) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("coach_notes")
+        .select("id, content, created_at")
+        .eq("coach_id", user.id)
+        .eq("athlete_id", athleteId)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error("Erreur lors du chargement des notes:", error);
+      } else {
+        setAthleteNotes(data || []);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des notes:", error);
     }
   };
 
@@ -1692,6 +1720,68 @@ export default function ClientDetail() {
                   </div>
                 </SheetContent>
               </Sheet>
+
+            {/* Bouton Notes */}
+            <Sheet open={showNotesSheet} onOpenChange={(open) => {
+              setShowNotesSheet(open);
+              if (open) {
+                loadAthleteNotes();
+              }
+            }}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                >
+                  <StickyNote className="h-4 w-4 mr-1 text-primary" />
+                  <span className="text-xs">Notes</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <StickyNote className="h-5 w-5 text-primary" />
+                    Notes sur {athlete?.first_name}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-6 space-y-4">
+                  {athleteNotes.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-8">
+                      Aucune note pour cet athlète.
+                    </p>
+                  ) : (
+                    athleteNotes.map((note) => (
+                      <Card key={note.id}>
+                        <CardContent className="pt-4">
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {new Date(note.created_at).toLocaleDateString("fr-FR", {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </p>
+                          <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                  <div className="pt-4">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => navigate(`/coach/notes?email=${athlete?.email}`)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Ajouter une note
+                    </Button>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {/* Bouton Retours */}
             {lastWeekData && (
