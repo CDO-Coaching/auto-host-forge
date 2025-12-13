@@ -9,8 +9,9 @@ import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Plus, ChevronDown } from "lucide-react";
+import { Plus, ChevronDown, Pencil } from "lucide-react";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
+import { EditFatigueDialog } from "@/components/EditFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
@@ -39,6 +40,8 @@ export default function Fatigue() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editingLog, setEditingLog] = useState<FatigueLog | null>(null);
   const [canAnswerToday, setCanAnswerToday] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("7d");
   const [injuryChartPeriod, setInjuryChartPeriod] = useState<ChartPeriod>("7d");
@@ -157,6 +160,17 @@ export default function Fatigue() {
     setShowDialog(false);
     loadFatigueLogs();
     checkIfCanAnswerToday();
+  };
+
+  const handleEditDialogClose = () => {
+    setShowEditDialog(false);
+    setEditingLog(null);
+    loadFatigueLogs();
+  };
+
+  const handleEditLog = (log: FatigueLog) => {
+    setEditingLog(log);
+    setShowEditDialog(true);
   };
 
   // Fonction pour filtrer les données par période
@@ -481,6 +495,7 @@ export default function Fatigue() {
                         <TableHead className="text-[10px] px-1 py-2 text-center w-[45px]">Str.</TableHead>
                         <TableHead className="text-[10px] px-1 py-2 text-center font-bold w-[50px]">Total</TableHead>
                         <TableHead className="text-[10px] px-1 py-2 text-center w-[50px]">Doul.</TableHead>
+                        <TableHead className="text-[10px] px-1 py-2 text-center w-[40px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -502,6 +517,16 @@ export default function Fatigue() {
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
+                          </TableCell>
+                          <TableCell className="text-[10px] px-1 py-2 text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleEditLog(log)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -573,6 +598,13 @@ export default function Fatigue() {
           onClose={handleDialogClose}
           includeInjuryQuestions={true}
           isFemale={profile?.gender === 'female'}
+        />
+
+        <EditFatigueDialog
+          open={showEditDialog}
+          onClose={handleEditDialogClose}
+          logs={logs}
+          initialLog={editingLog}
         />
       </div>
     </div>
