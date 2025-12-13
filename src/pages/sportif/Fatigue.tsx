@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea } from "recharts";
 import { format, subDays, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -314,6 +314,12 @@ export default function Fatigue() {
                 <div style={{ width: '100%', height: '200px', maxWidth: '100%' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={chartData} margin={{ left: -25, right: 5, top: 10, bottom: 5 }}>
+                      {/* Zones de couleur pour le score total */}
+                      <ReferenceArea y1={4} y2={9} fill="hsl(142 76% 36%)" fillOpacity={0.15} />
+                      <ReferenceArea y1={9} y2={14} fill="hsl(142 76% 36%)" fillOpacity={0.1} />
+                      <ReferenceArea y1={14} y2={18} fill="hsl(45 93% 47%)" fillOpacity={0.15} />
+                      <ReferenceArea y1={18} y2={22} fill="hsl(0 84% 60%)" fillOpacity={0.15} />
+                      <ReferenceArea y1={22} y2={28} fill="hsl(0 84% 60%)" fillOpacity={0.25} />
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted/50" />
                       <XAxis 
                         dataKey="date" 
@@ -326,14 +332,45 @@ export default function Fatigue() {
                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
                         width={30}
                         tickMargin={5}
+                        ticks={[4, 9, 14, 18, 22, 28]}
                       />
                       <Tooltip 
-                        contentStyle={{
-                          backgroundColor: 'hsl(var(--card))',
-                          border: '1px solid hsl(var(--border))',
-                          borderRadius: '6px',
-                          fontSize: '10px',
-                          padding: '6px 8px',
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const score = payload[0].value as number;
+                            let status = "";
+                            let statusColor = "";
+                            if (score >= 4 && score <= 9) {
+                              status = "Très bon";
+                              statusColor = "hsl(142 76% 36%)";
+                            } else if (score >= 10 && score <= 14) {
+                              status = "Bon";
+                              statusColor = "hsl(142 76% 36%)";
+                            } else if (score >= 15 && score <= 18) {
+                              status = "Alerte";
+                              statusColor = "hsl(45 93% 47%)";
+                            } else if (score >= 19 && score <= 22) {
+                              status = "Risque";
+                              statusColor = "hsl(0 84% 60%)";
+                            } else if (score >= 23) {
+                              status = "Critique";
+                              statusColor = "hsl(0 84% 45%)";
+                            }
+                            return (
+                              <div style={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '6px',
+                                fontSize: '10px',
+                                padding: '6px 8px',
+                              }}>
+                                <p style={{ fontWeight: 600, marginBottom: '4px' }}>{payload[0].payload.date}</p>
+                                <p>Score: <strong>{score}/28</strong></p>
+                                <p style={{ color: statusColor, fontWeight: 600 }}>{status}</p>
+                              </div>
+                            );
+                          }
+                          return null;
                         }}
                       />
                       <Line 
