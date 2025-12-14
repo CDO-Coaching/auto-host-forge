@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
 import { Badge } from "@/components/ui/badge";
-
 interface Client {
   id: string;
   first_name: string;
@@ -24,6 +23,14 @@ export default function Messagerie() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   
   const { messages, sendMessage, markAsRead } = useMessages(selectedClient?.id);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll vers le dernier message
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, selectedClient]);
 
   // Load all clients
   useEffect(() => {
@@ -223,6 +230,7 @@ export default function Messagerie() {
                         Aucun message pour le moment. Commence la conversation !
                       </p>
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
 
