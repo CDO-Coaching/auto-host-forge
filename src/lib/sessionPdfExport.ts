@@ -291,9 +291,9 @@ const formatStepText = (step: any, athleteVma?: number | null): string => {
     text += ` - ${formatCardioTime(step.duration)}`;
   }
 
-  // Allure
+  // Allure - correction de l'ordre des paramètres
   if (step.vmaPercentage && athleteVma && !isWalking) {
-    const pace = calculatePace(athleteVma, step.vmaPercentage);
+    const pace = calculatePace(step.vmaPercentage, athleteVma);
     text += ` @ ${step.vmaPercentage}% VMA (${pace})`;
   } else if (isWalking) {
     text += " @ 10:00/km";
