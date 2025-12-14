@@ -3,19 +3,35 @@ import { formatCardioTime, calculatePace } from "./cardioCalculations";
 
 interface ExerciseData {
   id: string;
-  exercise_name: string;
-  sets?: number;
+  // Noms d'exercice (selon la structure utilisée dans l'app)
+  exercice?: string; // nom utilisé côté sportif
+  exercise_name?: string; // fallback éventuel
+
+  // Structure de travail
+  series?: number; // nombre de séries (UI)
+  sets?: number; // alias éventuel
   reps?: number;
-  weight?: number;
+  charge?: string | number; // charge affichée côté sportif (ex: "40kg", "PDC")
+  weight?: number; // fallback numérique éventuel
   recuperation?: string;
   coach_comment?: string;
   tempo?: string;
   is_duration?: boolean;
   per_side?: boolean;
+
+  // Cardio
   cardio_data?: any;
   cardio_sport?: string;
+
+  // Supersets / ordre
   super_set_group?: string;
   exercise_order: number;
+
+  // RPE et feedback
+  rpe?: number; // RPE prescrit
+  sportif_rpe?: number | null; // RPE ressenti
+  sportif_comment?: string | null;
+  sportif_feedback_at?: string | null;
 }
 
 interface SessionData {
@@ -145,10 +161,11 @@ const renderExercise = (
   const margin = 20;
   
   // Nom de l'exercice
+  const exerciseName = exercise.exercice || exercise.exercise_name || "Exercice";
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text(exercise.exercise_name || "Exercice", x, y);
+  doc.text(exerciseName, x, y);
 
   // Détails
   doc.setFont("helvetica", "normal");
@@ -156,14 +173,16 @@ const renderExercise = (
   let detailY = y + 7;
 
   // Séries x Répétitions
-  if (exercise.sets || exercise.reps) {
+  const series = exercise.series ?? exercise.sets;
+  const reps = exercise.reps;
+  if (series || reps) {
     let setsRepsText = "";
-    if (exercise.sets) setsRepsText += `${exercise.sets} séries`;
-    if (exercise.reps) {
+    if (series) setsRepsText += `${series} séries`;
+    if (reps) {
       if (exercise.is_duration) {
-        setsRepsText += ` x ${exercise.reps}s`;
+        setsRepsText += ` x ${reps} sec`;
       } else {
-        setsRepsText += ` x ${exercise.reps} reps`;
+        setsRepsText += ` x ${reps} reps`;
         if (exercise.per_side) setsRepsText += " (par côté)";
       }
     }
@@ -172,8 +191,9 @@ const renderExercise = (
   }
 
   // Charge
-  if (exercise.weight) {
-    doc.text(`Charge: ${exercise.weight} kg`, x, detailY);
+  const weight = exercise.charge ?? exercise.weight;
+  if (weight !== undefined && weight !== null && weight !== "") {
+    doc.text(`Charge: ${weight}`, x, detailY);
     detailY += 5;
   }
 
@@ -189,11 +209,42 @@ const renderExercise = (
     detailY += 5;
   }
 
+  // RPE prescrit
+  if (typeof exercise.rpe === "number") {
+    doc.text(`RPE prescrit: ${exercise.rpe}`, x, detailY);
+    detailY += 5;
+  }
+
+  // RPE ressenti + date
+  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) {
+    const rpeValue = exercise.sportif_rpe ?? "-";
+    let rpeText = `RPE ressenti: ${rpeValue}`;
+    if (exercise.sportif_feedback_at) {
+      const d = new Date(exercise.sportif_feedback_at);
+      rpeText += ` (${d.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+      })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`;
+    }
+    doc.text(rpeText, x, detailY);
+    detailY += 5;
+  }
+
   // Commentaire coach
   if (exercise.coach_comment) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 100, 100);
-    const lines = doc.splitTextToSize(`💬 ${exercise.coach_comment}`, pageWidth - x - margin);
+    const lines = doc.splitTextToSize(`💬 Coach: ${exercise.coach_comment}`, pageWidth - x - margin);
+    doc.text(lines, x, detailY);
+    doc.setTextColor(0, 0, 0);
+    detailY += 5;
+  }
+
+  // Commentaire sportif
+  if (exercise.sportif_comment) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(80, 80, 80);
+    const lines = doc.splitTextToSize(`💬 Sportif: ${exercise.sportif_comment}`, pageWidth - x - margin);
     doc.text(lines, x, detailY);
     doc.setTextColor(0, 0, 0);
   }
@@ -266,11 +317,39 @@ const renderCardioExercise = (
     });
   }
 
-  // Commentaire coach
+  // Commentaires et RPE
+  if (typeof exercise.rpe === "number") {
+    doc.text(`RPE prescrit: ${exercise.rpe}`, x, detailY);
+    detailY += 5;
+  }
+
+  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) {
+    const rpeValue = exercise.sportif_rpe ?? "-";
+    let rpeText = `RPE ressenti: ${rpeValue}`;
+    if (exercise.sportif_feedback_at) {
+      const d = new Date(exercise.sportif_feedback_at);
+      rpeText += ` (${d.toLocaleDateString("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+      })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`;
+    }
+    doc.text(rpeText, x, detailY);
+    detailY += 5;
+  }
+
   if (exercise.coach_comment) {
     doc.setFont("helvetica", "italic");
     doc.setTextColor(100, 100, 100);
-    const lines = doc.splitTextToSize(`💬 ${exercise.coach_comment}`, pageWidth - x - margin);
+    const lines = doc.splitTextToSize(`💬 Coach: ${exercise.coach_comment}`, pageWidth - x - margin);
+    doc.text(lines, x, detailY);
+    doc.setTextColor(0, 0, 0);
+    detailY += 5;
+  }
+
+  if (exercise.sportif_comment) {
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(80, 80, 80);
+    const lines = doc.splitTextToSize(`💬 Sportif: ${exercise.sportif_comment}`, pageWidth - x - margin);
     doc.text(lines, x, detailY);
     doc.setTextColor(0, 0, 0);
   }
@@ -309,11 +388,14 @@ const formatStepText = (step: any, athleteVma?: number | null): string => {
 
 const calculateExerciseHeight = (exercise: ExerciseData): number => {
   let height = 20; // Base height for name
-  if (exercise.sets || exercise.reps) height += 5;
-  if (exercise.weight) height += 5;
+  if (exercise.series || exercise.sets || exercise.reps) height += 5;
+  if (exercise.charge !== undefined || exercise.weight !== undefined) height += 5;
   if (exercise.recuperation) height += 5;
   if (exercise.tempo) height += 5;
+  if (exercise.rpe !== undefined) height += 5;
+  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) height += 5;
   if (exercise.coach_comment) height += 10;
+  if (exercise.sportif_comment) height += 10;
   return height + 5; // Padding
 };
 
@@ -342,5 +424,8 @@ const calculateCardioHeight = (exercise: ExerciseData): number => {
   }
 
   if (exercise.coach_comment) height += 10;
+  if (exercise.rpe !== undefined) height += 5;
+  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) height += 5;
+  if (exercise.sportif_comment) height += 10;
   return height + 10;
 };
