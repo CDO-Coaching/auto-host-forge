@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -44,6 +44,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { exportSessionToPdf } from "@/lib/sessionPdfExport";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -680,10 +681,19 @@ export default function SeanceDetail() {
         type="session"
       />
 
-      <div className="sticky top-0 z-10 bg-background border-b p-4">
+      <div className="sticky top-0 z-10 bg-background border-b p-4 flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => exportSessionToPdf(session, athleteVma)}
+          title="Télécharger la séance en PDF"
+        >
+          <Download className="h-4 w-4 mr-2" />
+          <span className="hidden sm:inline">Exporter</span>
         </Button>
       </div>
 
