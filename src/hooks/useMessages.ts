@@ -121,6 +121,23 @@ export const useMessages = (otherUserId?: string) => {
     }
   };
 
+  const sendBroadcastMessage = async (receiverIds: string[], content: string) => {
+    if (!user || !content.trim() || receiverIds.length === 0) return;
+
+    const messages = receiverIds.map((receiverId) => ({
+      sender_id: user.id,
+      receiver_id: receiverId,
+      content: content.trim(),
+    }));
+
+    const { error } = await supabase.from("messages").insert(messages);
+
+    if (error) {
+      console.error("Error sending broadcast message:", error);
+      throw error;
+    }
+  };
+
   const markAsRead = async (messageIds: string[]) => {
     if (!user || messageIds.length === 0) return;
 
@@ -136,5 +153,5 @@ export const useMessages = (otherUserId?: string) => {
     }
   };
 
-  return { messages, loading, unreadCount, sendMessage, markAsRead };
+  return { messages, loading, unreadCount, sendMessage, sendBroadcastMessage, markAsRead };
 };

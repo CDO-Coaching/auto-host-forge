@@ -3,11 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, User } from "lucide-react";
+import { Send, User, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+
 interface Client {
   id: string;
   first_name: string;
@@ -21,8 +32,11 @@ export default function Messagerie() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [messageText, setMessageText] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   
-  const { messages, sendMessage, markAsRead } = useMessages(selectedClient?.id);
+  const { messages, sendMessage, sendBroadcastMessage, markAsRead } = useMessages(selectedClient?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll vers le dernier message
@@ -140,14 +154,71 @@ export default function Messagerie() {
 
   const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
+  const handleSendBroadcast = async () => {
+    if (!broadcastMessage.trim() || clients.length === 0) return;
+
+    setIsSendingBroadcast(true);
+    try {
+      const clientIds = clients.map((c) => c.id);
+      await sendBroadcastMessage(clientIds, broadcastMessage);
+      setBroadcastMessage("");
+      setBroadcastDialogOpen(false);
+      toast.success(`Message envoyé à ${clients.length} client${clients.length > 1 ? 's' : ''}`);
+    } catch (error) {
+      console.error("Failed to send broadcast message:", error);
+      toast.error("Erreur lors de l'envoi du message");
+    } finally {
+      setIsSendingBroadcast(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Messagerie</h1>
-        <p className="text-muted-foreground mt-2">
-          Communique avec tes clients {totalUnread > 0 && `(${totalUnread} nouveau${totalUnread > 1 ? 'x' : ''} message${totalUnread > 1 ? 's' : ''})`}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Messagerie</h1>
+          <p className="text-muted-foreground mt-2">
+            Communique avec tes clients {totalUnread > 0 && `(${totalUnread} nouveau${totalUnread > 1 ? 'x' : ''} message${totalUnread > 1 ? 's' : ''})`}
+          </p>
+        </div>
+        <Button 
+          onClick={() => setBroadcastDialogOpen(true)} 
+          disabled={clients.length === 0}
+          className="gap-2"
+        >
+          <Users className="h-4 w-4" />
+          Message général
+        </Button>
       </div>
+
+      {/* Dialog message général */}
+      <Dialog open={broadcastDialogOpen} onOpenChange={setBroadcastDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Message général</DialogTitle>
+            <DialogDescription>
+              Ce message sera envoyé à tous tes clients ({clients.length} client{clients.length > 1 ? 's' : ''})
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Écris ton message..."
+            value={broadcastMessage}
+            onChange={(e) => setBroadcastMessage(e.target.value)}
+            rows={5}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBroadcastDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleSendBroadcast} 
+              disabled={!broadcastMessage.trim() || isSendingBroadcast}
+            >
+              {isSendingBroadcast ? "Envoi..." : "Envoyer à tous"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Liste des clients */}
