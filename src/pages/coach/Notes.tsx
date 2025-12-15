@@ -9,8 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, StickyNote, Calendar, User, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, StickyNote, Calendar, User, Check, ChevronsUpDown, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -25,11 +26,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-interface Athlete {
+interface Client {
   id: string;
   first_name: string;
   last_name: string;
   email?: string;
+  isExternal?: boolean;
 }
 
 interface Note {
@@ -41,17 +43,18 @@ interface Note {
 export default function Notes() {
   const { profile } = useUserProfile();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [selectedAthleteId, setSelectedAthleteId] = useState<string>("");
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [isExternalClient, setIsExternalClient] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
   const [newNote, setNewNote] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [comboboxOpen, setComboboxOpen] = useState(false);
 
-  // Charger les athlètes actifs
+  // Charger les athlètes actifs et clients externes
   useEffect(() => {
-    const loadAthletes = async () => {
+    const loadClients = async () => {
       if (!profile?.id) return;
 
       // Récupérer les relationships approuvées et non en pause
@@ -67,62 +70,88 @@ export default function Notes() {
         return;
       }
 
-      if (!relationships || relationships.length === 0) {
-        setAthletes([]);
-        return;
-      }
-
       // Récupérer les profils des athlètes
-      const athleteIds = relationships.map(r => r.athlete_id);
-      const { data: profiles, error: profileError } = await supabase
-        .from("user_profiles")
-        .select("id, first_name, last_name, email")
-        .in("id", athleteIds);
+      let athletesList: Client[] = [];
+      if (relationships && relationships.length > 0) {
+        const athleteIds = relationships.map(r => r.athlete_id);
+        const { data: profiles, error: profileError } = await supabase
+          .from("user_profiles")
+          .select("id, first_name, last_name, email")
+          .in("id", athleteIds);
 
-      if (profileError) {
-        toast.error("Erreur lors du chargement des profils");
-        return;
+        if (profileError) {
+          toast.error("Erreur lors du chargement des profils");
+          return;
+        }
+
+        athletesList = (profiles || []).map(p => ({
+          ...p,
+          isExternal: false
+        }));
       }
 
-      const athletesList = (profiles || [])
-        .sort((a: Athlete, b: Athlete) => 
-          `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
-        );
+      // Récupérer les clients externes
+      const { data: externalClients, error: extError } = await supabase
+        .from("external_clients")
+        .select("id, first_name, last_name, email")
+        .eq("coach_id", profile.id);
 
-      setAthletes(athletesList);
+      if (extError) {
+        console.error("Erreur clients externes:", extError);
+      }
 
-      // Auto-select athlete if email is in URL params
+      const externalList: Client[] = (externalClients || []).map(c => ({
+        ...c,
+        isExternal: true
+      }));
+
+      // Combiner et trier
+      const allClients = [...athletesList, ...externalList].sort((a, b) => 
+        `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)
+      );
+
+      setClients(allClients);
+
+      // Auto-select client if email is in URL params
       const emailParam = searchParams.get('email');
       if (emailParam) {
-        const matchingAthlete = athletesList.find(
-          (a: Athlete) => a.email?.toLowerCase() === emailParam.toLowerCase()
+        const matchingClient = allClients.find(
+          c => c.email?.toLowerCase() === emailParam.toLowerCase()
         );
-        if (matchingAthlete) {
-          setSelectedAthleteId(matchingAthlete.id);
-          // Clear the URL param
+        if (matchingClient) {
+          setSelectedClientId(matchingClient.id);
+          setIsExternalClient(matchingClient.isExternal || false);
           setSearchParams({});
         }
       }
     };
 
-    loadAthletes();
+    loadClients();
   }, [profile?.id]);
 
-  // Charger les notes quand un athlète est sélectionné
+  // Charger les notes quand un client est sélectionné
   useEffect(() => {
     const loadNotes = async () => {
-      if (!profile?.id || !selectedAthleteId) {
+      if (!profile?.id || !selectedClientId) {
         setNotes([]);
         return;
       }
 
       setLoadingNotes(true);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("coach_notes")
         .select("id, content, created_at")
         .eq("coach_id", profile.id)
-        .eq("athlete_id", selectedAthleteId)
         .order("created_at", { ascending: false });
+
+      if (isExternalClient) {
+        query = query.eq("external_client_id", selectedClientId);
+      } else {
+        query = query.eq("athlete_id", selectedClientId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         toast.error("Erreur lors du chargement des notes");
@@ -133,22 +162,30 @@ export default function Notes() {
     };
 
     loadNotes();
-  }, [profile?.id, selectedAthleteId]);
+  }, [profile?.id, selectedClientId, isExternalClient]);
 
   const handleAddNote = async () => {
-    if (!profile?.id || !selectedAthleteId || !newNote.trim()) {
-      toast.error("Veuillez sélectionner un athlète et écrire une note");
+    if (!profile?.id || !selectedClientId || !newNote.trim()) {
+      toast.error("Veuillez sélectionner un client et écrire une note");
       return;
     }
 
     setLoading(true);
+    
+    const insertData: Record<string, unknown> = {
+      coach_id: profile.id,
+      content: newNote.trim()
+    };
+
+    if (isExternalClient) {
+      insertData.external_client_id = selectedClientId;
+    } else {
+      insertData.athlete_id = selectedClientId;
+    }
+
     const { data, error } = await supabase
       .from("coach_notes")
-      .insert({
-        coach_id: profile.id,
-        athlete_id: selectedAthleteId,
-        content: newNote.trim()
-      })
+      .insert(insertData)
       .select("id, content, created_at")
       .single();
 
@@ -162,7 +199,13 @@ export default function Notes() {
     setLoading(false);
   };
 
-  const selectedAthlete = athletes.find(a => a.id === selectedAthleteId);
+  const handleSelectClient = (client: Client) => {
+    setSelectedClientId(client.id);
+    setIsExternalClient(client.isExternal || false);
+    setComboboxOpen(false);
+  };
+
+  const selectedClient = clients.find(c => c.id === selectedClientId);
 
   return (
     <div className="space-y-6">
@@ -172,7 +215,7 @@ export default function Notes() {
           Notes
         </h1>
         <p className="text-muted-foreground mt-1">
-          Gérez vos notes personnelles sur vos athlètes
+          Gérez vos notes personnelles sur vos clients
         </p>
       </div>
 
@@ -187,7 +230,7 @@ export default function Notes() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sélectionner un athlète</label>
+              <label className="text-sm font-medium">Sélectionner un client</label>
               <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -196,36 +239,56 @@ export default function Notes() {
                     aria-expanded={comboboxOpen}
                     className="w-full justify-between"
                   >
-                    {selectedAthleteId
-                      ? athletes.find((a) => a.id === selectedAthleteId)
-                        ? `${athletes.find((a) => a.id === selectedAthleteId)?.last_name} ${athletes.find((a) => a.id === selectedAthleteId)?.first_name}`
-                        : "Choisir un athlète..."
-                      : "Choisir un athlète..."}
+                    {selectedClientId && selectedClient ? (
+                      <span className="flex items-center gap-2">
+                        {selectedClient.last_name} {selectedClient.first_name}
+                        {selectedClient.isExternal && (
+                          <Badge variant="outline" className="text-xs">Externe</Badge>
+                        )}
+                      </span>
+                    ) : (
+                      "Choisir un client..."
+                    )}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
                   <Command>
-                    <CommandInput placeholder="Rechercher un athlète..." />
+                    <CommandInput placeholder="Rechercher un client..." />
                     <CommandList>
-                      <CommandEmpty>Aucun athlète trouvé.</CommandEmpty>
-                      <CommandGroup>
-                        {athletes.map((athlete) => (
+                      <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                      <CommandGroup heading="Athlètes">
+                        {clients.filter(c => !c.isExternal).map((client) => (
                           <CommandItem
-                            key={athlete.id}
-                            value={`${athlete.last_name} ${athlete.first_name}`}
-                            onSelect={() => {
-                              setSelectedAthleteId(athlete.id);
-                              setComboboxOpen(false);
-                            }}
+                            key={client.id}
+                            value={`${client.last_name} ${client.first_name}`}
+                            onSelect={() => handleSelectClient(client)}
                           >
                             <Check
                               className={cn(
                                 "mr-2 h-4 w-4",
-                                selectedAthleteId === athlete.id ? "opacity-100" : "opacity-0"
+                                selectedClientId === client.id ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            {athlete.last_name} {athlete.first_name}
+                            {client.last_name} {client.first_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                      <CommandGroup heading="Clients externes">
+                        {clients.filter(c => c.isExternal).map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={`${client.last_name} ${client.first_name} externe`}
+                            onSelect={() => handleSelectClient(client)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedClientId === client.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                            {client.last_name} {client.first_name}
                           </CommandItem>
                         ))}
                       </CommandGroup>
@@ -235,7 +298,7 @@ export default function Notes() {
               </Popover>
             </div>
 
-            {selectedAthleteId && (
+            {selectedClientId && (
               <>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
@@ -268,17 +331,20 @@ export default function Notes() {
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="h-5 w-5" />
               Historique des notes
-              {selectedAthlete && (
-                <span className="text-muted-foreground font-normal text-sm ml-2">
-                  - {selectedAthlete.first_name} {selectedAthlete.last_name}
+              {selectedClient && (
+                <span className="text-muted-foreground font-normal text-sm ml-2 flex items-center gap-1">
+                  - {selectedClient.first_name} {selectedClient.last_name}
+                  {selectedClient.isExternal && (
+                    <Badge variant="outline" className="text-xs">Externe</Badge>
+                  )}
                 </span>
               )}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!selectedAthleteId ? (
+            {!selectedClientId ? (
               <p className="text-muted-foreground text-center py-8">
-                Sélectionnez un athlète pour voir ses notes
+                Sélectionnez un client pour voir ses notes
               </p>
             ) : loadingNotes ? (
               <p className="text-muted-foreground text-center py-8">
@@ -286,7 +352,7 @@ export default function Notes() {
               </p>
             ) : notes.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                Aucune note pour cet athlète
+                Aucune note pour ce client
               </p>
             ) : (
               <ScrollArea className="h-[400px] pr-4">
