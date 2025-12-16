@@ -120,6 +120,11 @@ export default function ClientDetail() {
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
+  const [copiedWeekFeedback, setCopiedWeekFeedback] = useState<Record<string, { 
+    sportif_rpe?: string | null; 
+    sportif_comment?: string | null; 
+    skipped?: boolean;
+  }>>({});
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
@@ -921,6 +926,7 @@ export default function ClientDetail() {
       setSelectedWeekToProgram(null);
       setSessions([]);
       setSessionExercises({});
+      setCopiedWeekFeedback({});
       setIsValidated(false);
 
       // Nettoyer les données sauvegardées localement
@@ -978,31 +984,46 @@ export default function ClientDetail() {
         });
 
         const newExercises: Record<number, Exercise[]> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        
         sessionsData.forEach((session, sessionIndex) => {
           if (session.session_exercises) {
             const sortedExercises = session.session_exercises
               .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
-              .map((ex: any, exIndex: number) => ({
-                id: exIndex + 1,
-                exercice: ex.exercice,
-                recuperation: ex.recuperation,
-                reps: ex.reps,
-                series: ex.series,
-                charge: ex.charge,
-                rpe: ex.rpe,
-                tempo: ex.tempo,
-                commentaire: ex.commentaire,
-                cardio_sport: ex.cardio_sport || "",
-                cardio_content: ex.cardio_content || "",
-                cardio_pace: ex.cardio_pace || "",
-                super_set_group: ex.super_set_group || null,
-              }));
+              .map((ex: any, exIndex: number) => {
+                // Créer une clé unique pour mapper le feedback: sessionIndex-exerciseName
+                const feedbackKey = `${sessionIndex + 1}-${ex.exercice}`;
+                if (ex.sportif_rpe || ex.sportif_comment || ex.skipped) {
+                  feedbackMapping[feedbackKey] = {
+                    sportif_rpe: ex.sportif_rpe,
+                    sportif_comment: ex.sportif_comment,
+                    skipped: ex.skipped || false,
+                  };
+                }
+                
+                return {
+                  id: exIndex + 1,
+                  exercice: ex.exercice,
+                  recuperation: ex.recuperation,
+                  reps: ex.reps,
+                  series: ex.series,
+                  charge: ex.charge,
+                  rpe: ex.rpe,
+                  tempo: ex.tempo,
+                  commentaire: ex.commentaire,
+                  cardio_sport: ex.cardio_sport || "",
+                  cardio_content: ex.cardio_content || "",
+                  cardio_pace: ex.cardio_pace || "",
+                  super_set_group: ex.super_set_group || null,
+                };
+              });
             newExercises[sessionIndex + 1] = sortedExercises;
           }
         });
 
         setSessions(newSessions);
         setSessionExercises(newExercises);
+        setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         setShowCopyDialog(false);
         toast.success("Semaine copiée avec succès ! Vous pouvez maintenant la modifier.");
@@ -1329,6 +1350,35 @@ export default function ClientDetail() {
       exercise?.super_set_group &&
       nextExercise?.super_set_group &&
       exercise.super_set_group === nextExercise.super_set_group
+    );
+  };
+
+  // Helper pour obtenir le feedback de la semaine copiée
+  const getExerciseFeedback = (sessionId: number, exerciceName: string) => {
+    const feedbackKey = `${sessionId}-${exerciceName}`;
+    return copiedWeekFeedback[feedbackKey] || null;
+  };
+
+  // Composant pour afficher le feedback
+  const ExerciseFeedbackDisplay = ({ sessionId, exerciceName }: { sessionId: number; exerciceName: string }) => {
+    const feedback = getExerciseFeedback(sessionId, exerciceName);
+    if (!feedback) return null;
+    
+    return (
+      <div className="text-[10px] sm:text-xs bg-muted/50 rounded px-1.5 py-0.5 mt-1 border-l-2 border-primary/50">
+        {feedback.skipped ? (
+          <span className="text-destructive font-medium">⚠️ Non fait</span>
+        ) : (
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-muted-foreground">
+            {feedback.sportif_rpe && (
+              <span>RPE: <span className="font-medium text-foreground">{feedback.sportif_rpe}</span></span>
+            )}
+            {feedback.sportif_comment && (
+              <span className="italic">"{feedback.sportif_comment}"</span>
+            )}
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -1982,6 +2032,25 @@ export default function ClientDetail() {
                   </Button>
                 </div>
               )}
+
+              {/* Info banner when feedback from copied week is available */}
+              {Object.keys(copiedWeekFeedback).length > 0 && (
+                <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/20 rounded-md text-xs">
+                  <MessageSquare className="h-4 w-4 text-primary flex-shrink-0" />
+                  <span className="text-muted-foreground">
+                    Retours de la semaine copiée affichés sous chaque exercice
+                  </span>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="ml-auto h-6 px-2 text-xs"
+                    onClick={() => setCopiedWeekFeedback({})}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
+
               {sessions.length === 0 ? (
                 <div className="text-center py-4 sm:py-6 space-y-1.5 sm:space-y-2">
                   <p className="text-xs sm:text-sm text-muted-foreground">Aucune séance créée.</p>
@@ -2401,6 +2470,7 @@ export default function ClientDetail() {
                                                           exercises={libraryExercises}
                                                           disabled={isValidated}
                                                         />
+                                                        <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={ex.exercice} />
                                                       </div>
                                                       {!isValidated && (
                                                         <Button
@@ -2495,6 +2565,7 @@ export default function ClientDetail() {
                                                       exercises={libraryExercises}
                                                       disabled={isValidated}
                                                     />
+                                                    <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={exercise.exercice} />
                                                   </div>
                                                   {!isValidated && (
                                                     <Button
@@ -2722,6 +2793,7 @@ export default function ClientDetail() {
                                                                      exercises={libraryExercises}
                                                                      disabled={isValidated}
                                                                    />
+                                                                   <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={ex.exercice} />
                                                                  </div>
                                                                </div>
                                                              </TableCell>
@@ -3046,6 +3118,7 @@ export default function ClientDetail() {
                                                                exercises={libraryExercises}
                                                                disabled={isValidated}
                                                              />
+                                                             <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={exercise.exercice} />
                                                            </div>
                                                          </div>
                                                        </TableCell>
