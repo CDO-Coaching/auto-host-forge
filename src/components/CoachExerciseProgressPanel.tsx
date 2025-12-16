@@ -37,6 +37,13 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
 
   const parseCharge = (chargeStr: string): number => {
     if (!chargeStr) return 0;
+    // Format multiplication: "18*2" ou "18x2" signifie 2 haltères de 18kg = 36kg
+    const multiMatch = chargeStr.match(/(\d+\.?\d*)\s*[*xX×]\s*(\d+)/);
+    if (multiMatch) {
+      const weight = parseFloat(multiMatch[1]);
+      const multiplier = parseInt(multiMatch[2]);
+      return weight * multiplier;
+    }
     const num = parseFloat(chargeStr.replace(/[^0-9.,]/g, "").replace(",", "."));
     return isNaN(num) ? 0 : num;
   };

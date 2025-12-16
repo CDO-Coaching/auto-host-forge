@@ -17,9 +17,19 @@ export function calculate1RM(weight: number, reps: number, rpe: number): number 
 }
 
 /**
- * Parse une charge au format "70kg" ou "70" en nombre
+ * Parse une charge au format "70kg", "70", ou "18*2" (deux haltères) en nombre
+ * "18*2" signifie deux poids de 18kg = 36kg total
  */
 export function parseWeight(charge: string): number | null {
+  // Format multiplication: "18*2" ou "18x2" ou "18 x 2"
+  const multiMatch = charge.match(/(\d+\.?\d*)\s*[*xX×]\s*(\d+)/);
+  if (multiMatch) {
+    const weight = parseFloat(multiMatch[1]);
+    const multiplier = parseInt(multiMatch[2]);
+    return weight * multiplier;
+  }
+  
+  // Format simple: "70" ou "70kg"
   const match = charge.match(/(\d+\.?\d*)/);
   if (!match) return null;
   return parseFloat(match[1]);
