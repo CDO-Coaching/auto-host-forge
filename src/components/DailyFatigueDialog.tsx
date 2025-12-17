@@ -39,7 +39,7 @@ const questions = [
   },
 ];
 
-const injuryLevelLabels = ["Aucune", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
+const injuryLevelLabels = ["Gêne", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 
 type AdaptationLevel = "legere" | "moyenne" | "grosse" | null;
 type InjuryEvolution = "same" | "better" | "worse" | "gone" | null;
@@ -201,9 +201,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
     setInjuryEvolution(evolution);
     
     if (evolution === "gone") {
-      // Douleur terminée = niveau 0
+      // Douleur terminée = niveau 0, réinitialiser le suivi de blessure
       setHasInjury(false);
       setInjuryLevel(0);
+      // Réinitialiser previousInjury pour masquer les boutons d'évolution
+      setPreviousInjury(null);
     } else if (evolution === "better" && previousInjury) {
       setHasInjury(true);
       // Diminuer le niveau de douleur de 1 (minimum 1)
