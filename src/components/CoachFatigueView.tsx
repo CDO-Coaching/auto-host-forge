@@ -65,10 +65,12 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
     .map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      injury: log.has_injury && log.injury_level ? log.injury_level : null,
+      // Afficher 0 si la douleur est terminée, null si pas de suivi douleur
+      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
     }));
 
-  const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
+  // Inclure les entrées avec douleur active OU douleur terminée (niveau 0)
+  const injuryLogs = logs.filter(log => log.injury_level !== null && log.injury_level !== undefined);
   const recentHighFatigue = logs.slice(0, 5).filter(log => log.score_total > 20);
 
   if (loading) {
@@ -203,18 +205,27 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
               </LineChart>
             </ResponsiveContainer>
             <div className="mt-4 space-y-2">
-              <h4 className="font-medium text-sm">Dernières blessures signalées :</h4>
+              <h4 className="font-medium text-sm">Dernières entrées douleur :</h4>
               {injuryLogs.slice(0, 5).map((log) => (
-                <div key={log.id} className="flex justify-between items-start text-sm border-l-2 border-destructive pl-3 py-1">
+                <div 
+                  key={log.id} 
+                  className={`flex justify-between items-start text-sm border-l-2 pl-3 py-1 ${
+                    log.injury_level === 0 ? 'border-green-500' : 'border-destructive'
+                  }`}
+                >
                   <div>
                     <p className="font-medium">
                       {format(new Date(log.date), "dd MMMM yyyy", { locale: fr })}
                     </p>
-                    {log.injury_location && (
+                    {log.injury_location && log.injury_level !== 0 && (
                       <p className="text-muted-foreground text-xs">{log.injury_location}</p>
                     )}
                   </div>
-                  <Badge variant="destructive">{log.injury_level}/7</Badge>
+                  {log.injury_level === 0 ? (
+                    <Badge className="bg-green-500/20 text-green-500 border-green-500/50">Terminée</Badge>
+                  ) : (
+                    <Badge variant="destructive">{log.injury_level}/7</Badge>
+                  )}
                 </div>
               ))}
             </div>
@@ -258,8 +269,12 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                   </TableCell>
                   {hasInjuryTracking && (
                     <TableCell>
-                      {log.has_injury ? (
-                        <Badge variant="destructive">{log.injury_level}/7</Badge>
+                      {log.injury_level !== null && log.injury_level !== undefined ? (
+                        log.injury_level === 0 ? (
+                          <Badge className="bg-green-500/20 text-green-500 border-green-500/50">Terminée</Badge>
+                        ) : (
+                          <Badge variant="destructive">{log.injury_level}/7</Badge>
+                        )
                       ) : (
                         <span className="text-muted-foreground">-</span>
                       )}
