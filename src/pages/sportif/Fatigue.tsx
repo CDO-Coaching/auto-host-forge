@@ -206,12 +206,12 @@ export default function Fatigue() {
     return reversedLogs.map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      injury: log.has_injury && log.injury_level ? log.injury_level : null,
+      // Afficher 0 si la douleur est terminée (injury_level = 0), null si pas de suivi douleur
+      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
       injuryLocation: log.injury_location || null,
     }));
   }, [logs, chartPeriod]);
 
-  // Données filtrées pour le graphique des blessures
   const getInjuryChartData = useMemo(() => {
     const filteredLogs = filterByPeriod(logs, injuryChartPeriod);
     const reversedLogs = [...filteredLogs].reverse();
@@ -219,7 +219,8 @@ export default function Fatigue() {
     return reversedLogs.map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      injury: log.has_injury && log.injury_level ? log.injury_level : null,
+      // Afficher 0 si la douleur est terminée (injury_level = 0), null si pas de suivi douleur
+      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
       injuryLocation: log.injury_location || null,
     }));
   }, [logs, injuryChartPeriod]);
@@ -246,16 +247,22 @@ export default function Fatigue() {
         >
           <p style={{ fontWeight: 600, marginBottom: '4px' }}>{data.date}</p>
           {data.injury !== null ? (
-            <>
-              <p style={{ color: 'hsl(var(--destructive))', fontWeight: 600 }}>
-                Douleur: {data.injury}/7
+            data.injury === 0 ? (
+              <p style={{ color: 'hsl(142 76% 36%)', fontWeight: 600 }}>
+                Terminée ✓
               </p>
-              {data.injuryLocation && (
-                <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px', marginTop: '4px' }}>
-                  {data.injuryLocation}
+            ) : (
+              <>
+                <p style={{ color: 'hsl(var(--destructive))', fontWeight: 600 }}>
+                  Douleur: {data.injury}/7
                 </p>
-              )}
-            </>
+                {data.injuryLocation && (
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '10px', marginTop: '4px' }}>
+                    {data.injuryLocation}
+                  </p>
+                )}
+              </>
+            )
           ) : (
             <p style={{ color: 'hsl(var(--muted-foreground))' }}>Aucune douleur</p>
           )}
@@ -267,7 +274,8 @@ export default function Fatigue() {
 
   const chartData = getChartData;
   const injuryChartData = getInjuryChartData;
-  const injuryLogs = logs.filter(log => log.has_injury && log.injury_level);
+  // Inclure les entrées avec douleur active OU douleur terminée (niveau 0)
+  const injuryLogs = logs.filter(log => log.injury_level !== null && log.injury_level !== undefined);
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden">
@@ -453,19 +461,28 @@ export default function Fatigue() {
                   </div>
                   <div className="mt-3 space-y-2" style={{ padding: '0 8px' }}>
                     {injuryLogs.slice(0, 3).map((log) => (
-                      <div key={log.id} className="flex justify-between items-start text-xs border-l-3 border-destructive pl-2 py-1.5 bg-destructive/5 rounded-r">
+                      <div 
+                        key={log.id} 
+                        className={`flex justify-between items-start text-xs border-l-3 pl-2 py-1.5 rounded-r ${
+                          log.injury_level === 0 
+                            ? 'border-green-500 bg-green-500/5' 
+                            : 'border-destructive bg-destructive/5'
+                        }`}
+                      >
                         <div className="flex-1 min-w-0 pr-2">
                           <p className="font-medium text-[11px]">
                             {format(new Date(log.date), "dd/MM/yy", { locale: fr })}
                           </p>
-                          {log.injury_location && (
+                          {log.injury_location && log.injury_level !== 0 && (
                             <p className="text-muted-foreground text-[10px] truncate mt-0.5">
                               {log.injury_location}
                             </p>
                           )}
                         </div>
-                        <span className="text-destructive font-bold shrink-0 text-xs">
-                          {log.injury_level}/7
+                        <span className={`font-bold shrink-0 text-xs ${
+                          log.injury_level === 0 ? 'text-green-500' : 'text-destructive'
+                        }`}>
+                          {log.injury_level === 0 ? 'Terminée ✓' : `${log.injury_level}/7`}
                         </span>
                       </div>
                     ))}
