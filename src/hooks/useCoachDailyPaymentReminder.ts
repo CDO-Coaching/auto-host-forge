@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+const getLocalDateKey = () => {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
 export function useCoachDailyPaymentReminder() {
   const [shouldShowReminder, setShouldShowReminder] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
@@ -11,7 +18,9 @@ export function useCoachDailyPaymentReminder() {
 
   const checkDailyReminder = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
         setIsChecking(false);
         return;
@@ -29,9 +38,11 @@ export function useCoachDailyPaymentReminder() {
         return;
       }
 
-      // Vérifier si le rappel a déjà été montré aujourd'hui
-      const today = new Date().toISOString().split('T')[0];
-      const lastReminderShown = localStorage.getItem(`payment_reminder_shown_${user.id}`);
+      // Vérifier si le rappel a déjà été montré aujourd'hui (date locale)
+      const today = getLocalDateKey();
+      const lastReminderShown = localStorage.getItem(
+        `payment_reminder_shown_${user.id}`
+      );
 
       if (lastReminderShown !== today) {
         setShouldShowReminder(true);
@@ -44,9 +55,11 @@ export function useCoachDailyPaymentReminder() {
   };
 
   const handleDismiss = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateKey();
       localStorage.setItem(`payment_reminder_shown_${user.id}`, today);
     }
     setShouldShowReminder(false);
