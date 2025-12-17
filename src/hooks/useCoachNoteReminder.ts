@@ -2,7 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { parseISO, isBefore } from "date-fns";
 
-const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
+const N8N_WEBHOOK_URL =
+  "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
+
+const getLocalDateKey = () => {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
 
 interface CalendarEvent {
   id: string;
@@ -26,8 +34,18 @@ export function useCoachNoteReminder() {
 
   const checkForReminders = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      // One-shot par jour (date locale), même si on se reconnecte
+      const today = getLocalDateKey();
+      const dayKey = `note_reminder_day_${user.id}`;
+      if (localStorage.getItem(dayKey) === today) {
         setIsLoading(false);
         return;
       }
@@ -52,8 +70,8 @@ export function useCoachNoteReminder() {
       endOfDay.setHours(23, 59, 59, 999);
 
       const response = await fetch(N8N_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           timeMin: startOfDay.toISOString(),
           timeMax: endOfDay.toISOString(),
@@ -77,17 +95,18 @@ export function useCoachNoteReminder() {
       }
 
       // Filter events starting with "Pt" (case insensitive) that have ended
-      const ptEvents = events.filter(event => {
-        const title = event.summary || event.title || '';
-        return title.toLowerCase().startsWith('pt');
+      const ptEvents = events.filter((event) => {
+        const title = event.summary || event.title || "";
+        return title.toLowerCase().startsWith("pt");
       });
 
       // Find completed PT events not yet acknowledged
       for (const event of ptEvents) {
-        const endStr = typeof event.end === 'object' 
-          ? ((event.end as any)?.dateTime || (event.end as any)?.date) 
-          : event.end;
-        
+        const endStr =
+          typeof event.end === "object"
+            ? (event.end as any)?.dateTime || (event.end as any)?.date
+            : event.end;
+
         if (!endStr) continue;
 
         const eventEnd = parseISO(endStr);
@@ -96,19 +115,19 @@ export function useCoachNoteReminder() {
         // Check if event has ended
         if (!isBefore(eventEnd, now)) continue;
 
-        // Check if already acknowledged today
+        // Check if already acknowledged for this event
         const acknowledgedKey = `note_reminder_${user.id}_${eventId}`;
         if (localStorage.getItem(acknowledgedKey)) continue;
 
         // Get the second attendee's email (index 1, coach is usually index 0)
         const attendees = event.attendees || [];
         const secondAttendee = attendees.length > 1 ? attendees[1] : attendees[0];
-        const clientEmail = secondAttendee?.email || '';
+        const clientEmail = secondAttendee?.email || "";
 
         if (clientEmail) {
           setPendingReminder({
             eventId,
-            eventTitle: event.summary || event.title || 'Séance PT',
+            eventTitle: event.summary || event.title || "Séance PT",
             clientEmail,
             endTime: eventEnd,
           });
@@ -129,10 +148,16 @@ export function useCoachNoteReminder() {
   const acknowledgeReminder = async (navigateToNotes: boolean) => {
     if (!pendingReminder) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (user) {
       const acknowledgedKey = `note_reminder_${user.id}_${pendingReminder.eventId}`;
-      localStorage.setItem(acknowledgedKey, 'true');
+      localStorage.setItem(acknowledgedKey, "true");
+
+      // Also block reminder for the rest of the day (date locale)
+      const today = getLocalDateKey();
+      localStorage.setItem(`note_reminder_day_${user.id}`, today);
     }
 
     setPendingReminder(null);
