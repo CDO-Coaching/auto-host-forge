@@ -10,8 +10,10 @@ interface CoachObjectiveAlertProps {
   onNavigateToObjectives?: () => void;
 }
 
+type AlertType = "none" | "no_objective" | "overdue";
+
 export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObjectives }: CoachObjectiveAlertProps) {
-  const [shouldShowAlert, setShouldShowAlert] = useState(false);
+  const [alertType, setAlertType] = useState<AlertType>("none");
   const [daysOverdue, setDaysOverdue] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -23,7 +25,7 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
     try {
       const { data, error } = await supabase
         .from("athlete_objectives")
-        .select("main_objective_deadline")
+        .select("main_objective, main_objective_deadline")
         .eq("athlete_id", athleteId)
         .maybeSingle();
 
@@ -32,7 +34,15 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
         return;
       }
 
-      if (data && data.main_objective_deadline) {
+      // Pas d'objectif principal défini ou objectif vide
+      if (!data || !data.main_objective || data.main_objective.trim() === "") {
+        setAlertType("no_objective");
+        setLoading(false);
+        return;
+      }
+
+      // Objectif défini mais pas de deadline ou deadline dépassée
+      if (data.main_objective_deadline) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
@@ -42,16 +52,15 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
         const diffTime = today.getTime() - deadline.getTime();
         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-        // Afficher l'alerte si la date est atteinte ou dépassée
         if (diffDays >= 0) {
-          setShouldShowAlert(true);
+          setAlertType("overdue");
           setDaysOverdue(diffDays);
         } else {
-          setShouldShowAlert(false);
+          setAlertType("none");
         }
       } else {
-        // Pas d'objectif principal défini
-        setShouldShowAlert(false);
+        // Objectif défini mais pas de deadline
+        setAlertType("no_objective");
       }
     } catch (error) {
       console.error("Erreur lors de la vérification:", error);
@@ -60,7 +69,7 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
     }
   };
 
-  if (loading || !shouldShowAlert) {
+  if (loading || alertType === "none") {
     return null;
   }
 
@@ -70,10 +79,18 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
         <Bell className="h-5 w-5 text-primary mt-0.5" />
         <div className="flex-1 space-y-2">
           <AlertTitle className="text-base font-semibold flex items-center gap-2">
-            Objectif principal atteint pour {athleteName}
+            {alertType === "no_objective" 
+              ? `Objectif principal manquant pour ${athleteName}`
+              : `Objectif principal atteint pour ${athleteName}`
+            }
           </AlertTitle>
           <AlertDescription className="text-sm">
-            {daysOverdue === 0 ? (
+            {alertType === "no_objective" ? (
+              <span>
+                Aucun objectif principal n'est défini pour {athleteName}. 
+                Définissez un objectif pour guider sa progression.
+              </span>
+            ) : daysOverdue === 0 ? (
               <span>
                 La date cible de l'objectif principal a été atteinte aujourd'hui. 
                 Il est temps de définir un nouvel objectif pour continuer la progression de {athleteName}.
@@ -93,7 +110,7 @@ export function CoachObjectiveAlert({ athleteId, athleteName, onNavigateToObject
               className="mt-2"
             >
               <Target className="h-4 w-4 mr-2" />
-              Définir un nouvel objectif
+              {alertType === "no_objective" ? "Définir un objectif" : "Définir un nouvel objectif"}
             </Button>
           )}
         </div>
