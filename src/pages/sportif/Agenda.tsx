@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { toast } from "sonner";
+import { AthleteMilestoneDialog } from "@/components/AthleteMilestoneDialog";
 import { 
   RefreshCw, 
   Calendar as CalendarIcon, 
@@ -15,7 +16,10 @@ import {
   User,
   Clock,
   MapPin,
-  ChevronRight
+  ChevronRight,
+  Target,
+  Plus,
+  Edit2
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isSameDay, parseISO, isAfter, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -48,6 +52,14 @@ interface Appointment {
   coachName: string;
 }
 
+interface Milestone {
+  id: string;
+  label: string;
+  target_date: string;
+  notes: string | null;
+  completed: boolean;
+}
+
 export default function Agenda() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
@@ -55,8 +67,11 @@ export default function Agenda() {
   const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
   const [trainingDays, setTrainingDays] = useState<TrainingDay[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
   const [coachName, setCoachName] = useState<string>("");
+  const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
 
   // Fetch coach name
   useEffect(() => {
@@ -85,6 +100,25 @@ export default function Agenda() {
 
     fetchCoachName();
   }, [profile?.id]);
+
+  // Fetch milestones
+  const fetchMilestones = useCallback(async () => {
+    if (!profile?.id) return;
+
+    const { data, error } = await supabase
+      .from("objective_milestones")
+      .select("*")
+      .eq("athlete_id", profile.id)
+      .order("target_date", { ascending: true });
+
+    if (!error && data) {
+      setMilestones(data);
+    }
+  }, [profile?.id]);
+
+  useEffect(() => {
+    fetchMilestones();
+  }, [fetchMilestones]);
 
   // Fetch training sessions, custom sessions and scheduled sessions for the month
   useEffect(() => {
@@ -325,6 +359,17 @@ export default function Agenda() {
     });
   };
 
+  // Get milestones for a date
+  const getMilestonesForDate = (date: Date) => {
+    return milestones.filter(m => {
+      try {
+        return isSameDay(parseISO(m.target_date), date);
+      } catch {
+        return false;
+      }
+    });
+  };
+
   // Custom day render for calendar
   const scheduledDates = trainingDays
     .filter(td => td.sessions.some(s => s.isScheduled))
@@ -333,6 +378,14 @@ export default function Agenda() {
   const completedDates = trainingDays
     .filter(td => td.sessions.some(s => !s.isScheduled && !s.isCustom))
     .map(td => td.date);
+
+  const milestoneDates = milestones.map(m => {
+    try {
+      return parseISO(m.target_date);
+    } catch {
+      return new Date(0);
+    }
+  });
 
   const modifiers = {
     training: completedDates,
@@ -343,7 +396,8 @@ export default function Agenda() {
       } catch {
         return new Date(0);
       }
-    })
+    }),
+    milestone: milestoneDates
   };
 
   const modifiersStyles = {
@@ -359,12 +413,18 @@ export default function Agenda() {
     appointment: {
       border: '2px solid hsl(var(--destructive))',
       borderRadius: '50%'
+    },
+    milestone: {
+      border: '2px solid hsl(280 70% 50%)',
+      borderRadius: '50%',
+      backgroundColor: 'hsl(280 70% 50% / 0.15)'
     }
   };
 
   // Get info for selected date
   const selectedTraining = selectedDate ? getTrainingForDate(selectedDate) : null;
   const selectedAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
+  const selectedMilestones = selectedDate ? getMilestonesForDate(selectedDate) : [];
 
   return (
     <div className="space-y-4 p-2 sm:p-4">
@@ -402,6 +462,10 @@ export default function Agenda() {
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-full border-2 border-destructive" />
           <span>Rendez-vous coach</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full border-2 bg-purple-500/15" style={{ borderColor: 'hsl(280 70% 50%)' }} />
+          <span>Objectif</span>
         </div>
       </div>
 
@@ -545,8 +609,37 @@ export default function Agenda() {
                   </div>
                 )}
 
+                {/* Milestones for selected day */}
+                {selectedMilestones.length > 0 && (
+                  <div className="space-y-2">
+                    {selectedMilestones.map(milestone => (
+                      <button
+                        key={milestone.id}
+                        onClick={() => {
+                          setEditingMilestone(milestone);
+                          setShowMilestoneDialog(true);
+                        }}
+                        className="w-full p-4 rounded-lg bg-purple-500/10 border border-purple-500/30 hover:bg-purple-500/20 transition-colors text-left"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 font-medium">
+                            <Target className="h-5 w-5" />
+                            <span>{milestone.label}</span>
+                          </div>
+                          <Edit2 className="h-4 w-4 text-purple-500" />
+                        </div>
+                        {milestone.notes && (
+                          <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                            {milestone.notes}
+                          </p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* No events */}
-                {!selectedTraining && selectedAppointments.length === 0 && (
+                {!selectedTraining && selectedAppointments.length === 0 && selectedMilestones.length === 0 && (
                   <div className="text-center py-8 text-muted-foreground">
                     <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-30" />
                     <p>Rien de prévu ce jour</p>
@@ -608,6 +701,99 @@ export default function Agenda() {
           </CardContent>
         </Card>
       )}
+
+      {/* Objectives section */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5 text-purple-500" />
+              Mes dates d'objectifs
+            </CardTitle>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingMilestone(null);
+                setShowMilestoneDialog(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Ajouter
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {milestones.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">
+              <Target className="h-10 w-10 mx-auto mb-2 opacity-30" />
+              <p>Aucune date d'objectif définie</p>
+              <p className="text-sm mt-1">Ajoute tes prochaines échéances importantes</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {milestones
+                .sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime())
+                .map(milestone => {
+                  const targetDate = parseISO(milestone.target_date);
+                  const isPast = targetDate < startOfDay(new Date());
+                  
+                  return (
+                    <button
+                      key={milestone.id}
+                      onClick={() => {
+                        setEditingMilestone(milestone);
+                        setShowMilestoneDialog(true);
+                      }}
+                      className={`w-full p-4 rounded-lg border transition-colors text-left ${
+                        isPast 
+                          ? 'bg-muted/50 border-muted-foreground/20 opacity-60' 
+                          : 'bg-purple-500/5 border-purple-500/20 hover:bg-purple-500/10'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="font-medium flex items-center gap-2">
+                            <Target className="h-4 w-4 text-purple-500" />
+                            {milestone.label}
+                          </p>
+                          <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <CalendarIcon className="h-4 w-4" />
+                              {format(targetDate, "EEEE d MMMM yyyy", { locale: fr })}
+                            </div>
+                          </div>
+                          {milestone.notes && (
+                            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                              {milestone.notes}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {isPast ? (
+                            <Badge variant="secondary" className="shrink-0">Passé</Badge>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0 border-purple-500 text-purple-600 dark:text-purple-400">
+                              Objectif
+                            </Badge>
+                          )}
+                          <Edit2 className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Milestone Dialog */}
+      <AthleteMilestoneDialog
+        open={showMilestoneDialog}
+        onOpenChange={setShowMilestoneDialog}
+        milestone={editingMilestone}
+        onSaved={fetchMilestones}
+      />
     </div>
   );
 }
