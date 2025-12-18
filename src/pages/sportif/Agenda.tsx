@@ -21,7 +21,7 @@ import {
   Plus,
   Edit2
 } from "lucide-react";
-import { format, startOfMonth, endOfMonth, isSameDay, parseISO, isAfter, startOfDay } from "date-fns";
+import { format, startOfMonth, endOfMonth, isSameDay, parseISO, isAfter, startOfDay, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 const N8N_WEBHOOK_URL = "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66";
@@ -735,7 +735,9 @@ export default function Agenda() {
                 .sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime())
                 .map(milestone => {
                   const targetDate = parseISO(milestone.target_date);
-                  const isPast = targetDate < startOfDay(new Date());
+                  const today = startOfDay(new Date());
+                  const isPast = targetDate < today;
+                  const daysRemaining = differenceInDays(targetDate, today);
                   
                   return (
                     <button
@@ -761,6 +763,16 @@ export default function Agenda() {
                               <CalendarIcon className="h-4 w-4" />
                               {format(targetDate, "EEEE d MMMM yyyy", { locale: fr })}
                             </div>
+                            {!isPast && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-4 w-4" />
+                                {daysRemaining === 0 
+                                  ? "Aujourd'hui" 
+                                  : daysRemaining === 1 
+                                    ? "Demain" 
+                                    : `${daysRemaining} jours restants`}
+                              </div>
+                            )}
                           </div>
                           {milestone.notes && (
                             <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
@@ -773,7 +785,7 @@ export default function Agenda() {
                             <Badge variant="secondary" className="shrink-0">Passé</Badge>
                           ) : (
                             <Badge variant="outline" className="shrink-0 border-purple-500 text-purple-600 dark:text-purple-400">
-                              Objectif
+                              {daysRemaining === 0 ? "Aujourd'hui" : `J-${daysRemaining}`}
                             </Badge>
                           )}
                           <Edit2 className="h-4 w-4 text-muted-foreground" />
