@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { Dumbbell, TrendingUp, Activity, Target, Calendar, Search } from "lucide-react";
+import { Dumbbell, TrendingUp, Activity, Target, Calendar, Search, Weight } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
 import { Input } from "@/components/ui/input";
 
@@ -17,6 +17,15 @@ interface WeeklyStrengthData {
   averageRpe: number | null;
   rpeDeviation: number | null;
   sessionCount: number;
+}
+
+interface WeeklyWeightedVolumeData {
+  week: string;
+  weekNumber: number;
+  year: number;
+  totalWeightedVolume: number;
+  sessions: { name: string; weightedVolume: number; percentage: number }[];
+  [key: string]: any; // Pour les barres dynamiques
 }
 
 interface MuscleGroupData {
@@ -38,10 +47,12 @@ interface CoachStrengthViewProps {
 export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewProps) {
   const [loading, setLoading] = useState(true);
   const [weeklyData, setWeeklyData] = useState<WeeklyStrengthData[]>([]);
+  const [weeklyWeightedData, setWeeklyWeightedData] = useState<WeeklyWeightedVolumeData[]>([]);
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroupData[]>([]);
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgressData[]>([]);
   const [recentExercises, setRecentExercises] = useState<string[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState("");
+  const [allSessionNames, setAllSessionNames] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -111,15 +122,19 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
         return;
       }
 
-      // Charger la bibliothèque d'exercices pour les groupes musculaires
+      // Charger la bibliothèque d'exercices pour les groupes musculaires et coefficients
       const { data: exerciseLibrary } = await supabase
         .from("exercise_library")
-        .select("name, muscle_principal");
+        .select("name, muscle_principal, load_coefficient");
 
       const muscleMap = new Map<string, string>();
+      const coefficientMap = new Map<string, number>();
       exerciseLibrary?.forEach((ex) => {
-        if (ex.name && ex.muscle_principal) {
-          muscleMap.set(ex.name.toLowerCase(), ex.muscle_principal);
+        if (ex.name) {
+          if (ex.muscle_principal) {
+            muscleMap.set(ex.name.toLowerCase(), ex.muscle_principal);
+          }
+          coefficientMap.set(ex.name.toLowerCase(), ex.load_coefficient || 1.0);
         }
       });
 
@@ -152,11 +167,15 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
       const weeklyMap = new Map<string, WeeklyStrengthData>();
       const muscleGroupMap = new Map<string, { sets: number; tonnage: number }>();
       const exerciseDataMap = new Map<string, Map<string, { charges: number[]; sets: number }>>();
+      
+      // Données pour le volume pondéré par séance
+      const weeklyWeightedMap = new Map<string, Map<string, number>>(); // weekKey -> sessionName -> weightedVolume
 
       sessions?.forEach((session: any) => {
         const weekNumber = session.training_weeks.week_number;
         const year = session.training_weeks.year;
         const weekKey = `${year}-W${weekNumber.toString().padStart(2, "0")}`;
+        const sessionName = session.name || "Séance sans nom";
 
         session.session_exercises?.forEach((exercise: any) => {
           if (exercise.skipped) return;
@@ -165,6 +184,13 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
           const reps = parseReps(exercise.reps);
           const series = parseSeries(exercise.series);
           const tonnage = charge * reps * series;
+          
+          // Calculer le volume pondéré avec le coefficient
+          const exerciseNameLower = exercise.exercice?.toLowerCase() || "";
+          const coefficient = coefficientMap.get(exerciseNameLower) || 1.0;
+          const sportifRpeValue = exercise.sportif_rpe ? parseFloat(exercise.sportif_rpe) : 7; // RPE par défaut si non renseigné
+          // Formule: séries × reps × charge × (RPE/10) × coefficient
+          const weightedVolume = series * reps * charge * (sportifRpeValue / 10) * coefficient;
           const coachRpe = exercise.rpe ? parseFloat(exercise.rpe) : null;
           const sportifRpe = exercise.sportif_rpe ? parseFloat(exercise.sportif_rpe) : null;
 
@@ -214,6 +240,13 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
             muscleGroupMap.set(muscleGroup, { sets: series, tonnage });
           }
 
+          // Volume pondéré par séance
+          if (!weeklyWeightedMap.has(weekKey)) {
+            weeklyWeightedMap.set(weekKey, new Map());
+          }
+          const sessionMap = weeklyWeightedMap.get(weekKey)!;
+          sessionMap.set(sessionName, (sessionMap.get(sessionName) || 0) + weightedVolume);
+
           // Progression des exercices (uniquement ceux des 2 dernières semaines)
           if (recentExercisesSet.has(exercise.exercice) && charge > 0) {
             if (!exerciseDataMap.has(exercise.exercice)) {
@@ -240,7 +273,48 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
         })
         .slice(-12); // Garder les 12 dernières semaines
 
+      // Convertir les données de volume pondéré
+      const allSessions = new Set<string>();
+      weeklyWeightedMap.forEach((sessionMap) => {
+        sessionMap.forEach((_, sessionName) => allSessions.add(sessionName));
+      });
+      const sessionNamesList = Array.from(allSessions).sort();
+      setAllSessionNames(sessionNamesList);
+
+      const sortedWeeklyWeightedData: WeeklyWeightedVolumeData[] = Array.from(weeklyWeightedMap.entries())
+        .map(([weekKey, sessionMap]) => {
+          const [yearStr, weekStr] = weekKey.split("-W");
+          const totalWeightedVolume = Array.from(sessionMap.values()).reduce((sum, v) => sum + v, 0);
+          const sessions = Array.from(sessionMap.entries()).map(([name, weightedVolume]) => ({
+            name,
+            weightedVolume,
+            percentage: totalWeightedVolume > 0 ? (weightedVolume / totalWeightedVolume) * 100 : 0
+          }));
+          
+          // Créer l'objet avec les clés dynamiques pour chaque séance (en pourcentage)
+          const dataPoint: WeeklyWeightedVolumeData = {
+            week: weekKey,
+            weekNumber: parseInt(weekStr),
+            year: parseInt(yearStr),
+            totalWeightedVolume,
+            sessions
+          };
+          
+          // Ajouter chaque séance comme clé avec son pourcentage
+          sessions.forEach((s) => {
+            dataPoint[s.name] = s.percentage;
+          });
+          
+          return dataPoint;
+        })
+        .sort((a, b) => {
+          if (a.year !== b.year) return a.year - b.year;
+          return a.weekNumber - b.weekNumber;
+        })
+        .slice(-12);
+
       setWeeklyData(sortedWeeklyData);
+      setWeeklyWeightedData(sortedWeeklyWeightedData);
 
       // Convertir les groupes musculaires
       const muscleGroupsArray = Array.from(muscleGroupMap.entries())
@@ -323,6 +397,19 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
     "hsl(200, 80%, 55%)",   // Bleu clair
     "hsl(340, 75%, 55%)",   // Rose/Magenta
     "hsl(160, 70%, 45%)",   // Vert émeraude
+    "hsl(280, 70%, 60%)",   // Violet
+    "hsl(25, 90%, 55%)",    // Orange
+    "hsl(180, 60%, 50%)",   // Cyan
+    "hsl(60, 80%, 50%)",    // Jaune citron
+    "hsl(320, 70%, 55%)",   // Fuchsia
+    "hsl(100, 60%, 45%)",   // Vert lime
+  ];
+
+  const SESSION_COLORS = [
+    "hsl(45, 93%, 47%)",    // Jaune/Or
+    "hsl(200, 80%, 55%)",   // Bleu clair
+    "hsl(340, 75%, 55%)",   // Rose
+    "hsl(160, 70%, 45%)",   // Vert
     "hsl(280, 70%, 60%)",   // Violet
     "hsl(25, 90%, 55%)",    // Orange
     "hsl(180, 60%, 50%)",   // Cyan
@@ -422,6 +509,89 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
           </div>
         </CardContent>
       </Card>
+
+      {/* Graphique volume pondéré par séance */}
+      {weeklyWeightedData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Weight className="h-5 w-5 text-primary" />
+              Volume pondéré par semaine (répartition par séance)
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Formule: séries × reps × charge × (RPE/10) × coefficient
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyWeightedData} stackOffset="expand" barCategoryGap="15%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis 
+                    dataKey="week" 
+                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(value) => `S${value.split("-W")[1]}`}
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: "hsl(var(--background))", 
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px"
+                    }}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      const weekData = weeklyWeightedData.find(d => d.week === label);
+                      if (!weekData) return null;
+                      
+                      return (
+                        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold mb-2">Semaine {label.split("-W")[1]}</p>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Volume total: {(weekData.totalWeightedVolume / 1000).toFixed(1)}k
+                          </p>
+                          <div className="space-y-1">
+                            {weekData.sessions.map((session, idx) => (
+                              <div key={session.name} className="flex items-center gap-2 text-sm">
+                                <div 
+                                  className="w-3 h-3 rounded-full" 
+                                  style={{ backgroundColor: SESSION_COLORS[idx % SESSION_COLORS.length] }}
+                                />
+                                <span className="flex-1">{session.name}</span>
+                                <span className="font-medium">{session.percentage.toFixed(0)}%</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend />
+                  {allSessionNames.map((sessionName, index) => (
+                    <Bar 
+                      key={sessionName}
+                      dataKey={sessionName}
+                      stackId="sessions"
+                      fill={SESSION_COLORS[index % SESSION_COLORS.length]}
+                      name={sessionName}
+                    >
+                      <LabelList 
+                        dataKey={sessionName}
+                        position="inside"
+                        formatter={(value: number) => value > 10 ? `${value.toFixed(0)}%` : ""}
+                        style={{ fill: "white", fontSize: 10, fontWeight: "bold" }}
+                      />
+                    </Bar>
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Graphique RPE */}
       <Card>
