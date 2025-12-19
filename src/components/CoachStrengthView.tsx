@@ -510,88 +510,88 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
         </CardContent>
       </Card>
 
-      {/* Graphique volume pondéré par séance */}
-      {weeklyWeightedData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Weight className="h-5 w-5 text-primary" />
-              Volume pondéré par semaine (répartition par séance)
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Formule: séries × reps × charge × (RPE/10) × coefficient
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[350px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyWeightedData} stackOffset="expand" barCategoryGap="15%">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="week" 
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(value) => `S${value.split("-W")[1]}`}
-                  />
-                  <YAxis 
-                    tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                    tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: "hsl(var(--background))", 
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px"
-                    }}
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload || payload.length === 0) return null;
-                      const weekData = weeklyWeightedData.find(d => d.week === label);
-                      if (!weekData) return null;
-                      
-                      return (
-                        <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-                          <p className="font-semibold mb-2">Semaine {label.split("-W")[1]}</p>
-                          <p className="text-sm text-muted-foreground mb-2">
-                            Volume total: {(weekData.totalWeightedVolume / 1000).toFixed(1)}k
-                          </p>
-                          <div className="space-y-1">
-                            {weekData.sessions.map((session, idx) => (
-                              <div key={session.name} className="flex items-center gap-2 text-sm">
-                                <div 
-                                  className="w-3 h-3 rounded-full" 
-                                  style={{ backgroundColor: SESSION_COLORS[idx % SESSION_COLORS.length] }}
-                                />
-                                <span className="flex-1">{session.name}</span>
-                                <span className="font-medium">{session.percentage.toFixed(0)}%</span>
-                              </div>
-                            ))}
+      {/* Graphique charge relative par semaine */}
+      {weeklyWeightedData.length > 0 && (() => {
+        // Calculer la moyenne des volumes pondérés pour la charge relative
+        const avgWeightedVolume = weeklyWeightedData.reduce((sum, w) => sum + w.totalWeightedVolume, 0) / weeklyWeightedData.length;
+        const relativeLoadData = weeklyWeightedData.map(w => ({
+          ...w,
+          chargeRelative: avgWeightedVolume > 0 ? (w.totalWeightedVolume / avgWeightedVolume) * 100 : 0
+        }));
+
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Weight className="h-5 w-5 text-primary" />
+                Charge relative par semaine (séances renfo)
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                100% = moyenne des semaines | Formule: séries × reps × charge × (RPE/10) × coefficient
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={relativeLoadData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis 
+                      dataKey="week" 
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(value) => `S${value.split("-W")[1]}`}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+                      tickFormatter={(value) => `${value.toFixed(0)}%`}
+                      domain={[0, 'auto']}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: "hsl(var(--background))", 
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px"
+                      }}
+                      content={({ active, payload, label }) => {
+                        if (!active || !payload || payload.length === 0) return null;
+                        const weekData = relativeLoadData.find(d => d.week === label);
+                        if (!weekData) return null;
+                        
+                        return (
+                          <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
+                            <p className="font-semibold mb-2">Semaine {label.split("-W")[1]}</p>
+                            <p className="text-lg font-bold text-primary mb-1">
+                              {weekData.chargeRelative.toFixed(0)}%
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Volume: {(weekData.totalWeightedVolume / 1000).toFixed(1)}k
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Moyenne: {(avgWeightedVolume / 1000).toFixed(1)}k
+                            </p>
                           </div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Legend />
-                  {allSessionNames.map((sessionName, index) => (
+                        );
+                      }}
+                    />
+                    {/* Ligne de référence à 100% */}
                     <Bar 
-                      key={sessionName}
-                      dataKey={sessionName}
-                      stackId="sessions"
-                      fill={SESSION_COLORS[index % SESSION_COLORS.length]}
-                      name={sessionName}
+                      dataKey="chargeRelative" 
+                      fill="hsl(var(--primary))" 
+                      radius={[4, 4, 0, 0]}
                     >
                       <LabelList 
-                        dataKey={sessionName}
-                        position="inside"
-                        formatter={(value: number) => value > 10 ? `${value.toFixed(0)}%` : ""}
-                        style={{ fill: "white", fontSize: 10, fontWeight: "bold" }}
+                        dataKey="chargeRelative"
+                        position="top"
+                        formatter={(value: number) => `${value.toFixed(0)}%`}
+                        style={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontWeight: "bold" }}
                       />
                     </Bar>
-                  ))}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Graphique RPE */}
       <Card>
