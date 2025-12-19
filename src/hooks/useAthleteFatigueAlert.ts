@@ -32,6 +32,13 @@ export function useAthleteFatigueAlert() {
         return;
       }
 
+      // Vérifier si les alertes sont activées
+      const alertPreference = localStorage.getItem(`fatigue_alert_${user.id}`);
+      if (alertPreference === 'false') {
+        setIsLoading(false);
+        return;
+      }
+
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
       const tomorrow = new Date(today);
