@@ -108,6 +108,12 @@ const normalizeEvent = (event: any): CalendarEvent | null => {
   };
 };
 
+interface AthleteInfo {
+  id: string;
+  name: string;
+  sessionCount: number;
+}
+
 export default function Agenda() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -115,6 +121,7 @@ export default function Agenda() {
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [athleteSessions, setAthleteSessions] = useState<AthleteSession[]>([]);
+  const [allAthletes, setAllAthletes] = useState<AthleteInfo[]>([]);
   const [activeTab, setActiveTab] = useState("rdv");
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
@@ -191,6 +198,7 @@ export default function Agenda() {
 
       if (!relationships || relationships.length === 0) {
         setAthleteSessions([]);
+        setAllAthletes([]);
         return;
       }
 
@@ -230,6 +238,7 @@ export default function Agenda() {
       if (sessionsError || !sessionsData) {
         console.error("Error fetching athlete sessions:", sessionsError);
         setAthleteSessions([]);
+        setAllAthletes([]);
         return;
       }
 
@@ -247,10 +256,31 @@ export default function Agenda() {
         };
       });
 
+      // Build allAthletes list with session counts
+      const sessionCountMap = new Map<string, number>();
+      sessions.forEach(s => {
+        sessionCountMap.set(s.athleteId, (sessionCountMap.get(s.athleteId) || 0) + 1);
+      });
+
+      const athletesList: AthleteInfo[] = athleteIds.map(id => ({
+        id,
+        name: profileMap.get(id) || "Inconnu",
+        sessionCount: sessionCountMap.get(id) || 0,
+      }));
+
+      // Sort: athletes with 0 sessions first, then by name
+      athletesList.sort((a, b) => {
+        if (a.sessionCount === 0 && b.sessionCount > 0) return -1;
+        if (a.sessionCount > 0 && b.sessionCount === 0) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
       setAthleteSessions(sessions);
+      setAllAthletes(athletesList);
     } catch (error) {
       console.error("Error fetching athlete sessions:", error);
       setAthleteSessions([]);
+      setAllAthletes([]);
     }
   }, [user, currentWeekStart]);
 
@@ -666,8 +696,46 @@ export default function Agenda() {
             </Card>
           )}
 
-          {/* No day selected - show hint */}
-          {!selectedDay && athleteSessions.length > 0 && (
+          {/* No day selected - show clients list with session counts */}
+          {!selectedDay && allAthletes.length > 0 && (
+            <Card>
+              <CardHeader className="py-3 pb-2">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Activité des clients cette semaine
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {allAthletes.map(athlete => (
+                    <button
+                      key={athlete.id}
+                      onClick={() => navigate(`/coach/mes-clients/${athlete.id}`)}
+                      className={`w-full p-3 rounded-lg border transition-colors text-left flex items-center justify-between ${
+                        athlete.sessionCount === 0 
+                          ? 'bg-orange-500/10 border-orange-500/30 hover:bg-orange-500/20' 
+                          : 'bg-muted/30 hover:bg-muted/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium text-sm">{athlete.name}</span>
+                      </div>
+                      <Badge 
+                        variant={athlete.sessionCount === 0 ? "destructive" : "secondary"}
+                        className={athlete.sessionCount === 0 ? "bg-orange-500/20 text-orange-600 dark:text-orange-400 hover:bg-orange-500/30" : ""}
+                      >
+                        {athlete.sessionCount} séance{athlete.sessionCount > 1 ? 's' : ''}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* No day selected and no athletes */}
+          {!selectedDay && allAthletes.length === 0 && athleteSessions.length === 0 && (
             <p className="text-center text-sm text-muted-foreground">
               Cliquez sur un jour pour voir les détails
             </p>
