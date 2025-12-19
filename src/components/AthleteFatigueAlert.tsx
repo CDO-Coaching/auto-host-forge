@@ -54,7 +54,7 @@ export function AthleteFatigueAlert() {
   // Mode récupération : aujourd'hui va mieux mais hier était difficile
   if (isRecovery) {
     return (
-      <Alert className="mb-4 relative border-blue-500/50 bg-blue-500/10 text-blue-700 dark:text-blue-400">
+      <Alert className="mb-4 relative border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
         <Button
           variant="ghost"
           size="icon"
