@@ -4,6 +4,26 @@ import { Button } from "@/components/ui/button";
 import { useAthleteFatigueAlert } from "@/hooks/useAthleteFatigueAlert";
 import { useNavigate } from "react-router-dom";
 
+// Descriptions pour le sommeil (score élevé = mauvaise nuit)
+const getSleepDescription = (score: number): string => {
+  if (score <= 2) return "correct";
+  if (score === 3) return "légèrement perturbé";
+  if (score === 4) return "perturbé";
+  if (score === 5) return "assez perturbé";
+  if (score === 6) return "très perturbé";
+  return "très mauvais";
+};
+
+// Descriptions pour le stress (score élevé = stress élevé)
+const getStressDescription = (score: number): string => {
+  if (score <= 2) return "faible";
+  if (score === 3) return "légèrement élevé";
+  if (score === 4) return "modéré";
+  if (score === 5) return "assez élevé";
+  if (score === 6) return "élevé";
+  return "très élevé";
+};
+
 export function AthleteFatigueAlert() {
   const { alertData, isLoading, dismissAlert } = useAthleteFatigueAlert();
   const navigate = useNavigate();
@@ -15,8 +35,10 @@ export function AthleteFatigueAlert() {
   const isWarning = alertData.level === "warning";
   const isCritical = alertData.level === "critical";
 
+  const sleepDesc = getSleepDescription(alertData.sommeil);
+  const stressDesc = getStressDescription(alertData.stress);
+
   const handleContactCoach = () => {
-    // Navigate to messages or dashboard where they can contact coach
     navigate("/sportif");
   };
 
@@ -51,7 +73,7 @@ export function AthleteFatigueAlert() {
         {isCritical ? (
           <>
             <p>
-              Ton sommeil ({alertData.sommeil}/7) et ton stress ({alertData.stress}/7) indiquent une fatigue importante.
+              Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.
             </p>
             <p className="font-medium">
               Adapte ton entraînement aujourd'hui : réduis l'intensité et écoute ton corps.
@@ -69,10 +91,10 @@ export function AthleteFatigueAlert() {
         ) : (
           <>
             <p>
-              Tes scores de sommeil ({alertData.sommeil}/7) et stress ({alertData.stress}/7) sont légèrement élevés.
+              Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.
             </p>
             <p className="font-medium">
-              Fais attention à l'intensité de ta séance et reste bien concentré.
+              Fais attention à l'intensité de ta séance, reste bien concentré et écoute ton corps.
             </p>
           </>
         )}
