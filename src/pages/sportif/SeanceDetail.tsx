@@ -11,6 +11,7 @@ import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import {
   formatCardioTime,
   formatCardioDistance,
@@ -698,6 +699,8 @@ export default function SeanceDetail() {
       </div>
 
       <div className="p-4 space-y-4">
+        <AthleteFatigueAlert />
+        
         <div>
           <h1 className="text-2xl font-bold">{session.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
