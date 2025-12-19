@@ -312,7 +312,7 @@ export default function SeanceDetail() {
   };
 
   // Validation finale avec date et RPE
-  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string }) => {
+  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string; durationMinutes: number }) => {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -357,11 +357,11 @@ export default function SeanceDetail() {
       }
     }
 
-    // Sauvegarder la séance avec la date choisie et le RPE global
+    // Sauvegarder la séance avec la date choisie, la durée et le RPE global
     const { error } = await supabase
       .from("training_sessions")
       .update({
-        duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
+        duration_minutes: data.durationMinutes,
         completed_at: data.date.toISOString(),
         session_rpe: data.rpe || null,
         session_comment: data.comment || null,
@@ -1240,6 +1240,7 @@ export default function SeanceDetail() {
         onCancel={handleCancelCompletion}
         sessionName={session?.name}
         sessionType={session?.session_type === "course" ? "cardio" : session?.session_type === "recup" ? "recup" : "renfo"}
+        initialDurationSeconds={sessionDuration}
       />
     </div>
   );
