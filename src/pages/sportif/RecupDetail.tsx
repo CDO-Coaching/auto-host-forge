@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import {
   Table,
   TableBody,
@@ -310,6 +311,8 @@ export default function RecupDetail() {
       </div>
 
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <AthleteFatigueAlert />
+        
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">{session.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
