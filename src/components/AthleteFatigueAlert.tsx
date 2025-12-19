@@ -38,6 +38,10 @@ export function AthleteFatigueAlert() {
   const sleepDesc = getSleepDescription(alertData.sommeil);
   const stressDesc = getStressDescription(alertData.stress);
 
+  // Vérifier si les données sont d'hier ou d'aujourd'hui
+  const today = new Date().toISOString().split('T')[0];
+  const isFromYesterday = alertData.date !== today;
+
   const handleContactCoach = () => {
     navigate("/sportif");
   };
@@ -73,7 +77,11 @@ export function AthleteFatigueAlert() {
         {isCritical ? (
           <>
             <p>
-              Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.
+              {isFromYesterday ? (
+                <>Attention, <strong>hier</strong> ton sommeil était <strong>{sleepDesc}</strong> et ton niveau de stress était <strong>{stressDesc}</strong>.</>
+              ) : (
+                <>Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.</>
+              )}
             </p>
             <p className="font-medium">
               Adapte ton entraînement aujourd'hui : réduis l'intensité et écoute ton corps.
@@ -94,7 +102,11 @@ export function AthleteFatigueAlert() {
         ) : (
           <>
             <p>
-              Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.
+              {isFromYesterday ? (
+                <>Attention, <strong>hier</strong> ton sommeil était <strong>{sleepDesc}</strong> et ton niveau de stress était <strong>{stressDesc}</strong>.</>
+              ) : (
+                <>Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.</>
+              )}
             </p>
             <p className="font-medium">
               Fais attention à l'intensité de ta séance, reste bien concentré et écoute ton corps.
