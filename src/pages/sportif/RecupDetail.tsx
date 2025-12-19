@@ -179,7 +179,7 @@ export default function RecupDetail() {
   };
 
   // Validation finale avec date et RPE
-  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string }) => {
+  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string; durationMinutes: number }) => {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -191,7 +191,7 @@ export default function RecupDetail() {
     const { error } = await supabase
       .from("training_sessions")
       .update({
-        duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
+        duration_minutes: data.durationMinutes,
         completed_at: data.date.toISOString(),
         session_rpe: data.rpe || null,
         session_comment: data.comment || null,
@@ -453,6 +453,7 @@ export default function RecupDetail() {
         onCancel={handleCancelCompletion}
         sessionName={session?.name}
         sessionType="recup"
+        initialDurationSeconds={sessionDuration}
       />
     </div>
   );
