@@ -5,9 +5,10 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { Bike, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
 
-interface SessionIntensity {
-  sessionName: string;
-  intensity: number;
+interface IntensityZones {
+  zoneLow: number;
+  zoneMid: number;
+  zoneHigh: number;
 }
 
 interface CardioSessionData {
@@ -26,7 +27,7 @@ interface CardioSessionData {
   actualAverageHeartRate: number | null;
   actualAverageRpe: number | null;
   actualIntensityKarvonen: number | null;
-  sessionsIntensities: SessionIntensity[];
+  intensityZones: IntensityZones;
 }
 
 interface PlannedVolume {
@@ -254,10 +255,14 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             if (fcMax && fcRepos && fcMax > fcRepos) {
               existing.actualIntensityKarvonen = Math.round(((existing.actualAverageHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
               const sessionIntensity = Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
-              existing.sessionsIntensities.push({
-                sessionName: session.name || `Séance ${existing.sessionsIntensities.length + 1}`,
-                intensity: sessionIntensity
-              });
+              const sessionDuration = actualDuration || plannedDuration;
+              if (sessionIntensity < 70) {
+                existing.intensityZones.zoneLow += sessionDuration;
+              } else if (sessionIntensity <= 90) {
+                existing.intensityZones.zoneMid += sessionDuration;
+              } else {
+                existing.intensityZones.zoneHigh += sessionDuration;
+              }
             }
           }
           
@@ -272,12 +277,16 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           ? Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100) 
           : null;
         
-        const sessionsIntensities: SessionIntensity[] = [];
+        const intensityZones: IntensityZones = { zoneLow: 0, zoneMid: 0, zoneHigh: 0 };
         if (intensityKarvonen !== null && isValidated) {
-          sessionsIntensities.push({
-            sessionName: session.name || "Séance 1",
-            intensity: intensityKarvonen
-          });
+          const sessionDuration = actualDuration || plannedDuration;
+          if (intensityKarvonen < 70) {
+            intensityZones.zoneLow = sessionDuration;
+          } else if (intensityKarvonen <= 90) {
+            intensityZones.zoneMid = sessionDuration;
+          } else {
+            intensityZones.zoneHigh = sessionDuration;
+          }
         }
           
         weeklyData.set(weekKey, {
@@ -296,7 +305,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
           actualAverageRpe: actualRpe > 0 ? actualRpe : null,
           actualIntensityKarvonen: intensityKarvonen,
-          sessionsIntensities
+          intensityZones
         });
       }
     });
@@ -573,19 +582,29 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardContent>
             {canCalculateKarvonen ? (
               (() => {
-                const filteredData = cardioSessions.filter(s => s.sessionsIntensities.length > 0);
-                const maxSessions = Math.max(...filteredData.map(s => s.sessionsIntensities.length), 0);
-                const sessionColors = [
-                  "hsl(0 84% 60%)", "hsl(25 95% 53%)", "hsl(47 96% 53%)",
-                  "hsl(142 76% 36%)", "hsl(199 89% 48%)", "hsl(262 83% 58%)",
-                ];
+                const filteredData = cardioSessions.filter(s => {
+                  const total = s.intensityZones.zoneLow + s.intensityZones.zoneMid + s.intensityZones.zoneHigh;
+                  return total > 0;
+                });
+                
+                const zoneColors = {
+                  low: "hsl(142 76% 36%)",
+                  mid: "hsl(47 96% 53%)",
+                  high: "hsl(0 84% 60%)",
+                };
                 
                 const stackedData = filteredData.map(week => {
-                  const result: any = { week: week.week, sessionsIntensities: week.sessionsIntensities };
-                  week.sessionsIntensities.forEach((session, idx) => {
-                    result[`session${idx}`] = session.intensity;
-                  });
-                  return result;
+                  const total = week.intensityZones.zoneLow + week.intensityZones.zoneMid + week.intensityZones.zoneHigh;
+                  return {
+                    week: week.week,
+                    zoneLowPercent: total > 0 ? Math.round((week.intensityZones.zoneLow / total) * 100) : 0,
+                    zoneMidPercent: total > 0 ? Math.round((week.intensityZones.zoneMid / total) * 100) : 0,
+                    zoneHighPercent: total > 0 ? Math.round((week.intensityZones.zoneHigh / total) * 100) : 0,
+                    zoneLowMinutes: week.intensityZones.zoneLow,
+                    zoneMidMinutes: week.intensityZones.zoneMid,
+                    zoneHighMinutes: week.intensityZones.zoneHigh,
+                    totalMinutes: total,
+                  };
                 });
 
                 return (
@@ -593,34 +612,38 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
                     <BarChart data={stackedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }} barSize={30}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
-                      <YAxis domain={[0, 100]} />
+                      <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                       <Tooltip content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
                             <div className="bg-background border rounded-lg p-3 shadow-lg">
                               <p className="font-medium mb-2">{data.week}</p>
-                              <p className="text-sm text-muted-foreground mb-2">{data.sessionsIntensities?.length || 0} séance(s)</p>
-                              {data.sessionsIntensities?.map((session: SessionIntensity, idx: number) => (
-                                <p key={idx} className="text-sm" style={{ color: sessionColors[idx % sessionColors.length] }}>
-                                  {session.sessionName}: {session.intensity}%
-                                </p>
-                              ))}
+                              <p className="text-sm text-muted-foreground mb-2">Temps total: {data.totalMinutes} min</p>
+                              <p className="text-sm" style={{ color: zoneColors.low }}>Z1-Z2 (&lt;70%): {data.zoneLowPercent}% ({data.zoneLowMinutes} min)</p>
+                              <p className="text-sm" style={{ color: zoneColors.mid }}>Z3-Z4 (70-90%): {data.zoneMidPercent}% ({data.zoneMidMinutes} min)</p>
+                              <p className="text-sm" style={{ color: zoneColors.high }}>Z5 (&gt;90%): {data.zoneHighPercent}% ({data.zoneHighMinutes} min)</p>
                             </div>
                           );
                         }
                         return null;
                       }} />
                       <Legend content={() => (
-                        <div className="flex flex-wrap justify-center gap-3 mt-2 text-xs">
-                          <span className="text-muted-foreground">Chaque segment = 1 séance avec son % d'intensité</span>
+                        <div className="flex flex-wrap justify-center gap-4 mt-2 text-xs">
+                          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.low }}></span>Z1-Z2 (&lt;70%)</span>
+                          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.mid }}></span>Z3-Z4 (70-90%)</span>
+                          <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.high }}></span>Z5 (&gt;90%)</span>
                         </div>
                       )} />
-                      {Array.from({ length: maxSessions }).map((_, idx) => (
-                        <Bar key={idx} dataKey={`session${idx}`} stackId="sessions" fill={sessionColors[idx % sessionColors.length]}>
-                          <LabelList dataKey={`session${idx}`} position="center" fill="#fff" fontSize={10} formatter={(value: number) => value ? `${value}%` : ''} />
-                        </Bar>
-                      ))}
+                      <Bar dataKey="zoneLowPercent" stackId="zones" fill={zoneColors.low} name="Z1-Z2">
+                        <LabelList dataKey="zoneLowPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
+                      <Bar dataKey="zoneMidPercent" stackId="zones" fill={zoneColors.mid} name="Z3-Z4">
+                        <LabelList dataKey="zoneMidPercent" position="center" fill="#000" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
+                      <Bar dataKey="zoneHighPercent" stackId="zones" fill={zoneColors.high} name="Z5">
+                        <LabelList dataKey="zoneHighPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 );
