@@ -214,26 +214,34 @@ export default function Agenda() {
         profiles?.map((p) => [p.id, `${p.first_name} ${p.last_name}`]) || []
       );
 
-      // Get all training_sessions completed this calendar week for these athletes
-      const { data: sessionsData, error: sessionsError } = await supabase
+      // Get training weeks for these athletes
+      const { data: trainingWeeks } = await supabase
+        .from("training_weeks")
+        .select("id, athlete_id")
+        .in("athlete_id", athleteIds);
+
+      const weekIds = trainingWeeks?.map(w => w.id) || [];
+      const weekToAthleteMap = new Map(trainingWeeks?.map(w => [w.id, w.athlete_id]) || []);
+
+      // Get all sessions with exercises for these weeks
+      const { data: allSessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
-        .select(
-          `
+        .select(`
           id,
           name,
           session_type,
           completed_at,
           athlete_custom_name,
-          training_weeks!inner(
-            athlete_id,
-            week_number
+          week_id,
+          session_exercises (
+            sportif_feedback_at
           )
-        `
-        )
-        .in("training_weeks.athlete_id", athleteIds)
-        .not("completed_at", "is", null)
-        .gte("completed_at", `${weekStartStr}T00:00:00`)
-        .lte("completed_at", `${weekEndStr}T23:59:59`);
+        `)
+        .in("week_id", weekIds);
+
+      if (sessionsError) {
+        console.error("Error fetching athlete sessions:", sessionsError);
+      }
 
       // Also get custom_sessions for these athletes
       const { data: customSessionsData, error: customError } = await supabase
@@ -244,29 +252,60 @@ export default function Agenda() {
         .gte("completed_at", `${weekStartStr}T00:00:00`)
         .lte("completed_at", `${weekEndStr}T23:59:59`);
 
-      if (sessionsError) {
-        console.error("Error fetching athlete sessions:", sessionsError);
-      }
       if (customError) {
         console.error("Error fetching custom sessions:", customError);
       }
 
       const sessions: AthleteSession[] = [];
       
-      // Add training sessions
-      if (sessionsData) {
-        sessionsData.forEach((session: any) => {
-          const athleteId = session.training_weeks.athlete_id;
+      // Process training sessions - check both completed_at AND exercise feedback dates
+      if (allSessionsData) {
+        allSessionsData.forEach((session: any) => {
+          const athleteId = weekToAthleteMap.get(session.week_id);
+          if (!athleteId) return;
+
           const athleteName = profileMap.get(athleteId) || "Inconnu";
-          sessions.push({
-            id: session.id,
-            athleteId,
-            athleteName,
-            sessionName: session.athlete_custom_name || session.name,
-            sessionType: session.session_type,
-            completedAt: session.completed_at ? new Date(session.completed_at) : null,
-            weekNumber: session.training_weeks.week_number,
-          });
+          
+          // Check if session was completed this week
+          let completedThisWeek = false;
+          let completionDate: Date | null = null;
+
+          // First check completed_at field
+          if (session.completed_at) {
+            const completedAt = new Date(session.completed_at);
+            if (completedAt >= weekStart && completedAt <= weekEnd) {
+              completedThisWeek = true;
+              completionDate = completedAt;
+            }
+          }
+          
+          // Also check exercise feedback dates (for sessions without completed_at)
+          if (!completedThisWeek && session.session_exercises?.length > 0) {
+            const exerciseFeedbackDates = session.session_exercises
+              .filter((ex: any) => ex.sportif_feedback_at)
+              .map((ex: any) => new Date(ex.sportif_feedback_at));
+            
+            if (exerciseFeedbackDates.length > 0) {
+              // Get the most recent feedback date
+              const latestFeedback = new Date(Math.max(...exerciseFeedbackDates.map((d: Date) => d.getTime())));
+              if (latestFeedback >= weekStart && latestFeedback <= weekEnd) {
+                completedThisWeek = true;
+                completionDate = latestFeedback;
+              }
+            }
+          }
+
+          if (completedThisWeek) {
+            sessions.push({
+              id: session.id,
+              athleteId,
+              athleteName,
+              sessionName: session.athlete_custom_name || session.name,
+              sessionType: session.session_type,
+              completedAt: completionDate,
+              weekNumber: 0,
+            });
+          }
         });
       }
 
