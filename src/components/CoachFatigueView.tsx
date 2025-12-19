@@ -65,8 +65,13 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
     .map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      // Afficher 0 si la douleur est terminée, null si pas de suivi douleur
-      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
+      // Si pas de douleur ce jour-là, considérer comme 0 (pour que la courbe descende)
+      injury:
+        log.injury_level !== null && log.injury_level !== undefined
+          ? log.injury_level
+          : log.has_injury === false
+            ? 0
+            : null,
     }));
 
   // Inclure les entrées avec douleur active OU douleur terminée (niveau 0)
