@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { formatCardioTime, formatCardioDistance } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
+
+interface SessionIntensity {
+  sessionName: string;
+  intensity: number;
+}
 
 interface CardioSessionData {
   week: string;
@@ -28,6 +33,8 @@ interface CardioSessionData {
   actualAverageRpe: number | null;
   // Intensité basée sur Karvonen (FC moyenne - FC repos) / (FC max - FC repos)
   actualIntensityKarvonen: number | null;
+  // Séances individuelles avec leur intensité Karvonen
+  sessionsIntensities: SessionIntensity[];
 }
 
 interface PlannedVolume {
@@ -272,7 +279,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             existing.actualAveragePace = (currentPaceSum + actualPace) / (currentPaceCount + 1);
           }
           
-          // Cumuler FC moyenne
+          // Cumuler FC moyenne et ajouter séance individuelle
           if (actualHeartRate > 0) {
             const currentHRCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
             const currentHRSum = (existing.actualAverageHeartRate || 0) * currentHRCount;
@@ -280,6 +287,12 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             // Recalculer intensité avec méthode Karvonen
             if (fcMax && fcRepos && fcMax > fcRepos) {
               existing.actualIntensityKarvonen = Math.round(((existing.actualAverageHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
+              // Ajouter la séance individuelle
+              const sessionIntensity = Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
+              existing.sessionsIntensities.push({
+                sessionName: session.name || `Séance ${existing.sessionsIntensities.length + 1}`,
+                intensity: sessionIntensity
+              });
             }
           }
           
@@ -295,6 +308,15 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         const intensityKarvonen = (actualHeartRate > 0 && fcMax && fcRepos && fcMax > fcRepos) 
           ? Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100) 
           : null;
+        
+        // Créer la liste des séances individuelles
+        const sessionsIntensities: SessionIntensity[] = [];
+        if (intensityKarvonen !== null && isValidated) {
+          sessionsIntensities.push({
+            sessionName: session.name || "Séance 1",
+            intensity: intensityKarvonen
+          });
+        }
           
         weeklyData.set(weekKey, {
           week: weekKey,
@@ -311,7 +333,8 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           actualAveragePace: actualPace > 0 ? actualPace : null,
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
           actualAverageRpe: actualRpe > 0 ? actualRpe : null,
-          actualIntensityKarvonen: intensityKarvonen
+          actualIntensityKarvonen: intensityKarvonen,
+          sessionsIntensities
         });
       }
     });
@@ -621,44 +644,89 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             {canCalculateKarvonen ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={cardioSessions.filter(s => s.actualIntensityKarvonen !== null)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="week" 
-                    tick={{ fontSize: 12 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-background border rounded-lg p-3 shadow-lg">
-                            <p className="font-medium mb-2">{payload[0].payload.week}</p>
-                            <p className="text-sm text-green-600">
-                              Intensité Karvonen: {payload[0].payload.actualIntensityKarvonen}%
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              FC moy: {payload[0].payload.actualAverageHeartRate} bpm
-                            </p>
-                            {payload[0].payload.actualAverageRpe && (
-                              <p className="text-sm text-purple-600">
-                                RPE moy: {payload[0].payload.actualAverageRpe}/10
-                              </p>
-                            )}
+              (() => {
+                // Préparer les données pour les barres empilées
+                const filteredData = cardioSessions.filter(s => s.sessionsIntensities.length > 0);
+                const maxSessions = Math.max(...filteredData.map(s => s.sessionsIntensities.length), 0);
+                const sessionColors = [
+                  "hsl(0 84% 60%)",   // Rouge
+                  "hsl(25 95% 53%)",  // Orange
+                  "hsl(47 96% 53%)",  // Jaune
+                  "hsl(142 76% 36%)", // Vert
+                  "hsl(199 89% 48%)", // Bleu
+                  "hsl(262 83% 58%)", // Violet
+                ];
+                
+                // Transformer les données pour les barres empilées
+                const stackedData = filteredData.map(week => {
+                  const result: any = { week: week.week, sessionsIntensities: week.sessionsIntensities };
+                  week.sessionsIntensities.forEach((session, idx) => {
+                    result[`session${idx}`] = session.intensity;
+                    result[`sessionName${idx}`] = session.sessionName;
+                  });
+                  return result;
+                });
+
+                return (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={stackedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }} barSize={30}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="week" 
+                        tick={{ fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-background border rounded-lg p-3 shadow-lg">
+                                <p className="font-medium mb-2">{data.week}</p>
+                                <p className="text-sm text-muted-foreground mb-2">
+                                  {data.sessionsIntensities?.length || 0} séance(s)
+                                </p>
+                                {data.sessionsIntensities?.map((session: SessionIntensity, idx: number) => (
+                                  <p key={idx} className="text-sm" style={{ color: sessionColors[idx % sessionColors.length] }}>
+                                    {session.sessionName}: {session.intensity}%
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Legend 
+                        content={() => (
+                          <div className="flex flex-wrap justify-center gap-3 mt-2 text-xs">
+                            <span className="text-muted-foreground">Chaque segment = 1 séance avec son % d'intensité</span>
                           </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="actualIntensityKarvonen" fill="hsl(0 84% 60%)" name="Intensité Karvonen %" />
-                </BarChart>
-              </ResponsiveContainer>
+                        )}
+                      />
+                      {Array.from({ length: maxSessions }).map((_, idx) => (
+                        <Bar 
+                          key={idx} 
+                          dataKey={`session${idx}`} 
+                          stackId="sessions" 
+                          fill={sessionColors[idx % sessionColors.length]}
+                        >
+                          <LabelList 
+                            dataKey={`session${idx}`} 
+                            position="center" 
+                            fill="#fff" 
+                            fontSize={10}
+                            formatter={(value: number) => value ? `${value}%` : ''}
+                          />
+                        </Bar>
+                      ))}
+                    </BarChart>
+                  </ResponsiveContainer>
+                );
+              })()
             ) : (
               <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                 <p>Renseignez la FC Max et FC Repos de l'athlète dans l'onglet "Max" pour afficher ce graphique</p>
