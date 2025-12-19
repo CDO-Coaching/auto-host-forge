@@ -24,6 +24,8 @@ import {
   Dumbbell,
   Activity,
   StickyNote,
+  TrendingUp,
+  AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,7 +62,7 @@ import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
 import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics } from "@/lib/cardioCalculations";
-import { getISOWeek } from "date-fns";
+import { getISOWeek, subDays, format, startOfDay, endOfDay } from "date-fns";
 
 interface AthleteProfile {
   id: string;
@@ -142,6 +144,8 @@ export default function ClientDetail() {
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
+  const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
+  const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -172,6 +176,8 @@ export default function ClientDetail() {
     loadCustomSessions();
     loadLastWeekFeedback();
     loadAthleteObjectives();
+    loadHeaderMonotony();
+    loadHeaderInjury();
     
     // Restaurer les données sauvegardées localement
     const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
@@ -353,6 +359,103 @@ export default function ClientDetail() {
       }
     } catch (error) {
       console.error("Erreur lors du chargement des notes:", error);
+    }
+  };
+
+  const loadHeaderMonotony = async () => {
+    if (!athleteId) return;
+    
+    try {
+      const today = new Date();
+      const sevenDaysAgo = subDays(today, 6);
+
+      // Récupérer les semaines de l'athlète
+      const { data: weeks, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", athleteId);
+
+      if (weeksError || !weeks || weeks.length === 0) {
+        setHeaderMonotony(null);
+        return;
+      }
+
+      const weekIds = weeks.map(w => w.id);
+
+      // Récupérer les sessions des 7 derniers jours
+      const { data: sessions, error } = await supabase
+        .from("training_sessions")
+        .select("id, completed_at, duration_minutes, session_rpe")
+        .in("week_id", weekIds)
+        .not("completed_at", "is", null)
+        .gte("completed_at", startOfDay(sevenDaysAgo).toISOString())
+        .lte("completed_at", endOfDay(today).toISOString());
+
+      if (error || !sessions || sessions.length === 0) {
+        setHeaderMonotony(null);
+        return;
+      }
+
+      // Calculer les charges journalières
+      const dailyLoadsMap = new Map<string, number>();
+      for (let i = 6; i >= 0; i--) {
+        const date = format(subDays(today, i), "yyyy-MM-dd");
+        dailyLoadsMap.set(date, 0);
+      }
+
+      sessions.forEach(session => {
+        if (session.duration_minutes && session.session_rpe) {
+          const date = format(new Date(session.completed_at), "yyyy-MM-dd");
+          const load = session.duration_minutes * session.session_rpe;
+          const current = dailyLoadsMap.get(date) || 0;
+          dailyLoadsMap.set(date, current + load);
+        }
+      });
+
+      const loads = Array.from(dailyLoadsMap.values());
+      const weeklyLoad = loads.reduce((sum, l) => sum + l, 0);
+      const meanLoad = weeklyLoad / 7;
+
+      const squaredDiffs = loads.map(l => Math.pow(l - meanLoad, 2));
+      const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / 7;
+      const stdDev = Math.sqrt(variance);
+
+      const monotony = stdDev > 0 ? meanLoad / stdDev : 0;
+      setHeaderMonotony(monotony);
+    } catch (error) {
+      console.error("Error loading header monotony:", error);
+    }
+  };
+
+  const loadHeaderInjury = async () => {
+    if (!athleteId) return;
+    
+    try {
+      const today = new Date();
+      const sevenDaysAgo = subDays(today, 6);
+
+      const { data, error } = await supabase
+        .from("daily_fatigue_log")
+        .select("injury_level, injury_location")
+        .eq("user_id", athleteId)
+        .eq("has_injury", true)
+        .gte("date", format(sevenDaysAgo, "yyyy-MM-dd"))
+        .lte("date", format(today, "yyyy-MM-dd"))
+        .not("injury_level", "is", null);
+
+      if (error || !data || data.length === 0) {
+        setHeaderInjury(null);
+        return;
+      }
+
+      // Calculer la moyenne de la douleur et récupérer la localisation la plus récente
+      const totalPain = data.reduce((sum, d) => sum + (d.injury_level || 0), 0);
+      const avgPain = totalPain / data.length;
+      const location = data[0]?.injury_location || "Non précisé";
+
+      setHeaderInjury({ avgPain, location });
+    } catch (error) {
+      console.error("Error loading header injury:", error);
     }
   };
 
@@ -1579,8 +1682,44 @@ export default function ClientDetail() {
                   }`} />
                 </span>
               )}
+              {/* Indice de monotonie */}
+              {headerMonotony !== null && headerMonotony > 0 && (
+                <span 
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    headerMonotony > 2 
+                      ? "bg-destructive/20 text-destructive border border-destructive/30" 
+                      : headerMonotony > 1.5 
+                      ? "bg-orange-500/20 text-orange-500 border border-orange-500/30" 
+                      : "bg-green-500/20 text-green-500 border border-green-500/30"
+                  }`}
+                  title={`Indice de monotonie: ${headerMonotony.toFixed(2)} - ${
+                    headerMonotony > 2 ? "Risque de surentraînement" : 
+                    headerMonotony > 1.5 ? "À surveiller" : "Bonne variabilité"
+                  }`}
+                >
+                  <TrendingUp className="h-3 w-3" />
+                  {headerMonotony.toFixed(1)}
+                </span>
+              )}
+              {/* Alerte blessure */}
+              {headerInjury && (
+                <span 
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-destructive/20 text-destructive border border-destructive/30"
+                  title={`Blessure signalée: ${headerInjury.location} - Douleur moyenne: ${headerInjury.avgPain.toFixed(1)}/7`}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  {headerInjury.avgPain.toFixed(1)}/7
+                </span>
+              )}
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
+              {headerInjury && (
+                <p className="text-[10px] text-destructive truncate hidden sm:block">
+                  Blessure: {headerInjury.location}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <div className="text-[10px] sm:text-xs text-muted-foreground text-right flex-shrink-0">
