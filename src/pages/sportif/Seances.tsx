@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getWeekNumber, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
+import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -190,6 +191,8 @@ export default function Seances() {
 
   return (
     <div className="space-y-3 sm:space-y-4 pb-4">
+      <AthleteFatigueAlert />
+      
       <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-4">
         <div className="flex-1 min-w-0">
           <h1 className="text-2xl sm:text-3xl font-bold">Tes séances</h1>
