@@ -146,6 +146,7 @@ export default function ClientDetail() {
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
+  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation">("renfo");
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1743,13 +1744,10 @@ export default function ClientDetail() {
           <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
               <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
-              <TabsTrigger value="renfo" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Renfo</TabsTrigger>
+              <TabsTrigger value="efforts" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Efforts</TabsTrigger>
               <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
-              <TabsTrigger value="course" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Course</TabsTrigger>
-              <TabsTrigger value="velo" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Vélo</TabsTrigger>
-              <TabsTrigger value="natation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Natation</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
               <TabsTrigger value="historique" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Historique</TabsTrigger>
             </TabsList>
@@ -3614,11 +3612,68 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="renfo" className="space-y-4">
-          <CoachStrengthView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
-          />
+        <TabsContent value="efforts" className="space-y-4">
+          {/* Menu de sélection du type d'effort */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={selectedEffortType === "renfo" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("renfo")}
+            >
+              <Dumbbell className="h-4 w-4 mr-2" />
+              Renfo
+            </Button>
+            <Button
+              variant={selectedEffortType === "course" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("course")}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Course
+            </Button>
+            <Button
+              variant={selectedEffortType === "velo" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("velo")}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Vélo
+            </Button>
+            <Button
+              variant={selectedEffortType === "natation" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("natation")}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Natation
+            </Button>
+          </div>
+
+          {/* Contenu selon le type sélectionné */}
+          {selectedEffortType === "renfo" && (
+            <CoachStrengthView 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"} 
+            />
+          )}
+          {selectedEffortType === "course" && (
+            <CoachRunningView 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"} 
+            />
+          )}
+          {selectedEffortType === "velo" && (
+            <CoachCyclingView 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"} 
+            />
+          )}
+          {selectedEffortType === "natation" && (
+            <CoachSwimmingView 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"} 
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="max" className="space-y-4">
@@ -3637,27 +3692,6 @@ export default function ClientDetail() {
 
         <TabsContent value="poids" className="space-y-4">
           <CoachWeightView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
-          />
-        </TabsContent>
-
-        <TabsContent value="course" className="space-y-4">
-          <CoachRunningView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
-          />
-        </TabsContent>
-
-        <TabsContent value="velo" className="space-y-4">
-          <CoachCyclingView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
-          />
-        </TabsContent>
-
-        <TabsContent value="natation" className="space-y-4">
-          <CoachSwimmingView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
           />
