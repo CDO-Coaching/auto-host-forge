@@ -24,6 +24,58 @@ const getStressDescription = (score: number): string => {
   return "très élevé";
 };
 
+// Seuil pour considérer un score comme "élevé"
+const HIGH_THRESHOLD = 3;
+
+// Générer le message en fonction des métriques élevées
+const buildMessage = (
+  sommeil: number,
+  stress: number,
+  isFromYesterday: boolean
+): string => {
+  const sleepHigh = sommeil >= HIGH_THRESHOLD;
+  const stressHigh = stress >= HIGH_THRESHOLD;
+  const sleepDesc = getSleepDescription(sommeil);
+  const stressDesc = getStressDescription(stress);
+
+  const timePrefix = isFromYesterday ? "hier" : "";
+  const verbSleep = isFromYesterday ? "était" : "a été";
+  const verbStress = isFromYesterday ? "était" : "est";
+
+  if (sleepHigh && stressHigh) {
+    if (isFromYesterday) {
+      return `Attention, **hier** ton sommeil était **${sleepDesc}** et ton niveau de stress était **${stressDesc}**.`;
+    }
+    return `Nous remarquons que ton sommeil a été **${sleepDesc}** et que ton niveau de stress est **${stressDesc}**.`;
+  } else if (sleepHigh) {
+    if (isFromYesterday) {
+      return `Attention, **hier** ton sommeil était **${sleepDesc}**.`;
+    }
+    return `Nous remarquons que ton sommeil a été **${sleepDesc}**.`;
+  } else if (stressHigh) {
+    if (isFromYesterday) {
+      return `Attention, **hier** ton niveau de stress était **${stressDesc}**.`;
+    }
+    return `Nous remarquons que ton niveau de stress est **${stressDesc}**.`;
+  }
+  return "";
+};
+
+// Composant pour afficher le message avec du texte en gras
+const FormattedMessage = ({ text }: { text: string }) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <p>
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**")) {
+          return <strong key={i}>{part.slice(2, -2)}</strong>;
+        }
+        return part;
+      })}
+    </p>
+  );
+};
+
 export function AthleteFatigueAlert() {
   const { alertData, isLoading, dismissAlert } = useAthleteFatigueAlert();
   const navigate = useNavigate();
@@ -32,16 +84,8 @@ export function AthleteFatigueAlert() {
     return null;
   }
 
-  const isWarning = alertData.level === "warning";
   const isCritical = alertData.level === "critical";
   const isRecovery = alertData.level === "recovery";
-
-  const sleepDesc = getSleepDescription(alertData.sommeil);
-  const stressDesc = getStressDescription(alertData.stress);
-
-  // Descriptions pour hier (mode recovery)
-  const yesterdaySleepDesc = alertData.yesterdaySommeil ? getSleepDescription(alertData.yesterdaySommeil) : "";
-  const yesterdayStressDesc = alertData.yesterdayStress ? getStressDescription(alertData.yesterdayStress) : "";
 
   // Vérifier si les données sont d'hier ou d'aujourd'hui
   const today = new Date().toISOString().split('T')[0];
@@ -53,6 +97,20 @@ export function AthleteFatigueAlert() {
 
   // Mode récupération : aujourd'hui va mieux mais hier était difficile
   if (isRecovery) {
+    const yesterdaySleepHigh = (alertData.yesterdaySommeil || 0) >= HIGH_THRESHOLD;
+    const yesterdayStressHigh = (alertData.yesterdayStress || 0) >= HIGH_THRESHOLD;
+    const yesterdaySleepDesc = getSleepDescription(alertData.yesterdaySommeil || 0);
+    const yesterdayStressDesc = getStressDescription(alertData.yesterdayStress || 0);
+
+    let yesterdayMessage = "";
+    if (yesterdaySleepHigh && yesterdayStressHigh) {
+      yesterdayMessage = `Mais **hier**, ton sommeil était **${yesterdaySleepDesc}** et ton stress était **${yesterdayStressDesc}**.`;
+    } else if (yesterdaySleepHigh) {
+      yesterdayMessage = `Mais **hier**, ton sommeil était **${yesterdaySleepDesc}**.`;
+    } else if (yesterdayStressHigh) {
+      yesterdayMessage = `Mais **hier**, ton stress était **${yesterdayStressDesc}**.`;
+    }
+
     return (
       <Alert className="mb-4 relative border-emerald-500/50 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
         <Button
@@ -72,7 +130,7 @@ export function AthleteFatigueAlert() {
         
         <AlertDescription className="mt-2 space-y-2">
           <p>
-            Aujourd'hui, ton sommeil et ton stress sont bons. Mais <strong>hier</strong>, ton sommeil était <strong>{yesterdaySleepDesc}</strong> et ton stress était <strong>{yesterdayStressDesc}</strong>.
+            Aujourd'hui, ton sommeil et ton stress sont bons. <FormattedMessage text={yesterdayMessage} />
           </p>
           <p className="font-medium">
             Prends quand même le temps de bien récupérer et vas-y tranquillement sur ta séance.
@@ -84,6 +142,8 @@ export function AthleteFatigueAlert() {
       </Alert>
     );
   }
+
+  const message = buildMessage(alertData.sommeil, alertData.stress, isFromYesterday);
 
   return (
     <Alert 
@@ -113,47 +173,26 @@ export function AthleteFatigueAlert() {
       </AlertTitle>
       
       <AlertDescription className="mt-2 space-y-2">
-        {isCritical ? (
-          <>
-            <p>
-              {isFromYesterday ? (
-                <>Attention, <strong>hier</strong> ton sommeil était <strong>{sleepDesc}</strong> et ton niveau de stress était <strong>{stressDesc}</strong>.</>
-              ) : (
-                <>Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.</>
-              )}
-            </p>
-            <p className="font-medium">
-              Adapte ton entraînement aujourd'hui : réduis l'intensité et écoute ton corps.
-            </p>
-            <p className="text-sm opacity-80 italic">
-              Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
-            </p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2 border-destructive/30 hover:bg-destructive/10"
-              onClick={handleContactCoach}
-            >
-              <MessageCircle className="h-4 w-4 mr-2" />
-              Contacter mon coach
-            </Button>
-          </>
-        ) : (
-          <>
-            <p>
-              {isFromYesterday ? (
-                <>Attention, <strong>hier</strong> ton sommeil était <strong>{sleepDesc}</strong> et ton niveau de stress était <strong>{stressDesc}</strong>.</>
-              ) : (
-                <>Nous remarquons que ton sommeil a été <strong>{sleepDesc}</strong> et que ton niveau de stress est <strong>{stressDesc}</strong>.</>
-              )}
-            </p>
-            <p className="font-medium">
-              Fais attention à l'intensité de ta séance, reste bien concentré et écoute ton corps.
-            </p>
-            <p className="text-sm opacity-80 italic">
-              Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
-            </p>
-          </>
+        <FormattedMessage text={message} />
+        <p className="font-medium">
+          {isCritical 
+            ? "Adapte ton entraînement aujourd'hui : réduis l'intensité et écoute ton corps."
+            : "Fais attention à l'intensité de ta séance, reste bien concentré et écoute ton corps."
+          }
+        </p>
+        <p className="text-sm opacity-80 italic">
+          Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
+        </p>
+        {isCritical && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="mt-2 border-destructive/30 hover:bg-destructive/10"
+            onClick={handleContactCoach}
+          >
+            <MessageCircle className="h-4 w-4 mr-2" />
+            Contacter mon coach
+          </Button>
         )}
       </AlertDescription>
     </Alert>
