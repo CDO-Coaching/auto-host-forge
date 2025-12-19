@@ -3,10 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format } from "date-fns";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, TrendingUp, Activity } from "lucide-react";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 
 interface FatigueLog {
@@ -22,6 +22,28 @@ interface FatigueLog {
   injury_location: string | null;
 }
 
+interface TrainingSession {
+  id: string;
+  completed_at: string;
+  duration_minutes: number | null;
+  session_rpe: number | null;
+}
+
+interface DailyLoad {
+  date: string;
+  load: number;
+  sessions: number;
+}
+
+interface MonotonyData {
+  dailyLoads: DailyLoad[];
+  weeklyLoad: number;
+  meanLoad: number;
+  stdDev: number;
+  monotony: number;
+  strain: number;
+}
+
 interface CoachFatigueViewProps {
   athleteId: string;
   athleteName: string;
@@ -31,9 +53,11 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasInjuryTracking, setHasInjuryTracking] = useState(false);
+  const [monotonyData, setMonotonyData] = useState<MonotonyData | null>(null);
 
   useEffect(() => {
     loadFatigueLogs();
+    loadMonotonyData();
   }, [athleteId]);
 
   const loadFatigueLogs = async () => {
@@ -57,6 +81,79 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       console.error("Error loading fatigue logs:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMonotonyData = async () => {
+    try {
+      const today = new Date();
+      const sevenDaysAgo = subDays(today, 6);
+
+      const { data, error } = await supabase
+        .from("training_sessions")
+        .select("id, completed_at, duration_minutes, session_rpe")
+        .eq("athlete_id", athleteId)
+        .not("completed_at", "is", null)
+        .gte("completed_at", startOfDay(sevenDaysAgo).toISOString())
+        .lte("completed_at", endOfDay(today).toISOString());
+
+      if (error) throw error;
+
+      const sessions = (data || []) as TrainingSession[];
+      
+      // Calculer les charges journalières
+      const dailyLoadsMap = new Map<string, { load: number; sessions: number }>();
+      
+      // Initialiser les 7 jours
+      for (let i = 6; i >= 0; i--) {
+        const date = format(subDays(today, i), "yyyy-MM-dd");
+        dailyLoadsMap.set(date, { load: 0, sessions: 0 });
+      }
+
+      // Ajouter les charges des sessions
+      sessions.forEach(session => {
+        if (session.duration_minutes && session.session_rpe) {
+          const date = format(new Date(session.completed_at), "yyyy-MM-dd");
+          const load = session.duration_minutes * session.session_rpe;
+          const current = dailyLoadsMap.get(date) || { load: 0, sessions: 0 };
+          dailyLoadsMap.set(date, { 
+            load: current.load + load, 
+            sessions: current.sessions + 1 
+          });
+        }
+      });
+
+      const dailyLoads: DailyLoad[] = Array.from(dailyLoadsMap.entries())
+        .map(([date, data]) => ({
+          date,
+          load: data.load,
+          sessions: data.sessions
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      const loads = dailyLoads.map(d => d.load);
+      const weeklyLoad = loads.reduce((sum, l) => sum + l, 0);
+      const meanLoad = weeklyLoad / 7;
+
+      // Calcul de l'écart-type
+      const squaredDiffs = loads.map(l => Math.pow(l - meanLoad, 2));
+      const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / 7;
+      const stdDev = Math.sqrt(variance);
+
+      // Monotonie et contrainte
+      const monotony = stdDev > 0 ? meanLoad / stdDev : 0;
+      const strain = weeklyLoad * monotony;
+
+      setMonotonyData({
+        dailyLoads,
+        weeklyLoad,
+        meanLoad,
+        stdDev,
+        monotony,
+        strain
+      });
+    } catch (error) {
+      console.error("Error loading monotony data:", error);
     }
   };
 
@@ -234,6 +331,134 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Indice de Monotonie */}
+      {monotonyData && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-primary" />
+              Indice de Monotonie (7 derniers jours)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Métriques principales */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-primary">{monotonyData.weeklyLoad.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Charge hebdo (UA)</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                <p className="text-2xl font-bold text-primary">{monotonyData.meanLoad.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Charge moy./jour</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                <p className={`text-2xl font-bold ${
+                  monotonyData.monotony > 2 ? 'text-destructive' : 
+                  monotonyData.monotony > 1.5 ? 'text-orange-500' : 'text-green-500'
+                }`}>
+                  {monotonyData.monotony.toFixed(2)}
+                </p>
+                <p className="text-xs text-muted-foreground">Monotonie</p>
+              </div>
+              <div className="p-4 rounded-lg bg-muted/50 text-center">
+                <p className={`text-2xl font-bold ${
+                  monotonyData.strain > 6000 ? 'text-destructive' : 
+                  monotonyData.strain > 4000 ? 'text-orange-500' : 'text-green-500'
+                }`}>
+                  {monotonyData.strain.toFixed(0)}
+                </p>
+                <p className="text-xs text-muted-foreground">Contrainte</p>
+              </div>
+            </div>
+
+            {/* Interprétation */}
+            <div className="p-3 rounded-lg bg-muted/30 text-sm">
+              <p className="font-medium mb-1">Interprétation :</p>
+              <ul className="text-muted-foreground space-y-1 text-xs">
+                <li>• <span className="text-green-500 font-medium">Monotonie &lt; 1.5</span> : Bonne variabilité</li>
+                <li>• <span className="text-orange-500 font-medium">Monotonie 1.5-2</span> : À surveiller</li>
+                <li>• <span className="text-destructive font-medium">Monotonie &gt; 2</span> : Risque de surentraînement</li>
+              </ul>
+            </div>
+
+            {/* Graphique des charges journalières */}
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={monotonyData.dailyLoads.map(d => ({
+                ...d,
+                date: format(new Date(d.date), "EEE dd/MM", { locale: fr })
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis 
+                  dataKey="date" 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <YAxis 
+                  className="text-xs"
+                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                />
+                <Tooltip 
+                  contentStyle={{
+                    backgroundColor: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '6px',
+                  }}
+                  formatter={(value: number) => [`${value} UA`, 'Charge']}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="load" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  dot={{ fill: 'hsl(var(--primary))' }}
+                  name="Charge"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+
+            {/* Tableau détaillé */}
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jour</TableHead>
+                  <TableHead className="text-center">Sessions</TableHead>
+                  <TableHead className="text-right">Charge (UA)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monotonyData.dailyLoads.map((day) => (
+                  <TableRow key={day.date}>
+                    <TableCell className="font-medium">
+                      {format(new Date(day.date), "EEEE dd MMM", { locale: fr })}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {day.sessions > 0 ? (
+                        <Badge variant="secondary">{day.sessions}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {day.load > 0 ? (
+                        <Badge variant={day.load > monotonyData.meanLoad * 1.5 ? "destructive" : "outline"}>
+                          {day.load}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">Repos</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <p className="text-xs text-muted-foreground">
+              UA = Unités Arbitraires (Durée × RPE). La monotonie mesure la variabilité de l'entraînement.
+            </p>
           </CardContent>
         </Card>
       )}
