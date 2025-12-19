@@ -78,6 +78,9 @@ export function AthleteFatigueAlert() {
             <p className="font-medium">
               Adapte ton entraînement aujourd'hui : réduis l'intensité et écoute ton corps.
             </p>
+            <p className="text-sm opacity-80 italic">
+              Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
+            </p>
             <Button 
               variant="outline" 
               size="sm" 
@@ -95,6 +98,9 @@ export function AthleteFatigueAlert() {
             </p>
             <p className="font-medium">
               Fais attention à l'intensité de ta séance, reste bien concentré et écoute ton corps.
+            </p>
+            <p className="text-sm opacity-80 italic">
+              Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
             </p>
           </>
         )}
