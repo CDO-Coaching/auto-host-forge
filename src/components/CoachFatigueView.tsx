@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -35,8 +35,16 @@ interface DailyLoad {
   sessions: number;
 }
 
+interface MonotonyPoint {
+  date: string;
+  monotony: number;
+  strain: number;
+  weeklyLoad: number;
+}
+
 interface MonotonyData {
   dailyLoads: DailyLoad[];
+  monotonyHistory: MonotonyPoint[];
   weeklyLoad: number;
   meanLoad: number;
   stdDev: number;
@@ -87,7 +95,8 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const loadMonotonyData = async () => {
     try {
       const today = new Date();
-      const sevenDaysAgo = subDays(today, 6);
+      // Récupérer 21 jours pour calculer la monotonie glissante sur 14 jours
+      const twentyOneDaysAgo = subDays(today, 20);
 
       // Récupérer les semaines de l'athlète
       const { data: weeks, error: weeksError } = await supabase
@@ -104,42 +113,40 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         return;
       }
 
-      // Récupérer les sessions des 7 derniers jours via week_id
+      // Récupérer les sessions des 21 derniers jours via week_id
       const { data, error } = await supabase
         .from("training_sessions")
         .select("id, completed_at, duration_minutes, session_rpe")
         .in("week_id", weekIds)
         .not("completed_at", "is", null)
-        .gte("completed_at", startOfDay(sevenDaysAgo).toISOString())
+        .gte("completed_at", startOfDay(twentyOneDaysAgo).toISOString())
         .lte("completed_at", endOfDay(today).toISOString());
 
       if (error) throw error;
 
       const sessions = (data || []) as TrainingSession[];
       
-      // Calculer les charges journalières
-      const dailyLoadsMap = new Map<string, { load: number; sessions: number }>();
+      // Calculer les charges journalières pour tous les 21 jours
+      const allDailyLoadsMap = new Map<string, { load: number; sessions: number }>();
       
-      // Initialiser les 7 jours
-      for (let i = 6; i >= 0; i--) {
+      for (let i = 20; i >= 0; i--) {
         const date = format(subDays(today, i), "yyyy-MM-dd");
-        dailyLoadsMap.set(date, { load: 0, sessions: 0 });
+        allDailyLoadsMap.set(date, { load: 0, sessions: 0 });
       }
 
-      // Ajouter les charges des sessions
       sessions.forEach(session => {
         if (session.duration_minutes && session.session_rpe) {
           const date = format(new Date(session.completed_at), "yyyy-MM-dd");
           const load = session.duration_minutes * session.session_rpe;
-          const current = dailyLoadsMap.get(date) || { load: 0, sessions: 0 };
-          dailyLoadsMap.set(date, { 
+          const current = allDailyLoadsMap.get(date) || { load: 0, sessions: 0 };
+          allDailyLoadsMap.set(date, { 
             load: current.load + load, 
             sessions: current.sessions + 1 
           });
         }
       });
 
-      const dailyLoads: DailyLoad[] = Array.from(dailyLoadsMap.entries())
+      const allDailyLoads = Array.from(allDailyLoadsMap.entries())
         .map(([date, data]) => ({
           date,
           load: data.load,
@@ -147,21 +154,45 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
-      const loads = dailyLoads.map(d => d.load);
+      // Calculer la monotonie glissante pour les 14 derniers jours
+      const monotonyHistory: MonotonyPoint[] = [];
+      
+      for (let i = 6; i <= 20; i++) {
+        const windowLoads = allDailyLoads.slice(i - 6, i + 1).map(d => d.load);
+        const windowWeeklyLoad = windowLoads.reduce((sum, l) => sum + l, 0);
+        const windowMeanLoad = windowWeeklyLoad / 7;
+        
+        const squaredDiffs = windowLoads.map(l => Math.pow(l - windowMeanLoad, 2));
+        const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / 7;
+        const stdDev = Math.sqrt(variance);
+        
+        const windowMonotony = stdDev > 0 ? windowMeanLoad / stdDev : 0;
+        const windowStrain = windowWeeklyLoad * windowMonotony;
+        
+        monotonyHistory.push({
+          date: allDailyLoads[i].date,
+          monotony: windowMonotony,
+          strain: windowStrain,
+          weeklyLoad: windowWeeklyLoad
+        });
+      }
+
+      // Données actuelles (7 derniers jours)
+      const currentDailyLoads = allDailyLoads.slice(-7);
+      const loads = currentDailyLoads.map(d => d.load);
       const weeklyLoad = loads.reduce((sum, l) => sum + l, 0);
       const meanLoad = weeklyLoad / 7;
 
-      // Calcul de l'écart-type
       const squaredDiffs = loads.map(l => Math.pow(l - meanLoad, 2));
       const variance = squaredDiffs.reduce((sum, d) => sum + d, 0) / 7;
       const stdDev = Math.sqrt(variance);
 
-      // Monotonie et contrainte
       const monotony = stdDev > 0 ? meanLoad / stdDev : 0;
       const strain = weeklyLoad * monotony;
 
       setMonotonyData({
-        dailyLoads,
+        dailyLoads: currentDailyLoads,
+        monotonyHistory,
         weeklyLoad,
         meanLoad,
         stdDev,
@@ -401,40 +432,58 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
               </ul>
             </div>
 
-            {/* Graphique des charges journalières */}
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={monotonyData.dailyLoads.map(d => ({
-                ...d,
-                date: format(new Date(d.date), "EEE dd/MM", { locale: fr })
-              }))}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <YAxis 
-                  className="text-xs"
-                  tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px',
-                  }}
-                  formatter={(value: number) => [`${value} UA`, 'Charge']}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="load" 
-                  stroke="hsl(var(--primary))" 
-                  strokeWidth={2}
-                  dot={{ fill: 'hsl(var(--primary))' }}
-                  name="Charge"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {/* Graphique de l'évolution de la monotonie */}
+            <div>
+              <p className="text-sm font-medium mb-2">Évolution de la monotonie (14 derniers jours)</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={monotonyData.monotonyHistory.map(d => ({
+                  ...d,
+                  date: format(new Date(d.date), "dd/MM", { locale: fr }),
+                  monotonyDisplay: Number(d.monotony.toFixed(2))
+                }))}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    domain={[0, 'auto']}
+                    className="text-xs"
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <ReferenceLine y={1.5} stroke="hsl(38 92% 50%)" strokeDasharray="5 5" />
+                  <ReferenceLine y={2} stroke="hsl(var(--destructive))" strokeDasharray="5 5" />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '6px',
+                    }}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'monotonyDisplay') return [value.toFixed(2), 'Monotonie'];
+                      return [value, name];
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="monotonyDisplay" 
+                    stroke="hsl(var(--primary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--primary))' }}
+                    name="monotonyDisplay"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="flex gap-4 text-xs text-muted-foreground mt-1 justify-center">
+                <span className="flex items-center gap-1">
+                  <span className="w-4 h-0.5 bg-orange-500"></span> Seuil attention (1.5)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-4 h-0.5 bg-destructive"></span> Seuil risque (2.0)
+                </span>
+              </div>
+            </div>
 
             {/* Tableau détaillé */}
             <Table>
