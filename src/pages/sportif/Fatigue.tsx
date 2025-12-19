@@ -206,8 +206,13 @@ export default function Fatigue() {
     return reversedLogs.map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      // Afficher 0 si la douleur est terminée (injury_level = 0), null si pas de suivi douleur
-      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
+      // Si pas de douleur ce jour-là, considérer comme 0 (pour que la courbe descende)
+      injury:
+        log.injury_level !== null && log.injury_level !== undefined
+          ? log.injury_level
+          : log.has_injury === false
+            ? 0
+            : null,
       injuryLocation: log.injury_location || null,
     }));
   }, [logs, chartPeriod]);
@@ -219,8 +224,13 @@ export default function Fatigue() {
     return reversedLogs.map(log => ({
       date: format(new Date(log.date), "dd/MM", { locale: fr }),
       score: log.score_total,
-      // Afficher 0 si la douleur est terminée (injury_level = 0), null si pas de suivi douleur
-      injury: log.injury_level !== null && log.injury_level !== undefined ? log.injury_level : null,
+      // Si pas de douleur ce jour-là, considérer comme 0 (pour que la courbe descende)
+      injury:
+        log.injury_level !== null && log.injury_level !== undefined
+          ? log.injury_level
+          : log.has_injury === false
+            ? 0
+            : null,
       injuryLocation: log.injury_location || null,
     }));
   }, [logs, injuryChartPeriod]);
