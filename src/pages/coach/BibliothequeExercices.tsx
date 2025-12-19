@@ -23,6 +23,7 @@ interface Exercise {
   description: string | null;
   equipment: string | null;
   unilateral: boolean | null;
+  load_coefficient: number | null;
   created_at: string;
 }
 
@@ -71,6 +72,7 @@ export default function BibliothequeExercices() {
     description: "",
     equipment: "",
     unilateral: false,
+    load_coefficient: 1.0,
   });
 
   useEffect(() => {
@@ -157,7 +159,8 @@ export default function BibliothequeExercices() {
     const { error } = await supabase.from("exercise_library").insert([{
       ...newExercise,
       muscles_second: newExercise.muscles_second.length > 0 ? newExercise.muscles_second : null,
-      unilateral: newExercise.unilateral
+      unilateral: newExercise.unilateral,
+      load_coefficient: newExercise.load_coefficient
     }]);
 
     if (error) {
@@ -175,6 +178,7 @@ export default function BibliothequeExercices() {
         description: "",
         equipment: "",
         unilateral: false,
+        load_coefficient: 1.0,
       });
       loadExercises();
     }
@@ -206,6 +210,7 @@ export default function BibliothequeExercices() {
         description: editingExercise.description,
         equipment: editingExercise.equipment,
         unilateral: editingExercise.unilateral,
+        load_coefficient: editingExercise.load_coefficient,
       })
       .eq("id", editingExercise.id);
 
@@ -364,6 +369,22 @@ export default function BibliothequeExercices() {
                 </label>
               </div>
               <div>
+                <Label htmlFor="load_coefficient">Coefficient de charge</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Squat/Deadlift: 1.5-2.0 | Press/Bench: 1.2 | Isolation: 0.5-0.7
+                </p>
+                <Input
+                  id="load_coefficient"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="3"
+                  value={newExercise.load_coefficient}
+                  onChange={(e) => setNewExercise({ ...newExercise, load_coefficient: parseFloat(e.target.value) || 1.0 })}
+                  placeholder="1.0"
+                />
+              </div>
+              <div>
                 <Label htmlFor="video_url">URL de la vidéo</Label>
                 <Input
                   id="video_url"
@@ -504,6 +525,7 @@ export default function BibliothequeExercices() {
                   <TableHead>Muscle Principal</TableHead>
                   <TableHead>Muscles Secondaires</TableHead>
                   <TableHead>Catégorie</TableHead>
+                  <TableHead>Coef.</TableHead>
                   <TableHead>Unilatérale</TableHead>
                   <TableHead>Lien vidéo</TableHead>
                 </TableRow>
@@ -527,6 +549,11 @@ export default function BibliothequeExercices() {
                       )}
                     </TableCell>
                     <TableCell>{exercise.category || "-"}</TableCell>
+                    <TableCell>
+                      <Badge variant={exercise.load_coefficient && exercise.load_coefficient !== 1 ? "default" : "outline"}>
+                        {exercise.load_coefficient?.toFixed(1) || "1.0"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       {exercise.unilateral ? (
                         <Badge variant="default">Oui</Badge>
@@ -683,6 +710,22 @@ export default function BibliothequeExercices() {
                 >
                   Unilatérale
                 </label>
+              </div>
+              <div>
+                <Label htmlFor="edit-load-coefficient">Coefficient de charge</Label>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Squat/Deadlift: 1.5-2.0 | Press/Bench: 1.2 | Isolation: 0.5-0.7
+                </p>
+                <Input
+                  id="edit-load-coefficient"
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="3"
+                  value={editingExercise.load_coefficient || 1.0}
+                  onChange={(e) => setEditingExercise({ ...editingExercise, load_coefficient: parseFloat(e.target.value) || 1.0 })}
+                  placeholder="1.0"
+                />
               </div>
               <div>
                 <Label htmlFor="edit-video-url">URL de la vidéo</Label>
