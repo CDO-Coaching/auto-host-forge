@@ -39,6 +39,7 @@ export default function Fatigue() {
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
+  const [fatigueAlertEnabled, setFatigueAlertEnabled] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingLog, setEditingLog] = useState<FatigueLog | null>(null);
@@ -52,6 +53,7 @@ export default function Fatigue() {
     loadFatigueLogs();
     loadNotificationPreference();
     loadInjuryTrackingPreference();
+    loadFatigueAlertPreference();
     checkIfCanAnswerToday();
   }, []);
 
@@ -114,6 +116,37 @@ export default function Fatigue() {
       });
     } catch (error) {
       console.error("Error saving injury tracking preference:", error);
+    }
+  };
+
+  const loadFatigueAlertPreference = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const preference = localStorage.getItem(`fatigue_alert_${user.id}`);
+      setFatigueAlertEnabled(preference !== 'false');
+    } catch (error) {
+      console.error("Error loading fatigue alert preference:", error);
+    }
+  };
+
+  const handleFatigueAlertToggle = async (checked: boolean) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      localStorage.setItem(`fatigue_alert_${user.id}`, checked.toString());
+      setFatigueAlertEnabled(checked);
+      
+      toast({
+        title: checked ? "Alerte fatigue activée" : "Alerte fatigue désactivée",
+        description: checked 
+          ? "Tu recevras des alertes basées sur ton sommeil et stress." 
+          : "Les alertes de fatigue ne seront plus affichées.",
+      });
+    } catch (error) {
+      console.error("Error saving fatigue alert preference:", error);
     }
   };
 
@@ -597,6 +630,22 @@ export default function Fatigue() {
                 id="notifications"
                 checked={notificationsEnabled}
                 onCheckedChange={handleNotificationToggle}
+                className="shrink-0"
+              />
+            </div>
+            <div className="flex items-start justify-between gap-3 pt-2 border-t">
+              <div className="space-y-0.5 flex-1 min-w-0">
+                <Label htmlFor="fatigue-alert" className="text-sm font-medium">
+                  Alertes de fatigue
+                </Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Afficher des alertes basées sur ton sommeil et stress
+                </p>
+              </div>
+              <Switch
+                id="fatigue-alert"
+                checked={fatigueAlertEnabled}
+                onCheckedChange={handleFatigueAlertToggle}
                 className="shrink-0"
               />
             </div>
