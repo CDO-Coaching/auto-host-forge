@@ -28,19 +28,19 @@ export function useAthleteFatigueAlert() {
         return;
       }
 
-      // Récupérer les données des 2 derniers jours (hier et avant-hier)
+      // Récupérer les données d'aujourd'hui et d'hier
       const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
-      const dayBeforeYesterday = new Date(today);
-      dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
 
       const { data, error } = await supabase
         .from("daily_fatigue_log")
         .select("sommeil, stress, date")
         .eq("user_id", user.id)
-        .gte("date", dayBeforeYesterday.toISOString().split('T')[0])
-        .lt("date", today.toISOString().split('T')[0])
+        .gte("date", yesterday.toISOString().split('T')[0])
+        .lt("date", tomorrow.toISOString().split('T')[0])
         .order("date", { ascending: false })
         .limit(1);
 
