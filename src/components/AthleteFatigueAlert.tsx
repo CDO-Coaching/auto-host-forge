@@ -1,4 +1,4 @@
-import { AlertTriangle, AlertCircle, X, MessageCircle } from "lucide-react";
+import { AlertTriangle, AlertCircle, X, MessageCircle, ThumbsUp } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useAthleteFatigueAlert } from "@/hooks/useAthleteFatigueAlert";
@@ -34,9 +34,14 @@ export function AthleteFatigueAlert() {
 
   const isWarning = alertData.level === "warning";
   const isCritical = alertData.level === "critical";
+  const isRecovery = alertData.level === "recovery";
 
   const sleepDesc = getSleepDescription(alertData.sommeil);
   const stressDesc = getStressDescription(alertData.stress);
+
+  // Descriptions pour hier (mode recovery)
+  const yesterdaySleepDesc = alertData.yesterdaySommeil ? getSleepDescription(alertData.yesterdaySommeil) : "";
+  const yesterdayStressDesc = alertData.yesterdayStress ? getStressDescription(alertData.yesterdayStress) : "";
 
   // Vérifier si les données sont d'hier ou d'aujourd'hui
   const today = new Date().toISOString().split('T')[0];
@@ -45,6 +50,40 @@ export function AthleteFatigueAlert() {
   const handleContactCoach = () => {
     navigate("/sportif");
   };
+
+  // Mode récupération : aujourd'hui va mieux mais hier était difficile
+  if (isRecovery) {
+    return (
+      <Alert className="mb-4 relative border-blue-500/50 bg-blue-500/10 text-blue-700 dark:text-blue-400">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-2 right-2 h-6 w-6"
+          onClick={dismissAlert}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+        
+        <ThumbsUp className="h-5 w-5" />
+        
+        <AlertTitle className="font-semibold pr-8">
+          👍 Bonne nouvelle, tu vas mieux !
+        </AlertTitle>
+        
+        <AlertDescription className="mt-2 space-y-2">
+          <p>
+            Aujourd'hui, ton sommeil et ton stress sont bons. Mais <strong>hier</strong>, ton sommeil était <strong>{yesterdaySleepDesc}</strong> et ton stress était <strong>{yesterdayStressDesc}</strong>.
+          </p>
+          <p className="font-medium">
+            Prends quand même le temps de bien récupérer et vas-y tranquillement sur ta séance.
+          </p>
+          <p className="text-sm opacity-80 italic">
+            Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
+          </p>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <Alert 
