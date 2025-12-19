@@ -214,7 +214,7 @@ export default function Agenda() {
         profiles?.map((p) => [p.id, `${p.first_name} ${p.last_name}`]) || []
       );
 
-      // Get all sessions completed this calendar week for these athletes
+      // Get all training_sessions completed this calendar week for these athletes
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
         .select(
@@ -235,26 +235,56 @@ export default function Agenda() {
         .gte("completed_at", `${weekStartStr}T00:00:00`)
         .lte("completed_at", `${weekEndStr}T23:59:59`);
 
-      if (sessionsError || !sessionsData) {
+      // Also get custom_sessions for these athletes
+      const { data: customSessionsData, error: customError } = await supabase
+        .from("custom_sessions")
+        .select("id, user_id, session_name, duration_minutes, completed_at")
+        .in("user_id", athleteIds)
+        .not("completed_at", "is", null)
+        .gte("completed_at", `${weekStartStr}T00:00:00`)
+        .lte("completed_at", `${weekEndStr}T23:59:59`);
+
+      if (sessionsError) {
         console.error("Error fetching athlete sessions:", sessionsError);
-        setAthleteSessions([]);
-        setAllAthletes([]);
-        return;
+      }
+      if (customError) {
+        console.error("Error fetching custom sessions:", customError);
       }
 
-      const sessions: AthleteSession[] = sessionsData.map((session: any) => {
-        const athleteId = session.training_weeks.athlete_id;
-        const athleteName = profileMap.get(athleteId) || "Inconnu";
-        return {
-          id: session.id,
-          athleteId,
-          athleteName,
-          sessionName: session.athlete_custom_name || session.name,
-          sessionType: session.session_type,
-          completedAt: session.completed_at ? new Date(session.completed_at) : null,
-          weekNumber: session.training_weeks.week_number,
-        };
-      });
+      const sessions: AthleteSession[] = [];
+      
+      // Add training sessions
+      if (sessionsData) {
+        sessionsData.forEach((session: any) => {
+          const athleteId = session.training_weeks.athlete_id;
+          const athleteName = profileMap.get(athleteId) || "Inconnu";
+          sessions.push({
+            id: session.id,
+            athleteId,
+            athleteName,
+            sessionName: session.athlete_custom_name || session.name,
+            sessionType: session.session_type,
+            completedAt: session.completed_at ? new Date(session.completed_at) : null,
+            weekNumber: session.training_weeks.week_number,
+          });
+        });
+      }
+
+      // Add custom sessions
+      if (customSessionsData) {
+        customSessionsData.forEach((cs: any) => {
+          const athleteName = profileMap.get(cs.user_id) || "Inconnu";
+          sessions.push({
+            id: cs.id,
+            athleteId: cs.user_id,
+            athleteName,
+            sessionName: cs.session_name,
+            sessionType: "perso",
+            completedAt: cs.completed_at ? new Date(cs.completed_at) : null,
+            weekNumber: 0,
+          });
+        });
+      }
 
       // Build allAthletes list with session counts
       const sessionCountMap = new Map<string, number>();
@@ -411,9 +441,11 @@ export default function Agenda() {
     switch (type) {
       case 'renfo': return { label: 'Renfo', className: 'bg-blue-500/20 text-blue-700 dark:text-blue-300' };
       case 'course': return { label: 'Course', className: 'bg-green-500/20 text-green-700 dark:text-green-300' };
+      case 'cardio': return { label: 'Cardio', className: 'bg-green-500/20 text-green-700 dark:text-green-300' };
       case 'velo': return { label: 'Vélo', className: 'bg-purple-500/20 text-purple-700 dark:text-purple-300' };
       case 'natation': return { label: 'Natation', className: 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300' };
       case 'recup': return { label: 'Récup', className: 'bg-orange-500/20 text-orange-700 dark:text-orange-300' };
+      case 'perso': return { label: 'Perso', className: 'bg-pink-500/20 text-pink-700 dark:text-pink-300' };
       default: return { label: type, className: 'bg-muted' };
     }
   };
