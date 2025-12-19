@@ -8,9 +8,10 @@ import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
 
-interface SessionIntensity {
-  sessionName: string;
-  intensity: number;
+interface IntensityZones {
+  zoneLow: number;  // < 70% - temps en minutes
+  zoneMid: number;  // 70-90% - temps en minutes
+  zoneHigh: number; // > 90% - temps en minutes
 }
 
 interface CardioSessionData {
@@ -33,8 +34,8 @@ interface CardioSessionData {
   actualAverageRpe: number | null;
   // Intensité basée sur Karvonen (FC moyenne - FC repos) / (FC max - FC repos)
   actualIntensityKarvonen: number | null;
-  // Séances individuelles avec leur intensité Karvonen
-  sessionsIntensities: SessionIntensity[];
+  // Temps passé dans chaque zone d'intensité
+  intensityZones: IntensityZones;
 }
 
 interface PlannedVolume {
@@ -279,7 +280,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             existing.actualAveragePace = (currentPaceSum + actualPace) / (currentPaceCount + 1);
           }
           
-          // Cumuler FC moyenne et ajouter séance individuelle
+          // Cumuler FC moyenne et ajouter temps par zone
           if (actualHeartRate > 0) {
             const currentHRCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
             const currentHRSum = (existing.actualAverageHeartRate || 0) * currentHRCount;
@@ -287,12 +288,16 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             // Recalculer intensité avec méthode Karvonen
             if (fcMax && fcRepos && fcMax > fcRepos) {
               existing.actualIntensityKarvonen = Math.round(((existing.actualAverageHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
-              // Ajouter la séance individuelle
+              // Classer le temps de la séance dans la bonne zone
               const sessionIntensity = Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100);
-              existing.sessionsIntensities.push({
-                sessionName: session.name || `Séance ${existing.sessionsIntensities.length + 1}`,
-                intensity: sessionIntensity
-              });
+              const sessionDuration = actualDuration || plannedDuration;
+              if (sessionIntensity < 70) {
+                existing.intensityZones.zoneLow += sessionDuration;
+              } else if (sessionIntensity <= 90) {
+                existing.intensityZones.zoneMid += sessionDuration;
+              } else {
+                existing.intensityZones.zoneHigh += sessionDuration;
+              }
             }
           }
           
@@ -309,13 +314,17 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           ? Math.round(((actualHeartRate - fcRepos) / (fcMax - fcRepos)) * 100) 
           : null;
         
-        // Créer la liste des séances individuelles
-        const sessionsIntensities: SessionIntensity[] = [];
+        // Initialiser les zones d'intensité
+        const intensityZones: IntensityZones = { zoneLow: 0, zoneMid: 0, zoneHigh: 0 };
         if (intensityKarvonen !== null && isValidated) {
-          sessionsIntensities.push({
-            sessionName: session.name || "Séance 1",
-            intensity: intensityKarvonen
-          });
+          const sessionDuration = actualDuration || plannedDuration;
+          if (intensityKarvonen < 70) {
+            intensityZones.zoneLow = sessionDuration;
+          } else if (intensityKarvonen <= 90) {
+            intensityZones.zoneMid = sessionDuration;
+          } else {
+            intensityZones.zoneHigh = sessionDuration;
+          }
         }
           
         weeklyData.set(weekKey, {
@@ -334,7 +343,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
           actualAverageRpe: actualRpe > 0 ? actualRpe : null,
           actualIntensityKarvonen: intensityKarvonen,
-          sessionsIntensities
+          intensityZones
         });
       }
     });
@@ -645,26 +654,31 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           <CardContent>
             {canCalculateKarvonen ? (
               (() => {
-                // Préparer les données pour les barres empilées
-                const filteredData = cardioSessions.filter(s => s.sessionsIntensities.length > 0);
-                const maxSessions = Math.max(...filteredData.map(s => s.sessionsIntensities.length), 0);
-                const sessionColors = [
-                  "hsl(0 84% 60%)",   // Rouge
-                  "hsl(25 95% 53%)",  // Orange
-                  "hsl(47 96% 53%)",  // Jaune
-                  "hsl(142 76% 36%)", // Vert
-                  "hsl(199 89% 48%)", // Bleu
-                  "hsl(262 83% 58%)", // Violet
-                ];
+                // Préparer les données avec les zones en pourcentage
+                const filteredData = cardioSessions.filter(s => {
+                  const total = s.intensityZones.zoneLow + s.intensityZones.zoneMid + s.intensityZones.zoneHigh;
+                  return total > 0;
+                });
                 
-                // Transformer les données pour les barres empilées
+                const zoneColors = {
+                  low: "hsl(142 76% 36%)",   // Vert - Zone 1-2 (< 70%)
+                  mid: "hsl(47 96% 53%)",    // Jaune - Zone 3-4 (70-90%)
+                  high: "hsl(0 84% 60%)",    // Rouge - Zone 5 (> 90%)
+                };
+                
+                // Transformer les données en pourcentages
                 const stackedData = filteredData.map(week => {
-                  const result: any = { week: week.week, sessionsIntensities: week.sessionsIntensities };
-                  week.sessionsIntensities.forEach((session, idx) => {
-                    result[`session${idx}`] = session.intensity;
-                    result[`sessionName${idx}`] = session.sessionName;
-                  });
-                  return result;
+                  const total = week.intensityZones.zoneLow + week.intensityZones.zoneMid + week.intensityZones.zoneHigh;
+                  return {
+                    week: week.week,
+                    zoneLowPercent: total > 0 ? Math.round((week.intensityZones.zoneLow / total) * 100) : 0,
+                    zoneMidPercent: total > 0 ? Math.round((week.intensityZones.zoneMid / total) * 100) : 0,
+                    zoneHighPercent: total > 0 ? Math.round((week.intensityZones.zoneHigh / total) * 100) : 0,
+                    zoneLowMinutes: week.intensityZones.zoneLow,
+                    zoneMidMinutes: week.intensityZones.zoneMid,
+                    zoneHighMinutes: week.intensityZones.zoneHigh,
+                    totalMinutes: total,
+                  };
                 });
 
                 return (
@@ -678,7 +692,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                         textAnchor="end"
                         height={80}
                       />
-                      <YAxis domain={[0, 100]} />
+                      <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                       <Tooltip 
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
@@ -687,13 +701,17 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                               <div className="bg-background border rounded-lg p-3 shadow-lg">
                                 <p className="font-medium mb-2">{data.week}</p>
                                 <p className="text-sm text-muted-foreground mb-2">
-                                  {data.sessionsIntensities?.length || 0} séance(s)
+                                  Temps total: {data.totalMinutes} min
                                 </p>
-                                {data.sessionsIntensities?.map((session: SessionIntensity, idx: number) => (
-                                  <p key={idx} className="text-sm" style={{ color: sessionColors[idx % sessionColors.length] }}>
-                                    {session.sessionName}: {session.intensity}%
-                                  </p>
-                                ))}
+                                <p className="text-sm" style={{ color: zoneColors.low }}>
+                                  Z1-Z2 (&lt;70%): {data.zoneLowPercent}% ({data.zoneLowMinutes} min)
+                                </p>
+                                <p className="text-sm" style={{ color: zoneColors.mid }}>
+                                  Z3-Z4 (70-90%): {data.zoneMidPercent}% ({data.zoneMidMinutes} min)
+                                </p>
+                                <p className="text-sm" style={{ color: zoneColors.high }}>
+                                  Z5 (&gt;90%): {data.zoneHighPercent}% ({data.zoneHighMinutes} min)
+                                </p>
                               </div>
                             );
                           }
@@ -702,27 +720,31 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                       />
                       <Legend 
                         content={() => (
-                          <div className="flex flex-wrap justify-center gap-3 mt-2 text-xs">
-                            <span className="text-muted-foreground">Chaque segment = 1 séance avec son % d'intensité</span>
+                          <div className="flex flex-wrap justify-center gap-4 mt-2 text-xs">
+                            <span className="flex items-center gap-1">
+                              <span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.low }}></span>
+                              Z1-Z2 (&lt;70%)
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.mid }}></span>
+                              Z3-Z4 (70-90%)
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.high }}></span>
+                              Z5 (&gt;90%)
+                            </span>
                           </div>
                         )}
                       />
-                      {Array.from({ length: maxSessions }).map((_, idx) => (
-                        <Bar 
-                          key={idx} 
-                          dataKey={`session${idx}`} 
-                          stackId="sessions" 
-                          fill={sessionColors[idx % sessionColors.length]}
-                        >
-                          <LabelList 
-                            dataKey={`session${idx}`} 
-                            position="center" 
-                            fill="#fff" 
-                            fontSize={10}
-                            formatter={(value: number) => value ? `${value}%` : ''}
-                          />
-                        </Bar>
-                      ))}
+                      <Bar dataKey="zoneLowPercent" stackId="zones" fill={zoneColors.low} name="Z1-Z2">
+                        <LabelList dataKey="zoneLowPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
+                      <Bar dataKey="zoneMidPercent" stackId="zones" fill={zoneColors.mid} name="Z3-Z4">
+                        <LabelList dataKey="zoneMidPercent" position="center" fill="#000" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
+                      <Bar dataKey="zoneHighPercent" stackId="zones" fill={zoneColors.high} name="Z5">
+                        <LabelList dataKey="zoneHighPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 );
