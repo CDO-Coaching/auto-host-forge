@@ -89,10 +89,26 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       const today = new Date();
       const sevenDaysAgo = subDays(today, 6);
 
+      // Récupérer les semaines de l'athlète
+      const { data: weeks, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", athleteId);
+
+      if (weeksError) throw weeksError;
+
+      const weekIds = (weeks || []).map(w => w.id);
+
+      if (weekIds.length === 0) {
+        setMonotonyData(null);
+        return;
+      }
+
+      // Récupérer les sessions des 7 derniers jours via week_id
       const { data, error } = await supabase
         .from("training_sessions")
         .select("id, completed_at, duration_minutes, session_rpe")
-        .eq("athlete_id", athleteId)
+        .in("week_id", weekIds)
         .not("completed_at", "is", null)
         .gte("completed_at", startOfDay(sevenDaysAgo).toISOString())
         .lte("completed_at", endOfDay(today).toISOString());
