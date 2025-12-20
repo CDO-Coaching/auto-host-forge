@@ -723,10 +723,16 @@ export default function SeanceDetail() {
             {!isCardioSession && (
               <div className="flex gap-2">
                 {!isSessionActive ? (
-                  <Button onClick={startSession} className="flex-1" size="lg">
-                    <Play className="h-4 w-4 mr-2" />
-                    Démarrer la séance
-                  </Button>
+                  <>
+                    <Button onClick={startSession} className="flex-1" size="lg">
+                      <Play className="h-4 w-4 mr-2" />
+                      Démarrer la séance
+                    </Button>
+                    <Button onClick={requestEndSession} variant="outline" size="lg">
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Séance terminée
+                    </Button>
+                  </>
                 ) : (
                   <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
                     <Square className="h-4 w-4 mr-2" />
