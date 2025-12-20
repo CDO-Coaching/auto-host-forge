@@ -54,6 +54,7 @@ import { CoachRunningView } from "@/components/CoachRunningView";
 import { CoachCyclingView } from "@/components/CoachCyclingView";
 import { CoachSwimmingView } from "@/components/CoachSwimmingView";
 import { CoachStrengthView } from "@/components/CoachStrengthView";
+import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
@@ -146,7 +147,7 @@ export default function ClientDetail() {
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
-  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation">("renfo");
+  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon">("renfo");
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -3647,6 +3648,14 @@ export default function ClientDetail() {
               <Activity className="h-4 w-4 mr-2" />
               Natation
             </Button>
+            <Button
+              variant={selectedEffortType === "triathlon" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("triathlon")}
+            >
+              <Activity className="h-4 w-4 mr-2" />
+              Triathlon
+            </Button>
           </div>
 
           {/* Contenu selon le type sélectionné */}
@@ -3670,6 +3679,12 @@ export default function ClientDetail() {
           )}
           {selectedEffortType === "natation" && (
             <CoachSwimmingView 
+              athleteId={athleteId!} 
+              athleteName={athlete.first_name || "l'athlète"} 
+            />
+          )}
+          {selectedEffortType === "triathlon" && (
+            <CoachTriathlonView 
               athleteId={athleteId!} 
               athleteName={athlete.first_name || "l'athlète"} 
             />
