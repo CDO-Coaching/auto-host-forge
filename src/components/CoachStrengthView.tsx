@@ -178,7 +178,9 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
         const sessionName = session.name || "Séance sans nom";
 
         session.session_exercises?.forEach((exercise: any) => {
+          // Ne prendre que les exercices validés (avec sportif_rpe) et non skipped
           if (exercise.skipped) return;
+          if (exercise.sportif_rpe === null || exercise.sportif_rpe === undefined) return;
 
           const charge = parseCharge(exercise.charge);
           const reps = parseReps(exercise.reps);
@@ -188,11 +190,11 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
           // Calculer le volume pondéré avec le coefficient
           const exerciseNameLower = exercise.exercice?.toLowerCase() || "";
           const coefficient = coefficientMap.get(exerciseNameLower) || 1.0;
-          const sportifRpeValue = exercise.sportif_rpe ? parseFloat(exercise.sportif_rpe) : 7; // RPE par défaut si non renseigné
+          const sportifRpeValue = parseFloat(exercise.sportif_rpe);
           // Formule: séries × reps × charge × (RPE/10) × coefficient
           const weightedVolume = series * reps * charge * (sportifRpeValue / 10) * coefficient;
           const coachRpe = exercise.rpe ? parseFloat(exercise.rpe) : null;
-          const sportifRpe = exercise.sportif_rpe ? parseFloat(exercise.sportif_rpe) : null;
+          const sportifRpe = sportifRpeValue;
 
           // Données hebdomadaires
           if (weeklyMap.has(weekKey)) {
