@@ -581,22 +581,32 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
               (() => {
                 const filteredData = cardioSessions.filter(s => {
                   const total = s.intensityZones.zoneLow + s.intensityZones.zoneMid + s.intensityZones.zoneHigh;
-                  return total > 0;
+                  return total > 0 && s.actualIntensityKarvonen !== null;
                 });
                 
                 const zoneColors = {
-                  low: "hsl(142 76% 36%)",
-                  mid: "hsl(47 96% 53%)",
-                  high: "hsl(0 84% 60%)",
+                  low: "#22c55e",
+                  mid: "#eab308",
+                  high: "#ef4444",
                 };
                 
                 const stackedData = filteredData.map(week => {
                   const total = week.intensityZones.zoneLow + week.intensityZones.zoneMid + week.intensityZones.zoneHigh;
+                  const avgIntensity = week.actualIntensityKarvonen || 0;
+                  
+                  const z1z2Ratio = total > 0 ? week.intensityZones.zoneLow / total : 0;
+                  const z3z4Ratio = total > 0 ? week.intensityZones.zoneMid / total : 0;
+                  const z5Ratio = total > 0 ? week.intensityZones.zoneHigh / total : 0;
+                  
                   return {
                     week: week.week,
-                    zoneLowPercent: total > 0 ? Math.round((week.intensityZones.zoneLow / total) * 100) : 0,
-                    zoneMidPercent: total > 0 ? Math.round((week.intensityZones.zoneMid / total) * 100) : 0,
-                    zoneHighPercent: total > 0 ? Math.round((week.intensityZones.zoneHigh / total) * 100) : 0,
+                    avgIntensity,
+                    z1z2Height: Math.round(z1z2Ratio * avgIntensity),
+                    z3z4Height: Math.round(z3z4Ratio * avgIntensity),
+                    z5Height: Math.round(z5Ratio * avgIntensity),
+                    z1z2Label: Math.round(z1z2Ratio * 100),
+                    z3z4Label: Math.round(z3z4Ratio * 100),
+                    z5Label: Math.round(z5Ratio * 100),
                     zoneLowMinutes: week.intensityZones.zoneLow,
                     zoneMidMinutes: week.intensityZones.zoneMid,
                     zoneHighMinutes: week.intensityZones.zoneHigh,
@@ -615,11 +625,11 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
                           const data = payload[0].payload;
                           return (
                             <div className="bg-background border rounded-lg p-3 shadow-lg">
-                              <p className="font-medium mb-2">{data.week}</p>
+                              <p className="font-medium mb-2">{data.week} - Intensité moyenne: {data.avgIntensity}%</p>
                               <p className="text-sm text-muted-foreground mb-2">Temps total: {data.totalMinutes} min</p>
-                              <p className="text-sm" style={{ color: zoneColors.low }}>Z1-Z2 (&lt;70%): {data.zoneLowPercent}% ({data.zoneLowMinutes} min)</p>
-                              <p className="text-sm" style={{ color: zoneColors.mid }}>Z3-Z4 (70-90%): {data.zoneMidPercent}% ({data.zoneMidMinutes} min)</p>
-                              <p className="text-sm" style={{ color: zoneColors.high }}>Z5 (&gt;90%): {data.zoneHighPercent}% ({data.zoneHighMinutes} min)</p>
+                              <p className="text-sm" style={{ color: zoneColors.low }}>Z1-Z2 (&lt;70%): {data.z1z2Label}% ({data.zoneLowMinutes} min)</p>
+                              <p className="text-sm" style={{ color: zoneColors.mid }}>Z3-Z4 (70-90%): {data.z3z4Label}% ({data.zoneMidMinutes} min)</p>
+                              <p className="text-sm" style={{ color: zoneColors.high }}>Z5 (&gt;90%): {data.z5Label}% ({data.zoneHighMinutes} min)</p>
                             </div>
                           );
                         }
@@ -632,14 +642,14 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
                           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{ backgroundColor: zoneColors.high }}></span>Z5 (&gt;90%)</span>
                         </div>
                       )} />
-                      <Bar dataKey="zoneLowPercent" stackId="zones" fill={zoneColors.low} name="Z1-Z2">
-                        <LabelList dataKey="zoneLowPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      <Bar dataKey="z1z2Height" stackId="zones" fill={zoneColors.low} name="Z1-Z2">
+                        <LabelList dataKey="z1z2Label" position="center" fill="#fff" fontSize={10} fontWeight="bold" formatter={(value: number) => value > 10 ? `${value}%` : ''} />
                       </Bar>
-                      <Bar dataKey="zoneMidPercent" stackId="zones" fill={zoneColors.mid} name="Z3-Z4">
-                        <LabelList dataKey="zoneMidPercent" position="center" fill="#000" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      <Bar dataKey="z3z4Height" stackId="zones" fill={zoneColors.mid} name="Z3-Z4">
+                        <LabelList dataKey="z3z4Label" position="center" fill="#fff" fontSize={10} fontWeight="bold" formatter={(value: number) => value > 10 ? `${value}%` : ''} />
                       </Bar>
-                      <Bar dataKey="zoneHighPercent" stackId="zones" fill={zoneColors.high} name="Z5">
-                        <LabelList dataKey="zoneHighPercent" position="center" fill="#fff" fontSize={10} formatter={(value: number) => value > 5 ? `${value}%` : ''} />
+                      <Bar dataKey="z5Height" stackId="zones" fill={zoneColors.high} name="Z5" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="z5Label" position="center" fill="#fff" fontSize={10} fontWeight="bold" formatter={(value: number) => value > 10 ? `${value}%` : ''} />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
