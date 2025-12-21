@@ -25,6 +25,10 @@ interface TriathlonWeeklyData {
   runningCount: number;
   cyclingCount: number;
   swimmingCount: number;
+  // Répartition des zones Karvonen (en minutes)
+  zoneZ1Z2Minutes: number; // <70%
+  zoneZ3Z4Minutes: number; // 70-90%
+  zoneZ5Minutes: number;   // >90%
 }
 
 interface CoachTriathlonViewProps {
@@ -136,6 +140,11 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
             const currentIntensitySum = (existing.avgIntensityKarvonen || 0) * existing.intensityCount;
             existing.intensityCount++;
             existing.avgIntensityKarvonen = Math.round((currentIntensitySum + sessionIntensityKarvonen) / existing.intensityCount);
+            
+            // Ajouter aux zones appropriées
+            if (sessionIntensityKarvonen < 70) existing.zoneZ1Z2Minutes += actualDuration;
+            else if (sessionIntensityKarvonen <= 90) existing.zoneZ3Z4Minutes += actualDuration;
+            else existing.zoneZ5Minutes += actualDuration;
           }
         }
         
@@ -152,6 +161,14 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         else if (sport === 'natation') existing.swimmingCount++;
         
       } else {
+        // Déterminer la zone pour cette séance
+        let zoneZ1Z2 = 0, zoneZ3Z4 = 0, zoneZ5 = 0;
+        if (sessionIntensityKarvonen !== null) {
+          if (sessionIntensityKarvonen < 70) zoneZ1Z2 = actualDuration;
+          else if (sessionIntensityKarvonen <= 90) zoneZ3Z4 = actualDuration;
+          else zoneZ5 = actualDuration;
+        }
+
         weeklyMap.set(weekKey, {
           week: weekKey,
           weekNumber,
@@ -166,6 +183,9 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
           runningCount: sport === 'course' ? 1 : 0,
           cyclingCount: sport === 'velo' ? 1 : 0,
           swimmingCount: sport === 'natation' ? 1 : 0,
+          zoneZ1Z2Minutes: zoneZ1Z2,
+          zoneZ3Z4Minutes: zoneZ3Z4,
+          zoneZ5Minutes: zoneZ5,
         });
       }
     });
@@ -241,6 +261,40 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
     rpe: w.avgRpe,
     hr: w.avgHeartRate,
   }));
+
+  // Préparer données pour le graphique d'intensité avec zones
+  const intensityChartData = weeklyData.map(w => {
+    const totalZoneMinutes = w.zoneZ1Z2Minutes + w.zoneZ3Z4Minutes + w.zoneZ5Minutes;
+    // Calculer les pourcentages de chaque zone proportionnellement à l'intensité moyenne
+    const avgIntensity = w.avgIntensityKarvonen || 0;
+    
+    if (totalZoneMinutes === 0 || avgIntensity === 0) {
+      return {
+        week: `S${w.weekNumber}`,
+        avgIntensity: 0,
+        z1z2Percent: 0,
+        z3z4Percent: 0,
+        z5Percent: 0,
+      };
+    }
+
+    // Répartition proportionnelle des zones dans la barre
+    const z1z2Ratio = w.zoneZ1Z2Minutes / totalZoneMinutes;
+    const z3z4Ratio = w.zoneZ3Z4Minutes / totalZoneMinutes;
+    const z5Ratio = w.zoneZ5Minutes / totalZoneMinutes;
+
+    return {
+      week: `S${w.weekNumber}`,
+      avgIntensity,
+      z1z2Percent: Math.round(z1z2Ratio * avgIntensity),
+      z3z4Percent: Math.round(z3z4Ratio * avgIntensity),
+      z5Percent: Math.round(z5Ratio * avgIntensity),
+      // Pour les labels
+      z1z2Label: Math.round(z1z2Ratio * 100),
+      z3z4Label: Math.round(z3z4Ratio * 100),
+      z5Label: Math.round(z5Ratio * 100),
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -351,39 +405,87 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         </CardContent>
       </Card>
 
-      {/* Graphique intensité/RPE/FC */}
+      {/* Graphique intensité Karvonen avec répartition des zones */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Métriques par semaine</CardTitle>
+          <CardTitle className="text-base">Intensité moyenne par semaine (Karvonen)</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            {intensityChartData.length >= 2 && intensityChartData[intensityChartData.length - 2]?.avgIntensity && intensityChartData[intensityChartData.length - 1]?.avgIntensity ? (
+              <>
+                {intensityChartData[intensityChartData.length - 2].avgIntensity}% ({weeklyData[weeklyData.length - 2]?.week}) vs {intensityChartData[intensityChartData.length - 1].avgIntensity}% ({weeklyData[weeklyData.length - 1]?.week})
+                {' '}
+                {(() => {
+                  const prev = intensityChartData[intensityChartData.length - 2].avgIntensity;
+                  const curr = intensityChartData[intensityChartData.length - 1].avgIntensity;
+                  const diff = ((curr - prev) / prev * 100).toFixed(1);
+                  return prev < curr 
+                    ? <span className="text-green-500">↑ {diff}%</span>
+                    : <span className="text-red-500">↓ {Math.abs(Number(diff))}%</span>;
+                })()}
+              </>
+            ) : null}
+          </p>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={chartData}>
+            <BarChart data={intensityChartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="week" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} />
+              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
               <Tooltip
-                formatter={(value: number | null, name: string) => {
-                  if (value === null) return ['-', name];
-                  if (name === 'Karvonen') return [`${value}%`, name];
-                  if (name === 'RPE') return [`${value}/10`, name];
-                  if (name === 'FC') return [`${value} bpm`, name];
+                formatter={(value: number, name: string, props: any) => {
+                  const data = props.payload;
+                  if (name === 'Z1-Z2 (<70%)') return [`${data.z1z2Label}%`, name];
+                  if (name === 'Z3-Z4 (70-90%)') return [`${data.z3z4Label}%`, name];
+                  if (name === 'Z5 (>90%)') return [`${data.z5Label}%`, name];
                   return [value, name];
+                }}
+                labelFormatter={(label) => {
+                  const data = intensityChartData.find(d => d.week === label);
+                  return `${label} - Intensité moyenne: ${data?.avgIntensity || 0}%`;
                 }}
               />
               <Legend />
               <Bar 
-                dataKey="karvonen" 
-                name="Karvonen" 
-                fill="hsl(var(--chart-1))" 
-                radius={[4, 4, 0, 0]}
-              />
+                dataKey="z1z2Percent" 
+                name="Z1-Z2 (<70%)" 
+                stackId="intensity"
+                fill="#22c55e"
+              >
+                <LabelList 
+                  dataKey="z1z2Label" 
+                  position="center" 
+                  formatter={(value: number) => value > 10 ? `${value}%` : ''}
+                  style={{ fontSize: 10, fill: 'white', fontWeight: 'bold' }}
+                />
+              </Bar>
               <Bar 
-                dataKey="rpe" 
-                name="RPE" 
-                fill="hsl(var(--chart-2))" 
+                dataKey="z3z4Percent" 
+                name="Z3-Z4 (70-90%)" 
+                stackId="intensity"
+                fill="#eab308"
+              >
+                <LabelList 
+                  dataKey="z3z4Label" 
+                  position="center" 
+                  formatter={(value: number) => value > 10 ? `${value}%` : ''}
+                  style={{ fontSize: 10, fill: 'white', fontWeight: 'bold' }}
+                />
+              </Bar>
+              <Bar 
+                dataKey="z5Percent" 
+                name="Z5 (>90%)" 
+                stackId="intensity"
+                fill="#ef4444"
                 radius={[4, 4, 0, 0]}
-              />
+              >
+                <LabelList 
+                  dataKey="z5Label" 
+                  position="center" 
+                  formatter={(value: number) => value > 10 ? `${value}%` : ''}
+                  style={{ fontSize: 10, fill: 'white', fontWeight: 'bold' }}
+                />
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
