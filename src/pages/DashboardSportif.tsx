@@ -30,33 +30,6 @@ export default function DashboardSportif() {
   const { session, loading: authLoading } = useAuth();
   const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
 
-  // Charger la préférence de suivi des blessures
-  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
-  
-  useEffect(() => {
-    const loadInjuryPref = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const pref = localStorage.getItem(`injury_tracking_${user.id}`);
-        setInjuryTrackingEnabled(pref === 'true');
-      }
-    };
-    loadInjuryPref();
-  }, []);
-
-  // Recharger la préférence quand le dialog doit s'ouvrir
-  useEffect(() => {
-    if (shouldShowDialog && !isChecking) {
-      const loadInjuryPref = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const pref = localStorage.getItem(`injury_tracking_${user.id}`);
-          setInjuryTrackingEnabled(pref === 'true');
-        }
-      };
-      loadInjuryPref();
-    }
-  }, [shouldShowDialog, isChecking]);
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -144,7 +117,7 @@ export default function DashboardSportif() {
       <DailyFatigueDialog 
         open={shouldShowDialog && !isChecking} 
         onClose={handleClose}
-        includeInjuryQuestions={injuryTrackingEnabled}
+        includeInjuryQuestions={true}
         isFemale={profile?.gender === 'female'}
       />
     </SidebarProvider>
