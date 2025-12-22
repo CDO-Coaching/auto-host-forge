@@ -412,9 +412,24 @@ export default function MesClients() {
             <span className="hidden sm:inline">Mes athlètes</span>
             <span className="sm:hidden">Athlètes</span>
             {approvedAthletes.length > 0 && (
-              <Badge className="ml-1 sm:ml-2 bg-green-600 text-xs">
-                {approvedAthletes.length}
-              </Badge>
+              <>
+                <Badge className="ml-1 sm:ml-2 bg-green-600 text-xs">
+                  {approvedAthletes.length}
+                </Badge>
+                {(() => {
+                  const validatedCount = approvedAthletes.filter(a => a.hasCurrentWeekProgrammed).length;
+                  const totalCount = approvedAthletes.length;
+                  // N'afficher que si tous ne sont pas validés
+                  if (validatedCount < totalCount) {
+                    return (
+                      <Badge variant="outline" className="ml-1 text-xs border-yellow-500 text-yellow-500">
+                        {validatedCount}/{totalCount}
+                      </Badge>
+                    );
+                  }
+                  return null;
+                })()}
+              </>
             )}
           </TabsTrigger>
           <TabsTrigger value="pending" className="text-xs sm:text-sm py-2 sm:py-2.5">
