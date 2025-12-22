@@ -203,22 +203,31 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
   const handleInjuryEvolutionChange = (evolution: InjuryEvolution) => {
     setInjuryEvolution(evolution);
-    
+
     if (evolution === "gone") {
-      // Douleur terminée = niveau 0, réinitialiser le suivi de blessure
+      // Douleur terminée = on prépare un enregistrement à 0/7 à la validation
+      // (on garde previousInjury pour conserver la localisation lors du submit)
       setHasInjury(false);
       setInjuryLevel(0);
-      // Réinitialiser previousInjury pour masquer les boutons d'évolution
-      setPreviousInjury(null);
-    } else if (evolution === "better" && previousInjury) {
+      setIsNewInjury(false);
+      return;
+    }
+
+    if (evolution === "better" && previousInjury) {
       setHasInjury(true);
       // Diminuer le niveau de douleur de 1 (minimum 1)
       setInjuryLevel(Math.max(1, previousInjury.injury_level - 1));
-    } else if (evolution === "worse" && previousInjury) {
+      return;
+    }
+
+    if (evolution === "worse" && previousInjury) {
       setHasInjury(true);
       // Augmenter le niveau de douleur de 1 (maximum 7)
       setInjuryLevel(Math.min(7, previousInjury.injury_level + 1));
-    } else if (evolution === "same" && previousInjury) {
+      return;
+    }
+
+    if (evolution === "same" && previousInjury) {
       setHasInjury(true);
       setInjuryLevel(previousInjury.injury_level);
     }
@@ -368,8 +377,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
           {includeInjuryQuestions && (
             <>
               <div className="pt-2 sm:pt-3 border-t space-y-2 sm:space-y-3">
-                {/* Si blessure précédente existe - afficher les options d'évolution */}
-                {previousInjury && !isNewInjury ? (
+                {/* Si blessure précédente existe - afficher les options d'évolution (sauf si "Terminée") */}
+                {previousInjury && !isNewInjury && injuryEvolution !== "gone" ? (
                   <>
                     <div className="bg-destructive/10 rounded-lg p-3 space-y-2">
                       <p className="text-xs sm:text-sm font-medium text-destructive">
@@ -418,19 +427,15 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                         <button
                           type="button"
                           onClick={() => handleInjuryEvolutionChange("gone")}
-                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                            injuryEvolution === "gone"
-                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/50"
-                              : "bg-muted/50 text-muted-foreground border border-muted hover:bg-muted"
-                          }`}
+                          className={`py-2 px-3 rounded-md text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-1 bg-muted/50 text-muted-foreground border border-muted hover:bg-muted`}
                         >
                           <Ban className="h-3 w-3" />
                           Terminée
                         </button>
                       </div>
 
-                      {/* Afficher le slider si pas "gone" et une évolution est sélectionnée */}
-                      {injuryEvolution && injuryEvolution !== "gone" && (
+                      {/* Afficher le slider si une évolution est sélectionnée */}
+                      {injuryEvolution && (
                         <div className="space-y-1 sm:space-y-2 pt-2">
                           <Label className="text-xs sm:text-base font-medium">Niveau actuel de douleur</Label>
                           
