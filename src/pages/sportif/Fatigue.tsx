@@ -38,7 +38,7 @@ export default function Fatigue() {
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [injuryTrackingEnabled, setInjuryTrackingEnabled] = useState(false);
+  
   const [fatigueAlertEnabled, setFatigueAlertEnabled] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -52,7 +52,7 @@ export default function Fatigue() {
   useEffect(() => {
     loadFatigueLogs();
     loadNotificationPreference();
-    loadInjuryTrackingPreference();
+    loadNotificationPreference();
     loadFatigueAlertPreference();
     checkIfCanAnswerToday();
   }, []);
@@ -88,36 +88,6 @@ export default function Fatigue() {
     }
   };
 
-  const loadInjuryTrackingPreference = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const preference = localStorage.getItem(`injury_tracking_${user.id}`);
-      setInjuryTrackingEnabled(preference === 'true');
-    } catch (error) {
-      console.error("Error loading injury tracking preference:", error);
-    }
-  };
-
-  const handleInjuryTrackingToggle = async (checked: boolean) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      localStorage.setItem(`injury_tracking_${user.id}`, checked.toString());
-      setInjuryTrackingEnabled(checked);
-      
-      toast({
-        title: checked ? "Suivi des douleurs activé" : "Suivi des douleurs désactivé",
-        description: checked 
-          ? "Les questions sur les douleurs apparaîtront dans le questionnaire." 
-          : "Les questions sur les douleurs ne seront plus affichées.",
-      });
-    } catch (error) {
-      console.error("Error saving injury tracking preference:", error);
-    }
-  };
 
   const loadFatigueAlertPreference = async () => {
     try {
@@ -646,22 +616,6 @@ export default function Fatigue() {
                 id="fatigue-alert"
                 checked={fatigueAlertEnabled}
                 onCheckedChange={handleFatigueAlertToggle}
-                className="shrink-0"
-              />
-            </div>
-            <div className="flex items-start justify-between gap-3 pt-2 border-t">
-              <div className="space-y-0.5 flex-1 min-w-0">
-                <Label htmlFor="injury-tracking" className="text-sm font-medium">
-                  Suivi des douleurs
-                </Label>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Ajouter les questions sur les blessures et douleurs
-                </p>
-              </div>
-              <Switch
-                id="injury-tracking"
-                checked={injuryTrackingEnabled}
-                onCheckedChange={handleInjuryTrackingToggle}
                 className="shrink-0"
               />
             </div>
