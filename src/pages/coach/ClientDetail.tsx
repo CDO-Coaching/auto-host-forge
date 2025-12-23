@@ -1091,6 +1091,10 @@ export default function ClientDetail() {
         const newExercises: Record<number, Exercise[]> = {};
         const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
         
+        // Créer un mapping pour générer de nouveaux UUIDs pour les super_set_group
+        // afin d'éviter les conflits avec les exercices de la semaine source
+        const superSetGroupMapping: Record<string, string> = {};
+        
         sessionsData.forEach((session, sessionIndex) => {
           if (session.session_exercises) {
             const sortedExercises = session.session_exercises
@@ -1106,6 +1110,16 @@ export default function ClientDetail() {
                   };
                 }
                 
+                // Générer un nouveau UUID pour chaque super_set_group unique
+                // afin que les exercices de la nouvelle semaine aient leurs propres groupes
+                let newSuperSetGroup: string | null = null;
+                if (ex.super_set_group) {
+                  if (!superSetGroupMapping[ex.super_set_group]) {
+                    superSetGroupMapping[ex.super_set_group] = crypto.randomUUID();
+                  }
+                  newSuperSetGroup = superSetGroupMapping[ex.super_set_group];
+                }
+                
                 return {
                   id: exIndex + 1,
                   exercice: ex.exercice,
@@ -1119,7 +1133,7 @@ export default function ClientDetail() {
                   cardio_sport: ex.cardio_sport || "",
                   cardio_content: ex.cardio_content || "",
                   cardio_pace: ex.cardio_pace || "",
-                  super_set_group: ex.super_set_group || null,
+                  super_set_group: newSuperSetGroup,
                 };
               });
             newExercises[sessionIndex + 1] = sortedExercises;
