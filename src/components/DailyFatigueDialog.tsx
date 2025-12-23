@@ -95,29 +95,27 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Chercher la dernière entrée qui a des données de blessure (active OU terminée)
-      // On regarde l'entrée la plus récente qui a injury_level défini
+      // Chercher la dernière entrée (qu'elle contienne ou non une douleur)
+      // Objectif: si la dernière entrée indique "pas de douleur", on ne doit PAS relancer le suivi en rouge.
       const { data } = await supabase
         .from("daily_fatigue_log")
         .select("injury_level, injury_location, has_injury")
         .eq("user_id", user.id)
-        .not("injury_level", "is", null)
         .order("date", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      // Si la dernière entrée a injury_level = 0, la douleur est terminée
-      // On ne montre pas le suivi de douleur précédente
-      if (data && data.injury_level && data.injury_level > 0) {
+      // Si la dernière entrée indique une douleur active, on propose le suivi
+      if (data?.has_injury === true && typeof data.injury_level === "number" && data.injury_level > 0) {
         setPreviousInjury({
           injury_level: data.injury_level,
-          injury_location: data.injury_location
+          injury_location: data.injury_location,
         });
         // Pré-remplir avec les données précédentes
         setInjuryLevel(data.injury_level);
         setInjuryLocation(data.injury_location || "");
       } else {
-        // Pas de blessure active ou dernière entrée = terminée (0)
+        // Dernière entrée = pas de douleur (ou douleur terminée)
         setPreviousInjury(null);
       }
     } catch (error) {
@@ -252,15 +250,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       if (previousInjury && !isNewInjury) {
         // Cas où une blessure précédente existe
-        if (injuryEvolution === "gone") {
-          // Douleur terminée = on enregistre explicitement 0 avec la localisation pour la courbe
+        if (injuryEvolution === "gone" || injuryEvolution === null) {
+          // IMPORTANT: si l'utilisateur ne signale PAS de douleur aujourd'hui, on clôture par défaut.
+          // Cela évite de rester bloqué sur la douleur précédente en rouge.
           finalHasInjury = false;
           finalInjuryLevel = 0;
-          finalInjuryLocation = previousInjury.injury_location;
-        } else if (injuryEvolution === null) {
-          // Pas de réponse = on garde les données précédentes
-          finalHasInjury = true;
-          finalInjuryLevel = previousInjury.injury_level;
           finalInjuryLocation = previousInjury.injury_location;
         } else {
           // Réponse donnée (same, better, worse)
