@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyFatigueCheck } from "@/hooks/useDailyFatigueCheck";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
+import { useWeeklyWeightReminder } from "@/hooks/useWeeklyWeightReminder";
+import { WeightReminderDialog } from "@/components/WeightReminderDialog";
 import Seances from "./sportif/Seances";
 import SeanceDetail from "./sportif/SeanceDetail";
 import RecupDetail from "./sportif/RecupDetail";
@@ -29,6 +31,7 @@ export default function DashboardSportif() {
   const { profile } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
   const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
+  const { shouldShowReminder: shouldShowWeightReminder, isChecking: isCheckingWeight, handleDismiss: handleWeightDismiss } = useWeeklyWeightReminder();
 
 
   useEffect(() => {
@@ -119,6 +122,10 @@ export default function DashboardSportif() {
         onClose={handleClose}
         includeInjuryQuestions={true}
         isFemale={profile?.gender === 'female'}
+      />
+      <WeightReminderDialog 
+        open={shouldShowWeightReminder && !isCheckingWeight && !shouldShowDialog}
+        onDismiss={handleWeightDismiss}
       />
     </SidebarProvider>
   );
