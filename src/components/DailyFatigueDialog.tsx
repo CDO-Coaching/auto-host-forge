@@ -328,8 +328,18 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
   return (
     <Dialog open={open} onOpenChange={handleSkip}>
-      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden">
-        <DialogHeader className="pb-2 sm:pb-3 space-y-0.5">
+      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden [&>button]:z-50">
+        {/* Bouton fermeture explicite visible sur mobile */}
+        <button
+          type="button"
+          onClick={handleSkip}
+          className="absolute right-3 top-3 z-50 rounded-full p-1.5 bg-muted/80 hover:bg-muted transition-colors"
+          aria-label="Fermer"
+        >
+          <X className="h-5 w-5" />
+        </button>
+        
+        <DialogHeader className="pb-2 sm:pb-3 space-y-0.5 pr-10">
           <DialogTitle className="text-base sm:text-xl">Suivi quotidien</DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
             Évalue ton état du jour
