@@ -17,19 +17,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useWeeklyWeightReminder } from "@/hooks/useWeeklyWeightReminder";
+import { useWeeklyWeightReminder, type WeightReminderConfig } from "@/hooks/useWeeklyWeightReminder";
 
 interface WeightEntry {
   id: string;
@@ -38,6 +35,16 @@ interface WeightEntry {
   notes: string | null;
 }
 
+const DAYS_OF_WEEK = [
+  { value: 1, label: "Lundi" },
+  { value: 2, label: "Mardi" },
+  { value: 3, label: "Mercredi" },
+  { value: 4, label: "Jeudi" },
+  { value: 5, label: "Vendredi" },
+  { value: 6, label: "Samedi" },
+  { value: 0, label: "Dimanche" },
+];
+
 export default function Poids() {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,8 +52,12 @@ export default function Poids() {
   const [weight, setWeight] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const { shouldShowReminder, isChecking, handleDismiss } = useWeeklyWeightReminder();
+  const [reminderConfig, setReminderConfig] = useState<WeightReminderConfig>({
+    enabled: false,
+    dayOfWeek: 1,
+    frequency: 1,
+  });
+  const { saveConfig, loadConfig } = useWeeklyWeightReminder();
 
   useEffect(() => {
     loadWeightEntries();
@@ -54,28 +65,31 @@ export default function Poids() {
   }, []);
 
   const loadReminderPreference = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      const enabled = localStorage.getItem(`weight_reminder_${user.id}`) === "true";
-      setReminderEnabled(enabled);
-    }
+    const config = await loadConfig();
+    setReminderConfig(config);
   };
 
   const handleReminderToggle = async (checked: boolean) => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) {
-      localStorage.setItem(`weight_reminder_${user.id}`, checked.toString());
-      setReminderEnabled(checked);
-      if (checked) {
-        toast.success("Rappels hebdomadaires activés");
-      } else {
-        toast.info("Rappels hebdomadaires désactivés");
-      }
+    const newConfig = { ...reminderConfig, enabled: checked };
+    await saveConfig(newConfig);
+    setReminderConfig(newConfig);
+    if (checked) {
+      toast.success("Rappels activés");
+    } else {
+      toast.info("Rappels désactivés");
     }
+  };
+
+  const handleDayChange = async (value: string) => {
+    const newConfig = { ...reminderConfig, dayOfWeek: parseInt(value) };
+    await saveConfig(newConfig);
+    setReminderConfig(newConfig);
+  };
+
+  const handleFrequencyChange = async (value: string) => {
+    const newConfig = { ...reminderConfig, frequency: parseInt(value) as 1 | 2 };
+    await saveConfig(newConfig);
+    setReminderConfig(newConfig);
   };
 
   const loadWeightEntries = async () => {
@@ -174,33 +188,6 @@ export default function Poids() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Rappel hebdomadaire */}
-      <AlertDialog open={shouldShowReminder && !isChecking}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <Bell className="h-5 w-5 text-primary" />
-              Rappel hebdomadaire
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              C'est le moment de peser et d'enregistrer ton poids pour cette semaine ! Cela ne prend que quelques
-              secondes. 📊
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleDismiss}>Plus tard</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                handleDismiss();
-                setDialogOpen(true);
-              }}
-            >
-              Enregistrer maintenant
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Scale className="h-8 w-8 text-primary" />
@@ -335,21 +322,68 @@ export default function Poids() {
         </CardContent>
       </Card>
 
-      {/* Option de rappel déplacée en bas */}
+      {/* Configuration du rappel */}
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary" />
+            Rappel de pesée
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Bell className="h-4 w-4 text-primary" />
-                <Label htmlFor="reminder-toggle" className="text-base font-medium cursor-pointer">
-                  Rappel hebdomadaire
-                </Label>
-              </div>
-              <p className="text-sm text-muted-foreground">Reçois un rappel chaque lundi pour enregistrer ton poids</p>
+              <Label htmlFor="reminder-toggle" className="text-base font-medium cursor-pointer">
+                Activer le rappel
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Affiche un rappel sur la page d'accueil le jour choisi
+              </p>
             </div>
-            <Switch id="reminder-toggle" checked={reminderEnabled} onCheckedChange={handleReminderToggle} />
+            <Switch 
+              id="reminder-toggle" 
+              checked={reminderConfig.enabled} 
+              onCheckedChange={handleReminderToggle} 
+            />
           </div>
+
+          {reminderConfig.enabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t">
+              <div className="space-y-2">
+                <Label>Jour du rappel</Label>
+                <Select 
+                  value={reminderConfig.dayOfWeek.toString()} 
+                  onValueChange={handleDayChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAYS_OF_WEEK.map((day) => (
+                      <SelectItem key={day.value} value={day.value.toString()}>
+                        {day.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fréquence</Label>
+                <Select 
+                  value={reminderConfig.frequency.toString()} 
+                  onValueChange={handleFrequencyChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Chaque semaine</SelectItem>
+                    <SelectItem value="2">Toutes les 2 semaines</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
