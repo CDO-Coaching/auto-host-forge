@@ -26,6 +26,7 @@ import {
   StickyNote,
   TrendingUp,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -136,6 +137,7 @@ export default function ClientDetail() {
   const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
   const [athleteObjectives, setAthleteObjectives] = useState<any>({});
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
+  const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
@@ -333,6 +335,19 @@ export default function ClientDetail() {
         console.error("Erreur lors du chargement des milestones:", milestonesError);
       } else {
         setAthleteMilestones(milestonesData || []);
+      }
+
+      // Charger les mésocycles
+      const { data: mesocyclesData, error: mesocyclesError } = await supabase
+        .from("mesocycles")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("start_date", { ascending: true });
+
+      if (mesocyclesError) {
+        console.error("Erreur lors du chargement des mésocycles:", mesocyclesError);
+      } else {
+        setAthleteMesocycles(mesocyclesData || []);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des objectifs:", error);
@@ -2165,6 +2180,44 @@ export default function ClientDetail() {
                           </option>
                         ))}
                       </select>
+
+                      {/* Affichage du mésocycle actif pour la semaine sélectionnée */}
+                      {selectedWeekToProgram && (() => {
+                        const selectedWeekInfo = availableWeeks.find(
+                          w => w.week === selectedWeekToProgram.week && w.year === selectedWeekToProgram.year
+                        );
+                        if (!selectedWeekInfo) return null;
+                        
+                        const weekMonday = selectedWeekInfo.monday;
+                        const weekSunday = new Date(weekMonday);
+                        weekSunday.setDate(weekSunday.getDate() + 6);
+                        
+                        const activeMesocycle = athleteMesocycles.find(m => {
+                          const startDate = new Date(m.start_date);
+                          const endDate = new Date(m.end_date);
+                          return weekMonday >= startDate && weekMonday <= endDate;
+                        });
+
+                        if (!activeMesocycle) return null;
+
+                        return (
+                          <div 
+                            className="mt-2 flex items-center gap-2 p-2 rounded-md border"
+                            style={{ 
+                              borderColor: activeMesocycle.color,
+                              backgroundColor: `${activeMesocycle.color}15`
+                            }}
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" style={{ color: activeMesocycle.color }} />
+                            <span className="text-xs font-medium">{activeMesocycle.name}</span>
+                            {activeMesocycle.description && (
+                              <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                                - {activeMesocycle.description}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>
