@@ -140,6 +140,18 @@ export default function SeanceDetail() {
 
   useEffect(() => {
     loadSessionDetail();
+    
+    // Recharger les données quand la page redevient visible (après modification par le coach)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSessionDetail();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [sessionId]);
 
   useEffect(() => {
