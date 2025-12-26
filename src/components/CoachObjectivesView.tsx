@@ -753,36 +753,52 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Date de début *</Label>
-                <div className="text-sm text-muted-foreground mb-2">
-                  {format(mesocycleForm.start_date, "d MMM yyyy", { locale: fr })}
-                </div>
-                <div className="border rounded-md p-2 bg-background">
-                  <Calendar
-                    mode="single"
-                    selected={mesocycleForm.start_date}
-                    onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, start_date: date })}
-                    locale={fr}
-                    weekStartsOn={1}
-                    className="pointer-events-auto mx-auto"
-                  />
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(mesocycleForm.start_date, "d MMMM yyyy", { locale: fr })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={mesocycleForm.start_date}
+                      onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, start_date: date })}
+                      locale={fr}
+                      weekStartsOn={1}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-2">
                 <Label>Date de fin *</Label>
-                <div className="text-sm text-muted-foreground mb-2">
-                  {format(mesocycleForm.end_date, "d MMM yyyy", { locale: fr })}
-                </div>
-                <div className="border rounded-md p-2 bg-background">
-                  <Calendar
-                    mode="single"
-                    selected={mesocycleForm.end_date}
-                    onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, end_date: date })}
-                    locale={fr}
-                    weekStartsOn={1}
-                    className="pointer-events-auto mx-auto"
-                  />
-                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {format(mesocycleForm.end_date, "d MMMM yyyy", { locale: fr })}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={mesocycleForm.end_date}
+                      onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, end_date: date })}
+                      locale={fr}
+                      weekStartsOn={1}
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
