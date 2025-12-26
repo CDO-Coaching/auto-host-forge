@@ -62,6 +62,18 @@ export default function SupersetDetail() {
         console.error("Erreur lors de la restauration:", error);
       }
     }
+
+    // Recharger les données quand la page redevient visible (après modification par le coach)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadSupersetDetail();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [supersetId]);
 
   // Sauvegarder automatiquement la progression

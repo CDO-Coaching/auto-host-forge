@@ -112,8 +112,17 @@ export default function ExerciceDetail() {
       }
     }
 
+    // Recharger les données quand la page redevient visible (après modification par le coach)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadExerciseDetail();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       if (timerInterval) clearInterval(timerInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [exerciceId]);
 
