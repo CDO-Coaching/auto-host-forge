@@ -19,6 +19,8 @@ import {
   calculateCardioSessionDuration,
   formatCardioSessionDuration,
   calculateCardioMetrics,
+  formatPaceFromDecimal,
+  parsePaceToDecimal,
 } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import {
@@ -1165,7 +1167,9 @@ export default function SeanceDetail() {
                                   {item.actual_pace_min_per_km && (
                                     <div>
                                       <span className="text-muted-foreground">Allure: </span>
-                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_pace_min_per_km}/km</span>
+                                      <span className="font-medium text-green-900 dark:text-green-100">
+                                        {formatPaceFromDecimal(parsePaceToDecimal(item.actual_pace_min_per_km)) || `${item.actual_pace_min_per_km}`}
+                                      </span>
                                     </div>
                                   )}
                                   {item.actual_avg_heart_rate && (

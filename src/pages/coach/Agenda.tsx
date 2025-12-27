@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculations";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   RefreshCw, 
@@ -922,7 +923,7 @@ export default function Agenda() {
                           <div className="flex items-center gap-1">
                             <span className="text-muted-foreground">Allure:</span>
                             <span className="font-medium">
-                              {Math.floor(ex.actual_pace_min_per_km)}'{String(Math.round((ex.actual_pace_min_per_km % 1) * 60)).padStart(2, '0')}/km
+                              {formatPaceFromDecimal(parsePaceToDecimal(ex.actual_pace_min_per_km)) || ex.actual_pace_min_per_km}
                             </span>
                           </div>
                         )}

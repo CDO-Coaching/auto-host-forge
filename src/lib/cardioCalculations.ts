@@ -5,6 +5,88 @@ export const WALKING_SPEED_KMH = 6;
 export const WALKING_PACE = "10:00/km";
 
 /**
+ * Parse une allure textuelle en valeur numérique (minutes décimales par km)
+ * Supporte les formats: "7:08/km", "7'08/km", "7.08/km", "7,08/km", "7:08", "7'08", "7.08", "7,08", "7"
+ * 
+ * Retourne null si le format n'est pas reconnu
+ */
+export const parsePaceToDecimal = (paceStr: string | number | null | undefined): number | null => {
+  if (paceStr === null || paceStr === undefined) return null;
+  
+  // Si c'est déjà un nombre valide, le retourner directement
+  if (typeof paceStr === 'number' && !isNaN(paceStr) && paceStr > 0) {
+    return paceStr;
+  }
+  
+  // Convertir en string et nettoyer
+  const str = String(paceStr).trim().toLowerCase();
+  if (!str) return null;
+  
+  // Supprimer les suffixes courants (/km, min/km, etc.)
+  const cleanedStr = str.replace(/\/km$/, '').replace(/min$/, '').trim();
+  
+  // Patterns à tester:
+  // 1. "mm:ss" ou "mm'ss" -> minutes:secondes
+  // 2. "mm.ss" ou "mm,ss" -> peut être minutes.secondes OU minutes décimales
+  // 3. "mm" seul -> minutes entières
+  
+  // Pattern 1: mm:ss ou mm'ss (séparateur clair pour min:sec)
+  const colonPattern = /^(\d+)[:'](\d{1,2})$/;
+  const colonMatch = cleanedStr.match(colonPattern);
+  if (colonMatch) {
+    const minutes = parseInt(colonMatch[1], 10);
+    const seconds = parseInt(colonMatch[2], 10);
+    if (seconds < 60) {
+      return minutes + seconds / 60;
+    }
+  }
+  
+  // Pattern 2: mm.ss ou mm,ss
+  // Interprétation: si la partie après le séparateur est <= 59, c'est probablement des secondes
+  // Sinon, c'est une valeur décimale directe
+  const decimalPattern = /^(\d+)[.,](\d+)$/;
+  const decimalMatch = cleanedStr.match(decimalPattern);
+  if (decimalMatch) {
+    const wholePart = parseInt(decimalMatch[1], 10);
+    const fractionalStr = decimalMatch[2];
+    const fractionalValue = parseInt(fractionalStr, 10);
+    
+    // Si c'est exactement 2 chiffres et <= 59, interpréter comme secondes
+    if (fractionalStr.length === 2 && fractionalValue <= 59) {
+      return wholePart + fractionalValue / 60;
+    }
+    
+    // Sinon, interpréter comme valeur décimale directe
+    const decimalValue = parseFloat(cleanedStr.replace(',', '.'));
+    if (!isNaN(decimalValue) && decimalValue > 0) {
+      return decimalValue;
+    }
+  }
+  
+  // Pattern 3: nombre entier seul (minutes)
+  const intPattern = /^(\d+)$/;
+  const intMatch = cleanedStr.match(intPattern);
+  if (intMatch) {
+    const value = parseInt(intMatch[1], 10);
+    if (value > 0 && value < 60) {
+      return value;
+    }
+  }
+  
+  return null;
+};
+
+/**
+ * Formate une allure numérique (minutes décimales) en format lisible mm'ss/km
+ */
+export const formatPaceFromDecimal = (paceDecimal: number | null | undefined): string | null => {
+  if (paceDecimal === null || paceDecimal === undefined || paceDecimal <= 0) return null;
+  const minutes = Math.floor(paceDecimal);
+  const seconds = Math.round((paceDecimal - minutes) * 60);
+  return `${minutes}'${seconds.toString().padStart(2, '0')}/km`;
+};
+
+/**
  * Formate la durée en secondes
  * < 60 sec : affiche "Xsec"
  * >= 60 sec : affiche "Xmin" ou "XminYsec"
