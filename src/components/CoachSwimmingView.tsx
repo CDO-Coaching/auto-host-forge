@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Waves, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
+import { parsePaceToDecimal } from "@/lib/cardioCalculations";
 
 interface IntensityZones {
   zoneLow: number;
@@ -204,7 +205,10 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
         actualIntensity = plannedIntensity;
         
         if (exercise.actual_pace_min_per_km) {
-          actualPace = exercise.actual_pace_min_per_km;
+          const parsedPace = parsePaceToDecimal(exercise.actual_pace_min_per_km);
+          if (parsedPace !== null) {
+            actualPace = parsedPace;
+          }
         }
         if (exercise.actual_avg_heart_rate) {
           actualHeartRate = exercise.actual_avg_heart_rate;

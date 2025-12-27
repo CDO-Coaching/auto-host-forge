@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { formatCardioTime, formatCardioDistance } from "@/lib/cardioCalculations";
+import { formatCardioTime, formatCardioDistance, parsePaceToDecimal } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber } from "@/lib/weekUtils";
@@ -236,8 +236,11 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         actualIntensity = plannedIntensity; // L'intensité reste celle programmée sauf si calculée autrement
         
         if (exercise.actual_pace_min_per_km) {
-          actualPace = exercise.actual_pace_min_per_km;
-          validatedSessionsWithPace = 1;
+          const parsedPace = parsePaceToDecimal(exercise.actual_pace_min_per_km);
+          if (parsedPace !== null) {
+            actualPace = parsedPace;
+            validatedSessionsWithPace = 1;
+          }
         }
         if (exercise.actual_avg_heart_rate) {
           actualHeartRate = exercise.actual_avg_heart_rate;

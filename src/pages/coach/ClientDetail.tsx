@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculations";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -2086,7 +2087,7 @@ export default function ClientDetail() {
                                         {ex.actual_pace_min_per_km !== null && (
                                           <div className="flex items-center gap-1">
                                             <span className="text-muted-foreground">Allure:</span>
-                                            <span className="font-medium">{Math.floor(ex.actual_pace_min_per_km)}'{Math.round((ex.actual_pace_min_per_km % 1) * 60).toString().padStart(2, '0')}/km</span>
+                                            <span className="font-medium">{formatPaceFromDecimal(parsePaceToDecimal(ex.actual_pace_min_per_km)) || ex.actual_pace_min_per_km}</span>
                                           </div>
                                         )}
                                         {ex.actual_avg_heart_rate !== null && (
@@ -4357,7 +4358,7 @@ export default function ClientDetail() {
                                                                   {exercise.actual_pace_min_per_km && (
                                                                     <div>
                                                                       <span className="text-muted-foreground">Allure: </span>
-                                                                      <span className="font-medium text-green-900 dark:text-green-100">{exercise.actual_pace_min_per_km}/km</span>
+                                                                      <span className="font-medium text-green-900 dark:text-green-100">{formatPaceFromDecimal(parsePaceToDecimal(exercise.actual_pace_min_per_km)) || exercise.actual_pace_min_per_km}</span>
                                                                     </div>
                                                                   )}
                                                                   {exercise.actual_avg_heart_rate && (
