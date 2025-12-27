@@ -256,7 +256,7 @@ export default function Agenda() {
         console.error("Error fetching custom sessions:", customError);
       }
 
-      const sessions: AthleteSession[] = [];
+      const sessionsMap = new Map<string, AthleteSession>();
       
       // Process training sessions - check both completed_at AND exercise feedback dates
       if (allSessionsData) {
@@ -270,7 +270,7 @@ export default function Agenda() {
           let completedThisWeek = false;
           let completionDate: Date | null = null;
 
-          // First check completed_at field
+          // First check completed_at field (prioritaire - c'est la date que le sportif a choisie)
           if (session.completed_at) {
             const completedAt = new Date(session.completed_at);
             if (completedAt >= weekStart && completedAt <= weekEnd) {
@@ -295,35 +295,45 @@ export default function Agenda() {
             }
           }
 
-          if (completedThisWeek) {
-            sessions.push({
-              id: session.id,
-              athleteId,
+          if (completedThisWeek && completionDate) {
+            // Utiliser l'ID de session comme clé unique pour éviter les doublons
+            // Une séance ne peut apparaître qu'une seule fois
+            if (!sessionsMap.has(session.id)) {
+              sessionsMap.set(session.id, {
+                id: session.id,
+                athleteId,
+                athleteName,
+                sessionName: session.athlete_custom_name || session.name,
+                sessionType: session.session_type,
+                completedAt: completionDate,
+                weekNumber: 0,
+              });
+            }
+          }
+        });
+      }
+
+      // Add custom sessions (utiliser l'ID avec préfixe pour éviter collision avec training_sessions)
+      if (customSessionsData) {
+        customSessionsData.forEach((cs: any) => {
+          const athleteName = profileMap.get(cs.user_id) || "Inconnu";
+          const customSessionKey = `custom_${cs.id}`;
+          if (!sessionsMap.has(customSessionKey)) {
+            sessionsMap.set(customSessionKey, {
+              id: cs.id,
+              athleteId: cs.user_id,
               athleteName,
-              sessionName: session.athlete_custom_name || session.name,
-              sessionType: session.session_type,
-              completedAt: completionDate,
+              sessionName: cs.session_name,
+              sessionType: "perso",
+              completedAt: cs.completed_at ? new Date(cs.completed_at) : null,
               weekNumber: 0,
             });
           }
         });
       }
 
-      // Add custom sessions
-      if (customSessionsData) {
-        customSessionsData.forEach((cs: any) => {
-          const athleteName = profileMap.get(cs.user_id) || "Inconnu";
-          sessions.push({
-            id: cs.id,
-            athleteId: cs.user_id,
-            athleteName,
-            sessionName: cs.session_name,
-            sessionType: "perso",
-            completedAt: cs.completed_at ? new Date(cs.completed_at) : null,
-            weekNumber: 0,
-          });
-        });
-      }
+      // Convertir la Map en tableau
+      const sessions = Array.from(sessionsMap.values());
 
       // Build allAthletes list with session counts
       const sessionCountMap = new Map<string, number>();
