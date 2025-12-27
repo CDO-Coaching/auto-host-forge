@@ -55,6 +55,8 @@ interface AthleteSession {
   sessionType: string;
   completedAt: Date | null;
   weekNumber: number;
+  sessionRpe: number | null;
+  sessionComment: string | null;
 }
 
 interface SessionExercise {
@@ -233,9 +235,8 @@ export default function Agenda() {
           completed_at,
           athlete_custom_name,
           week_id,
-          session_exercises (
-            sportif_feedback_at
-          )
+          session_rpe,
+          session_comment
         `)
         .in("week_id", weekIds);
 
@@ -283,6 +284,8 @@ export default function Agenda() {
                 sessionType: session.session_type,
                 completedAt: completedAt,
                 weekNumber: 0,
+                sessionRpe: session.session_rpe || null,
+                sessionComment: session.session_comment || null,
               });
             }
           }
@@ -303,6 +306,8 @@ export default function Agenda() {
               sessionType: "perso",
               completedAt: cs.completed_at ? new Date(cs.completed_at) : null,
               weekNumber: 0,
+              sessionRpe: null,
+              sessionComment: null,
             });
           }
         });
@@ -734,9 +739,16 @@ export default function Agenda() {
                               <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />
                               <span className="font-medium text-sm">{session.athleteName}</span>
                             </div>
-                            <Badge className={`${typeBadge.className} text-xs px-1.5 py-0`} variant="secondary">
-                              {typeBadge.label}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              {session.sessionRpe && (
+                                <Badge variant="outline" className="text-xs px-1.5 py-0 bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400">
+                                  RPE {session.sessionRpe}
+                                </Badge>
+                              )}
+                              <Badge className={`${typeBadge.className} text-xs px-1.5 py-0`} variant="secondary">
+                                {typeBadge.label}
+                              </Badge>
+                            </div>
                           </div>
                           <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground pl-5">
                             <span>{session.sessionName}</span>
@@ -744,6 +756,14 @@ export default function Agenda() {
                               <span>{format(session.completedAt, "HH:mm")}</span>
                             )}
                           </div>
+                          {session.sessionComment && (
+                            <div className="mt-1.5 pl-5 flex items-start gap-1.5">
+                              <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
+                              <p className="text-xs text-muted-foreground italic line-clamp-2">
+                                "{session.sessionComment}"
+                              </p>
+                            </div>
+                          )}
                         </button>
                       );
                     })}
