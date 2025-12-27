@@ -258,46 +258,22 @@ export default function Agenda() {
 
       const sessionsMap = new Map<string, AthleteSession>();
       
-      // Process training sessions - check both completed_at AND exercise feedback dates
+      // Process training sessions - UNIQUEMENT basé sur completed_at de la séance
       if (allSessionsData) {
         allSessionsData.forEach((session: any) => {
           const athleteId = weekToAthleteMap.get(session.week_id);
           if (!athleteId) return;
 
-          const athleteName = profileMap.get(athleteId) || "Inconnu";
-          
-          // Check if session was completed this week
-          let completedThisWeek = false;
-          let completionDate: Date | null = null;
+          // Uniquement les séances avec une date de validation (completed_at)
+          if (!session.completed_at) return;
 
-          // First check completed_at field (prioritaire - c'est la date que le sportif a choisie)
-          if (session.completed_at) {
-            const completedAt = new Date(session.completed_at);
-            if (completedAt >= weekStart && completedAt <= weekEnd) {
-              completedThisWeek = true;
-              completionDate = completedAt;
-            }
-          }
+          const completedAt = new Date(session.completed_at);
           
-          // Also check exercise feedback dates (for sessions without completed_at)
-          if (!completedThisWeek && session.session_exercises?.length > 0) {
-            const exerciseFeedbackDates = session.session_exercises
-              .filter((ex: any) => ex.sportif_feedback_at)
-              .map((ex: any) => new Date(ex.sportif_feedback_at));
+          // Vérifier si la séance a été validée cette semaine
+          if (completedAt >= weekStart && completedAt <= weekEnd) {
+            const athleteName = profileMap.get(athleteId) || "Inconnu";
             
-            if (exerciseFeedbackDates.length > 0) {
-              // Get the most recent feedback date
-              const latestFeedback = new Date(Math.max(...exerciseFeedbackDates.map((d: Date) => d.getTime())));
-              if (latestFeedback >= weekStart && latestFeedback <= weekEnd) {
-                completedThisWeek = true;
-                completionDate = latestFeedback;
-              }
-            }
-          }
-
-          if (completedThisWeek && completionDate) {
-            // Utiliser l'ID de session comme clé unique pour éviter les doublons
-            // Une séance ne peut apparaître qu'une seule fois
+            // Utiliser l'ID de session comme clé unique
             if (!sessionsMap.has(session.id)) {
               sessionsMap.set(session.id, {
                 id: session.id,
@@ -305,7 +281,7 @@ export default function Agenda() {
                 athleteName,
                 sessionName: session.athlete_custom_name || session.name,
                 sessionType: session.session_type,
-                completedAt: completionDate,
+                completedAt: completedAt,
                 weekNumber: 0,
               });
             }
