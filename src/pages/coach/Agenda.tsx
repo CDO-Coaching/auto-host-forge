@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getWeekNumber } from "@/lib/weekUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -191,6 +192,8 @@ export default function Agenda() {
       const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+      const currentWeekNum = getWeekNumber(currentWeekStart);
+      const currentYear = currentWeekStart.getFullYear();
 
       // Get coach's athletes
       const { data: relationships } = await supabase
@@ -217,7 +220,8 @@ export default function Agenda() {
         profiles?.map((p) => [p.id, `${p.first_name} ${p.last_name}`]) || []
       );
 
-      // Get training weeks for these athletes
+      // Get ALL training weeks for these athletes (not just current week)
+      // because a session might be in a different planning week but completed this week
       const { data: trainingWeeks } = await supabase
         .from("training_weeks")
         .select("id, athlete_id")
@@ -226,7 +230,7 @@ export default function Agenda() {
       const weekIds = trainingWeeks?.map(w => w.id) || [];
       const weekToAthleteMap = new Map(trainingWeeks?.map(w => [w.id, w.athlete_id]) || []);
 
-      // Get all sessions with exercises for these weeks
+      // Get sessions that were COMPLETED during this week (filter by completed_at date range)
       const { data: allSessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
         .select(`
@@ -239,7 +243,10 @@ export default function Agenda() {
           session_rpe,
           session_comment
         `)
-        .in("week_id", weekIds);
+        .in("week_id", weekIds)
+        .not("completed_at", "is", null)
+        .gte("completed_at", `${weekStartStr}T00:00:00`)
+        .lte("completed_at", `${weekEndStr}T23:59:59`);
 
       if (sessionsError) {
         console.error("Error fetching athlete sessions:", sessionsError);
@@ -260,35 +267,28 @@ export default function Agenda() {
 
       const sessionsMap = new Map<string, AthleteSession>();
       
-      // Process training sessions - UNIQUEMENT basé sur completed_at de la séance
+      // Process training sessions - le filtrage par date est déjà fait dans la requête SQL
       if (allSessionsData) {
         allSessionsData.forEach((session: any) => {
           const athleteId = weekToAthleteMap.get(session.week_id);
           if (!athleteId) return;
 
-          // Uniquement les séances avec une date de validation (completed_at)
-          if (!session.completed_at) return;
-
           const completedAt = new Date(session.completed_at);
+          const athleteName = profileMap.get(athleteId) || "Inconnu";
           
-          // Vérifier si la séance a été validée cette semaine
-          if (completedAt >= weekStart && completedAt <= weekEnd) {
-            const athleteName = profileMap.get(athleteId) || "Inconnu";
-            
-            // Utiliser l'ID de session comme clé unique
-            if (!sessionsMap.has(session.id)) {
-              sessionsMap.set(session.id, {
-                id: session.id,
-                athleteId,
-                athleteName,
-                sessionName: session.athlete_custom_name || session.name,
-                sessionType: session.session_type,
-                completedAt: completedAt,
-                weekNumber: 0,
-                sessionRpe: session.session_rpe || null,
-                sessionComment: session.session_comment || null,
-              });
-            }
+          // Utiliser l'ID de session comme clé unique
+          if (!sessionsMap.has(session.id)) {
+            sessionsMap.set(session.id, {
+              id: session.id,
+              athleteId,
+              athleteName,
+              sessionName: session.athlete_custom_name || session.name,
+              sessionType: session.session_type,
+              completedAt: completedAt,
+              weekNumber: 0,
+              sessionRpe: session.session_rpe || null,
+              sessionComment: session.session_comment || null,
+            });
           }
         });
       }
