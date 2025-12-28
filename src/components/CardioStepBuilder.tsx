@@ -477,8 +477,8 @@ export function CardioStepBuilder({
                             max="120"
                             value={step.vma_percentage || ""}
                             onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
-                            placeholder="65"
-                            disabled={disabled || !athleteVma}
+                            placeholder="ex: 70, 80..."
+                            disabled={disabled}
                             className="text-sm"
                           />
                           {athleteVma ? (
@@ -486,8 +486,8 @@ export function CardioStepBuilder({
                               Allure: <span className="font-medium text-foreground">{calculatePace(step.vma_percentage)}</span>
                             </div>
                           ) : (
-                            <div className="text-xs text-destructive">
-                              VMA non renseignée
+                            <div className="text-xs text-amber-600">
+                              L'allure sera calculée automatiquement selon la VMA de l'athlète
                             </div>
                           )}
                         </div>
