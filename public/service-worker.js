@@ -1,7 +1,7 @@
 // Service Worker pour PWA
 // Objectif: cache uniquement l'app shell / assets statiques, jamais les appels API.
 
-const CACHE_NAME = 'cdo-coaching-v3';
+const CACHE_NAME = 'cdo-coaching-v2';
 const urlsToCache = [
   '/',
   '/sportif/seances',
@@ -58,22 +58,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pour les assets same-origin:
-  // - scripts/styles: network-first (évite les bundles JS obsolètes = erreurs React)
-  // - autres assets: cache-first
-  if (req.destination === 'script' || req.destination === 'style') {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const resClone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
-          return res;
-        })
-        .catch(() => caches.match(req)),
-    );
-    return;
-  }
-
+  // Pour les assets same-origin: cache-first.
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
