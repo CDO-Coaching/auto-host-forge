@@ -28,6 +28,7 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -151,6 +152,10 @@ export default function ClientDetail() {
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
   const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon">("renfo");
+  const [sessionTemplates, setSessionTemplates] = useState<Array<{ id: string; name: string; session_type: string; cardio_sport: string | null }>>([]);
+  const [selectedCardioSport, setSelectedCardioSport] = useState<"course" | "velo" | "natation">("course");
+  const [templateSearchQuery, setTemplateSearchQuery] = useState("");
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -183,6 +188,7 @@ export default function ClientDetail() {
     loadAthleteObjectives();
     loadHeaderMonotony();
     loadHeaderInjury();
+    loadSessionTemplates();
     
     // Restaurer les données sauvegardées localement
     const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
@@ -209,6 +215,17 @@ export default function ClientDetail() {
       localStorage.setItem(`coach-programming-${athleteId}`, JSON.stringify(dataToSave));
     }
   }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
+
+  const loadSessionTemplates = async () => {
+    const { data, error } = await supabase
+      .from("session_templates")
+      .select("id, name, session_type, cardio_sport")
+      .order("name");
+
+    if (!error && data) {
+      setSessionTemplates(data);
+    }
+  };
 
   const loadLibraryExercises = async () => {
     const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral, category").order("name");
@@ -853,7 +870,7 @@ export default function ClientDetail() {
         rpe: "",
         tempo: "",
         commentaire: "",
-        cardio_sport: "course",
+        cardio_sport: selectedCardioSport,
         cardio_content: "",
         cardio_pace: "",
       };
@@ -882,8 +899,74 @@ export default function ClientDetail() {
     }
 
     setNewSessionType("renfo"); // Reset to default
+    setShowTemplateSelector(false);
     toast.success(`Séance créée`);
   };
+
+  const handleCreateSessionFromTemplate = async (templateId: string) => {
+    // Charger les exercices du template
+    const { data: templateData } = await supabase
+      .from("session_templates")
+      .select("*")
+      .eq("id", templateId)
+      .single();
+
+    const { data: templateExercises } = await supabase
+      .from("session_template_exercises")
+      .select("*")
+      .eq("template_id", templateId)
+      .order("ordre", { ascending: true });
+
+    if (!templateData) {
+      toast.error("Template introuvable");
+      return;
+    }
+
+    const nextSessionNumber = sessions.length + 1;
+    
+    const newSession: Session = {
+      id: nextSessionNumber,
+      name: templateData.name,
+      isExpanded: false,
+      session_type: templateData.session_type as "renfo" | "cardio" | "recup",
+    };
+
+    setSessions([...sessions, newSession]);
+
+    // Convertir les exercices du template en exercices de séance
+    if (templateExercises && templateExercises.length > 0) {
+      const exercises: Exercise[] = templateExercises.map((ex, idx) => ({
+        id: idx + 1,
+        exercice: ex.exercice,
+        recuperation: ex.recuperation || "",
+        reps: ex.reps || "",
+        series: ex.series || "",
+        charge: ex.charge || "",
+        rpe: ex.rpe || "",
+        tempo: ex.tempo || "",
+        commentaire: ex.commentaire || "",
+        is_duration: ex.is_duration || false,
+        per_side: ex.per_side || false,
+        cardio_sport: ex.cardio_sport as any || undefined,
+        cardio_content: ex.cardio_content ? JSON.stringify(ex.cardio_content) : "",
+        cardio_pace: ex.cardio_pace || "",
+      }));
+
+      setSessionExercises({
+        ...sessionExercises,
+        [nextSessionNumber]: exercises,
+      });
+    }
+
+    setShowTemplateSelector(false);
+    setTemplateSearchQuery("");
+    toast.success(`Séance "${templateData.name}" importée`);
+  };
+
+  // Filtrer les templates par sport cardio sélectionné
+  const filteredCardioTemplates = sessionTemplates
+    .filter(t => t.session_type === "cardio" && t.cardio_sport === selectedCardioSport)
+    .filter(t => templateSearchQuery === "" || t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()));
 
   const toggleSession = (sessionId: number) => {
     if (expandedSessionId === sessionId) {
@@ -3622,46 +3705,49 @@ export default function ClientDetail() {
 
               {/* Boutons de création - optimisés mobile */}
               {!isValidated && (
-                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
-                  {historicalWeeks.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCopyDialog(true)}
-                      disabled={!selectedWeekToProgram}
-                      className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      <span className="sm:hidden">Copier semaine</span>
-                      <span className="hidden sm:inline">Copier d'une semaine</span>
-                    </Button>
-                  )}
-                  {/* Grille 2x2 sur mobile, inline sur desktop */}
-                  <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2 sm:ml-auto">
+                <div className="mt-4 sm:mt-6 space-y-3">
+                  <div className="flex flex-wrap gap-2 items-center">
+                    {historicalWeeks.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCopyDialog(true)}
+                        disabled={!selectedWeekToProgram}
+                        className="h-9 sm:h-8 text-xs"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="sm:hidden">Copier</span>
+                        <span className="hidden sm:inline">Copier d'une semaine</span>
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {/* Types de séance */}
+                  <div className="flex flex-wrap gap-2 items-center">
                     <Button
                       size="sm"
                       variant={newSessionType === "renfo" ? "default" : "outline"}
-                      onClick={() => setNewSessionType("renfo")}
+                      onClick={() => { setNewSessionType("renfo"); setShowTemplateSelector(false); }}
                       disabled={!selectedWeekToProgram}
-                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
+                      className="h-9 sm:h-8 text-xs sm:text-sm"
                     >
                       Renfo
                     </Button>
                     <Button
                       size="sm"
                       variant={newSessionType === "cardio" ? "default" : "outline"}
-                      onClick={() => setNewSessionType("cardio")}
+                      onClick={() => { setNewSessionType("cardio"); setShowTemplateSelector(true); }}
                       disabled={!selectedWeekToProgram}
-                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
+                      className="h-9 sm:h-8 text-xs sm:text-sm"
                     >
                       Cardio
                     </Button>
                     <Button
                       size="sm"
                       variant={newSessionType === "recup" ? "default" : "outline"}
-                      onClick={() => setNewSessionType("recup")}
+                      onClick={() => { setNewSessionType("recup"); setShowTemplateSelector(false); }}
                       disabled={!selectedWeekToProgram}
-                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
+                      className="h-9 sm:h-8 text-xs sm:text-sm"
                     >
                       Récup
                     </Button>
@@ -3669,12 +3755,77 @@ export default function ClientDetail() {
                       size="sm" 
                       onClick={handleCreateSession} 
                       disabled={!selectedWeekToProgram} 
-                      className="h-11 sm:h-8 text-[11px] sm:text-sm px-2 sm:px-3 min-w-[44px]"
+                      className="h-9 sm:h-8 text-xs sm:text-sm ml-auto"
                     >
-                      <Plus className="h-4 w-4" />
-                      <span className="hidden sm:inline ml-1">Créer</span>
+                      <Plus className="h-4 w-4 mr-1" />
+                      Créer vide
                     </Button>
                   </div>
+
+                  {/* Sélecteur de templates cardio */}
+                  {newSessionType === "cardio" && showTemplateSelector && (
+                    <div className="p-4 border rounded-lg bg-muted/30 space-y-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium">Sport :</span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant={selectedCardioSport === "course" ? "default" : "outline"}
+                            onClick={() => setSelectedCardioSport("course")}
+                            className="h-7 text-xs"
+                          >
+                            Course
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={selectedCardioSport === "velo" ? "default" : "outline"}
+                            onClick={() => setSelectedCardioSport("velo")}
+                            className="h-7 text-xs"
+                          >
+                            Vélo
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={selectedCardioSport === "natation" ? "default" : "outline"}
+                            onClick={() => setSelectedCardioSport("natation")}
+                            className="h-7 text-xs"
+                          >
+                            Natation
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Rechercher une séance programmée..."
+                          value={templateSearchQuery}
+                          onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+
+                      {filteredCardioTemplates.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Aucune séance programmée pour {selectedCardioSport === "course" ? "la course" : selectedCardioSport === "velo" ? "le vélo" : "la natation"}
+                        </p>
+                      ) : (
+                        <div className="grid gap-2 max-h-48 overflow-y-auto">
+                          {filteredCardioTemplates.map((template) => (
+                            <Button
+                              key={template.id}
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCreateSessionFromTemplate(template.id)}
+                              className="justify-start h-auto py-2 px-3 text-left"
+                            >
+                              <span className="truncate">{template.name}</span>
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
