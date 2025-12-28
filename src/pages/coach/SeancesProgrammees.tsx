@@ -18,6 +18,9 @@ import {
   Heart,
   Edit,
   Copy,
+  Folder,
+  FolderOpen,
+  FolderPlus,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -39,6 +42,13 @@ import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/compon
 import { calculateCardioMetrics } from "@/lib/cardioCalculations";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface TemplateFolder {
+  id: string;
+  name: string;
+  category: string;
+  ordre: number;
+}
+
 interface SessionTemplate {
   id: string;
   name: string;
@@ -46,6 +56,7 @@ interface SessionTemplate {
   cardio_sport?: "course" | "velo" | "natation" | null;
   description?: string;
   created_at: string;
+  folder_id?: string | null;
 }
 
 interface TemplateExercise {
@@ -88,9 +99,11 @@ interface LocalExercise {
 export default function SeancesProgrammees() {
   const { session: authSession } = useAuth();
   const [templates, setTemplates] = useState<SessionTemplate[]>([]);
+  const [folders, setFolders] = useState<TemplateFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"renfo" | "course" | "velo" | "natation">("renfo");
   const [expandedTemplateId, setExpandedTemplateId] = useState<string | null>(null);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [templateExercises, setTemplateExercises] = useState<Record<string, TemplateExercise[]>>({});
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean; category?: string }>>([]);
   
@@ -99,11 +112,19 @@ export default function SeancesProgrammees() {
   const [editingTemplate, setEditingTemplate] = useState<SessionTemplate | null>(null);
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateDescription, setNewTemplateDescription] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [localExercises, setLocalExercises] = useState<LocalExercise[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [templateToDelete, setTemplateToDelete] = useState<SessionTemplate | null>(null);
+  
+  // Folder dialogs
+  const [showFolderDialog, setShowFolderDialog] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<TemplateFolder | null>(null);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [showDeleteFolderDialog, setShowDeleteFolderDialog] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<TemplateFolder | null>(null);
 
   const recuperationOptions = [
     { value: "30s", label: "30 secondes" },
@@ -126,8 +147,20 @@ export default function SeancesProgrammees() {
 
   useEffect(() => {
     loadTemplates();
+    loadFolders();
     loadLibraryExercises();
   }, []);
+
+  const loadFolders = async () => {
+    const { data, error } = await supabase
+      .from("session_template_folders")
+      .select("*")
+      .order("ordre", { ascending: true });
+
+    if (!error && data) {
+      setFolders(data);
+    }
+  };
 
   const loadTemplates = async () => {
     setLoading(true);
@@ -197,6 +230,10 @@ export default function SeancesProgrammees() {
     }
   };
 
+  const getCategoryForTab = (): string => {
+    return activeTab;
+  };
+
   const filteredTemplates = templates.filter(t => {
     if (activeTab === "renfo") {
       return t.session_type === "renfo";
@@ -204,10 +241,104 @@ export default function SeancesProgrammees() {
     return t.session_type === "cardio" && t.cardio_sport === activeTab;
   });
 
-  const handleCreateTemplate = () => {
+  const filteredFolders = folders.filter(f => f.category === activeTab);
+
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolderIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(folderId)) {
+        newSet.delete(folderId);
+      } else {
+        newSet.add(folderId);
+      }
+      return newSet;
+    });
+  };
+
+  const getTemplatesInFolder = (folderId: string) => {
+    return filteredTemplates.filter(t => t.folder_id === folderId);
+  };
+
+  const getTemplatesWithoutFolder = () => {
+    return filteredTemplates.filter(t => !t.folder_id);
+  };
+
+  // Folder management
+  const handleCreateFolder = () => {
+    setEditingFolder(null);
+    setNewFolderName("");
+    setShowFolderDialog(true);
+  };
+
+  const handleEditFolder = (folder: TemplateFolder) => {
+    setEditingFolder(folder);
+    setNewFolderName(folder.name);
+    setShowFolderDialog(true);
+  };
+
+  const handleSaveFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast.error("Le nom du dossier est obligatoire");
+      return;
+    }
+
+    if (editingFolder) {
+      const { error } = await supabase
+        .from("session_template_folders")
+        .update({ name: newFolderName })
+        .eq("id", editingFolder.id);
+
+      if (error) {
+        toast.error("Erreur lors de la modification");
+      } else {
+        toast.success("Dossier modifié");
+        loadFolders();
+      }
+    } else {
+      const { error } = await supabase
+        .from("session_template_folders")
+        .insert({
+          coach_id: authSession?.user?.id,
+          name: newFolderName,
+          category: getCategoryForTab(),
+          ordre: filteredFolders.length,
+        });
+
+      if (error) {
+        toast.error("Erreur lors de la création");
+      } else {
+        toast.success("Dossier créé");
+        loadFolders();
+      }
+    }
+    setShowFolderDialog(false);
+  };
+
+  const handleDeleteFolder = async () => {
+    if (!folderToDelete) return;
+
+    // Les templates dans ce dossier seront mis à null (ON DELETE SET NULL)
+    const { error } = await supabase
+      .from("session_template_folders")
+      .delete()
+      .eq("id", folderToDelete.id);
+
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+    } else {
+      toast.success("Dossier supprimé");
+      loadFolders();
+      loadTemplates(); // Pour mettre à jour les folder_id des templates
+    }
+    setShowDeleteFolderDialog(false);
+    setFolderToDelete(null);
+  };
+
+  const handleCreateTemplate = (folderId?: string) => {
     setEditingTemplate(null);
     setNewTemplateName("");
     setNewTemplateDescription("");
+    setSelectedFolderId(folderId || null);
     
     const typeConfig = getSessionTypeForTab();
     if (typeConfig.session_type === "cardio") {
@@ -354,6 +485,7 @@ export default function SeancesProgrammees() {
           .update({
             name: newTemplateName,
             description: newTemplateDescription,
+            folder_id: selectedFolderId,
             ...cardioMetrics,
           })
           .eq("id", editingTemplate.id);
@@ -399,6 +531,7 @@ export default function SeancesProgrammees() {
             session_type: typeConfig.session_type,
             cardio_sport: typeConfig.cardio_sport || null,
             description: newTemplateDescription,
+            folder_id: selectedFolderId,
             ...cardioMetrics,
           })
           .select()
@@ -503,6 +636,159 @@ export default function SeancesProgrammees() {
     }
   };
 
+  // Composant pour afficher un template
+  const TemplateCard = ({ 
+    template, 
+    expandedTemplateId, 
+    templateExercises, 
+    onExpand, 
+    onEdit, 
+    onDuplicate, 
+    onDelete 
+  }: { 
+    template: SessionTemplate;
+    expandedTemplateId: string | null;
+    templateExercises: Record<string, TemplateExercise[]>;
+    onExpand: (id: string) => void;
+    onEdit: (t: SessionTemplate) => void;
+    onDuplicate: (t: SessionTemplate) => void;
+    onDelete: (t: SessionTemplate) => void;
+  }) => (
+    <Card className="border-l-4 border-l-primary/30">
+      <Collapsible
+        open={expandedTemplateId === template.id}
+        onOpenChange={() => onExpand(template.id)}
+      >
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {expandedTemplateId === template.id ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+                <div>
+                  <CardTitle className="text-base">{template.name}</CardTitle>
+                  {template.description && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {template.description}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDuplicate(template);
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(template);
+                  }}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(template);
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {templateExercises[template.id] ? (
+              template.session_type === "cardio" ? (
+                <div className="space-y-4">
+                  {templateExercises[template.id].map((ex) => (
+                    <div key={ex.id} className="p-4 border rounded-lg">
+                      {ex.cardio_content && (() => {
+                        const cardioData = typeof ex.cardio_content === 'string' 
+                          ? JSON.parse(ex.cardio_content) 
+                          : ex.cardio_content;
+                        return (
+                          <CardioStepBuilder
+                            steps={cardioData.steps || []}
+                            blocks={cardioData.blocks || []}
+                            onChange={() => {}}
+                            sportType={ex.cardio_sport as any || "course"}
+                            athleteVma={null}
+                            disabled={true}
+                          />
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Exercice</TableHead>
+                      <TableHead>Récup</TableHead>
+                      <TableHead>Reps</TableHead>
+                      <TableHead>Séries</TableHead>
+                      <TableHead>RPE</TableHead>
+                      <TableHead>Tempo</TableHead>
+                      <TableHead>Charge</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {templateExercises[template.id].map((ex) => (
+                      <TableRow key={ex.id}>
+                        <TableCell className="font-medium">
+                          {ex.exercice}
+                          {ex.per_side && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              par côté
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{ex.recuperation}</TableCell>
+                        <TableCell>
+                          {ex.reps}
+                          {ex.is_duration && <span className="text-xs text-muted-foreground ml-1">(sec)</span>}
+                        </TableCell>
+                        <TableCell>{ex.series}</TableCell>
+                        <TableCell>{ex.rpe}</TableCell>
+                        <TableCell>{ex.tempo}</TableCell>
+                        <TableCell>{ex.charge}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )
+            ) : (
+              <p className="text-muted-foreground text-center py-4">
+                Chargement des exercices...
+              </p>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -547,69 +833,77 @@ export default function SeancesProgrammees() {
         </TabsList>
 
         <TabsContent value={activeTab} className="mt-6">
-          <div className="flex justify-end mb-4">
-            <Button onClick={handleCreateTemplate}>
+          <div className="flex justify-end gap-2 mb-4">
+            <Button variant="outline" onClick={handleCreateFolder}>
+              <FolderPlus className="h-4 w-4 mr-2" />
+              Créer un dossier
+            </Button>
+            <Button onClick={() => handleCreateTemplate()}>
               <Plus className="h-4 w-4 mr-2" />
               Créer une séance
             </Button>
           </div>
 
-          {filteredTemplates.length === 0 ? (
+          {filteredTemplates.length === 0 && filteredFolders.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 {getTabIcon(activeTab)}
                 <p className="text-muted-foreground mt-4">
                   Aucune séance programmée pour cette catégorie
                 </p>
-                <Button onClick={handleCreateTemplate} className="mt-4" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer ma première séance
-                </Button>
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={handleCreateFolder} variant="outline">
+                    <FolderPlus className="h-4 w-4 mr-2" />
+                    Créer un dossier
+                  </Button>
+                  <Button onClick={() => handleCreateTemplate()}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Créer une séance
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {filteredTemplates.map((template) => (
-                <Card key={template.id}>
+              {/* Dossiers */}
+              {filteredFolders.map((folder) => (
+                <Card key={folder.id}>
                   <Collapsible
-                    open={expandedTemplateId === template.id}
-                    onOpenChange={() => handleExpandTemplate(template.id)}
+                    open={expandedFolderIds.has(folder.id)}
+                    onOpenChange={() => toggleFolder(folder.id)}
                   >
                     <CollapsibleTrigger asChild>
-                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                      <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors py-3">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            {expandedTemplateId === template.id ? (
-                              <ChevronDown className="h-5 w-5" />
+                            {expandedFolderIds.has(folder.id) ? (
+                              <FolderOpen className="h-5 w-5 text-primary" />
                             ) : (
-                              <ChevronRight className="h-5 w-5" />
+                              <Folder className="h-5 w-5 text-primary" />
                             )}
-                            <div>
-                              <CardTitle className="text-lg">{template.name}</CardTitle>
-                              {template.description && (
-                                <p className="text-sm text-muted-foreground mt-1">
-                                  {template.description}
-                                </p>
-                              )}
-                            </div>
+                            <CardTitle className="text-lg">{folder.name}</CardTitle>
+                            <Badge variant="secondary" className="text-xs">
+                              {getTemplatesInFolder(folder.id).length} séance{getTemplatesInFolder(folder.id).length > 1 ? 's' : ''}
+                            </Badge>
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
                               variant="ghost"
-                              size="icon"
+                              size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleDuplicateTemplate(template);
+                                handleCreateTemplate(folder.id);
                               }}
                             >
-                              <Copy className="h-4 w-4" />
+                              <Plus className="h-4 w-4 mr-1" />
+                              Ajouter
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleEditTemplate(template);
+                                handleEditFolder(folder);
                               }}
                             >
                               <Edit className="h-4 w-4" />
@@ -619,8 +913,8 @@ export default function SeancesProgrammees() {
                               size="icon"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setTemplateToDelete(template);
-                                setShowDeleteDialog(true);
+                                setFolderToDelete(folder);
+                                setShowDeleteFolderDialog(true);
                               }}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -630,82 +924,59 @@ export default function SeancesProgrammees() {
                       </CardHeader>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <CardContent>
-                        {templateExercises[template.id] ? (
-                          template.session_type === "cardio" ? (
-                            <div className="space-y-4">
-                                {templateExercises[template.id].map((ex) => (
-                                <div key={ex.id} className="p-4 border rounded-lg">
-                                  {ex.cardio_content && (() => {
-                                    const cardioData = typeof ex.cardio_content === 'string' 
-                                      ? JSON.parse(ex.cardio_content) 
-                                      : ex.cardio_content;
-                                    return (
-                                      <CardioStepBuilder
-                                        steps={cardioData.steps || []}
-                                        blocks={cardioData.blocks || []}
-                                        onChange={() => {}}
-                                        sportType={ex.cardio_sport as any || "course"}
-                                        athleteVma={null}
-                                        disabled={true}
-                                      />
-                                    );
-                                  })()}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Exercice</TableHead>
-                                  <TableHead>Récup</TableHead>
-                                  <TableHead>Reps</TableHead>
-                                  <TableHead>Séries</TableHead>
-                                  <TableHead>RPE</TableHead>
-                                  <TableHead>Tempo</TableHead>
-                                  <TableHead>Charge</TableHead>
-                                  <TableHead>Commentaire</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {templateExercises[template.id].map((ex) => (
-                                  <TableRow key={ex.id}>
-                                    <TableCell className="font-medium">
-                                      {ex.exercice}
-                                      {ex.per_side && (
-                                        <Badge variant="outline" className="ml-2 text-xs">
-                                          par côté
-                                        </Badge>
-                                      )}
-                                    </TableCell>
-                                    <TableCell>{ex.recuperation}</TableCell>
-                                    <TableCell>
-                                      {ex.reps}
-                                      {ex.is_duration && <span className="text-xs text-muted-foreground ml-1">(sec)</span>}
-                                    </TableCell>
-                                    <TableCell>{ex.series}</TableCell>
-                                    <TableCell>{ex.rpe}</TableCell>
-                                    <TableCell>{ex.tempo}</TableCell>
-                                    <TableCell>{ex.charge}</TableCell>
-                                    <TableCell className="max-w-[200px] truncate">
-                                      {ex.commentaire}
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          )
-                        ) : (
-                          <p className="text-muted-foreground text-center py-4">
-                            Chargement des exercices...
+                      <CardContent className="pt-0 space-y-3">
+                        {getTemplatesInFolder(folder.id).length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Aucune séance dans ce dossier
                           </p>
+                        ) : (
+                          getTemplatesInFolder(folder.id).map((template) => (
+                            <TemplateCard
+                              key={template.id}
+                              template={template}
+                              expandedTemplateId={expandedTemplateId}
+                              templateExercises={templateExercises}
+                              onExpand={handleExpandTemplate}
+                              onEdit={handleEditTemplate}
+                              onDuplicate={handleDuplicateTemplate}
+                              onDelete={(t) => {
+                                setTemplateToDelete(t);
+                                setShowDeleteDialog(true);
+                              }}
+                            />
+                          ))
                         )}
                       </CardContent>
                     </CollapsibleContent>
                   </Collapsible>
                 </Card>
               ))}
+
+              {/* Templates sans dossier */}
+              {getTemplatesWithoutFolder().length > 0 && (
+                <>
+                  {filteredFolders.length > 0 && (
+                    <div className="text-sm text-muted-foreground font-medium pt-2">
+                      Séances sans dossier
+                    </div>
+                  )}
+                  {getTemplatesWithoutFolder().map((template) => (
+                    <TemplateCard
+                      key={template.id}
+                      template={template}
+                      expandedTemplateId={expandedTemplateId}
+                      templateExercises={templateExercises}
+                      onExpand={handleExpandTemplate}
+                      onEdit={handleEditTemplate}
+                      onDuplicate={handleDuplicateTemplate}
+                      onDelete={(t) => {
+                        setTemplateToDelete(t);
+                        setShowDeleteDialog(true);
+                      }}
+                    />
+                  ))}
+                </>
+              )}
             </div>
           )}
         </TabsContent>
@@ -944,6 +1215,57 @@ export default function SeancesProgrammees() {
               Annuler
             </Button>
             <Button variant="destructive" onClick={handleDeleteTemplate}>
+              Supprimer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Folder Create/Edit Dialog */}
+      <Dialog open={showFolderDialog} onOpenChange={setShowFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingFolder ? "Modifier le dossier" : "Créer un dossier"}
+            </DialogTitle>
+            <DialogDescription>
+              Les dossiers vous permettent d'organiser vos séances programmées.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <label className="text-sm font-medium">Nom du dossier</label>
+            <Input
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              placeholder="Ex: Débutant, Intermédiaire, Avancé..."
+              className="mt-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFolderDialog(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveFolder}>
+              {editingFolder ? "Modifier" : "Créer"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Folder Confirmation Dialog */}
+      <Dialog open={showDeleteFolderDialog} onOpenChange={setShowDeleteFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer ce dossier ?</DialogTitle>
+            <DialogDescription>
+              Le dossier "{folderToDelete?.name}" sera supprimé. Les séances qu'il contient ne seront pas supprimées mais seront déplacées hors du dossier.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteFolderDialog(false)}>
+              Annuler
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteFolder}>
               Supprimer
             </Button>
           </DialogFooter>
