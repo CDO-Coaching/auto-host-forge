@@ -1,4 +1,4 @@
-import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays } from "lucide-react";
+import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
@@ -17,6 +17,7 @@ import {
 const menuItems = [
   { title: "Mes clients", url: "/coach/mes-clients", icon: Users },
   { title: "Agenda", url: "/coach/agenda", icon: CalendarDays },
+  { title: "Séances programmées", url: "/coach/seances-programmees", icon: ClipboardList },
   { title: "Notes", url: "/coach/notes", icon: StickyNote },
   { title: "Messagerie", url: "/coach/messagerie", icon: MessageCircle, showBadge: true },
   { title: "Questions", url: "/coach/questions", icon: HelpCircle },
