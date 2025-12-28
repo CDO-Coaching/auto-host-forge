@@ -156,6 +156,7 @@ export default function ClientDetail() {
   const [selectedCardioSport, setSelectedCardioSport] = useState<"course" | "velo" | "natation">("course");
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [showRenfoTemplateSelector, setShowRenfoTemplateSelector] = useState<number | null>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -968,7 +969,12 @@ export default function ClientDetail() {
     .filter(t => t.session_type === "cardio" && t.cardio_sport === selectedCardioSport)
     .filter(t => templateSearchQuery === "" || t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()));
 
-  // Importer un template dans une séance existante
+  // Filtrer les templates renfo
+  const filteredRenfoTemplates = sessionTemplates
+    .filter(t => t.session_type === "renfo")
+    .filter(t => templateSearchQuery === "" || t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()));
+
+  // Importer un template dans une séance existante (cardio)
   const handleImportTemplateToSession = async (templateId: string, sessionId: number, exerciseId: number) => {
     const { data: templateData } = await supabase
       .from("session_templates")
@@ -1017,6 +1023,58 @@ export default function ClientDetail() {
     });
 
     setShowTemplateSelector(false);
+    setTemplateSearchQuery("");
+    toast.success(`Séance "${templateData.name}" importée`);
+  };
+
+  // Importer un template renfo dans une séance existante
+  const handleImportRenfoTemplateToSession = async (templateId: string, sessionId: number) => {
+    const { data: templateData } = await supabase
+      .from("session_templates")
+      .select("*")
+      .eq("id", templateId)
+      .single();
+
+    const { data: templateExercises } = await supabase
+      .from("session_template_exercises")
+      .select("*")
+      .eq("template_id", templateId)
+      .order("ordre", { ascending: true });
+
+    if (!templateData || !templateExercises || templateExercises.length === 0) {
+      toast.error("Template introuvable ou vide");
+      return;
+    }
+
+    // Mettre à jour le nom de la séance
+    setSessions(sessions.map(s => 
+      s.id === sessionId 
+        ? { ...s, name: templateData.name }
+        : s
+    ));
+
+    // Convertir les exercices du template en exercices de séance
+    const exercises: Exercise[] = templateExercises.map((ex, idx) => ({
+      id: idx + 1,
+      exercice: ex.exercice,
+      recuperation: ex.recuperation || "",
+      reps: ex.reps || "",
+      series: ex.series || "",
+      charge: ex.charge || "",
+      rpe: ex.rpe || "",
+      tempo: ex.tempo || "",
+      commentaire: ex.commentaire || "",
+      is_duration: ex.is_duration || false,
+      per_side: ex.per_side || false,
+      is_unilateral: libraryExercises.find(e => e.name === ex.exercice)?.unilateral || false,
+    }));
+    
+    setSessionExercises({
+      ...sessionExercises,
+      [sessionId]: exercises,
+    });
+
+    setShowRenfoTemplateSelector(null);
     setTemplateSearchQuery("");
     toast.success(`Séance "${templateData.name}" importée`);
   };
@@ -3825,11 +3883,78 @@ export default function ClientDetail() {
                                   </div>
 
                                   {!isValidated && (
-                                    <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm" className="text-xs sm:text-sm">
-                                      <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                                      <span className="hidden sm:inline">Ajouter une ligne</span>
-                                      <span className="sm:hidden">Ajouter</span>
-                                    </Button>
+                                    <div className="flex gap-2 flex-wrap">
+                                      <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm" className="text-xs sm:text-sm">
+                                        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                                        <span className="hidden sm:inline">Ajouter une ligne</span>
+                                        <span className="sm:hidden">Ajouter</span>
+                                      </Button>
+                                      
+                                      {/* Bouton pour importer un template renfo */}
+                                      <Dialog 
+                                        open={showRenfoTemplateSelector === session.id} 
+                                        onOpenChange={(open) => {
+                                          setShowRenfoTemplateSelector(open ? session.id : null);
+                                          if (!open) setTemplateSearchQuery("");
+                                        }}
+                                      >
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            setShowRenfoTemplateSelector(session.id);
+                                            setTemplateSearchQuery("");
+                                          }}
+                                          className="text-xs sm:text-sm"
+                                        >
+                                          <Copy className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                                          <span className="hidden sm:inline">Importer</span>
+                                          <span className="sm:hidden">Import</span>
+                                        </Button>
+                                        <DialogContent className="max-w-md">
+                                          <DialogHeader>
+                                            <DialogTitle>Importer une séance programmée</DialogTitle>
+                                            <DialogDescription>
+                                              Sélectionnez une séance pour remplacer le contenu actuel
+                                            </DialogDescription>
+                                          </DialogHeader>
+                                          
+                                          <div className="space-y-4 py-4">
+                                            {/* Barre de recherche */}
+                                            <div className="relative">
+                                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                              <Input
+                                                placeholder="Rechercher..."
+                                                value={templateSearchQuery}
+                                                onChange={(e) => setTemplateSearchQuery(e.target.value)}
+                                                className="pl-9"
+                                              />
+                                            </div>
+                                            
+                                            {/* Liste des templates */}
+                                            <div className="max-h-60 overflow-y-auto space-y-2">
+                                              {filteredRenfoTemplates.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground text-center py-4">
+                                                  Aucune séance programmée
+                                                </p>
+                                              ) : (
+                                                filteredRenfoTemplates.map((template) => (
+                                                  <Button
+                                                    key={template.id}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleImportRenfoTemplateToSession(template.id, session.id)}
+                                                    className="w-full justify-start h-auto py-2 px-3 text-left"
+                                                  >
+                                                    <span className="truncate">{template.name}</span>
+                                                  </Button>
+                                                ))
+                                              )}
+                                            </div>
+                                          </div>
+                                        </DialogContent>
+                                      </Dialog>
+                                    </div>
                                   )}
                                 </>
                               )}
