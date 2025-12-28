@@ -984,7 +984,7 @@ export default function SeancesProgrammees() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] w-full lg:max-w-6xl xl:max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingTemplate ? "Modifier la séance" : "Créer une nouvelle séance"}
