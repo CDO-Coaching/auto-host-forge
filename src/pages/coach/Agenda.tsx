@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -193,7 +193,7 @@ export default function Agenda() {
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEnd, "yyyy-MM-dd");
       const currentWeekNum = getWeekNumber(currentWeekStart);
-      const currentYear = currentWeekStart.getFullYear();
+      const currentYear = getWeekYear(currentWeekStart);
 
       // Get coach's athletes
       const { data: relationships } = await supabase

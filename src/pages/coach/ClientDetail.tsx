@@ -36,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
-import { getWeekNumber, getNextWeeks, formatWeekRange } from "@/lib/weekUtils";
+import { getWeekNumber, getNextWeeks, formatWeekRange, getWeekYear } from "@/lib/weekUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -278,7 +278,7 @@ export default function ClientDetail() {
     // Calculer la semaine précédente (semaine actuelle - 1)
     const now = new Date();
     const currentWeek = getISOWeek(now);
-    const currentYear = now.getFullYear();
+    const currentYear = getWeekYear(now);
     
     // Calculer la semaine précédente
     let previousWeek = currentWeek - 1;

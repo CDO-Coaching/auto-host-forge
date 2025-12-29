@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { PauseReminderDialog } from "@/components/PauseReminderDialog";
 
 interface Athlete {
@@ -119,7 +119,7 @@ export default function MesClients() {
 
     // 3) Vérifier si la semaine en cours est programmée pour chaque athlète
     const currentWeek = getWeekNumber(new Date());
-    const currentYear = new Date().getFullYear();
+    const currentYear = getWeekYear(new Date());
     
     const athleteWeeksMap = new Map<string, boolean>();
     if ((approvedRels || []).length > 0) {

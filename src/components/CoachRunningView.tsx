@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCardioTime, formatCardioDistance, parsePaceToDecimal } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 
 interface IntensityZones {
   zoneLow: number;  // < 70% - temps en minutes
@@ -66,7 +66,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     // Obtenir la semaine en cours
     const now = new Date();
     const currentWeekNumber = getWeekNumber(now);
-    const currentYear = now.getFullYear();
+    const currentYear = getWeekYear(now);
 
     try {
       // Récupérer les séances de cardio avec les métriques pré-calculées pour la semaine en cours
