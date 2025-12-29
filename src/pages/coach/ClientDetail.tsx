@@ -1006,6 +1006,16 @@ export default function ClientDetail() {
     // Si le template a des exercices, utiliser le premier ; sinon utiliser la description du template comme commentaire
     const templateExercise = templateExercises && templateExercises.length > 0 ? templateExercises[0] : null;
     
+    // Déterminer le commentaire : priorité au commentaire de l'exercice, puis à la description du template
+    const finalCommentaire = templateExercise?.commentaire || templateData.description || "";
+    
+    console.log("Import template:", {
+      templateName: templateData.name,
+      templateDescription: templateData.description,
+      templateExerciseCommentaire: templateExercise?.commentaire,
+      finalCommentaire
+    });
+    
     const updatedExercises = currentExercises.map((ex) => 
       ex.id === exerciseId 
         ? {
@@ -1013,7 +1023,7 @@ export default function ClientDetail() {
             exercice: templateExercise?.exercice || templateData.name,
             cardio_sport: (templateExercise?.cardio_sport || templateData.cardio_sport) as any,
             cardio_content: templateExercise?.cardio_content ? JSON.stringify(templateExercise.cardio_content) : "",
-            commentaire: templateExercise?.commentaire || templateData.description || "",
+            commentaire: finalCommentaire,
           }
         : ex
     );
