@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, TrendingUp, Activity, Target, Calendar, Search, Weight } from "lucide-react";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { Input } from "@/components/ui/input";
 
 interface WeeklyStrengthData {
@@ -141,7 +141,7 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
       // Calculer la semaine actuelle
       const now = new Date();
       const currentWeekNumber = getWeekNumber(now);
-      const currentYear = now.getFullYear();
+      const currentYear = getWeekYear(now);
 
       // Identifier les exercices des 2 dernières semaines
       const recentExercisesSet = new Set<string>();

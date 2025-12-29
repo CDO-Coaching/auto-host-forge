@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Bike, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 
 interface IntensityZones {
   zoneLow: number;
@@ -56,7 +56,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
   const loadPlannedVolume = async (athleteId: string) => {
     const now = new Date();
     const currentWeekNumber = getWeekNumber(now);
-    const currentYear = now.getFullYear();
+    const currentYear = getWeekYear(now);
 
     try {
       const { data: sessions, error } = await supabase

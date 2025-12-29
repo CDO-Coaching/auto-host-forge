@@ -1,4 +1,4 @@
-import { getWeek, startOfWeek, endOfWeek, addWeeks, setWeek } from "date-fns";
+import { getWeek, getISOWeekYear, startOfWeek, endOfWeek, addWeeks, setWeek } from "date-fns";
 
 /**
  * Calcule le numéro de semaine ISO basé sur le lundi comme premier jour de la semaine
@@ -6,7 +6,17 @@ import { getWeek, startOfWeek, endOfWeek, addWeeks, setWeek } from "date-fns";
  * @returns Le numéro de semaine ISO
  */
 export function getWeekNumber(date: Date): number {
-  return getWeek(date, { weekStartsOn: 1 }); // 1 = lundi
+  return getWeek(date, { weekStartsOn: 1, firstWeekContainsDate: 4 }); // ISO week
+}
+
+/**
+ * Retourne l'année ISO de la semaine (peut différer de l'année calendaire)
+ * Par exemple: 29/12/2025 appartient à la semaine 1 de 2026
+ * @param date La date pour laquelle calculer l'année de la semaine
+ * @returns L'année ISO de la semaine
+ */
+export function getWeekYear(date: Date): number {
+  return getISOWeekYear(date);
 }
 
 /**
@@ -40,7 +50,7 @@ export function getNextWeeks(count: number = 12) {
   for (let i = 0; i < count; i++) {
     const targetDate = addWeeks(mondayOfCurrentWeek, i);
     const weekNum = getWeekNumber(targetDate);
-    const year = targetDate.getFullYear();
+    const year = getWeekYear(targetDate); // Utilise l'année ISO de la semaine
     weeks.push({ 
       week: weekNum, 
       year, 

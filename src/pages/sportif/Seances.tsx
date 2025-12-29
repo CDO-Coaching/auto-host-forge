@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, CheckCircle2, Clock, Pencil, Trash2, CalendarPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getWeekNumber, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
@@ -71,7 +71,7 @@ export default function Seances() {
       console.error("Erreur lors du chargement des semaines:", error);
     } else {
       const now = new Date();
-      const currentYear = now.getFullYear();
+      const currentYear = getWeekYear(now);
       const currentWeekNumber = getWeekNumber(now);
 
       const filteredWeeks = (data || []).filter((week: any) => {

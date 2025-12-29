@@ -4,7 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { getWeekNumber } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 
 interface ExerciseWeekData {
   week: string;
@@ -82,7 +82,7 @@ export function CoachExerciseProgressPanel({ athleteId }: CoachExerciseProgressP
 
       const now = new Date();
       const currentWeekNumber = getWeekNumber(now);
-      const currentYear = now.getFullYear();
+      const currentYear = getWeekYear(now);
 
       // Identifier les exercices des 2 dernières semaines
       const recentExercisesSet = new Set<string>();
