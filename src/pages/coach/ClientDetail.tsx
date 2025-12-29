@@ -988,8 +988,8 @@ export default function ClientDetail() {
       .eq("template_id", templateId)
       .order("ordre", { ascending: true });
 
-    if (!templateData || !templateExercises || templateExercises.length === 0) {
-      toast.error("Template introuvable ou vide");
+    if (!templateData) {
+      toast.error("Template introuvable");
       return;
     }
 
@@ -1000,19 +1000,20 @@ export default function ClientDetail() {
         : s
     ));
 
-    // Récupérer le premier exercice du template (pour cardio, il n'y en a qu'un)
-    const templateExercise = templateExercises[0];
-    
     // Mettre à jour l'exercice cardio avec le contenu du template
     const currentExercises = sessionExercises[sessionId] || [];
+    
+    // Si le template a des exercices, utiliser le premier ; sinon utiliser la description du template comme commentaire
+    const templateExercise = templateExercises && templateExercises.length > 0 ? templateExercises[0] : null;
+    
     const updatedExercises = currentExercises.map((ex) => 
       ex.id === exerciseId 
         ? {
             ...ex,
-            exercice: templateExercise.exercice,
-            cardio_sport: templateExercise.cardio_sport as any,
-            cardio_content: templateExercise.cardio_content ? JSON.stringify(templateExercise.cardio_content) : "",
-            commentaire: templateExercise.commentaire || "",
+            exercice: templateExercise?.exercice || templateData.name,
+            cardio_sport: (templateExercise?.cardio_sport || templateData.cardio_sport) as any,
+            cardio_content: templateExercise?.cardio_content ? JSON.stringify(templateExercise.cardio_content) : "",
+            commentaire: templateExercise?.commentaire || templateData.description || "",
           }
         : ex
     );
