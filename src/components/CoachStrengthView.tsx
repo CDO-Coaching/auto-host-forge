@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Dumbbell, TrendingUp, Activity, Target, Calendar, Search, Weight } from "lucide-react";
-import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 import { Input } from "@/components/ui/input";
 
 interface WeeklyStrengthData {
@@ -147,10 +147,14 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
       const recentExercisesSet = new Set<string>();
       sessions?.forEach((session: any) => {
         const weekNumber = session.training_weeks.week_number;
-        const year = session.training_weeks.year;
+        const dbYear = session.training_weeks.year;
+        
+        // Recalculer l'année ISO correcte
+        const dateForWeek = getDateFromWeekNumber(weekNumber, dbYear);
+        const isoYear = getWeekYear(dateForWeek);
         
         // Vérifier si c'est dans les 2 dernières semaines
-        const weeksDiff = (currentYear - year) * 52 + (currentWeekNumber - weekNumber);
+        const weeksDiff = (currentYear - isoYear) * 52 + (currentWeekNumber - weekNumber);
         if (weeksDiff <= 2 && weeksDiff >= 0) {
           session.session_exercises?.forEach((ex: any) => {
             if (ex.exercice && !ex.skipped) {
@@ -173,8 +177,13 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
 
       sessions?.forEach((session: any) => {
         const weekNumber = session.training_weeks.week_number;
-        const year = session.training_weeks.year;
-        const weekKey = `${year}-W${weekNumber.toString().padStart(2, "0")}`;
+        const dbYear = session.training_weeks.year;
+        
+        // Recalculer l'année ISO correcte pour cette semaine
+        const dateForWeek = getDateFromWeekNumber(weekNumber, dbYear);
+        const isoYear = getWeekYear(dateForWeek);
+        
+        const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, "0")}`;
         const sessionName = session.name || "Séance sans nom";
 
         session.session_exercises?.forEach((exercise: any) => {
@@ -220,7 +229,7 @@ export function CoachStrengthView({ athleteId, athleteName }: CoachStrengthViewP
             weeklyMap.set(weekKey, {
               week: weekKey,
               weekNumber,
-              year,
+              year: isoYear,
               tonnage,
               totalSets: series,
               totalReps: reps * series,
