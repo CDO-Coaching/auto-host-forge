@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCardioTime, formatCardioDistance, parsePaceToDecimal } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
-import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 
 interface IntensityZones {
   zoneLow: number;  // < 70% - temps en minutes
@@ -200,8 +200,14 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     
     sessions?.forEach((session: any) => {
       const weekNumber = session.training_weeks.week_number;
-      const year = session.training_weeks.year;
-      const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+      const dbYear = session.training_weeks.year;
+      
+      // Recalculer l'année ISO correcte pour cette semaine
+      // La semaine 1 qui commence fin décembre appartient à l'année suivante en ISO
+      const dateForWeek = getDateFromWeekNumber(weekNumber, dbYear);
+      const isoYear = getWeekYear(dateForWeek);
+      
+      const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, '0')}`;
 
       // Données programmées (toujours incluses)
       const plannedDistance = session.cardio_total_distance_km || 0;
@@ -333,7 +339,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         weeklyData.set(weekKey, {
           week: weekKey,
           weekNumber,
-          year,
+          year: isoYear,
           plannedDistanceKm: plannedDistance,
           plannedDurationMinutes: plannedDuration,
           plannedAverageIntensity: plannedIntensity,

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Bike, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
-import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
+import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 
 interface IntensityZones {
   zoneLow: number;
@@ -181,8 +181,13 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
     
     sessions?.forEach((session: any) => {
       const weekNumber = session.training_weeks.week_number;
-      const year = session.training_weeks.year;
-      const weekKey = `${year}-W${weekNumber.toString().padStart(2, '0')}`;
+      const dbYear = session.training_weeks.year;
+      
+      // Recalculer l'année ISO correcte pour cette semaine
+      const dateForWeek = getDateFromWeekNumber(weekNumber, dbYear);
+      const isoYear = getWeekYear(dateForWeek);
+      
+      const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, '0')}`;
 
       const plannedDistance = session.cardio_total_distance_km || 0;
       const plannedDuration = session.cardio_total_duration_minutes || 0;
@@ -292,7 +297,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
         weeklyData.set(weekKey, {
           week: weekKey,
           weekNumber,
-          year,
+          year: isoYear,
           plannedDistanceKm: plannedDistance,
           plannedDurationMinutes: plannedDuration,
           plannedAverageIntensity: plannedIntensity,
