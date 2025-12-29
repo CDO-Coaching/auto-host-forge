@@ -2693,6 +2693,9 @@ export default function ClientDetail() {
                                                 </DialogContent>
                                               </Dialog>
                                             )}
+                                            
+                                            {/* Affichage du feedback de la semaine copiée */}
+                                            <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={exercise.exercice} />
                                           </div>
 
                                           <CardioStepBuilder
