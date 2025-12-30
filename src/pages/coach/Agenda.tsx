@@ -133,9 +133,34 @@ export default function Agenda() {
   const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [showDebugDates, setShowDebugDates] = useState(false);
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
+  const [debugMeta, setDebugMeta] = useState<{
+    weekStartIso: string;
+    weekEndIso: string;
+    athleteCount: number;
+    trainingWeekCount: number;
+    trainingSessionCount: number;
+    customSessionCount: number;
+    mergedCount: number;
+    corentin?: { id: string; name: string; sessionCount: number };
+  } | null>(null);
+  const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+
+  const clearAppCacheAndReload = useCallback(async () => {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister()));
+      }
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+    } finally {
+      window.location.reload();
+    }
+  }, []);
 
   // Fetch session details when a session is selected
   const fetchSessionDetails = useCallback(async (sessionId: string) => {
@@ -207,6 +232,15 @@ export default function Agenda() {
       if (!relationships || relationships.length === 0) {
         setAthleteSessions([]);
         setAllAthletes([]);
+        setDebugMeta({
+          weekStartIso,
+          weekEndIso,
+          athleteCount: 0,
+          trainingWeekCount: 0,
+          trainingSessionCount: 0,
+          customSessionCount: 0,
+          mergedCount: 0,
+        });
         return;
       }
 
@@ -229,14 +263,17 @@ export default function Agenda() {
         .select("id, athlete_id")
         .in("athlete_id", athleteIds);
 
-      const weekIds = trainingWeeks?.map(w => w.id) || [];
-      const weekToAthleteMap = new Map(trainingWeeks?.map(w => [w.id, w.athlete_id]) || []);
+      const weekIds = trainingWeeks?.map((w) => w.id) || [];
+      const weekToAthleteMap = new Map(
+        trainingWeeks?.map((w) => [w.id, w.athlete_id]) || []
+      );
 
       // Get sessions that were COMPLETED during this week (filter by completed_at date range)
       // IMPORTANT: use ISO ranges (timezone-safe) to avoid off-by-one-day issues around midnight.
       const { data: allSessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
-        .select(`
+        .select(
+          `
           id,
           name,
           session_type,
@@ -245,7 +282,8 @@ export default function Agenda() {
           week_id,
           session_rpe,
           session_comment
-        `)
+        `
+        )
         .in("week_id", weekIds)
         .not("completed_at", "is", null)
         .gte("completed_at", weekStartIso)
@@ -269,7 +307,7 @@ export default function Agenda() {
       }
 
       const sessionsMap = new Map<string, AthleteSession>();
-      
+
       // Process training sessions
       if (allSessionsData) {
         allSessionsData.forEach((session: any) => {
@@ -278,7 +316,7 @@ export default function Agenda() {
 
           const completedAt = new Date(session.completed_at);
           const athleteName = profileMap.get(athleteId) || "Inconnu";
-          
+
           if (!sessionsMap.has(session.id)) {
             sessionsMap.set(session.id, {
               id: session.id,
@@ -323,11 +361,14 @@ export default function Agenda() {
 
       // Build allAthletes list with session counts
       const sessionCountMap = new Map<string, number>();
-      sessions.forEach(s => {
-        sessionCountMap.set(s.athleteId, (sessionCountMap.get(s.athleteId) || 0) + 1);
+      sessions.forEach((s) => {
+        sessionCountMap.set(
+          s.athleteId,
+          (sessionCountMap.get(s.athleteId) || 0) + 1
+        );
       });
 
-      const athletesList: AthleteInfo[] = athleteIds.map(id => ({
+      const athletesList: AthleteInfo[] = athleteIds.map((id) => ({
         id,
         name: profileMap.get(id) || "Inconnu",
         sessionCount: sessionCountMap.get(id) || 0,
@@ -340,12 +381,36 @@ export default function Agenda() {
         return a.name.localeCompare(b.name);
       });
 
+      const corentinCandidate = athletesList.find((a) =>
+        a.name.toLowerCase().includes("corentin")
+      );
+
+      setDebugMeta({
+        weekStartIso,
+        weekEndIso,
+        athleteCount: athleteIds.length,
+        trainingWeekCount: weekIds.length,
+        trainingSessionCount: allSessionsData?.length || 0,
+        customSessionCount: customSessionsData?.length || 0,
+        mergedCount: sessions.length,
+        ...(corentinCandidate
+          ? {
+              corentin: {
+                id: corentinCandidate.id,
+                name: corentinCandidate.name,
+                sessionCount: corentinCandidate.sessionCount,
+              },
+            }
+          : {}),
+      });
+
       setAthleteSessions(sessions);
       setAllAthletes(athletesList);
     } catch (error) {
       console.error("Error fetching athlete sessions:", error);
       setAthleteSessions([]);
       setAllAthletes([]);
+      setDebugMeta(null);
     }
   }, [user, currentWeekStart]);
 
@@ -500,25 +565,33 @@ export default function Agenda() {
         <h1 className="text-xl sm:text-2xl font-bold">Agenda</h1>
         
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={goToToday}
-          >
+          <Button variant="outline" size="sm" onClick={goToToday}>
             Aujourd'hui
           </Button>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="icon"
             onClick={() => {
               fetchEvents();
               fetchAthleteSessions();
             }}
             disabled={loadingEvents}
+            aria-label="Rafraîchir"
           >
-            <RefreshCw className={`h-4 w-4 ${loadingEvents ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${loadingEvents ? "animate-spin" : ""}`}
+            />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={clearAppCacheAndReload}
+            className="hidden sm:inline-flex"
+          >
+            Vider cache
           </Button>
         </div>
+
       </div>
 
       {/* Week navigation */}
@@ -696,22 +769,47 @@ export default function Agenda() {
               </div>
               
               {/* Total count + Debug toggle */}
-              <div className="mt-3 pt-3 border-t flex items-center justify-between text-sm text-muted-foreground">
+              <div className="mt-3 pt-3 border-t flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                   <span>
                     {athleteSessions.length} séance{athleteSessions.length > 1 ? "s" : ""} validée{athleteSessions.length > 1 ? "s" : ""} cette semaine
                   </span>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowDebugDates(!showDebugDates)}
-                  className={`text-xs ${showDebugDates ? "text-primary" : ""}`}
-                >
-                  🔍 Debug dates
-                </Button>
+                <div className="flex items-center gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDebugDates(!showDebugDates)}
+                    className={`text-xs ${showDebugDates ? "text-primary" : ""}`}
+                  >
+                    🔍 Debug dates
+                  </Button>
+                  {showDebugDates && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAppCacheAndReload}
+                      className="text-xs"
+                    >
+                      Vider cache
+                    </Button>
+                  )}
+                </div>
               </div>
+
+              {/* Debug meta */}
+              {showDebugDates && debugMeta && (
+                <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-[11px] font-mono space-y-1">
+                  <div><span className="text-muted-foreground">Filtre DB:</span> completed_at ∈ [{debugMeta.weekStartIso} → {debugMeta.weekEndIso}]</div>
+                  <div><span className="text-muted-foreground">Athlètes:</span> {debugMeta.athleteCount} • <span className="text-muted-foreground">Semaines:</span> {debugMeta.trainingWeekCount}</div>
+                  <div><span className="text-muted-foreground">training_sessions:</span> {debugMeta.trainingSessionCount} • <span className="text-muted-foreground">custom_sessions:</span> {debugMeta.customSessionCount} • <span className="text-muted-foreground">fusion:</span> {debugMeta.mergedCount}</div>
+                  <div>
+                    <span className="text-muted-foreground">Corentin (match):</span>{" "}
+                    {debugMeta.corentin ? `${debugMeta.corentin.name} — ${debugMeta.corentin.sessionCount} séance(s)` : "aucun"}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
