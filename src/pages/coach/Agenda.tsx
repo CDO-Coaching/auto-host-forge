@@ -267,10 +267,15 @@ export default function Agenda() {
 
       const sessionsMap = new Map<string, AthleteSession>();
       
+      console.log('=== DEBUG AGENDA ===');
+      console.log('Week range:', weekStartStr, 'to', weekEndStr);
+      console.log('All sessions data from DB:', allSessionsData);
+      
       // Process training sessions - le filtrage par date est déjà fait dans la requête SQL
       if (allSessionsData) {
         allSessionsData.forEach((session: any) => {
           const athleteId = weekToAthleteMap.get(session.week_id);
+          console.log('Processing session:', session.name, 'completed_at:', session.completed_at, 'athlete:', profileMap.get(athleteId || ''));
           if (!athleteId) return;
 
           const completedAt = new Date(session.completed_at);
