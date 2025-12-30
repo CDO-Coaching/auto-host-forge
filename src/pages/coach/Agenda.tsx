@@ -56,6 +56,7 @@ interface AthleteSession {
   sessionName: string;
   sessionType: string;
   completedAt: Date | null;
+  completedAtRaw: string | null; // For debug: original ISO string from DB
   weekNumber: number;
   sessionRpe: number | null;
   sessionComment: string | null;
@@ -131,6 +132,7 @@ export default function Agenda() {
   const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
   const [sessionDetails, setSessionDetails] = useState<SessionDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [showDebugDates, setShowDebugDates] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -277,7 +279,6 @@ export default function Agenda() {
           const completedAt = new Date(session.completed_at);
           const athleteName = profileMap.get(athleteId) || "Inconnu";
           
-          // Utiliser l'ID de session comme clé unique
           if (!sessionsMap.has(session.id)) {
             sessionsMap.set(session.id, {
               id: session.id,
@@ -286,6 +287,7 @@ export default function Agenda() {
               sessionName: session.athlete_custom_name || session.name,
               sessionType: session.session_type,
               completedAt: completedAt,
+              completedAtRaw: session.completed_at,
               weekNumber: 0,
               sessionRpe: session.session_rpe || null,
               sessionComment: session.session_comment || null,
@@ -307,6 +309,7 @@ export default function Agenda() {
               sessionName: cs.session_name,
               sessionType: "perso",
               completedAt: cs.completed_at ? new Date(cs.completed_at) : null,
+              completedAtRaw: cs.completed_at || null,
               weekNumber: 0,
               sessionRpe: null,
               sessionComment: null,
@@ -692,12 +695,22 @@ export default function Agenda() {
                 })}
               </div>
               
-              {/* Total count */}
-              <div className="mt-3 pt-3 border-t flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                <span>
-                  {athleteSessions.length} séance{athleteSessions.length > 1 ? 's' : ''} validée{athleteSessions.length > 1 ? 's' : ''} cette semaine
-                </span>
+              {/* Total count + Debug toggle */}
+              <div className="mt-3 pt-3 border-t flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span>
+                    {athleteSessions.length} séance{athleteSessions.length > 1 ? "s" : ""} validée{athleteSessions.length > 1 ? "s" : ""} cette semaine
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowDebugDates(!showDebugDates)}
+                  className={`text-xs ${showDebugDates ? "text-primary" : ""}`}
+                >
+                  🔍 Debug dates
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -758,11 +771,19 @@ export default function Agenda() {
                               <span>{format(session.completedAt, "HH:mm")}</span>
                             )}
                           </div>
+                          {/* Debug info */}
+                          {showDebugDates && session.completedAtRaw && (
+                            <div className="mt-1.5 pl-5 text-[10px] font-mono bg-muted/50 p-1.5 rounded space-y-0.5">
+                              <div><span className="text-muted-foreground">Raw:</span> {session.completedAtRaw}</div>
+                              <div><span className="text-muted-foreground">Local:</span> {session.completedAt ? format(session.completedAt, "yyyy-MM-dd HH:mm:ss") : "null"}</div>
+                              <div><span className="text-muted-foreground">Jour calculé:</span> {session.completedAt ? format(session.completedAt, "EEEE d MMMM yyyy", { locale: fr }) : "null"}</div>
+                            </div>
+                          )}
                           {session.sessionComment && (
                             <div className="mt-1.5 pl-5 flex items-start gap-1.5">
                               <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
                               <p className="text-xs text-muted-foreground italic line-clamp-2">
-                                "{session.sessionComment}"
+                                &quot;{session.sessionComment}&quot;
                               </p>
                             </div>
                           )}
