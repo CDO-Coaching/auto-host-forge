@@ -141,7 +141,13 @@ export default function Agenda() {
     trainingSessionCount: number;
     customSessionCount: number;
     mergedCount: number;
-    corentin?: { id: string; name: string; sessionCount: number };
+    corentin?: {
+      id: string;
+      name: string;
+      sessionCount: number;
+      trainingWeekIds: string[];
+      rawSessions: { id: string; name: string; completed_at: string }[];
+    };
   } | null>(null);
   const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -381,9 +387,45 @@ export default function Agenda() {
         return a.name.localeCompare(b.name);
       });
 
+      // Find "Corentin" for debug
       const corentinCandidate = athletesList.find((a) =>
         a.name.toLowerCase().includes("corentin")
       );
+
+      // Build detailed debug for Corentin
+      let corentinDebug:
+        | {
+            id: string;
+            name: string;
+            sessionCount: number;
+            trainingWeekIds: string[];
+            rawSessions: { id: string; name: string; completed_at: string }[];
+          }
+        | undefined;
+
+      if (corentinCandidate) {
+        const corentinWeekIds =
+          trainingWeeks
+            ?.filter((w) => w.athlete_id === corentinCandidate.id)
+            .map((w) => w.id) || [];
+
+        const corentinRawSessions =
+          allSessionsData
+            ?.filter((s: any) => corentinWeekIds.includes(s.week_id))
+            .map((s: any) => ({
+              id: s.id as string,
+              name: (s.athlete_custom_name || s.name) as string,
+              completed_at: s.completed_at as string,
+            })) || [];
+
+        corentinDebug = {
+          id: corentinCandidate.id,
+          name: corentinCandidate.name,
+          sessionCount: corentinCandidate.sessionCount,
+          trainingWeekIds: corentinWeekIds,
+          rawSessions: corentinRawSessions,
+        };
+      }
 
       setDebugMeta({
         weekStartIso,
@@ -393,15 +435,7 @@ export default function Agenda() {
         trainingSessionCount: allSessionsData?.length || 0,
         customSessionCount: customSessionsData?.length || 0,
         mergedCount: sessions.length,
-        ...(corentinCandidate
-          ? {
-              corentin: {
-                id: corentinCandidate.id,
-                name: corentinCandidate.name,
-                sessionCount: corentinCandidate.sessionCount,
-              },
-            }
-          : {}),
+        corentin: corentinDebug,
       });
 
       setAthleteSessions(sessions);
@@ -800,14 +834,37 @@ export default function Agenda() {
 
               {/* Debug meta */}
               {showDebugDates && debugMeta && (
-                <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-[11px] font-mono space-y-1">
+                <div className="mt-3 rounded-lg border bg-muted/30 p-3 text-[11px] font-mono space-y-1 overflow-x-auto">
                   <div><span className="text-muted-foreground">Filtre DB:</span> completed_at ∈ [{debugMeta.weekStartIso} → {debugMeta.weekEndIso}]</div>
                   <div><span className="text-muted-foreground">Athlètes:</span> {debugMeta.athleteCount} • <span className="text-muted-foreground">Semaines:</span> {debugMeta.trainingWeekCount}</div>
                   <div><span className="text-muted-foreground">training_sessions:</span> {debugMeta.trainingSessionCount} • <span className="text-muted-foreground">custom_sessions:</span> {debugMeta.customSessionCount} • <span className="text-muted-foreground">fusion:</span> {debugMeta.mergedCount}</div>
-                  <div>
-                    <span className="text-muted-foreground">Corentin (match):</span>{" "}
-                    {debugMeta.corentin ? `${debugMeta.corentin.name} — ${debugMeta.corentin.sessionCount} séance(s)` : "aucun"}
-                  </div>
+
+                  {/* Corentin debug block */}
+                  {debugMeta.corentin ? (
+                    <div className="mt-2 pt-2 border-t border-dashed space-y-1">
+                      <div className="font-semibold text-primary">🔎 Debug Corentin</div>
+                      <div><span className="text-muted-foreground">ID:</span> {debugMeta.corentin.id}</div>
+                      <div><span className="text-muted-foreground">Nom:</span> {debugMeta.corentin.name}</div>
+                      <div><span className="text-muted-foreground">training_weeks:</span> {debugMeta.corentin.trainingWeekIds.length} ({debugMeta.corentin.trainingWeekIds.slice(0, 3).join(", ")}{debugMeta.corentin.trainingWeekIds.length > 3 ? "…" : ""})</div>
+                      <div><span className="text-muted-foreground">Séances filtrées:</span> {debugMeta.corentin.sessionCount}</div>
+                      {debugMeta.corentin.rawSessions.length > 0 ? (
+                        <div className="pl-2 border-l-2 border-primary/50 space-y-0.5">
+                          {debugMeta.corentin.rawSessions.map((s) => (
+                            <div key={s.id}>
+                              <span className="text-muted-foreground">{s.name}:</span>{" "}
+                              <span>{s.completed_at}</span>{" "}
+                              <span className="text-muted-foreground">→ local:</span>{" "}
+                              <span>{format(new Date(s.completed_at), "EEEE d MMM HH:mm:ss", { locale: fr })}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-orange-500">Aucune séance retournée pour Corentin dans la fenêtre</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-orange-500">Aucun athlète "Corentin" trouvé dans athletesList</div>
+                  )}
                 </div>
               )}
             </CardContent>
