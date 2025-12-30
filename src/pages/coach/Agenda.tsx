@@ -30,7 +30,7 @@ import {
   MessageSquare,
   User
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, addWeeks, subWeeks, isToday, parseISO, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
 
@@ -190,8 +190,8 @@ export default function Agenda() {
     try {
       const weekStart = currentWeekStart;
       const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-      const weekStartStr = format(weekStart, "yyyy-MM-dd");
-      const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+      const weekStartIso = startOfDay(weekStart).toISOString();
+      const weekEndIso = endOfDay(weekEnd).toISOString();
       const currentWeekNum = getWeekNumber(currentWeekStart);
       const currentYear = getWeekYear(currentWeekStart);
 
@@ -231,6 +231,7 @@ export default function Agenda() {
       const weekToAthleteMap = new Map(trainingWeeks?.map(w => [w.id, w.athlete_id]) || []);
 
       // Get sessions that were COMPLETED during this week (filter by completed_at date range)
+      // IMPORTANT: use ISO ranges (timezone-safe) to avoid off-by-one-day issues around midnight.
       const { data: allSessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
         .select(`
@@ -245,8 +246,8 @@ export default function Agenda() {
         `)
         .in("week_id", weekIds)
         .not("completed_at", "is", null)
-        .gte("completed_at", `${weekStartStr}T00:00:00`)
-        .lte("completed_at", `${weekEndStr}T23:59:59`);
+        .gte("completed_at", weekStartIso)
+        .lte("completed_at", weekEndIso);
 
       if (sessionsError) {
         console.error("Error fetching athlete sessions:", sessionsError);
@@ -258,8 +259,8 @@ export default function Agenda() {
         .select("id, user_id, session_name, duration_minutes, completed_at")
         .in("user_id", athleteIds)
         .not("completed_at", "is", null)
-        .gte("completed_at", `${weekStartStr}T00:00:00`)
-        .lte("completed_at", `${weekEndStr}T23:59:59`);
+        .gte("completed_at", weekStartIso)
+        .lte("completed_at", weekEndIso);
 
       if (customError) {
         console.error("Error fetching custom sessions:", customError);
@@ -267,15 +268,10 @@ export default function Agenda() {
 
       const sessionsMap = new Map<string, AthleteSession>();
       
-      console.log('=== DEBUG AGENDA ===');
-      console.log('Week range:', weekStartStr, 'to', weekEndStr);
-      console.log('All sessions data from DB:', allSessionsData);
-      
-      // Process training sessions - le filtrage par date est déjà fait dans la requête SQL
+      // Process training sessions
       if (allSessionsData) {
         allSessionsData.forEach((session: any) => {
           const athleteId = weekToAthleteMap.get(session.week_id);
-          console.log('Processing session:', session.name, 'completed_at:', session.completed_at, 'athlete:', profileMap.get(athleteId || ''));
           if (!athleteId) return;
 
           const completedAt = new Date(session.completed_at);
