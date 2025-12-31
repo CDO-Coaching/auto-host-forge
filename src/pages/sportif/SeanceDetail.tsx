@@ -864,9 +864,15 @@ export default function SeanceDetail() {
                                   </Badge>
                                 )}
                                 {ex.recuperation && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Récup: {ex.recuperation}
-                                  </Badge>
+                                  ex.recuperation === "0s" ? (
+                                    <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                                      ⚡ Enchaîné
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">
+                                      Récup: {ex.recuperation}
+                                    </Badge>
+                                  )
                                 )}
                               </div>
                             )}
@@ -963,9 +969,15 @@ export default function SeanceDetail() {
                                   </Badge>
                                 )}
                                 {item.recuperation && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Récup: {item.recuperation}
-                                  </Badge>
+                                  item.recuperation === "0s" ? (
+                                    <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                                      ⚡ Enchaîné
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">
+                                      Récup: {item.recuperation}
+                                    </Badge>
+                                  )
                                 )}
                               </div>
                             )}

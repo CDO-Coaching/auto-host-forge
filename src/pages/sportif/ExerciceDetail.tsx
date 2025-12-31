@@ -596,7 +596,19 @@ export default function ExerciceDetail() {
 
         {/* Chronomètre de récupération, Bouton EMOM ou Bouton Tabata */}
         {exercise.recuperation && (
-          isEmomRecovery ? (
+          exercise.recuperation === "0s" ? (
+            <Card className="border-2 border-amber-500/30 bg-amber-500/10">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <Label className="text-sm sm:text-base font-semibold text-amber-600">Exercice enchaîné</Label>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Pas de récupération — passez directement à la série suivante
+                </p>
+              </CardContent>
+            </Card>
+          ) : isEmomRecovery ? (
             <Card className="border-2 border-primary/30 bg-primary/5">
               <CardContent className="p-3 sm:p-4">
                 <div className="space-y-3">
