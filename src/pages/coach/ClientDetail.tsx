@@ -162,6 +162,7 @@ export default function ClientDetail() {
   const availableWeeks = getNextWeeks(12);
 
   const recuperationOptions = [
+    { value: "0s", label: "Aucune" },
     { value: "30s", label: "30 secondes" },
     { value: "35s", label: "35 secondes" },
     { value: "40s", label: "40 secondes" },
