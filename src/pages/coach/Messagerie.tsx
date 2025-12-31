@@ -229,7 +229,19 @@ export default function Messagerie() {
           <CardContent>
             <ScrollArea className="h-[600px]">
               <div className="space-y-2">
-                {clients.map((client) => (
+                {[...clients]
+                  .sort((a, b) => {
+                    const unreadA = unreadCounts[a.id] || 0;
+                    const unreadB = unreadCounts[b.id] || 0;
+                    // Clients avec messages non lus en premier
+                    if (unreadA > 0 && unreadB === 0) return -1;
+                    if (unreadA === 0 && unreadB > 0) return 1;
+                    // Parmi ceux avec messages non lus, trier par nombre décroissant
+                    if (unreadA > 0 && unreadB > 0) return unreadB - unreadA;
+                    // Sinon, ordre alphabétique
+                    return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+                  })
+                  .map((client) => (
                   <Button
                     key={client.id}
                     variant={selectedClient?.id === client.id ? "secondary" : "ghost"}
