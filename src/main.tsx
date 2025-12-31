@@ -6,56 +6,52 @@ import "./index.css";
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 
-// Enregistrer le service worker pour PWA (uniquement en production)
-if ("serviceWorker" in navigator) {
-  if (import.meta.env.PROD) {
-    window.addEventListener("load", async () => {
-      try {
-        const registration = await navigator.serviceWorker.register("/service-worker.js");
-        console.log("Service Worker enregistré:", registration);
+// Enregistrer le service worker UNIQUEMENT en production
+if ("serviceWorker" in navigator && import.meta.env.PROD) {
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("/service-worker.js");
+      console.log("Service Worker enregistré:", registration);
 
-        // Vérifie périodiquement s'il y a une nouvelle version
+      // Vérifie périodiquement s'il y a une nouvelle version
+      setInterval(() => {
         registration.update();
+      }, 60000); // Vérifie toutes les minutes
 
-        // Quand un nouveau SW prend le contrôle, on recharge pour éviter un "écran noir"
-        // dû à un bundle JS/HTML désynchronisé.
-        navigator.serviceWorker.addEventListener("controllerchange", () => {
-          window.location.reload();
-        });
+      // Gestion des mises à jour du SW
+      registration.addEventListener("updatefound", () => {
+        const newWorker = registration.installing;
+        if (!newWorker) return;
 
-        // Déclenche le controllerchange dès qu'une nouvelle version est installée
-        registration.addEventListener("updatefound", () => {
-          const sw = registration.installing;
-          if (!sw) return;
-          sw.addEventListener("statechange", () => {
-            if (sw.state === "installed" && navigator.serviceWorker.controller) {
-              // Le nouveau SW est installé; il prendra la main et déclenchera controllerchange
-              // (et donc reload) juste après.
-            }
-          });
+        newWorker.addEventListener("statechange", () => {
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            // Nouvelle version disponible - informer l'utilisateur au lieu de recharger automatiquement
+            console.log("Nouvelle version disponible");
+            // Vous pouvez afficher une notification à l'utilisateur ici
+          }
         });
-      } catch (error) {
-        console.log("Erreur Service Worker:", error);
-      }
+      });
+    } catch (error) {
+      console.error("Erreur Service Worker:", error);
+    }
+  });
+} else if ("serviceWorker" in navigator && !import.meta.env.PROD) {
+  // En dev/preview: nettoyer les SW existants
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
     });
-  } else {
-    // En dev/preview: désactive le SW et vide le cache pour éviter les écrans noirs après modifications.
-    window.addEventListener("load", async () => {
-      try {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map((r) => r.unregister()));
+  });
 
-        if ("caches" in window) {
-          const keys = await caches.keys();
-          await Promise.all(keys.map((k) => caches.delete(k)));
-        }
-      } catch (error) {
-        console.log("Erreur nettoyage cache/SW:", error);
-      }
+  // Vider le cache
+  if ("caches" in window) {
+    caches.keys().then((names) => {
+      names.forEach((name) => {
+        caches.delete(name);
+      });
     });
   }
 }
-
