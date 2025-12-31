@@ -88,12 +88,17 @@ export default function Messagerie() {
     if (!user) return;
 
     const loadUnreadCounts = async () => {
-      const { data } = await supabase.rpc("get_unread_count_by_sender");
+      // Récupérer tous les messages non lus où le coach est le receiver
+      const { data, error } = await supabase
+        .from("messages")
+        .select("sender_id")
+        .eq("receiver_id", user.id)
+        .is("read_at", null);
 
-      if (data) {
+      if (!error && data) {
         const counts: Record<string, number> = {};
-        data.forEach((item: any) => {
-          counts[item.sender_id] = item.unread_count;
+        data.forEach((msg) => {
+          counts[msg.sender_id] = (counts[msg.sender_id] || 0) + 1;
         });
         setUnreadCounts(counts);
       }
