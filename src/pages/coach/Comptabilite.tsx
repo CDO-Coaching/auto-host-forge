@@ -550,8 +550,18 @@ export default function Comptabilite() {
       return 0;
     });
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && hasUnsavedChanges) {
+      e.preventDefault();
+      saveAllChanges();
+    }
+  };
+
   return (
-    <div className="container mx-auto p-2 md:p-4 space-y-4 md:space-y-6">
+    <div 
+      className="container mx-auto p-2 md:p-4 space-y-4 md:space-y-6"
+      onKeyDown={handleKeyDown}
+    >
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 md:gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Comptabilité</h1>
         
