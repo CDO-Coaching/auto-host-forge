@@ -157,6 +157,7 @@ export default function ClientDetail() {
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showRenfoTemplateSelector, setShowRenfoTemplateSelector] = useState<number | null>(null);
+  const [autoOpenExercise, setAutoOpenExercise] = useState<{ sessionId: number; exerciseId: number } | null>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1809,16 +1810,12 @@ export default function ClientDetail() {
       if (field === "commentaire") {
         // Dans le commentaire, Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
-        // Focus sur le champ exercice de la nouvelle ligne
+        // Marquer la nouvelle ligne pour auto-open
         setTimeout(() => {
           const currentExercises = sessionExercises[sessionId] || [];
           const newExerciseId = currentExercises.length + 1;
-          const newExerciseInput = document.querySelector(
-            `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`,
-          ) as HTMLElement;
-          newExerciseInput?.focus();
-          newExerciseInput?.click();
-        }, 100);
+          setAutoOpenExercise({ sessionId, exerciseId: newExerciseId });
+        }, 50);
       } else {
         // Pour les autres champs, passer au champ suivant
         const fieldOrder: (keyof Exercise)[] = [
@@ -3302,6 +3299,8 @@ export default function ClientDetail() {
                                                                   }}
                                                                      exercises={libraryExercises}
                                                                      disabled={isValidated}
+                                                                     autoOpen={autoOpenExercise?.sessionId === session.id && autoOpenExercise?.exerciseId === ex.id}
+                                                                     onAutoOpenHandled={() => setAutoOpenExercise(null)}
                                                                    />
                                                                    <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={ex.exercice} />
                                                                  </div>
@@ -3627,6 +3626,8 @@ export default function ClientDetail() {
                                                             }}
                                                                exercises={libraryExercises}
                                                                disabled={isValidated}
+                                                               autoOpen={autoOpenExercise?.sessionId === session.id && autoOpenExercise?.exerciseId === exercise.id}
+                                                               onAutoOpenHandled={() => setAutoOpenExercise(null)}
                                                              />
                                                              <ExerciseFeedbackDisplay sessionId={session.id} exerciceName={exercise.exercice} />
                                                            </div>
