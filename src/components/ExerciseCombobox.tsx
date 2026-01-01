@@ -29,10 +29,20 @@ interface ExerciseComboboxProps {
   onChange: (value: string) => void;
   exercises: Array<{ id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }>;
   disabled?: boolean;
+  autoOpen?: boolean;
+  onAutoOpenHandled?: () => void;
 }
 
-export function ExerciseCombobox({ value, onChange, exercises, disabled }: ExerciseComboboxProps) {
+export function ExerciseCombobox({ value, onChange, exercises, disabled, autoOpen, onAutoOpenHandled }: ExerciseComboboxProps) {
   const [open, setOpen] = useState(false);
+  
+  // Ouvrir automatiquement si autoOpen est true
+  useEffect(() => {
+    if (autoOpen && !disabled) {
+      setOpen(true);
+      onAutoOpenHandled?.();
+    }
+  }, [autoOpen, disabled, onAutoOpenHandled]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   // Extraire les catégories uniques des exercices
