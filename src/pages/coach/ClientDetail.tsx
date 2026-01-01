@@ -1403,7 +1403,6 @@ export default function ClientDetail() {
     const currentExercises = sessionExercises[sessionId] || [];
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
-    const isRecup = session?.session_type === "recup";
 
     const newExerciseId = currentExercises.length + 1;
     const newExercise: Exercise = {
@@ -1428,18 +1427,22 @@ export default function ClientDetail() {
 
     // Après insertion, descendre automatiquement en bas et amener la nouvelle ligne à l'écran
     setTimeout(() => {
-      // Scroll global en bas
       window.scrollTo({
         top: document.documentElement.scrollHeight,
-        behavior: 'smooth',
+        behavior: "smooth",
       });
-      // S'assurer que la nouvelle ligne est visible et focus sur le champ exercice
+
       const newExerciseButton = document.querySelector(
-        `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`
+        `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`,
       ) as HTMLElement | null;
-      newExerciseButton?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+      newExerciseButton?.scrollIntoView({ behavior: "smooth", block: "center" });
       newExerciseButton?.focus();
-      newExerciseButton?.click();
+
+      // Ouvrir automatiquement le sélecteur (sans click qui toggle et referme)
+      if (!isCardio) {
+        setAutoOpenExercise({ sessionId, exerciseId: newExerciseId });
+      }
     }, 200);
   };
 
@@ -1810,12 +1813,6 @@ export default function ClientDetail() {
       if (field === "commentaire") {
         // Dans le commentaire, Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
-        // Marquer la nouvelle ligne pour auto-open
-        setTimeout(() => {
-          const currentExercises = sessionExercises[sessionId] || [];
-          const newExerciseId = currentExercises.length + 1;
-          setAutoOpenExercise({ sessionId, exerciseId: newExerciseId });
-        }, 50);
       } else {
         // Pour les autres champs, passer au champ suivant
         const fieldOrder: (keyof Exercise)[] = [
