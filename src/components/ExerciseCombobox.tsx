@@ -83,7 +83,20 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled }: Exerc
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[350px] p-0" align="start">
-        <Command>
+        <Command
+          filter={(value, search) => {
+            const normalizedValue = value.toLowerCase();
+            const normalizedSearch = search.toLowerCase();
+            // Priorité haute si commence par la recherche
+            if (normalizedValue.startsWith(normalizedSearch)) return 1;
+            // Priorité moyenne si contient un mot qui commence par la recherche
+            const words = normalizedValue.split(/\s+/);
+            if (words.some(word => word.startsWith(normalizedSearch))) return 0.7;
+            // Priorité basse si contient la recherche quelque part
+            if (normalizedValue.includes(normalizedSearch)) return 0.5;
+            return 0;
+          }}
+        >
           <div className="p-2 border-b">
             <Select value={selectedCategory} onValueChange={setSelectedCategory}>
               <SelectTrigger className="w-full">
