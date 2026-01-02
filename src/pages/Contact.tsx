@@ -65,11 +65,12 @@ const Contact = () => {
       return;
     }
 
-    // ✅ Envoi de l'email via ton endpoint Lovable + Resend
+    // ✅ Envoi des données au webhook n8n
     try {
-      await fetch("/api/notify-contact", {
+      await fetch("https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook-test/8742a3d9-f3e7-437a-b475-aa898f5509d9", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        mode: "no-cors",
         body: JSON.stringify({
           prénom: formData.firstName,
           nom: formData.lastName,
@@ -79,9 +80,9 @@ const Contact = () => {
           mode_de_contact: formData.contactMethod === "email" ? "par email" : "par téléphone",
         }),
       });
-      console.log("Email envoyé ✅");
+      console.log("Webhook n8n déclenché ✅");
     } catch (err) {
-      console.error("Erreur envoi email:", err);
+      console.error("Erreur webhook n8n:", err);
     }
 
     setShowSuccess(true);
