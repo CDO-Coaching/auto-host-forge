@@ -67,7 +67,7 @@ const Contact = () => {
 
     // ✅ Envoi des données au webhook n8n
     try {
-      await fetch("https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook-test/8742a3d9-f3e7-437a-b475-aa898f5509d9", {
+      await fetch("https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/8742a3d9-f3e7-437a-b475-aa898f5509d9", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         mode: "no-cors",
