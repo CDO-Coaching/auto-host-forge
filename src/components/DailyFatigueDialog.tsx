@@ -61,6 +61,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [injuryLocation, setInjuryLocation] = useState("");
   const [adaptationLevel, setAdaptationLevel] = useState<AdaptationLevel>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userName, setUserName] = useState<string>("");
   const { toast } = useToast();
 
   // État pour la blessure précédente
@@ -68,7 +69,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [injuryEvolution, setInjuryEvolution] = useState<InjuryEvolution>(null);
   const [isNewInjury, setIsNewInjury] = useState(false);
 
-  // Charger l'état de la période d'adaptation et la blessure précédente
+  // Charger le nom de l'utilisateur et l'état de la période d'adaptation
   useEffect(() => {
     if (open) {
       setAnswers({
@@ -83,12 +84,32 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       setInjuryEvolution(null);
       setIsNewInjury(false);
       
+      loadUserName();
       loadAdaptationStatus();
       if (includeInjuryQuestions) {
         loadPreviousInjury();
       }
     }
   }, [open, includeInjuryQuestions]);
+
+  const loadUserName = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if (profile?.first_name) {
+        setUserName(profile.first_name);
+      }
+    } catch (error) {
+      console.error("Error loading user name:", error);
+    }
+  };
 
   const loadPreviousInjury = async () => {
     try {
@@ -329,10 +350,12 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   return (
     <Dialog open={open} onOpenChange={handleSkip}>
       <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden">
-        <DialogHeader className="pb-2 sm:pb-3 space-y-0.5 pr-10">
-          <DialogTitle className="text-base sm:text-xl">Suivi quotidien</DialogTitle>
+        <DialogHeader className="pb-2 sm:pb-3 space-y-1 pr-10">
+          <DialogTitle className="text-base sm:text-xl">
+            {userName ? `Bonjour ${userName} 👋` : "Suivi quotidien"}
+          </DialogTitle>
           <DialogDescription className="text-xs sm:text-sm">
-            Évalue ton état du jour
+            {userName ? "Comment te sens-tu aujourd'hui ?" : "Évalue ton état du jour"}
           </DialogDescription>
         </DialogHeader>
 
