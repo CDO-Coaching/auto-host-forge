@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { motion, AnimatePresence } from "framer-motion";
+import { Dialog, DialogOverlay } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -7,7 +8,8 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, X, ArrowDown, ArrowUp, Equal, Ban } from "lucide-react";
+import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles } from "lucide-react";
+import { ConfettiEffect } from "./ConfettiEffect";
 
 interface DailyFatigueDialogProps {
   open: boolean;
@@ -348,16 +350,72 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleSkip}>
-      <DialogContent className="sm:max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden">
-        <DialogHeader className="pb-2 sm:pb-3 space-y-1 pr-10">
-          <DialogTitle className="text-base sm:text-xl">
-            {userName ? `Bonjour ${userName} 👋` : "Suivi quotidien"}
-          </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm">
-            {userName ? "Comment te sens-tu aujourd'hui ?" : "Évalue ton état du jour"}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <ConfettiEffect show={open} />
+      <Dialog open={open} onOpenChange={handleSkip}>
+        <AnimatePresence>
+          {open && (
+            <>
+              <DialogOverlay />
+              <motion.div
+                initial={{ 
+                  scale: 0.1, 
+                  opacity: 0,
+                  x: "40vw",
+                  y: "-40vh"
+                }}
+                animate={{ 
+                  scale: 1, 
+                  opacity: 1,
+                  x: "-50%",
+                  y: "-50%"
+                }}
+                exit={{ 
+                  scale: 0.1, 
+                  opacity: 0,
+                  x: "40vw",
+                  y: "-40vh"
+                }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 20,
+                  duration: 0.6
+                }}
+                className="fixed left-[50%] top-[50%] z-50 w-full max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden border bg-background shadow-2xl sm:rounded-xl"
+              >
+                {/* Close button */}
+                <button
+                  onClick={handleSkip}
+                  className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                >
+                  <X className="h-4 w-4" />
+                  <span className="sr-only">Fermer</span>
+                </button>
+
+                {/* Header with motivational message */}
+                <div className="pb-2 sm:pb-3 space-y-1 pr-10">
+                  <div className="flex items-center gap-2">
+                    <motion.div
+                      initial={{ rotate: -20, scale: 0 }}
+                      animate={{ rotate: 0, scale: 1 }}
+                      transition={{ delay: 0.3, type: "spring" }}
+                    >
+                      <Sparkles className="h-5 w-5 text-primary" />
+                    </motion.div>
+                    <h2 className="text-base sm:text-xl font-semibold leading-none tracking-tight">
+                      {userName ? `Bonjour ${userName} 👋` : "Bonjour 👋"}
+                    </h2>
+                  </div>
+                  <motion.p 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-xs sm:text-sm text-muted-foreground"
+                  >
+                    Une journée de plus pour prendre soin de toi ✨
+                  </motion.p>
+                </div>
 
         <div className="space-y-3 sm:space-y-5 flex-1 overflow-y-auto pr-1">
           {questions.map((question) => (
@@ -705,7 +763,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
             {isSubmitting ? "..." : "Valider"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+      </Dialog>
+    </>
   );
 }
