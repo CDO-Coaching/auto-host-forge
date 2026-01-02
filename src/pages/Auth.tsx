@@ -159,30 +159,46 @@ const Auth = () => {
         <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <img src={cdoLogo} alt="CDO Coaching" className="h-20 w-20 mx-auto mb-4" />
-          <CardTitle>{isLogin ? "Connexion" : "Inscription"}</CardTitle>
+          {isLogin ? (
+            <CardTitle>Connexion</CardTitle>
+          ) : (
+            <div className="space-y-2">
+              <CardTitle className="text-2xl">Bienvenue ! 👋</CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Content de te voir ici ! J'espère que tu as déjà échangé avec Corentin avant de t'inscrire.
+              </p>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleAuth} className="space-y-4">
             {/* Email */}
             <div>
-              <Label>Email</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label>{isLogin ? "Email" : "Ton adresse email"}</Label>
+              <Input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder={isLogin ? "" : "exemple@email.com"}
+                required 
+              />
             </div>
 
             {/* Mot de passe */}
             <div>
-              <Label>Mot de passe</Label>
+              <Label>{isLogin ? "Mot de passe" : "Choisis un mot de passe"}</Label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder={isLogin ? "" : "Minimum 6 caractères"}
                 required
                 minLength={6}
               />
             </div>
 
             <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "S'inscrire"}
+              {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "Créer mon compte"}
             </Button>
           </form>
 
