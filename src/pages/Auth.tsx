@@ -106,12 +106,28 @@ const Auth = () => {
           approved: false,
         });
 
-        // Notification webhook
+        // Notification webhook Supabase
         await supabase.functions
           .invoke("notify-signup", {
             body: { email, signupDate: new Date().toISOString() },
           })
           .catch(() => {});
+
+        // Webhook n8n pour nouvelle inscription
+        try {
+          await fetch("https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/b84f1e97-4880-41a1-bbce-c76055d64d72", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            mode: "no-cors",
+            body: JSON.stringify({
+              email: email,
+              signupDate: new Date().toISOString(),
+            }),
+          });
+          console.log("Webhook n8n inscription déclenché ✅");
+        } catch (err) {
+          console.error("Erreur webhook n8n inscription:", err);
+        }
 
         setShowEmailDialog(true);
       }
