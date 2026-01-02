@@ -5,14 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import cdoLogo from "@/assets/cdo-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,6 +27,16 @@ const Auth = () => {
 
     // Ne pas rediriger si on vient de s'inscrire (afficher le dialog de confirmation)
     if (justSignedUp) return;
+
+    // Ne pas rediriger si on vient du callback ou de la confirmation d'email
+    const fromCallback = sessionStorage.getItem('from_callback');
+    const justConfirmed = sessionStorage.getItem('just_confirmed_email');
+    
+    if (fromCallback || justConfirmed) {
+      sessionStorage.removeItem('from_callback');
+      sessionStorage.removeItem('just_confirmed_email');
+      return;
+    }
 
     if (session) {
       const redirectUser = async () => {
@@ -57,19 +60,19 @@ const Auth = () => {
 
       redirectUser();
     }
-  }, [session, loading, navigate, justSignedUp]);
+  }, [session, loading, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-
+    
     try {
       if (isLogin) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-
+        
         toast({ title: "Connexion réussie" });
-
+        
         // Redirection explicite après connexion
         if (data.user) {
           const { data: profile } = await supabase
@@ -116,18 +119,15 @@ const Auth = () => {
 
         // Webhook n8n pour nouvelle inscription
         try {
-          await fetch(
-            "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/b84f1e97-4880-41a1-bbce-c76055d64d72",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              mode: "no-cors",
-              body: JSON.stringify({
-                email: email,
-                signupDate: new Date().toISOString(),
-              }),
-            },
-          );
+          await fetch("https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/b84f1e97-4880-41a1-bbce-c76055d64d72", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            mode: "no-cors",
+            body: JSON.stringify({
+              email: email,
+              signupDate: new Date().toISOString(),
+            }),
+          });
           console.log("Webhook n8n inscription déclenché ✅");
         } catch (err) {
           console.error("Erreur webhook n8n inscription:", err);
@@ -153,13 +153,19 @@ const Auth = () => {
                 <Mail className="h-8 w-8 text-primary" />
               </div>
             </div>
-            <AlertDialogTitle className="text-center text-2xl">Vérifie ton email !</AlertDialogTitle>
+            <AlertDialogTitle className="text-center text-2xl">
+              Vérifie ton email !
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-center text-base space-y-3 pt-2">
               <p>
                 Nous t'avons envoyé un email de confirmation à <strong>{email}</strong>
               </p>
-              <p>Clique sur le lien dans l'email pour valider ton compte et compléter ton profil.</p>
-              <p className="text-destructive font-medium">⚠️ N'oublie pas de vérifier tes spams !</p>
+              <p>
+                Clique sur le lien dans l'email pour valider ton compte et compléter ton profil.
+              </p>
+              <p className="text-destructive font-medium">
+                ⚠️ N'oublie pas de vérifier tes spams !
+              </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -172,63 +178,63 @@ const Auth = () => {
 
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <img src={cdoLogo} alt="CDO Coaching" className="h-20 w-20 mx-auto mb-4" />
-            {isLogin ? (
-              <CardTitle>Connexion</CardTitle>
-            ) : (
-              <div className="space-y-2">
-                <CardTitle className="text-2xl">Bienvenue ! 👋</CardTitle>
-                <p className="text-muted-foreground text-sm">
-                  Content de te voir ici ! J'espère que tu as déjà échangé avec Corentin avant de t'inscrire.
-                </p>
-              </div>
-            )}
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
-              {/* Email */}
-              <div>
-                <Label>{isLogin ? "Email" : "Ton adresse email"}</Label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder={isLogin ? "" : "exemple@email.com"}
-                  required
-                />
-              </div>
-
-              {/* Mot de passe */}
-              <div>
-                <Label>{isLogin ? "Mot de passe" : "Choisis un mot de passe"}</Label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isLogin ? "" : "Minimum 6 caractères"}
-                  required
-                  minLength={6}
-                />
-              </div>
-
-              <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "Créer mon compte"}
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center">
-              <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline text-sm">
-                {isLogin ? "Pas de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
-              </button>
+        <CardHeader className="text-center">
+          <img src={cdoLogo} alt="CDO Coaching" className="h-20 w-20 mx-auto mb-4" />
+          {isLogin ? (
+            <CardTitle>Connexion</CardTitle>
+          ) : (
+            <div className="space-y-2">
+              <CardTitle className="text-2xl">Bienvenue ! 👋</CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Content de te voir ici ! J'espère que tu as déjà échangé avec Corentin avant de t'inscrire.
+              </p>
+            </div>
+          )}
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAuth} className="space-y-4">
+            {/* Email */}
+            <div>
+              <Label>{isLogin ? "Email" : "Ton adresse email"}</Label>
+              <Input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                placeholder={isLogin ? "" : "exemple@email.com"}
+                required 
+              />
             </div>
 
-            <Link to="/" className="block text-center mt-4 text-sm text-muted-foreground">
-              ← Retour
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+            {/* Mot de passe */}
+            <div>
+              <Label>{isLogin ? "Mot de passe" : "Choisis un mot de passe"}</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder={isLogin ? "" : "Minimum 6 caractères"}
+                required
+                minLength={6}
+              />
+            </div>
+
+            <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "Créer mon compte"}
+            </Button>
+          </form>
+
+          <div className="mt-4 text-center">
+            <button onClick={() => setIsLogin(!isLogin)} className="text-primary hover:underline text-sm">
+              {isLogin ? "Pas de compte ? S'inscrire" : "Déjà un compte ? Se connecter"}
+            </button>
+          </div>
+
+          <Link to="/" className="block text-center mt-4 text-sm text-muted-foreground">
+            ← Retour
+          </Link>
+        </CardContent>
+      </Card>
+    </div>
     </>
   );
 };
