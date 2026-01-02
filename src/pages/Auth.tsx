@@ -17,16 +17,12 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [justSignedUp, setJustSignedUp] = useState(false);
 
   const navigate = useNavigate();
   const { session, loading } = useAuth();
 
   useEffect(() => {
     if (loading) return;
-
-    // Ne pas rediriger si on vient de s'inscrire (afficher le dialog de confirmation)
-    if (justSignedUp) return;
 
     // Ne pas rediriger si on vient du callback ou de la confirmation d'email
     const fromCallback = sessionStorage.getItem('from_callback');
@@ -133,7 +129,6 @@ const Auth = () => {
           console.error("Erreur webhook n8n inscription:", err);
         }
 
-        setJustSignedUp(true);
         setShowEmailDialog(true);
       }
     } catch (error: any) {
