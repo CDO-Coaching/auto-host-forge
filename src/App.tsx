@@ -15,7 +15,7 @@ const Coaching = lazy(() => import("./pages/Coaching"));
 const Appointment = lazy(() => import("./pages/Appointment"));
 const Contact = lazy(() => import("./pages/Contact"));
 const Auth = lazy(() => import("./pages/Auth"));
-const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const EnAttente = lazy(() => import("./pages/EnAttente"));
 const DashboardCoach = lazy(() => import("./pages/DashboardCoach"));
@@ -38,7 +38,7 @@ const App = () => (
               <Route path="/appointment" element={<Appointment />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/auth/callback" element={<EmailConfirmation />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/en-attente" element={<EnAttente />} />
               <Route path="/coach/*" element={<DashboardCoach />} />
