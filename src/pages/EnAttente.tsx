@@ -16,31 +16,38 @@ export default function EnAttente() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        navigate("/auth");
+        navigate("/auth", { replace: true });
         return;
       }
 
       setEmail(session.user.email || "");
 
       // Vérifier le statut d'approbation
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("user_profiles")
         .select("approved, role, first_name, last_name")
         .eq("id", session.user.id)
         .single();
 
-      // Vérifier si le profil est complet
-      if (!profile?.first_name || !profile?.last_name) {
-        navigate("/sportif/profil");
+      // Si le profil n'existe pas (compte supprimé), déconnecter proprement
+      if (error || !profile) {
+        await supabase.auth.signOut();
+        navigate("/auth", { replace: true });
         return;
       }
 
-      if (profile?.approved) {
+      // Vérifier si le profil est complet
+      if (!profile.first_name || !profile.last_name) {
+        navigate("/sportif/profil", { replace: true });
+        return;
+      }
+
+      if (profile.approved) {
         // Si approuvé, rediriger vers le bon dashboard
         if (profile.role === "coach") {
-          navigate("/coach/programmation");
+          navigate("/coach/programmation", { replace: true });
         } else {
-          navigate("/sportif/seances");
+          navigate("/sportif/seances", { replace: true });
         }
       }
     };

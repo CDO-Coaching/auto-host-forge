@@ -166,7 +166,7 @@ export default function Profil() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        navigate("/auth");
+        navigate("/auth", { replace: true });
         return;
       }
 
