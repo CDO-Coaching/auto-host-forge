@@ -72,11 +72,11 @@ const EmailConfirmation = () => {
               Email confirmé !
             </h1>
             <p className="text-muted-foreground">
-              Votre adresse email a été vérifiée avec succès. Vous pouvez maintenant vous connecter.
+              Ton adresse email a été vérifiée avec succès.
             </p>
-            <Button onClick={handleGoToLogin} className="mt-4">
-              Se connecter
-            </Button>
+            <p className="text-muted-foreground mt-2">
+              Attends que Corentin valide ton profil pour y avoir accès. 🏋️
+            </p>
           </>
         )}
 
