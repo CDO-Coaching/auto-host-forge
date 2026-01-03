@@ -40,7 +40,7 @@ export default function DashboardSportif() {
 
     const checkAccess = async () => {
       if (!session) {
-        navigate("/auth");
+        navigate("/auth", { replace: true });
         return;
       }
 
@@ -51,9 +51,10 @@ export default function DashboardSportif() {
         .eq("id", session.user.id)
         .single();
 
+      // Si le profil n'existe pas (compte supprimé), déconnecter proprement
       if (error || !profileData) {
-        toast.error("Erreur lors du chargement du profil");
-        navigate("/auth");
+        await supabase.auth.signOut();
+        navigate("/auth", { replace: true });
         return;
       }
 
