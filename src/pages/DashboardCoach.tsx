@@ -15,6 +15,8 @@ import { useCoachPauseReminders } from "@/hooks/useCoachPauseReminders";
 import { CoachPauseReminderAlert } from "@/components/CoachPauseReminderAlert";
 import { useCoachNoteReminder } from "@/hooks/useCoachNoteReminder";
 import { CoachNoteReminderDialog } from "@/components/CoachNoteReminderDialog";
+import { useCoachBirthdayReminder } from "@/hooks/useCoachBirthdayReminder";
+import { CoachBirthdayAlert } from "@/components/CoachBirthdayAlert";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -35,6 +37,7 @@ export default function DashboardCoach() {
   const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
   const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
   const { pendingReminder, acknowledgeReminder } = useCoachNoteReminder();
+  const { birthdayAthletes, dismissBirthday } = useCoachBirthdayReminder(profile?.id);
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -128,6 +131,14 @@ export default function DashboardCoach() {
             </p>
           </header>
           <main className="flex-1 p-6">
+            {birthdayAthletes.length > 0 && (
+              <div className="mb-6">
+                <CoachBirthdayAlert
+                  athletes={birthdayAthletes}
+                  onDismiss={dismissBirthday}
+                />
+              </div>
+            )}
             {pauseReminders.length > 0 && (
               <div className="mb-6">
                 <CoachPauseReminderAlert
