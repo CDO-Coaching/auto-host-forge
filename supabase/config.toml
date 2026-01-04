@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.google-calendar-events]
 verify_jwt = false
+
+[functions.notify-consent-withdrawal]
+verify_jwt = false

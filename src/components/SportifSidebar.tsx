@@ -1,4 +1,4 @@
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Mon poids", url: "/sportif/poids", icon: Scale },
   { title: "Mon profil", url: "/sportif/profil", icon: User },
   { title: "Aide", url: "/sportif/aide", icon: HelpCircle },
+  { title: "Politique RGPD", url: "/politique-rgpd", icon: Shield },
 ];
 
 export function SportifSidebar() {
