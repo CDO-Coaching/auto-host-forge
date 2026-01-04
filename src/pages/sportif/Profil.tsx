@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Switch } from "@/components/ui/switch";
+import { Shield, ExternalLink } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -141,6 +143,8 @@ export default function Profil() {
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
+  const [healthDataConsentAt, setHealthDataConsentAt] = useState<string | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -174,12 +178,14 @@ export default function Profil() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("email, first_name, last_name, date_of_birth, gender")
+        .select("email, first_name, last_name, date_of_birth, gender, health_data_consent, health_data_consent_at")
         .eq("id", session.user.id)
         .single();
 
       if (profile) {
         setEmail(profile.email);
+        setHealthDataConsent(profile.health_data_consent || false);
+        setHealthDataConsentAt(profile.health_data_consent_at || null);
         form.reset({
           first_name: profile.first_name || "",
           last_name: profile.last_name || "",
@@ -417,6 +423,76 @@ export default function Profil() {
         </CardHeader>
         <CardContent>
           <CoachSelector userId={userId} />
+        </CardContent>
+      </Card>
+
+      {/* ----------- Consentement données de santé (RGPD) ----------- */}
+      <Card className="border-primary/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Données de santé (RGPD)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Conformément au RGPD, vous avez consenti (ou non) au traitement de vos données de santé 
+            (fatigue, stress, sommeil, courbatures, VMA, fréquence cardiaque) à des fins d'adaptation 
+            de vos entraînements sportifs.
+          </p>
+          
+          <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
+            <div className="space-y-1">
+              <p className="font-medium">Consentement aux données de santé</p>
+              {healthDataConsentAt && (
+                <p className="text-xs text-muted-foreground">
+                  {healthDataConsent ? "Consenti" : "Retiré"} le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              )}
+            </div>
+            <Switch
+              checked={healthDataConsent}
+              onCheckedChange={async (checked) => {
+                const now = new Date().toISOString();
+                const { error } = await supabase
+                  .from("user_profiles")
+                  .update({
+                    health_data_consent: checked,
+                    health_data_consent_at: now,
+                  })
+                  .eq("id", userId);
+                
+                if (error) {
+                  toast.error("Erreur lors de la mise à jour du consentement");
+                } else {
+                  setHealthDataConsent(checked);
+                  setHealthDataConsentAt(now);
+                  toast.success(checked 
+                    ? "Consentement accordé" 
+                    : "Consentement retiré - vos données de santé ne seront plus collectées"
+                  );
+                }
+              }}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Le retrait du consentement n'affecte pas la licéité du traitement effectué avant ce retrait.
+          </p>
+
+          <Link 
+            to="/politique-rgpd" 
+            className="flex items-center gap-1 text-sm text-primary hover:underline"
+          >
+            Consulter la Politique RGPD complète
+            <ExternalLink className="h-3 w-3" />
+          </Link>
         </CardContent>
       </Card>
     </div>

@@ -21,6 +21,8 @@ const EnAttente = lazy(() => import("./pages/EnAttente"));
 const DashboardCoach = lazy(() => import("./pages/DashboardCoach"));
 const DashboardSportif = lazy(() => import("./pages/DashboardSportif"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const PolitiqueRGPD = lazy(() => import("./pages/PolitiqueRGPD"));
+const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -41,6 +43,8 @@ const App = () => (
               <Route path="/auth/callback" element={<EmailConfirmation />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/en-attente" element={<EnAttente />} />
+              <Route path="/politique-rgpd" element={<PolitiqueRGPD />} />
+              <Route path="/mentions-legales" element={<MentionsLegales />} />
               <Route path="/coach/*" element={<DashboardCoach />} />
               <Route path="/dashboard-sportif/*" element={<DashboardSportif />} />
               <Route path="/sportif/*" element={<DashboardSportif />} />

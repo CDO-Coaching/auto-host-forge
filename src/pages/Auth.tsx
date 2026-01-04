@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import cdoLogo from "@/assets/cdo-logo.png";
 import { useAuth } from "@/contexts/AuthContext";
 import { Mail } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,6 +18,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const navigate = useNavigate();
   const { session, loading } = useAuth();
@@ -98,12 +100,14 @@ const Auth = () => {
 
         const userId = data.user?.id;
 
-        // Création du profil utilisateur avec seulement le rôle
+        // Création du profil utilisateur avec le rôle et le consentement RGPD
         await supabase.from("user_profiles").insert({
           id: userId,
           email: email,
           role: "sportif",
           approved: false,
+          health_data_consent: healthDataConsent,
+          health_data_consent_at: healthDataConsent ? new Date().toISOString() : null,
         });
 
         // Notification webhook Supabase
@@ -212,6 +216,43 @@ const Auth = () => {
                 minLength={6}
               />
             </div>
+
+            {/* Consentement RGPD pour les données de santé - uniquement à l'inscription */}
+            {!isLogin && (
+              <div className="space-y-3 p-4 bg-secondary/50 rounded-lg border border-border">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Vos données sont traitées uniquement par votre coach sportif, M. Corentin Dolley. 
+                  Elles sont nécessaires pour créer votre compte sur l'application.
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Des données concernant votre état de santé (fatigue, stress, sommeil, courbatures, VMA, 
+                  fréquence cardiaque) peuvent être collectées uniquement si vous y consentez, et uniquement 
+                  à des fins d'adaptation de vos entraînements.
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Vous pouvez retirer ce consentement à tout moment depuis votre profil. 
+                  Pour en savoir plus, consultez notre{" "}
+                  <Link to="/politique-rgpd" className="text-primary hover:underline" target="_blank">
+                    Politique RGPD
+                  </Link>.
+                </p>
+                
+                <div className="flex items-start space-x-3 pt-2">
+                  <Checkbox 
+                    id="health-consent" 
+                    checked={healthDataConsent}
+                    onCheckedChange={(checked) => setHealthDataConsent(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <Label 
+                    htmlFor="health-consent" 
+                    className="text-sm font-medium cursor-pointer leading-relaxed"
+                  >
+                    J'accepte que des données sur mon état de santé soient traitées à des fins d'adaptation des entraînements sportifs
+                  </Label>
+                </div>
+              </div>
+            )}
 
             <Button type="submit" variant="hero" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? "Chargement..." : isLogin ? "Se connecter" : "Créer mon compte"}
