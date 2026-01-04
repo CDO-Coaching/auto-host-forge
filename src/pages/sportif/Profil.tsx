@@ -12,7 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { Shield, ExternalLink } from "lucide-react";
+import { Shield, ExternalLink, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +24,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 /* ---------------------- Validation du profil ---------------------- */
 const profileSchema = z.object({
@@ -426,74 +431,176 @@ export default function Profil() {
         </CardContent>
       </Card>
 
-      {/* ----------- Consentement données de santé (RGPD) - Affiché seulement si pas déjà consenti ----------- */}
-      {!healthDataConsent && (
-        <Card className="border-primary/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-primary" />
-              Données de santé (RGPD)
-            </CardTitle>
+      {/* ----------- Paramètres avancés ----------- */}
+      <Collapsible>
+        <Card className="border-muted">
+          <CardHeader className="pb-0">
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" className="w-full justify-between p-0 h-auto hover:bg-transparent">
+                <CardTitle className="flex items-center gap-2 text-muted-foreground">
+                  <Settings className="h-5 w-5" />
+                  Paramètres avancés
+                </CardTitle>
+                <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Conformément au RGPD, vous pouvez consentir au traitement de vos données de santé 
-              (fatigue, stress, sommeil, courbatures, VMA, fréquence cardiaque) à des fins d'adaptation 
-              de vos entraînements sportifs.
-            </p>
-            
-            <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
-              <div className="space-y-1">
-                <p className="font-medium">Consentement aux données de santé</p>
-                {healthDataConsentAt && (
-                  <p className="text-xs text-muted-foreground">
-                    Retiré le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </p>
+          <CollapsibleContent>
+            <CardContent className="pt-4 space-y-4">
+              {/* Section RGPD */}
+              <div className="space-y-3 p-4 bg-secondary/30 rounded-lg border border-border/50">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <p className="font-medium text-sm">Données de santé (RGPD)</p>
+                </div>
+                
+                <p className="text-xs text-muted-foreground">
+                  Vous avez consenti au traitement de vos données de santé (fatigue, stress, sommeil, 
+                  courbatures, VMA, fréquence cardiaque) à des fins d'adaptation de vos entraînements.
+                </p>
+
+                {healthDataConsent ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Statut :</span>
+                      <span className="text-green-500 font-medium">✓ Consentement actif</span>
+                    </div>
+                    {healthDataConsentAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Consenti le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    )}
+                    
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full text-xs text-muted-foreground">
+                          Retirer mon consentement
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Retirer le consentement aux données de santé</AlertDialogTitle>
+                          <AlertDialogDescription className="space-y-2">
+                            <p>
+                              En retirant votre consentement, votre coach ne pourra plus collecter ni traiter 
+                              vos données de santé (fatigue, stress, sommeil, etc.) pour adapter vos entraînements.
+                            </p>
+                            <p>
+                              <strong>Note :</strong> Le retrait du consentement n'affecte pas la licéité du 
+                              traitement effectué avant ce retrait.
+                            </p>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              const now = new Date().toISOString();
+                              const { error } = await supabase
+                                .from("user_profiles")
+                                .update({
+                                  health_data_consent: false,
+                                  health_data_consent_at: now,
+                                })
+                                .eq("id", userId);
+                              
+                              if (error) {
+                                toast.error("Erreur lors du retrait du consentement");
+                                return;
+                              }
+                              
+                              // Récupérer les infos du profil pour l'email
+                              const { data: profile } = await supabase
+                                .from("user_profiles")
+                                .select("first_name, last_name, email")
+                                .eq("id", userId)
+                                .single();
+
+                              // Notifier le coach par email
+                              try {
+                                await supabase.functions.invoke("notify-consent-withdrawal", {
+                                  body: {
+                                    userEmail: profile?.email || email,
+                                    userName: `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Utilisateur",
+                                    withdrawalDate: now,
+                                  },
+                                });
+                              } catch (err) {
+                                console.error("Erreur notification email:", err);
+                              }
+                              
+                              setHealthDataConsent(false);
+                              setHealthDataConsentAt(now);
+                              toast.success("Consentement retiré - votre coach a été notifié");
+                            }}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Confirmer le retrait
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Statut :</span>
+                      <span className="text-orange-500 font-medium">⚠ Consentement retiré</span>
+                    </div>
+                    {healthDataConsentAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Retiré le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric'
+                        })}
+                      </p>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-xs"
+                      onClick={async () => {
+                        const now = new Date().toISOString();
+                        const { error } = await supabase
+                          .from("user_profiles")
+                          .update({
+                            health_data_consent: true,
+                            health_data_consent_at: now,
+                          })
+                          .eq("id", userId);
+                        
+                        if (error) {
+                          toast.error("Erreur lors de l'activation du consentement");
+                        } else {
+                          setHealthDataConsent(true);
+                          setHealthDataConsentAt(now);
+                          toast.success("Consentement accordé");
+                        }
+                      }}
+                    >
+                      Réactiver mon consentement
+                    </Button>
+                  </div>
                 )}
+
+                <Link 
+                  to="/politique-rgpd" 
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  Consulter la Politique RGPD complète
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
               </div>
-              <Switch
-                checked={healthDataConsent}
-                onCheckedChange={async (checked) => {
-                  const now = new Date().toISOString();
-                  const { error } = await supabase
-                    .from("user_profiles")
-                    .update({
-                      health_data_consent: checked,
-                      health_data_consent_at: now,
-                    })
-                    .eq("id", userId);
-                  
-                  if (error) {
-                    toast.error("Erreur lors de la mise à jour du consentement");
-                  } else {
-                    setHealthDataConsent(checked);
-                    setHealthDataConsentAt(now);
-                    toast.success("Consentement accordé");
-                  }
-                }}
-              />
-            </div>
-
-            <p className="text-xs text-muted-foreground">
-              Ce consentement est nécessaire pour que votre coach puisse suivre vos données de santé.
-            </p>
-
-            <Link 
-              to="/politique-rgpd" 
-              className="flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Consulter la Politique RGPD complète
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </CardContent>
+            </CardContent>
+          </CollapsibleContent>
         </Card>
-      )}
+      </Collapsible>
     </div>
   );
 }
