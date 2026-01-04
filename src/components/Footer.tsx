@@ -6,7 +6,7 @@ const Footer = () => {
   return (
     <footer className="bg-card border-t border-border mt-20">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Logo & Description */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
@@ -33,6 +33,19 @@ const Footer = () => {
               </Link>
               <Link to="/contact" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 Contact
+              </Link>
+            </nav>
+          </div>
+
+          {/* Legal Links */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Informations légales</h3>
+            <nav className="flex flex-col space-y-2">
+              <Link to="/mentions-legales" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Mentions légales
+              </Link>
+              <Link to="/politique-rgpd" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Politique RGPD
               </Link>
             </nav>
           </div>
