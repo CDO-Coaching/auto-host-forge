@@ -426,75 +426,74 @@ export default function Profil() {
         </CardContent>
       </Card>
 
-      {/* ----------- Consentement données de santé (RGPD) ----------- */}
-      <Card className="border-primary/30">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            Données de santé (RGPD)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Conformément au RGPD, vous avez consenti (ou non) au traitement de vos données de santé 
-            (fatigue, stress, sommeil, courbatures, VMA, fréquence cardiaque) à des fins d'adaptation 
-            de vos entraînements sportifs.
-          </p>
-          
-          <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
-            <div className="space-y-1">
-              <p className="font-medium">Consentement aux données de santé</p>
-              {healthDataConsentAt && (
-                <p className="text-xs text-muted-foreground">
-                  {healthDataConsent ? "Consenti" : "Retiré"} le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              )}
+      {/* ----------- Consentement données de santé (RGPD) - Affiché seulement si pas déjà consenti ----------- */}
+      {!healthDataConsent && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Données de santé (RGPD)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Conformément au RGPD, vous pouvez consentir au traitement de vos données de santé 
+              (fatigue, stress, sommeil, courbatures, VMA, fréquence cardiaque) à des fins d'adaptation 
+              de vos entraînements sportifs.
+            </p>
+            
+            <div className="flex items-center justify-between p-4 bg-secondary/50 rounded-lg">
+              <div className="space-y-1">
+                <p className="font-medium">Consentement aux données de santé</p>
+                {healthDataConsentAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Retiré le {new Date(healthDataConsentAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </p>
+                )}
+              </div>
+              <Switch
+                checked={healthDataConsent}
+                onCheckedChange={async (checked) => {
+                  const now = new Date().toISOString();
+                  const { error } = await supabase
+                    .from("user_profiles")
+                    .update({
+                      health_data_consent: checked,
+                      health_data_consent_at: now,
+                    })
+                    .eq("id", userId);
+                  
+                  if (error) {
+                    toast.error("Erreur lors de la mise à jour du consentement");
+                  } else {
+                    setHealthDataConsent(checked);
+                    setHealthDataConsentAt(now);
+                    toast.success("Consentement accordé");
+                  }
+                }}
+              />
             </div>
-            <Switch
-              checked={healthDataConsent}
-              onCheckedChange={async (checked) => {
-                const now = new Date().toISOString();
-                const { error } = await supabase
-                  .from("user_profiles")
-                  .update({
-                    health_data_consent: checked,
-                    health_data_consent_at: now,
-                  })
-                  .eq("id", userId);
-                
-                if (error) {
-                  toast.error("Erreur lors de la mise à jour du consentement");
-                } else {
-                  setHealthDataConsent(checked);
-                  setHealthDataConsentAt(now);
-                  toast.success(checked 
-                    ? "Consentement accordé" 
-                    : "Consentement retiré - vos données de santé ne seront plus collectées"
-                  );
-                }
-              }}
-            />
-          </div>
 
-          <p className="text-xs text-muted-foreground">
-            Le retrait du consentement n'affecte pas la licéité du traitement effectué avant ce retrait.
-          </p>
+            <p className="text-xs text-muted-foreground">
+              Ce consentement est nécessaire pour que votre coach puisse suivre vos données de santé.
+            </p>
 
-          <Link 
-            to="/politique-rgpd" 
-            className="flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            Consulter la Politique RGPD complète
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-        </CardContent>
-      </Card>
+            <Link 
+              to="/politique-rgpd" 
+              className="flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              Consulter la Politique RGPD complète
+              <ExternalLink className="h-3 w-3" />
+            </Link>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

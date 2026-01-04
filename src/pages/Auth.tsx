@@ -18,7 +18,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [healthDataConsent, setHealthDataConsent] = useState(false);
+  const [healthDataConsent, setHealthDataConsent] = useState(true);
 
   const navigate = useNavigate();
   const { session, loading } = useAuth();
