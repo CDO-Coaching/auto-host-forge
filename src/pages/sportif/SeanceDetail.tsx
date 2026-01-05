@@ -165,16 +165,15 @@ export default function SeanceDetail() {
   }, [timerInterval]);
 
   // Arrêter automatiquement le timer de séance quand tous les exercices sont validés
-  // Ne pas déclencher pour les séances cardio (gérées par CardioFeedbackDialog)
+  // Fonctionne pour tous les types de séances (renfo, cardio, recup)
   useEffect(() => {
-    const isCardio = session?.session_type === "course" || session?.session_type === "velo" || session?.session_type === "natation";
     const allExercisesCompleted = exercises.every(isExerciseCompleted);
     
-    if (allExercisesCompleted && exercises.length > 0 && isSessionActive && !isCardio) {
+    if (allExercisesCompleted && exercises.length > 0 && isSessionActive) {
       // Ouvrir le dialog de validation au lieu de terminer directement
       setCompletionDialogOpen(true);
     }
-  }, [exercises, isSessionActive, session?.session_type]);
+  }, [exercises, isSessionActive]);
 
   // --- Sauvegarder le timer dans localStorage ---
   useEffect(() => {
@@ -446,13 +445,13 @@ export default function SeanceDetail() {
   }) => {
     if (!selectedCardioExercise) return;
 
-    const { rpe, comment, date, actualDistance, actualDuration, actualPace, actualAvgHeartRate } = data;
+    const { rpe, comment, actualDistance, actualDuration, actualPace, actualAvgHeartRate } = data;
 
     // Validation obligatoire du RPE pour les séances cardio
     if (!rpe || rpe.trim() === '') {
       toast({
         title: "RPE obligatoire",
-        description: "Merci de remplir un RPE pour valider la séance",
+        description: "Merci de remplir un RPE pour valider l'exercice",
         variant: "destructive",
       });
       return;
@@ -524,31 +523,19 @@ export default function SeanceDetail() {
       return;
     }
 
-    // Pour les séances cardio, marquer aussi la séance comme terminée avec la date et le RPE
-    if (timerInterval) {
-      clearInterval(timerInterval);
-    }
-    setTimerInterval(null);
-    setIsSessionActive(false);
-    localStorage.removeItem(`session_timer_${sessionId}`);
-
-    const { error: sessionError } = await supabase
-      .from("training_sessions")
-      .update({
-        duration_minutes: Math.max(1, Math.floor(sessionDuration / 60)),
-        completed_at: date.toISOString(),
-        session_rpe: rpeNumber,
-        session_comment: comment || null,
-      })
-      .eq("id", sessionId);
-
-    if (sessionError) {
-      console.error("Erreur lors de l'enregistrement de la séance:", sessionError);
-    }
+    toast({
+      title: "Exercice validé",
+      description: "Ton retour a été enregistré",
+    });
 
     setCardioFeedbackDialogOpen(false);
     setSelectedCardioExercise(null);
-    setShowCelebration(true);
+    
+    // Recharger les exercices pour voir la mise à jour
+    await loadSessionDetail();
+    
+    // Vérifier si tous les exercices sont maintenant complétés
+    // Le useEffect s'occupera d'ouvrir le dialog de complétion si nécessaire
   };
 
   const handleCancelCardioFeedback = () => {
@@ -681,10 +668,17 @@ export default function SeanceDetail() {
   const sortedExercises = getSortedExercises(exercises);
 
   // Vérifier si c'est une séance cardio (course, vélo, natation)
-  const isCardioSession = session.session_type === 'course' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
+  const isCardioSession = session.session_type === 'course' || session.session_type === 'velo' || session.session_type === 'natation' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
   
   // Vérifier si c'est une séance de récup/mobilité
   const isRecupMobilitySession = session.session_type === 'recup';
+  
+  // Déterminer le type de session pour le dialog de complétion
+  const getSessionType = (): "renfo" | "cardio" | "recup" => {
+    if (isRecupMobilitySession) return "recup";
+    if (isCardioSession) return "cardio";
+    return "renfo";
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -733,36 +727,25 @@ export default function SeanceDetail() {
         </div>
 
         {!allCompleted ? (
-          <>
-            {!isCardioSession && (
-              <div className="flex gap-2">
-                {!isSessionActive ? (
-                  <>
-                    <Button onClick={startSession} className="flex-1" size="lg">
-                      <Play className="h-4 w-4 mr-2" />
-                      Démarrer la séance
-                    </Button>
-                    <Button onClick={requestEndSession} variant="outline" size="lg">
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Séance terminée
-                    </Button>
-                  </>
-                ) : (
-                  <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
-                    <Square className="h-4 w-4 mr-2" />
-                    Terminer la séance
-                  </Button>
-                )}
-              </div>
+          <div className="flex gap-2">
+            {!isSessionActive ? (
+              <>
+                <Button onClick={startSession} className="flex-1" size="lg">
+                  <Play className="h-4 w-4 mr-2" />
+                  Démarrer la séance
+                </Button>
+                <Button onClick={requestEndSession} variant="outline" size="lg">
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Séance terminée
+                </Button>
+              </>
+            ) : (
+              <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
+                <Square className="h-4 w-4 mr-2" />
+                Terminer la séance
+              </Button>
             )}
-            {isCardioSession && (
-              <div className="text-center p-4 bg-muted/30 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  Cliquez sur la séance cardio ci-dessous pour la valider
-                </p>
-              </div>
-            )}
-          </>
+          </div>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -1276,7 +1259,7 @@ export default function SeanceDetail() {
         onValidate={handleSessionCompletion}
         onCancel={handleCancelCompletion}
         sessionName={session?.name}
-        sessionType={session?.session_type === "course" ? "cardio" : session?.session_type === "recup" ? "recup" : "renfo"}
+        sessionType={getSessionType()}
         initialDurationSeconds={sessionDuration}
       />
     </div>
