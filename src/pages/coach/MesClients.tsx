@@ -381,23 +381,26 @@ export default function MesClients() {
     });
   };
 
-  // Fonction pour déplacer un athlète dans la liste
-  const moveAthlete = (athleteId: string, direction: 'up' | 'down') => {
+  // Fonction pour déplacer un athlète en début ou fin de liste
+  const moveAthlete = (athleteId: string, direction: 'top' | 'bottom') => {
     // Séparer les non-validés et validés
     const nonValidated = approvedAthletes.filter(a => !a.hasCurrentWeekProgrammed);
     const validated = approvedAthletes.filter(a => a.hasCurrentWeekProgrammed);
     
-    // Trouver l'index actuel dans les non-validés seulement
-    const currentIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
-    if (currentIndex === -1) return;
+    // Trouver l'athlète à déplacer
+    const athleteIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
+    if (athleteIndex === -1) return;
     
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (newIndex < 0 || newIndex >= nonValidated.length) return;
-    
-    // Réordonner
+    // Retirer l'athlète de sa position actuelle
     const newNonValidated = [...nonValidated];
-    const [movedItem] = newNonValidated.splice(currentIndex, 1);
-    newNonValidated.splice(newIndex, 0, movedItem);
+    const [movedItem] = newNonValidated.splice(athleteIndex, 1);
+    
+    // Ajouter en début ou fin selon la direction
+    if (direction === 'top') {
+      newNonValidated.unshift(movedItem);
+    } else {
+      newNonValidated.push(movedItem);
+    }
     
     // Mettre à jour l'ordre manuel
     setManualOrder(newNonValidated.map(a => a.athlete_id));
@@ -613,32 +616,32 @@ export default function MesClients() {
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
                         {/* Boutons de réordonnancement pour les non-validés */}
                         {!relationship.hasCurrentWeekProgrammed && (
-                          <div className="flex flex-col gap-0.5">
+                          <div className="flex gap-0.5">
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'up');
+                                moveAthlete(relationship.athlete_id, 'top');
                               }}
                               disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
-                              className="h-5 w-5 p-0 hover:bg-primary/10"
-                              title="Monter"
+                              className="h-6 w-6 p-0 hover:bg-primary/10"
+                              title="Mettre en haut de liste"
                             >
-                              <ArrowUp className="h-3 w-3" />
+                              <ArrowUp className="h-3.5 w-3.5" />
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'down');
+                                moveAthlete(relationship.athlete_id, 'bottom');
                               }}
                               disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === nonValidatedAthletes.length - 1}
-                              className="h-5 w-5 p-0 hover:bg-primary/10"
-                              title="Descendre"
+                              className="h-6 w-6 p-0 hover:bg-primary/10"
+                              title="Mettre en bas de liste"
                             >
-                              <ArrowDown className="h-3 w-3" />
+                              <ArrowDown className="h-3.5 w-3.5" />
                             </Button>
                           </div>
                         )}
