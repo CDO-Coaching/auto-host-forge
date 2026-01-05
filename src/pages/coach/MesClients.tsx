@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2 } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,7 @@ interface AthleteRelationship {
   requested_at: string;
   athlete: Athlete;
   hasCurrentWeekProgrammed?: boolean;
+  display_order?: number;
 }
 
 interface ExternalClient {
@@ -57,6 +58,7 @@ export default function MesClients() {
   const [newExternalEmail, setNewExternalEmail] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
+  const [manualOrder, setManualOrder] = useState<string[]>([]);
 
   useEffect(() => {
     if (profile?.id) {
@@ -379,16 +381,55 @@ export default function MesClients() {
     });
   };
 
+  // Fonction pour déplacer un athlète dans la liste
+  const moveAthlete = (athleteId: string, direction: 'up' | 'down') => {
+    // Séparer les non-validés et validés
+    const nonValidated = approvedAthletes.filter(a => !a.hasCurrentWeekProgrammed);
+    const validated = approvedAthletes.filter(a => a.hasCurrentWeekProgrammed);
+    
+    // Trouver l'index actuel dans les non-validés seulement
+    const currentIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= nonValidated.length) return;
+    
+    // Réordonner
+    const newNonValidated = [...nonValidated];
+    const [movedItem] = newNonValidated.splice(currentIndex, 1);
+    newNonValidated.splice(newIndex, 0, movedItem);
+    
+    // Mettre à jour l'ordre manuel
+    setManualOrder(newNonValidated.map(a => a.athlete_id));
+    
+    // Reconstruire la liste complète
+    setApprovedAthletes([...newNonValidated, ...validated]);
+  };
+
   // Trier les athlètes approuvés : non validés en haut, validés en bas
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    if (a.hasCurrentWeekProgrammed === b.hasCurrentWeekProgrammed) return 0;
-    return a.hasCurrentWeekProgrammed ? 1 : -1; // false (non validé) avant true (validé)
+    // D'abord séparer validés et non-validés
+    if (a.hasCurrentWeekProgrammed !== b.hasCurrentWeekProgrammed) {
+      return a.hasCurrentWeekProgrammed ? 1 : -1;
+    }
+    // Si ordre manuel existe pour les non-validés, l'utiliser
+    if (!a.hasCurrentWeekProgrammed && manualOrder.length > 0) {
+      const indexA = manualOrder.indexOf(a.athlete_id);
+      const indexB = manualOrder.indexOf(b.athlete_id);
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+    }
+    return 0;
   });
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
   const filteredPaused = filterAthletes(pausedAthletes);
   const filteredExternalClients = filterExternalClients(externalClients);
+  
+  // Calculer les index pour savoir si on peut monter/descendre
+  const nonValidatedAthletes = filteredApproved.filter(a => !a.hasCurrentWeekProgrammed);
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
@@ -570,6 +611,37 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
+                        {/* Boutons de réordonnancement pour les non-validés */}
+                        {!relationship.hasCurrentWeekProgrammed && (
+                          <div className="flex flex-col gap-0.5">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveAthlete(relationship.athlete_id, 'up');
+                              }}
+                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
+                              className="h-5 w-5 p-0 hover:bg-primary/10"
+                              title="Monter"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveAthlete(relationship.athlete_id, 'down');
+                              }}
+                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === nonValidatedAthletes.length - 1}
+                              className="h-5 w-5 p-0 hover:bg-primary/10"
+                              title="Descendre"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        )}
                         <Button
                           size="sm"
                           variant="outline"
