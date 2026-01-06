@@ -549,16 +549,18 @@ export default function ClientDetail() {
     if (!selectedHistoricalWeek) return;
 
     try {
-      // 1. Supprimer tous les exercices des séances de cette semaine
-      const { error: exercisesError } = await supabase
-        .from("session_exercises")
-        .delete()
-        .in(
-          "session_id",
-          historicalSessions.map((s) => s.id)
-        );
+      // 1. Supprimer tous les exercices des séances de cette semaine (seulement s'il y a des séances)
+      if (historicalSessions.length > 0) {
+        const { error: exercisesError } = await supabase
+          .from("session_exercises")
+          .delete()
+          .in(
+            "session_id",
+            historicalSessions.map((s) => s.id)
+          );
 
-      if (exercisesError) throw exercisesError;
+        if (exercisesError) throw exercisesError;
+      }
 
       // 2. Supprimer toutes les séances de cette semaine
       const { error: sessionsError } = await supabase
