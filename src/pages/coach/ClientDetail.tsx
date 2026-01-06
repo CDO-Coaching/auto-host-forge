@@ -570,9 +570,9 @@ export default function ClientDetail() {
 
       if (sessionsError) throw sessionsError;
 
-      // 3. Supprimer la semaine validée
+      // 3. Supprimer la semaine (elle est stockée dans training_weeks avec validated=true)
       const { error: weekError } = await supabase
-        .from("validated_training_weeks")
+        .from("training_weeks")
         .delete()
         .eq("id", selectedHistoricalWeek.id);
 
