@@ -1158,7 +1158,7 @@ export default function ClientDetail() {
         return;
       }
 
-      // Vérifier que cette semaine n'est pas déjà programmée
+      // Vérifier si cette semaine existe déjà - si oui, la supprimer pour la remplacer
       const { data: existingWeek } = await supabase
         .from("training_weeks")
         .select("id")
@@ -1168,8 +1168,33 @@ export default function ClientDetail() {
         .maybeSingle();
 
       if (existingWeek) {
-        toast.error("Cette semaine est déjà programmée pour cet athlète");
-        return;
+        // Récupérer les séances existantes pour supprimer leurs exercices
+        const { data: existingSessions } = await supabase
+          .from("training_sessions")
+          .select("id")
+          .eq("week_id", existingWeek.id);
+
+        // Supprimer les exercices des séances existantes
+        if (existingSessions && existingSessions.length > 0) {
+          await supabase
+            .from("session_exercises")
+            .delete()
+            .in("session_id", existingSessions.map((s) => s.id));
+        }
+
+        // Supprimer les séances existantes
+        await supabase
+          .from("training_sessions")
+          .delete()
+          .eq("week_id", existingWeek.id);
+
+        // Supprimer la semaine existante
+        await supabase
+          .from("training_weeks")
+          .delete()
+          .eq("id", existingWeek.id);
+
+        toast.info("Semaine existante remplacée");
       }
 
       // 1. Créer la semaine d'entraînement
