@@ -18,7 +18,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [healthDataConsent, setHealthDataConsent] = useState(true);
+  const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const navigate = useNavigate();
   const { session, loading } = useAuth();
@@ -91,6 +91,17 @@ const Auth = () => {
           }
         }
       } else {
+        // Vérification du consentement obligatoire
+        if (!healthDataConsent) {
+          toast({
+            variant: "destructive",
+            title: "Consentement requis",
+            description: "Vous devez accepter le traitement des données de santé pour créer votre compte."
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -249,6 +260,7 @@ const Auth = () => {
                     className="text-sm font-medium cursor-pointer leading-relaxed"
                   >
                     J'accepte que des données sur mon état de santé soient traitées à des fins d'adaptation des entraînements sportifs
+                    <span className="text-destructive ml-1">*</span>
                   </Label>
                 </div>
               </div>
