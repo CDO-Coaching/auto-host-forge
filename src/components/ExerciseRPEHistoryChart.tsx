@@ -30,12 +30,14 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
 
       setLoading(true);
       try {
+        // Données sur 6 dernières semaines (42 jours)
+        const sixWeeksAgo = subDays(new Date(), 42);
+        sixWeeksAgo.setHours(0, 0, 0, 0);
+
         const safeName = exerciseName.trim().slice(0, 100);
         const pattern = `%${safeName}%`;
 
-        // IMPORTANT:
-        // - Certaines anciennes entrées peuvent avoir sportif_rpe rempli mais pas sportif_feedback_at.
-        // - On récupère donc aussi completed_at et on filtre côté client sur les 6 dernières semaines.
+        // Le feedback d'exercice est horodaté via sportif_feedback_at
         const { data, error } = await supabase
           .from("session_exercises")
           .select(`
@@ -43,7 +45,6 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
             exercice,
             sportif_rpe,
             sportif_feedback_at,
-            completed_at,
             training_sessions!inner(
               id,
               training_weeks!inner(athlete_id)
@@ -51,37 +52,26 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           `)
           .eq("training_sessions.training_weeks.athlete_id", user.id)
           .ilike("exercice", pattern)
+          .not("sportif_feedback_at", "is", null)
           .not("sportif_rpe", "is", null)
-          .order("sportif_feedback_at", { ascending: false })
-          .limit(200);
+          .gte("sportif_feedback_at", sixWeeksAgo.toISOString())
+          .order("sportif_feedback_at", { ascending: true });
 
         if (error) {
           console.error("Erreur lors de la récupération de l'historique RPE exercice:", error);
           return;
         }
 
-        const sixWeeksAgo = subDays(new Date(), 42);
-        sixWeeksAgo.setHours(0, 0, 0, 0);
+        const formattedData: ExerciseRPEData[] = (data ?? []).map((ex) => {
+          const d = new Date(ex.sportif_feedback_at!);
+          return {
+            date: format(d, "dd/MM", { locale: fr }),
+            fullDate: format(d, "EEEE d MMMM", { locale: fr }),
+            rpe: ex.sportif_rpe!,
+          };
+        });
 
-        // Filtrage côté client (supporte les anciennes entrées sans sportif_feedback_at)
-        const formattedWithCutoff: ExerciseRPEData[] = (data ?? [])
-          .map((ex) => {
-            const dateIso = ex.sportif_feedback_at || ex.completed_at;
-            if (!dateIso) return null;
-
-            const d = new Date(dateIso);
-            if (d < sixWeeksAgo) return null;
-
-            return {
-              date: format(d, "dd/MM", { locale: fr }),
-              fullDate: format(d, "EEEE d MMMM", { locale: fr }),
-              rpe: ex.sportif_rpe!,
-            };
-          })
-          .filter((v): v is ExerciseRPEData => !!v)
-          .reverse();
-
-        setRpeHistory(formattedWithCutoff);
+        setRpeHistory(formattedData);
       } catch (err) {
         console.error("Erreur:", err);
       } finally {
