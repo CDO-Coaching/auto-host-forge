@@ -144,10 +144,12 @@ export default function Agenda() {
   }, [fetchSessions]);
 
   const getSessionsForDay = (day: Date): AthleteSession[] => {
-    return sessions.filter(s => {
-      const sessionDate = parseISO(s.completedAt);
-      return isSameDay(sessionDate, day);
-    });
+    return sessions
+      .filter(s => {
+        const sessionDate = parseISO(s.completedAt);
+        return isSameDay(sessionDate, day);
+      })
+      .sort((a, b) => parseISO(a.completedAt).getTime() - parseISO(b.completedAt).getTime());
   };
 
   const goToPreviousWeek = () => setCurrentWeekStart(subWeeks(currentWeekStart, 1));
@@ -246,10 +248,15 @@ export default function Agenda() {
                         key={s.id}
                         className={`p-2 rounded-md border text-xs ${getSessionTypeColor(s.sessionType)}`}
                       >
-                        <div className="flex items-center gap-1 mb-1">
-                          <User className="h-3 w-3" />
-                          <span className="font-medium truncate">
-                            {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span className="font-medium truncate">
+                              {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
+                            </span>
+                          </div>
+                          <span className="text-[10px] opacity-75">
+                            {format(parseISO(s.completedAt), "HH:mm")}
                           </span>
                         </div>
                         <div className="flex items-center gap-1">
