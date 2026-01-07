@@ -32,8 +32,17 @@ interface SessionDetail {
     series: string;
     reps: string;
     charge: string;
+    tempo: string;
+    recuperation: string;
+    commentaire: string;
+    cardio_sport: string | null;
+    cardio_content: string | null;
     sportif_rpe: number | null;
     sportif_comment: string | null;
+    actual_distance_km: number | null;
+    actual_duration_minutes: number | null;
+    actual_pace_min_per_km: string | null;
+    actual_avg_heart_rate: number | null;
   }[];
 }
 
@@ -116,8 +125,17 @@ export function RPEHistoryChartDialog() {
             series,
             reps,
             charge,
+            tempo,
+            recuperation,
+            commentaire,
+            cardio_sport,
+            cardio_content,
             sportif_rpe,
-            sportif_comment
+            sportif_comment,
+            actual_distance_km,
+            actual_duration_minutes,
+            actual_pace_min_per_km,
+            actual_avg_heart_rate
           )
         `)
         .eq("id", data.sessionId)
@@ -256,14 +274,42 @@ export function RPEHistoryChartDialog() {
                       <Dumbbell className="h-4 w-4" />
                       Exercices ({selectedSession.session_exercises.length})
                     </h4>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {selectedSession.session_exercises.map((ex) => (
-                        <div key={ex.id} className="bg-muted/30 p-2 rounded-lg text-sm">
+                        <div key={ex.id} className="bg-muted/30 p-3 rounded-lg text-sm space-y-2">
                           <p className="font-medium">{ex.exercice}</p>
-                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
+                          
+                          {/* Prescriptions du coach */}
+                          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                             {ex.series && <span>{ex.series} séries</span>}
-                            {ex.reps && <span>• {ex.reps} reps</span>}
+                            {ex.reps && <span>• {ex.reps}</span>}
                             {ex.charge && <span>• {ex.charge}</span>}
+                            {ex.tempo && <span>• Tempo: {ex.tempo}</span>}
+                            {ex.recuperation && <span>• Récup: {ex.recuperation}</span>}
+                          </div>
+
+                          {/* Commentaire du coach */}
+                          {ex.commentaire && (
+                            <p className="text-xs bg-primary/10 p-2 rounded">
+                              📋 <span className="font-medium">Coach:</span> {ex.commentaire}
+                            </p>
+                          )}
+
+                          {/* Données cardio réalisées */}
+                          {(ex.actual_distance_km || ex.actual_duration_minutes || ex.actual_pace_min_per_km || ex.actual_avg_heart_rate) && (
+                            <div className="text-xs bg-green-500/10 p-2 rounded space-y-1">
+                              <p className="font-medium text-green-700 dark:text-green-400">Réalisé:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {ex.actual_distance_km && <span>{ex.actual_distance_km} km</span>}
+                                {ex.actual_duration_minutes && <span>• {ex.actual_duration_minutes} min</span>}
+                                {ex.actual_pace_min_per_km && <span>• {ex.actual_pace_min_per_km} /km</span>}
+                                {ex.actual_avg_heart_rate && <span>• {ex.actual_avg_heart_rate} bpm</span>}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Retour du sportif */}
+                          <div className="flex flex-wrap items-center gap-2">
                             {ex.sportif_rpe && (
                               <Badge 
                                 variant="outline" 
@@ -273,12 +319,12 @@ export function RPEHistoryChartDialog() {
                                 RPE: {ex.sportif_rpe}
                               </Badge>
                             )}
+                            {ex.sportif_comment && (
+                              <p className="text-xs italic text-muted-foreground">
+                                💬 {ex.sportif_comment}
+                              </p>
+                            )}
                           </div>
-                          {ex.sportif_comment && (
-                            <p className="text-xs italic mt-1 text-muted-foreground">
-                              💬 {ex.sportif_comment}
-                            </p>
-                          )}
                         </div>
                       ))}
                     </div>
