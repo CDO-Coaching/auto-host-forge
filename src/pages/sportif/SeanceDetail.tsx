@@ -704,8 +704,8 @@ export default function SeanceDetail() {
       description: "La séance a été remise à zéro et est à nouveau disponible",
     });
 
-    // Recharger les données
-    loadSessionDetail();
+    // Retourner à la liste des séances pour voir la séance réinitialisée
+    navigate("/sportif/seances");
   };
 
   if (loading) {
