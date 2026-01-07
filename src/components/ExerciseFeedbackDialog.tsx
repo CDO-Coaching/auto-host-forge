@@ -114,17 +114,15 @@ export function ExerciseFeedbackDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
-          {/* Graphique historique RPE pour les exercices de renfo - affiché en premier */}
-          {exerciseType === "renfo" && exerciseName && (
-            <ExerciseRPEHistoryChart exerciseName={exerciseName} />
-          )}
-
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Label htmlFor="rpe">
                 RPE ressenti (1-10) {isRpeRequired ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>}
               </Label>
               <RPEExplanationDialog />
+              {exerciseType === "renfo" && exerciseName && (
+                <ExerciseRPEHistoryChart exerciseName={exerciseName} />
+              )}
             </div>
             <Input
               id="rpe"
