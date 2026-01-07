@@ -56,25 +56,23 @@ export default function Agenda() {
         .eq("training_weeks.athlete_id", session.user.id)
         .not("completed_at", "is", null);
 
-      // Filter to only truly completed sessions (not invalidated)
-      const reallyCompletedSessions = (trainingSessions || []).filter(s => {
-        // For recup sessions: check duration_minutes
+      if (trainingError) throw trainingError;
+
+      // Filter to only truly completed sessions (same rule as in "Tes séances")
+      // - recup: duration_minutes is set
+      // - others: every exercise has either sportif_rpe OR is skipped
+      const reallyCompletedSessions = (trainingSessions || []).filter((s: any) => {
         if (s.session_type === "recup") {
           return s.duration_minutes !== null && s.duration_minutes !== undefined;
         }
-        // For cardio sessions: all exercises must have RPE or be skipped
-        if (s.session_type === "cardio") {
-          const exercises = s.session_exercises || [];
-          if (exercises.length === 0) return false;
-          return exercises.every((ex: any) => 
-            (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
-          );
-        }
-        // For other sessions: must have duration_minutes set (set when completing the session)
-        return s.duration_minutes !== null && s.duration_minutes !== undefined;
-      });
 
-      if (trainingError) throw trainingError;
+        const exercises = s.session_exercises || [];
+        if (exercises.length === 0) return false;
+
+        return exercises.every(
+          (ex: any) => (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true,
+        );
+      });
 
       // Fetch custom sessions created by the athlete (only with completed_at set)
       const { data: customSessions, error: customError } = await supabase
@@ -166,12 +164,12 @@ export default function Agenda() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span>Séance faite</span>
-        </div>
-      </div>
+       <div className="flex items-center gap-4 text-sm text-muted-foreground">
+         <div className="flex items-center gap-2">
+           <div className="w-3 h-3 rounded-full bg-success" />
+           <span>Séance faite</span>
+         </div>
+       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendar */}
@@ -190,9 +188,9 @@ export default function Agenda() {
               }}
               modifiersStyles={{
                 hasSession: {
-                  backgroundColor: "hsl(142 76% 36% / 0.2)",
+                  backgroundColor: "hsl(var(--success) / 0.2)",
                   borderRadius: "50%",
-                  border: "2px solid hsl(142 76% 36%)"
+                  border: "2px solid hsl(var(--success))"
                 }
               }}
             />
