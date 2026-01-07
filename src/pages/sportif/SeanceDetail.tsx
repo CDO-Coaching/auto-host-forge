@@ -649,55 +649,43 @@ export default function SeanceDetail() {
       return [item.id];
     });
 
-    // Réinitialiser tous les feedbacks à null et skipped à false
+    // Supprimer tous les exercices de la séance
     const { error: exerciseError } = await supabase
       .from("session_exercises")
-      .update({
-        sportif_rpe: null,
-        sportif_comment: null,
-        sportif_feedback_at: null,
-        skipped: false,
-        actual_distance_km: null,
-        actual_duration_minutes: null,
-        actual_pace_min_per_km: null,
-        actual_avg_heart_rate: null,
-      })
+      .delete()
       .in("id", exerciseIds);
 
     if (exerciseError) {
       toast({
         title: "Erreur",
-        description: "Impossible d'invalider la séance",
+        description: "Impossible de supprimer les exercices de la séance",
         variant: "destructive",
       });
       return;
     }
 
-    // Supprimer le completed_at de la séance pour qu'elle disparaisse de l'agenda
+    // Supprimer complètement la séance de la base de données
     const { error: sessionError } = await supabase
       .from("training_sessions")
-      .update({
-        completed_at: null,
-        session_rpe: null,
-        session_comment: null,
-        duration_minutes: null,
-      })
+      .delete()
       .eq("id", sessionId);
 
     if (sessionError) {
-      console.error("Erreur lors de la réinitialisation de la séance:", sessionError);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer la séance",
+        variant: "destructive",
+      });
+      return;
     }
 
-    // Réinitialiser la date cardio stockée
-    setCardioSessionDate(null);
-
     toast({
-      title: "Séance invalidée",
-      description: "La séance a été remise à zéro",
+      title: "Séance supprimée",
+      description: "La séance a été définitivement supprimée",
     });
 
-    // Recharger les données
-    loadSessionDetail();
+    // Retourner à la liste des séances
+    navigate("/sportif/seances");
   };
 
   if (loading) {
