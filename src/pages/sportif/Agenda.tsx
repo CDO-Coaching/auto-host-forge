@@ -39,6 +39,7 @@ export default function Agenda() {
     setIsLoading(true);
     try {
       // Fetch training sessions completed by the athlete
+      // Must have completed_at AND (duration_minutes for non-recup sessions, or be a recup with duration_minutes)
       const { data: trainingSessions, error: trainingError } = await supabase
         .from("training_sessions")
         .select(`
@@ -48,10 +49,30 @@ export default function Agenda() {
           session_type,
           completed_at,
           session_rpe,
+          duration_minutes,
+          session_exercises(sportif_rpe, skipped),
           training_weeks!inner(athlete_id)
         `)
         .eq("training_weeks.athlete_id", session.user.id)
         .not("completed_at", "is", null);
+
+      // Filter to only truly completed sessions (not invalidated)
+      const reallyCompletedSessions = (trainingSessions || []).filter(s => {
+        // For recup sessions: check duration_minutes
+        if (s.session_type === "recup") {
+          return s.duration_minutes !== null && s.duration_minutes !== undefined;
+        }
+        // For cardio sessions: all exercises must have RPE or be skipped
+        if (s.session_type === "cardio") {
+          const exercises = s.session_exercises || [];
+          if (exercises.length === 0) return false;
+          return exercises.every((ex: any) => 
+            (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
+          );
+        }
+        // For other sessions: must have duration_minutes set (set when completing the session)
+        return s.duration_minutes !== null && s.duration_minutes !== undefined;
+      });
 
       if (trainingError) throw trainingError;
 
@@ -65,12 +86,12 @@ export default function Agenda() {
 
       // Combine both types
       const allSessions: CompletedSession[] = [
-        ...(trainingSessions || []).map(s => ({
+        ...reallyCompletedSessions.map(s => ({
           id: s.id,
           name: s.name,
           week_id: s.week_id,
           session_type: s.session_type,
-          completed_at: s.completed_at,
+          completed_at: s.completed_at!,
           session_rpe: s.session_rpe,
           isCustom: false
         })),
@@ -170,9 +191,9 @@ export default function Agenda() {
               }}
               modifiersStyles={{
                 hasSession: {
-                  backgroundColor: "hsl(var(--primary) / 0.2)",
+                  backgroundColor: "hsl(142 76% 36% / 0.2)",
                   borderRadius: "50%",
-                  border: "2px solid hsl(var(--primary))"
+                  border: "2px solid hsl(142 76% 36%)"
                 }
               }}
             />
