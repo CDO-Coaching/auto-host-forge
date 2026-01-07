@@ -191,7 +191,7 @@ export function CardioFeedbackDialog({
                 RPE (1-10) <span className="text-destructive">*</span>
               </Label>
               <RPEExplanationDialog />
-              <RPEHistoryChartDialog sportifId={sportifId} />
+              <RPEHistoryChartDialog />
             </div>
             <Input
               id="rpe"
