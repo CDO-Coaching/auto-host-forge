@@ -12,6 +12,11 @@ interface ExerciseRPEData {
   date: string;
   rpe: number;
   fullDate: string;
+  series?: number;
+  reps?: string;
+  charge?: string;
+  commentaire?: string;
+  count: number; // nombre d'entrées groupées
 }
 
 interface ExerciseRPEHistoryChartProps {
@@ -45,6 +50,10 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
             exercice,
             sportif_rpe,
             sportif_feedback_at,
+            series,
+            reps,
+            charge,
+            commentaire,
             training_sessions!inner(
               id,
               training_weeks!inner(athlete_id)
@@ -63,7 +72,15 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
         }
 
         // Grouper par date pour éviter les doublons
-        const groupedByDate = new Map<string, { rpes: number[]; fullDate: string }>();
+        interface GroupedData {
+          rpes: number[];
+          fullDate: string;
+          series: number[];
+          reps: string[];
+          charges: string[];
+          commentaires: string[];
+        }
+        const groupedByDate = new Map<string, GroupedData>();
         
         (data ?? []).forEach((ex) => {
           const d = new Date(ex.sportif_feedback_at!);
@@ -71,17 +88,34 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           const fullDate = format(d, "EEEE d MMMM", { locale: fr });
           
           if (!groupedByDate.has(dateKey)) {
-            groupedByDate.set(dateKey, { rpes: [], fullDate });
+            groupedByDate.set(dateKey, { 
+              rpes: [], 
+              fullDate, 
+              series: [], 
+              reps: [], 
+              charges: [], 
+              commentaires: [] 
+            });
           }
-          groupedByDate.get(dateKey)!.rpes.push(ex.sportif_rpe!);
+          const group = groupedByDate.get(dateKey)!;
+          group.rpes.push(ex.sportif_rpe!);
+          if (ex.series) group.series.push(ex.series);
+          if (ex.reps) group.reps.push(ex.reps);
+          if (ex.charge) group.charges.push(ex.charge);
+          if (ex.commentaire) group.commentaires.push(ex.commentaire);
         });
 
-        // Calculer la moyenne par jour
+        // Calculer la moyenne par jour et garder les détails
         const formattedData: ExerciseRPEData[] = Array.from(groupedByDate.entries()).map(
-          ([date, { rpes, fullDate }]) => ({
+          ([date, group]) => ({
             date,
-            fullDate,
-            rpe: Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length),
+            fullDate: group.fullDate,
+            rpe: Math.round(group.rpes.reduce((a, b) => a + b, 0) / group.rpes.length),
+            series: group.series.length > 0 ? Math.max(...group.series) : undefined,
+            reps: group.reps.length > 0 ? group.reps[group.reps.length - 1] : undefined,
+            charge: group.charges.length > 0 ? group.charges[group.charges.length - 1] : undefined,
+            commentaire: group.commentaires.length > 0 ? group.commentaires[group.commentaires.length - 1] : undefined,
+            count: group.rpes.length,
           })
         );
 
@@ -107,11 +141,26 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
     if (active && payload && payload.length) {
       const data = payload[0].payload as ExerciseRPEData;
       return (
-        <div className="bg-background border border-border rounded-lg p-2 shadow-lg text-xs">
-          <p className="text-muted-foreground capitalize">{data.fullDate}</p>
-          <p className="font-medium">
-            RPE: <span className="font-bold">{data.rpe}</span>
+        <div className="bg-background border border-border rounded-lg p-3 shadow-lg text-xs space-y-1 max-w-[200px]">
+          <p className="text-muted-foreground capitalize font-medium">{data.fullDate}</p>
+          <p>
+            RPE: <span className="font-bold text-primary">{data.rpe}</span>
+            {data.count > 1 && <span className="text-muted-foreground ml-1">({data.count} entrées)</span>}
           </p>
+          {data.series && (
+            <p>Séries: <span className="font-medium">{data.series}</span></p>
+          )}
+          {data.reps && (
+            <p>Reps: <span className="font-medium">{data.reps}</span></p>
+          )}
+          {data.charge && (
+            <p>Charge: <span className="font-medium">{data.charge}</span></p>
+          )}
+          {data.commentaire && (
+            <p className="text-muted-foreground italic border-t border-border pt-1 mt-1">
+              "{data.commentaire}"
+            </p>
+          )}
         </div>
       );
     }
