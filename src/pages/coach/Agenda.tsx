@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,11 @@ import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
+interface AthleteProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
 interface AthleteSession {
   id: string;
   sessionName: string;
@@ -25,6 +30,7 @@ export default function Agenda() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [sessions, setSessions] = useState<AthleteSession[]>([]);
+  const [allAthletes, setAllAthletes] = useState<AthleteProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchSessions = useCallback(async () => {
@@ -61,6 +67,13 @@ export default function Agenda() {
       if (profilesError) throw profilesError;
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      // Store all athletes for the summary
+      setAllAthletes((profiles || []).map(p => ({
+        id: p.id,
+        firstName: p.first_name || "",
+        lastName: p.last_name || ""
+      })));
 
       // Fetch completed training sessions for the week
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
@@ -178,6 +191,39 @@ export default function Agenda() {
 
   const isToday = (day: Date) => isSameDay(day, new Date());
 
+  // Calculate sessions per athlete, sorted by count (highest first, 0 at bottom)
+  const athleteSessionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    
+    // Initialize all athletes with 0
+    allAthletes.forEach(athlete => {
+      counts.set(athlete.id, 0);
+    });
+    
+    // Count sessions per athlete
+    sessions.forEach(session => {
+      counts.set(session.athleteId, (counts.get(session.athleteId) || 0) + 1);
+    });
+    
+    // Create sorted list: athletes with sessions first (sorted desc), then athletes with 0 sessions
+    return allAthletes
+      .map(athlete => ({
+        ...athlete,
+        sessionCount: counts.get(athlete.id) || 0
+      }))
+      .sort((a, b) => {
+        // Both have 0: alphabetical order
+        if (a.sessionCount === 0 && b.sessionCount === 0) {
+          return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+        }
+        // One has 0: put it at the bottom
+        if (a.sessionCount === 0) return 1;
+        if (b.sessionCount === 0) return -1;
+        // Both have sessions: highest first
+        return b.sessionCount - a.sessionCount;
+      });
+  }, [sessions, allAthletes]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -284,13 +330,40 @@ export default function Agenda() {
       </div>
 
       {/* Summary */}
-      {!isLoading && sessions.length > 0 && (
+      {!isLoading && allAthletes.length > 0 && (
         <Card>
           <CardContent className="p-4">
-            <h3 className="font-semibold mb-2">Résumé de la semaine</h3>
-            <p className="text-sm text-muted-foreground">
+            <h3 className="font-semibold mb-3">Résumé de la semaine</h3>
+            <p className="text-sm text-muted-foreground mb-4">
               {sessions.length} séance{sessions.length > 1 ? "s" : ""} réalisée{sessions.length > 1 ? "s" : ""} par vos athlètes cette semaine
             </p>
+            
+            <div className="space-y-2">
+              {athleteSessionCounts.map((athlete) => (
+                <div 
+                  key={athlete.id}
+                  className={`flex items-center justify-between p-2 rounded-md ${
+                    athlete.sessionCount === 0 
+                      ? "bg-muted/50 text-muted-foreground" 
+                      : "bg-primary/10"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span className={athlete.sessionCount === 0 ? "" : "font-medium"}>
+                      {athlete.firstName} {athlete.lastName}
+                    </span>
+                  </div>
+                  <span className={`text-sm ${
+                    athlete.sessionCount === 0 
+                      ? "text-muted-foreground" 
+                      : "font-semibold text-primary"
+                  }`}>
+                    {athlete.sessionCount} séance{athlete.sessionCount > 1 ? "s" : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
