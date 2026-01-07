@@ -169,11 +169,39 @@ export default function SeanceDetail() {
   useEffect(() => {
     const allExercisesCompleted = exercises.every(isExerciseCompleted);
     
-    if (allExercisesCompleted && exercises.length > 0 && isSessionActive) {
-      // Ouvrir le dialog de validation au lieu de terminer directement
-      setCompletionDialogOpen(true);
+    // Pour les séances cardio: auto-compléter quand tous les exercices sont terminés (pas besoin de timer)
+    const isCardio = session?.session_type === 'course' || session?.session_type === 'velo' || session?.session_type === 'natation' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
+    
+    if (allExercisesCompleted && exercises.length > 0) {
+      if (isCardio) {
+        // Pour cardio: auto-valider la séance directement
+        handleAutoCompleteCardioSession();
+      } else if (isSessionActive) {
+        // Pour les autres types: ouvrir le dialog de validation
+        setCompletionDialogOpen(true);
+      }
     }
-  }, [exercises, isSessionActive]);
+  }, [exercises, isSessionActive, session]);
+
+  // Auto-complétion pour les séances cardio
+  const handleAutoCompleteCardioSession = async () => {
+    // Vérifier que la séance n'est pas déjà complétée
+    if (session?.completed_at) return;
+    
+    const { error } = await supabase
+      .from("training_sessions")
+      .update({
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Erreur lors de la validation auto de la séance cardio:", error);
+      return;
+    }
+
+    setShowCelebration(true);
+  };
 
   // --- Sauvegarder le timer dans localStorage ---
   useEffect(() => {
@@ -726,7 +754,8 @@ export default function SeanceDetail() {
           </div>
         </div>
 
-        {!allCompleted ? (
+        {/* Masquer les boutons pour les séances cardio pures */}
+        {!allCompleted && !isCardioSession ? (
           <div className="flex gap-2">
             {!isSessionActive ? (
               <>
@@ -746,7 +775,7 @@ export default function SeanceDetail() {
               </Button>
             )}
           </div>
-        ) : (
+        ) : allCompleted ? (
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="outline" size="lg" className="w-full">
@@ -768,7 +797,7 @@ export default function SeanceDetail() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-        )}
+        ) : null}
 
         <div className="space-y-2">
           {sortedExercises.length === 0 ? (
