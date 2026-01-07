@@ -76,13 +76,12 @@ export default function Agenda() {
 
       if (trainingError) throw trainingError;
 
-      // Fetch custom sessions created by the athlete
+      // Fetch custom sessions created by the athlete (only with completed_at set)
       const { data: customSessions, error: customError } = await supabase
         .from("custom_sessions")
         .select("id, session_name, completed_at, duration_minutes")
-        .eq("user_id", session.user.id);
-
-      if (customError) throw customError;
+        .eq("user_id", session.user.id)
+        .not("completed_at", "is", null);
 
       // Combine both types
       const allSessions: CompletedSession[] = [
