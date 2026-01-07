@@ -190,7 +190,7 @@ export function CardioFeedbackDialog({
               <Label htmlFor="rpe" className="text-sm font-medium">
                 RPE (1-10) <span className="text-destructive">*</span>
               </Label>
-              <RPEExplanationDialog />
+              <RPEExplanationDialog isCardio />
               <RPEHistoryChartDialog />
             </div>
             <Input
