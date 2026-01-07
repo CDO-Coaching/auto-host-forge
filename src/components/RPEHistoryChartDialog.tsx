@@ -9,6 +9,7 @@ import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from 
 import { useAuth } from "@/contexts/AuthContext";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { formatCardioTime, formatCardioDistance, calculatePace } from "@/lib/cardioCalculations";
 
 interface RPEData {
   date: string;
@@ -287,6 +288,73 @@ export function RPEHistoryChartDialog() {
                             {ex.tempo && <span>• Tempo: {ex.tempo}</span>}
                             {ex.recuperation && <span>• Récup: {ex.recuperation}</span>}
                           </div>
+
+                          {/* Contenu cardio prescrit par le coach */}
+                          {ex.cardio_content && (() => {
+                            try {
+                              const cardioData = JSON.parse(ex.cardio_content);
+                              const steps = cardioData.steps || [];
+                              const blocks = cardioData.blocks || [];
+                              
+                              if (steps.length === 0) return null;
+                              
+                              const displayedBlocks = new Set<number>();
+                              
+                              return (
+                                <div className="text-xs bg-blue-500/10 p-2 rounded space-y-2">
+                                  <p className="font-medium text-blue-700 dark:text-blue-400">Programme prévu:</p>
+                                  <div className="space-y-1">
+                                    {steps.map((step: any, stepIndex: number) => {
+                                      // Si le step est dans un bloc
+                                      if (step.block_id) {
+                                        if (displayedBlocks.has(step.block_id)) return null;
+                                        displayedBlocks.add(step.block_id);
+                                        
+                                        const block = blocks.find((b: any) => b.id === step.block_id);
+                                        if (!block) return null;
+                                        
+                                        const blockSteps = steps.filter((s: any) => s.block_id === step.block_id);
+                                        return (
+                                          <div key={`block-${block.id}`} className="border-l-2 border-blue-400 pl-2">
+                                            <span className="font-medium">{block.repetitions}x:</span>
+                                            {blockSteps.map((bs: any, bsIndex: number) => {
+                                              const pace = calculatePace(bs.vma_percentage, null, bs.movement_type === 'marche');
+                                              return (
+                                                <span key={bs.id} className="ml-1">
+                                                  {bsIndex > 0 && " + "}
+                                                  <span className="capitalize">{bs.movement_type}</span>
+                                                  {" "}
+                                                  {bs.effort_type === "duration" 
+                                                    ? formatCardioTime(bs.duration)
+                                                    : formatCardioDistance(bs.distance)}
+                                                  {bs.vma_percentage > 0 && ` à ${bs.vma_percentage}%`}
+                                                </span>
+                                              );
+                                            })}
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // Step individuel
+                                      const pace = calculatePace(step.vma_percentage, null, step.movement_type === 'marche');
+                                      return (
+                                        <div key={step.id || stepIndex}>
+                                          <span className="capitalize">{step.movement_type}</span>
+                                          {" "}
+                                          {step.effort_type === "duration"
+                                            ? formatCardioTime(step.duration)
+                                            : formatCardioDistance(step.distance)}
+                                          {step.vma_percentage > 0 && ` à ${step.vma_percentage}%`}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
 
                           {/* Commentaire du coach */}
                           {ex.commentaire && (
