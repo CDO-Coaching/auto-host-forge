@@ -649,43 +649,60 @@ export default function SeanceDetail() {
       return [item.id];
     });
 
-    // Supprimer tous les exercices de la séance
+    // Réinitialiser tous les feedbacks des exercices à null (comme si jamais faits)
     const { error: exerciseError } = await supabase
       .from("session_exercises")
-      .delete()
+      .update({
+        sportif_rpe: null,
+        sportif_comment: null,
+        sportif_feedback_at: null,
+        skipped: false,
+        actual_distance_km: null,
+        actual_duration_minutes: null,
+        actual_pace_min_per_km: null,
+        actual_avg_heart_rate: null,
+      })
       .in("id", exerciseIds);
 
     if (exerciseError) {
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer les exercices de la séance",
+        description: "Impossible de réinitialiser les exercices de la séance",
         variant: "destructive",
       });
       return;
     }
 
-    // Supprimer complètement la séance de la base de données
+    // Réinitialiser la séance (supprimer completed_at pour qu'elle redevienne "à faire")
     const { error: sessionError } = await supabase
       .from("training_sessions")
-      .delete()
+      .update({
+        completed_at: null,
+        session_rpe: null,
+        session_comment: null,
+        duration_minutes: null,
+      })
       .eq("id", sessionId);
 
     if (sessionError) {
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer la séance",
+        description: "Impossible de réinitialiser la séance",
         variant: "destructive",
       });
       return;
     }
 
+    // Réinitialiser la date cardio stockée
+    setCardioSessionDate(null);
+
     toast({
-      title: "Séance supprimée",
-      description: "La séance a été définitivement supprimée",
+      title: "Séance réinitialisée",
+      description: "La séance a été remise à zéro et est à nouveau disponible",
     });
 
-    // Retourner à la liste des séances
-    navigate("/sportif/seances");
+    // Recharger les données
+    loadSessionDetail();
   };
 
   if (loading) {
