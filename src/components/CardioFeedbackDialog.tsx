@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { RPEHistoryChartDialog } from "@/components/RPEHistoryChartDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
@@ -190,6 +191,7 @@ export function CardioFeedbackDialog({
                 RPE (1-10) <span className="text-destructive">*</span>
               </Label>
               <RPEExplanationDialog />
+              <RPEHistoryChartDialog sportifId={sportifId} />
             </div>
             <Input
               id="rpe"
