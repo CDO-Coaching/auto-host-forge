@@ -170,6 +170,9 @@ export default function SeanceDetail() {
   // Arrêter automatiquement le timer de séance quand tous les exercices sont validés
   // Fonctionne pour tous les types de séances (renfo, cardio, recup)
   useEffect(() => {
+    // Ne pas déclencher si la séance est déjà complétée ou si le dialog est déjà ouvert
+    if (session?.completed_at || completionDialogOpen) return;
+    
     const allExercisesCompleted = exercises.every(isExerciseCompleted);
     
     // Pour les séances cardio: auto-compléter quand tous les exercices sont terminés (pas besoin de timer)
@@ -179,12 +182,12 @@ export default function SeanceDetail() {
       if (isCardio) {
         // Pour cardio: auto-valider la séance directement
         handleAutoCompleteCardioSession();
-      } else if (isSessionActive) {
-        // Pour les autres types: ouvrir le dialog de validation
+      } else {
+        // Pour renfo/recup: toujours ouvrir le dialog de validation (avec ou sans timer)
         setCompletionDialogOpen(true);
       }
     }
-  }, [exercises, isSessionActive, session]);
+  }, [exercises, isSessionActive, session, completionDialogOpen]);
 
   // Auto-complétion pour les séances cardio
   const handleAutoCompleteCardioSession = async () => {
