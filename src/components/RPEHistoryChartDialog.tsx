@@ -17,6 +17,7 @@ interface RPEData {
   rpe: number;
   fullDate: string;
   sessionId: string;
+  sessionType: string;
 }
 
 interface SessionDetail {
@@ -71,6 +72,7 @@ export function RPEHistoryChartDialog() {
           .select(`
             id,
             name,
+            session_type,
             session_rpe,
             completed_at,
             training_weeks!inner(athlete_id)
@@ -92,6 +94,7 @@ export function RPEHistoryChartDialog() {
           sessionName: session.name || "Séance",
           rpe: session.session_rpe!,
           sessionId: session.id,
+          sessionType: session.session_type || "renfo",
         }));
 
         setRpeHistory(formattedData);
@@ -157,6 +160,15 @@ export function RPEHistoryChartDialog() {
     }
   };
 
+  const getSessionTypeColor = (type: string) => {
+    switch (type) {
+      case "cardio": return "hsl(200, 80%, 50%)"; // bleu
+      case "renfo": return "hsl(280, 70%, 55%)"; // violet
+      case "recup": return "hsl(142, 70%, 45%)"; // vert
+      default: return "hsl(38, 92%, 50%)"; // orange par défaut
+    }
+  };
+
   const getRPEColor = (rpe: number) => {
     if (rpe <= 3) return "hsl(142, 76%, 36%)"; // vert
     if (rpe <= 5) return "hsl(48, 96%, 53%)"; // jaune
@@ -178,8 +190,15 @@ export function RPEHistoryChartDialog() {
       const data = payload[0].payload as RPEData;
       return (
         <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
-          <p className="font-medium text-sm">{data.sessionName}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: getSessionTypeColor(data.sessionType) }} 
+            />
+            <p className="font-medium text-sm">{data.sessionName}</p>
+          </div>
           <p className="text-xs text-muted-foreground capitalize">{data.fullDate}</p>
+          <p className="text-xs text-muted-foreground">{getSessionTypeLabel(data.sessionType)}</p>
           <p className="text-sm mt-1">
             RPE: <span className="font-bold">{data.rpe}</span>
           </p>
@@ -437,7 +456,7 @@ export function RPEHistoryChartDialog() {
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="rpe" radius={[4, 4, 0, 0]}>
                       {rpeHistory.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={getRPEColor(entry.rpe)} />
+                        <Cell key={`cell-${index}`} fill={getSessionTypeColor(entry.sessionType)} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -446,20 +465,16 @@ export function RPEHistoryChartDialog() {
 
               <div className="flex justify-center gap-4 text-xs text-muted-foreground pt-2">
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(142, 76%, 36%)" }} />
-                  <span>1-3</span>
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(280, 70%, 55%)" }} />
+                  <span>Renfo</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(48, 96%, 53%)" }} />
-                  <span>4-5</span>
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(200, 80%, 50%)" }} />
+                  <span>Cardio</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(38, 92%, 50%)" }} />
-                  <span>6-7</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(0, 84%, 60%)" }} />
-                  <span>8-10</span>
+                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "hsl(142, 70%, 45%)" }} />
+                  <span>Récup</span>
                 </div>
               </div>
             </>
