@@ -77,6 +77,9 @@ export default function SeanceDetail() {
   
   // État pour le dialog de validation de séance
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  
+  // Date choisie pour la validation cardio (stockée lors du feedback)
+  const [cardioSessionDate, setCardioSessionDate] = useState<Date | null>(null);
 
   // Charger la VMA de l'athlète
   useEffect(() => {
@@ -188,10 +191,13 @@ export default function SeanceDetail() {
     // Vérifier que la séance n'est pas déjà complétée
     if (session?.completed_at) return;
     
+    // Utiliser la date choisie dans le CardioFeedbackDialog, ou la date actuelle par défaut
+    const completionDate = cardioSessionDate || new Date();
+    
     const { error } = await supabase
       .from("training_sessions")
       .update({
-        completed_at: new Date().toISOString(),
+        completed_at: completionDate.toISOString(),
       })
       .eq("id", sessionId);
 
@@ -556,6 +562,9 @@ export default function SeanceDetail() {
       description: "Ton retour a été enregistré",
     });
 
+    // Stocker la date choisie pour l'utiliser lors de l'auto-complétion de la séance
+    setCardioSessionDate(data.date);
+    
     setCardioFeedbackDialogOpen(false);
     setSelectedCardioExercise(null);
     
