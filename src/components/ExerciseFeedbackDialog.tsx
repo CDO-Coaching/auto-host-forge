@@ -120,6 +120,9 @@ export function ExerciseFeedbackDialog({
                 RPE ressenti (1-10) {isRpeRequired ? <span className="text-destructive">*</span> : <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>}
               </Label>
               <RPEExplanationDialog />
+              {exerciseType === "renfo" && exerciseName && (
+                <ExerciseRPEHistoryChart exerciseName={exerciseName} />
+              )}
             </div>
             <Input
               id="rpe"
@@ -145,11 +148,6 @@ export function ExerciseFeedbackDialog({
               rows={4}
             />
           </div>
-          
-          {/* Graphique historique RPE pour les exercices de renfo */}
-          {exerciseType === "renfo" && exerciseName && (
-            <ExerciseRPEHistoryChart exerciseName={exerciseName} />
-          )}
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={handleCancel} disabled={isSubmitting} className="w-full sm:w-auto">

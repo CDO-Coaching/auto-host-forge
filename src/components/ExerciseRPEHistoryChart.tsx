@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
@@ -18,12 +20,13 @@ interface ExerciseRPEHistoryChartProps {
 
 export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChartProps) {
   const { user } = useAuth();
+  const [open, setOpen] = useState(false);
   const [rpeHistory, setRpeHistory] = useState<ExerciseRPEData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchExerciseRPEHistory = async () => {
-      if (!user?.id || !exerciseName) return;
+      if (!open || !user?.id || !exerciseName) return;
 
       setLoading(true);
       try {
@@ -70,7 +73,7 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
     };
 
     fetchExerciseRPEHistory();
-  }, [user?.id, exerciseName]);
+  }, [open, user?.id, exerciseName]);
 
   const getRPEColor = (rpe: number) => {
     if (rpe <= 3) return "hsl(142, 76%, 36%)"; // vert
@@ -94,58 +97,74 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-4">
-        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  if (rpeHistory.length === 0) {
-    return null; // Ne rien afficher s'il n'y a pas d'historique
-  }
-
   return (
-    <div className="space-y-2 pt-2 border-t border-border">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <BarChart3 className="h-4 w-4" />
-        <span>Historique RPE (6 dernières semaines)</span>
-      </div>
-      <div className="h-32 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart 
-            data={rpeHistory} 
-            margin={{ top: 5, right: 5, left: -20, bottom: 20 }}
-          >
-            <XAxis 
-              dataKey="date" 
-              tick={{ fontSize: 10 }}
-              tickLine={false}
-              axisLine={false}
-              angle={-45}
-              textAnchor="end"
-              height={30}
-            />
-            <YAxis 
-              domain={[0, 10]} 
-              tick={{ fontSize: 10 }}
-              tickLine={false}
-              axisLine={false}
-              ticks={[2, 4, 6, 8, 10]}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar 
-              dataKey="rpe" 
-              radius={[4, 4, 0, 0]}
-            >
-              {rpeHistory.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getRPEColor(entry.rpe)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6"
+        onClick={() => setOpen(true)}
+        title="Voir l'historique des RPE pour cet exercice"
+      >
+        <BarChart3 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Historique RPE - {exerciseName}</DialogTitle>
+            <DialogDescription>
+              RPE sur les 6 dernières semaines pour cet exercice
+            </DialogDescription>
+          </DialogHeader>
+
+          {loading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+            </div>
+          ) : rpeHistory.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Aucun RPE enregistré pour cet exercice
+            </div>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={rpeHistory} 
+                  margin={{ top: 10, right: 10, left: -10, bottom: 40 }}
+                >
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    angle={-45}
+                    textAnchor="end"
+                    height={50}
+                  />
+                  <YAxis 
+                    domain={[0, 10]} 
+                    tick={{ fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    ticks={[2, 4, 6, 8, 10]}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar 
+                    dataKey="rpe" 
+                    radius={[4, 4, 0, 0]}
+                  >
+                    {rpeHistory.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={getRPEColor(entry.rpe)} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
