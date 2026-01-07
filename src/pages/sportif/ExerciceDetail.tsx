@@ -374,9 +374,9 @@ export default function ExerciceDetail() {
         return;
       }
 
-      // Calculer le 1RM théorique
-      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue);
-      console.log("💪 1RM théorique calculé:", theoretical1RM);
+      // Calculer le 1RM théorique (avec prise en compte du tempo)
+      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue, exercise.tempo);
+      console.log("💪 1RM théorique calculé:", theoretical1RM, "tempo:", exercise.tempo);
 
       // Récupérer l'exercise_id depuis la bibliothèque
       const { data: libraryData } = await supabase
