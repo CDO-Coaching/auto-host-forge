@@ -10,36 +10,47 @@ import {
   Calendar as CalendarIcon, 
   Dumbbell,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  Clock
 } from "lucide-react";
-import { format, isSameDay, parseISO, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, isSameDay, parseISO, subMonths, startOfMonth, endOfMonth, addMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 
-interface CompletedSession {
+interface AgendaSession {
   id: string;
   name: string;
   week_id: string;
   session_type: string;
-  completed_at: string;
+  date: string;
   session_rpe: number | null;
   isCustom?: boolean;
+  isCompleted: boolean;
 }
 
 export default function Agenda() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [completedSessions, setCompletedSessions] = useState<CompletedSession[]>([]);
+  const [agendaSessions, setAgendaSessions] = useState<AgendaSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch completed sessions (training_sessions + custom_sessions)
-  const fetchCompletedSessions = useCallback(async () => {
+  const isSessionCompleted = (s: any): boolean => {
+    if (s.session_type === "recup") {
+      return s.duration_minutes !== null && s.duration_minutes !== undefined;
+    }
+    const exercises = s.session_exercises || [];
+    if (exercises.length === 0) return false;
+    return exercises.every(
+      (ex: any) => (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true,
+    );
+  };
+
+  const fetchSessions = useCallback(async () => {
     if (!session?.user?.id) return;
 
     setIsLoading(true);
     try {
-      // Fetch training sessions completed by the athlete
-      // Must have completed_at AND (duration_minutes for non-recup sessions, or be a recup with duration_minutes)
+      // Fetch all training sessions for the athlete
       const { data: trainingSessions, error: trainingError } = await supabase
         .from("training_sessions")
         .select(`
@@ -48,62 +59,75 @@ export default function Agenda() {
           week_id,
           session_type,
           completed_at,
+          scheduled_date,
           session_rpe,
           duration_minutes,
           session_exercises(sportif_rpe, skipped),
           training_weeks!inner(athlete_id)
         `)
-        .eq("training_weeks.athlete_id", session.user.id)
-        .not("completed_at", "is", null);
+        .eq("training_weeks.athlete_id", session.user.id);
 
       if (trainingError) throw trainingError;
 
-      // Filter to only truly completed sessions (same rule as in "Tes séances")
-      // - recup: duration_minutes is set
-      // - others: every exercise has either sportif_rpe OR is skipped
-      const reallyCompletedSessions = (trainingSessions || []).filter((s: any) => {
-        if (s.session_type === "recup") {
-          return s.duration_minutes !== null && s.duration_minutes !== undefined;
-        }
-
-        const exercises = s.session_exercises || [];
-        if (exercises.length === 0) return false;
-
-        return exercises.every(
-          (ex: any) => (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true,
-        );
-      });
-
-      // Fetch custom sessions created by the athlete (only with completed_at set)
+      // Fetch custom sessions
       const { data: customSessions, error: customError } = await supabase
         .from("custom_sessions")
         .select("id, session_name, completed_at, duration_minutes")
         .eq("user_id", session.user.id)
         .not("completed_at", "is", null);
 
-      // Combine both types
-      const allSessions: CompletedSession[] = [
-        ...reallyCompletedSessions.map(s => ({
-          id: s.id,
-          name: s.name,
-          week_id: s.week_id,
-          session_type: s.session_type,
-          completed_at: s.completed_at!,
-          session_rpe: s.session_rpe,
-          isCustom: false
-        })),
-        ...(customSessions || []).map(s => ({
+      if (customError) throw customError;
+
+      const allSessions: AgendaSession[] = [];
+
+      // Process training sessions
+      (trainingSessions || []).forEach((s: any) => {
+        const completed = isSessionCompleted(s);
+        
+        // Add completed sessions (with completed_at date)
+        if (completed && s.completed_at) {
+          allSessions.push({
+            id: s.id,
+            name: s.name,
+            week_id: s.week_id,
+            session_type: s.session_type,
+            date: s.completed_at,
+            session_rpe: s.session_rpe,
+            isCustom: false,
+            isCompleted: true
+          });
+        }
+        
+        // Add scheduled sessions (not completed, with scheduled_date)
+        if (!completed && s.scheduled_date) {
+          allSessions.push({
+            id: s.id,
+            name: s.name,
+            week_id: s.week_id,
+            session_type: s.session_type,
+            date: s.scheduled_date,
+            session_rpe: null,
+            isCustom: false,
+            isCompleted: false
+          });
+        }
+      });
+
+      // Add custom sessions (always completed)
+      (customSessions || []).forEach((s: any) => {
+        allSessions.push({
           id: s.id,
           name: s.session_name,
           week_id: "",
           session_type: "custom",
-          completed_at: s.completed_at,
+          date: s.completed_at,
           session_rpe: null,
-          isCustom: true
-        }))
-      ];
+          isCustom: true,
+          isCompleted: true
+        });
+      });
 
-      setCompletedSessions(allSessions);
+      setAgendaSessions(allSessions);
     } catch (error) {
       console.error("Error fetching sessions:", error);
       toast.error("Erreur lors du chargement des séances");
@@ -113,36 +137,42 @@ export default function Agenda() {
   }, [session?.user?.id]);
 
   useEffect(() => {
-    fetchCompletedSessions();
-  }, [fetchCompletedSessions]);
+    fetchSessions();
+  }, [fetchSessions]);
 
   // Get sessions for a specific date
-  const getSessionsForDate = (date: Date): CompletedSession[] => {
-    return completedSessions.filter(session => {
-      const sessionDate = parseISO(session.completed_at);
+  const getSessionsForDate = (date: Date): AgendaSession[] => {
+    return agendaSessions.filter(s => {
+      const sessionDate = s.date.includes("T") ? parseISO(s.date) : new Date(s.date);
       return isSameDay(sessionDate, date);
     });
   };
 
-  // Get dates that have sessions (for calendar markers)
-  const datesWithSessions = completedSessions.map(s => parseISO(s.completed_at));
+  // Get dates with completed sessions
+  const datesWithCompletedSessions = agendaSessions
+    .filter(s => s.isCompleted)
+    .map(s => s.date.includes("T") ? parseISO(s.date) : new Date(s.date));
+
+  // Get dates with scheduled sessions (not completed)
+  const datesWithScheduledSessions = agendaSessions
+    .filter(s => !s.isCompleted)
+    .map(s => new Date(s.date));
 
   // Sessions for the selected date
   const selectedDateSessions = getSessionsForDate(selectedDate);
 
   // Navigate to session detail
-  const handleSessionClick = (session: CompletedSession) => {
-    if (session.isCustom) {
-      // Custom sessions don't have a detail page for now
-      toast.info("Séance personnalisée : " + session.name);
+  const handleSessionClick = (agendaSession: AgendaSession) => {
+    if (agendaSession.isCustom) {
+      toast.info("Séance personnalisée : " + agendaSession.name);
     } else {
-      navigate(`/sportif/seance/${session.week_id}/${session.id}`);
+      navigate(`/sportif/seance/${agendaSession.week_id}/${agendaSession.id}`);
     }
   };
 
-  // Calendar range: from last month to current month
+  // Calendar range: from last month to next month (to show scheduled sessions)
   const fromDate = startOfMonth(subMonths(new Date(), 1));
-  const toDate = endOfMonth(new Date());
+  const toDate = endOfMonth(addMonths(new Date(), 1));
 
   return (
     <div className="space-y-6">
@@ -155,7 +185,7 @@ export default function Agenda() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchCompletedSessions}
+          onClick={fetchSessions}
           disabled={isLoading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
@@ -164,12 +194,16 @@ export default function Agenda() {
       </div>
 
       {/* Legend */}
-       <div className="flex items-center gap-4 text-sm text-muted-foreground">
-         <div className="flex items-center gap-2">
-           <div className="w-3 h-3 rounded-full bg-success" />
-           <span>Séance faite</span>
-         </div>
-       </div>
+      <div className="flex items-center gap-6 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-success" />
+          <span>Séance faite</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-orange-500" />
+          <span>Séance programmée</span>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Calendar */}
@@ -184,13 +218,19 @@ export default function Agenda() {
               toDate={toDate}
               className="pointer-events-auto"
               modifiers={{
-                hasSession: datesWithSessions
+                completed: datesWithCompletedSessions,
+                scheduled: datesWithScheduledSessions
               }}
               modifiersStyles={{
-                hasSession: {
+                completed: {
                   backgroundColor: "hsl(var(--success) / 0.2)",
                   borderRadius: "50%",
                   border: "2px solid hsl(var(--success))"
+                },
+                scheduled: {
+                  backgroundColor: "hsl(24 95% 53% / 0.2)",
+                  borderRadius: "50%",
+                  border: "2px solid hsl(24 95% 53%)"
                 }
               }}
             />
@@ -210,24 +250,37 @@ export default function Agenda() {
               <p className="text-muted-foreground">Aucune séance ce jour</p>
             ) : (
               <div className="space-y-3">
-                {selectedDateSessions.map((session) => (
+                {selectedDateSessions.map((agendaSession) => (
                   <button
-                    key={session.id}
-                    onClick={() => handleSessionClick(session)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors text-left"
+                    key={agendaSession.id}
+                    onClick={() => handleSessionClick(agendaSession)}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors text-left ${
+                      agendaSession.isCompleted 
+                        ? "bg-success/10 hover:bg-success/20" 
+                        : "bg-orange-500/10 hover:bg-orange-500/20"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
-                      <Dumbbell className="h-5 w-5 text-primary" />
+                      {agendaSession.isCompleted ? (
+                        <Dumbbell className="h-5 w-5 text-success" />
+                      ) : (
+                        <Clock className="h-5 w-5 text-orange-500" />
+                      )}
                       <div>
-                        <p className="font-medium text-primary">{session.name}</p>
-                        {session.session_rpe && (
+                        <p className={`font-medium ${agendaSession.isCompleted ? "text-success" : "text-orange-500"}`}>
+                          {agendaSession.name}
+                        </p>
+                        {agendaSession.isCompleted && agendaSession.session_rpe && (
                           <p className="text-xs text-muted-foreground">
-                            RPE: {session.session_rpe}/10
+                            RPE: {agendaSession.session_rpe}/10
                           </p>
+                        )}
+                        {!agendaSession.isCompleted && (
+                          <p className="text-xs text-muted-foreground">À faire</p>
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="h-5 w-5 text-primary" />
+                    <ChevronRight className={`h-5 w-5 ${agendaSession.isCompleted ? "text-success" : "text-orange-500"}`} />
                   </button>
                 ))}
               </div>
