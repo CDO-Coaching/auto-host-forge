@@ -27,11 +27,11 @@ export default function Agenda() {
   const [sessions, setSessions] = useState<AthleteSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
-  const weekDays = eachDayOfInterval({ start: currentWeekStart, end: weekEnd });
-
   const fetchSessions = useCallback(async () => {
     if (!session?.user?.id) return;
+
+    const weekStart = currentWeekStart;
+    const weekEndDate = endOfWeek(weekStart, { weekStartsOn: 1 });
 
     setIsLoading(true);
     try {
@@ -63,8 +63,8 @@ export default function Agenda() {
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
       // Fetch completed training sessions for the week
-      const weekStartStr = format(currentWeekStart, "yyyy-MM-dd");
-      const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+      const weekStartStr = format(weekStart, "yyyy-MM-dd");
+      const weekEndStr = format(weekEndDate, "yyyy-MM-dd");
 
       const { data: trainingSessions, error: tsError } = await supabase
         .from("training_sessions")
@@ -137,7 +137,7 @@ export default function Agenda() {
     } finally {
       setIsLoading(false);
     }
-  }, [session?.user?.id, currentWeekStart, weekEnd]);
+  }, [session?.user?.id, currentWeekStart]);
 
   useEffect(() => {
     fetchSessions();
@@ -205,7 +205,7 @@ export default function Agenda() {
           <ChevronLeft className="h-5 w-5" />
         </Button>
         <h2 className="text-lg font-semibold text-center">
-          {format(currentWeekStart, "d MMM", { locale: fr })} - {format(weekEnd, "d MMM yyyy", { locale: fr })}
+          {format(currentWeekStart, "d MMM", { locale: fr })} - {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "d MMM yyyy", { locale: fr })}
         </h2>
         <Button variant="ghost" size="icon" onClick={goToNextWeek}>
           <ChevronRight className="h-5 w-5" />
@@ -214,7 +214,7 @@ export default function Agenda() {
 
       {/* Week grid */}
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-        {weekDays.map((day) => {
+        {eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) }).map((day) => {
           const daySessions = getSessionsForDay(day);
           const dayIsToday = isToday(day);
           
