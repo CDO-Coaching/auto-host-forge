@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
 
 interface ExerciseFeedbackDialogProps {
   open: boolean;
@@ -144,6 +145,11 @@ export function ExerciseFeedbackDialog({
               rows={4}
             />
           </div>
+          
+          {/* Graphique historique RPE pour les exercices de renfo */}
+          {exerciseType === "renfo" && exerciseName && (
+            <ExerciseRPEHistoryChart exerciseName={exerciseName} />
+          )}
         </div>
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={handleCancel} disabled={isSubmitting} className="w-full sm:w-auto">
