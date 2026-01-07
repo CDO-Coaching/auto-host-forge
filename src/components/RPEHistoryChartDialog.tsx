@@ -27,8 +27,9 @@ export function RPEHistoryChartDialog() {
 
       setLoading(true);
       try {
-        // 3 dernières semaines (21 jours)
+        // 3 dernières semaines (21 jours) - début de journée pour inclure aujourd'hui
         const threeWeeksAgo = subDays(new Date(), 21);
+        threeWeeksAgo.setHours(0, 0, 0, 0);
 
         // Récupérer les séances via training_weeks pour s'assurer que c'est bien le sportif connecté
         const { data, error } = await supabase
