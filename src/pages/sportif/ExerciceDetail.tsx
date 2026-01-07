@@ -358,11 +358,7 @@ export default function ExerciceDetail() {
         tempo: exercise.tempo 
       });
 
-      // Ne pas enregistrer si l'exercice a un tempo défini
-      if (exercise.tempo && exercise.tempo.trim() !== "") {
-        console.log("❌ Max théorique non enregistré: tempo défini");
-        return;
-      }
+      // Le tempo est maintenant pris en compte dans le calcul du 1RM via coefficient
 
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
