@@ -1,8 +1,44 @@
 /**
- * Calcule le 1RM théorique basé sur la charge, les reps et le RPE
- * Utilise la formule de Brzycki ajustée par le RIR (Reps In Reserve)
+ * Parse un tempo au format "4211", "3010", etc. et retourne le temps total par rep en secondes
+ * Format: [excentrique][pause bas][concentrique][pause haut]
+ * Exemple: "4211" = 4+2+1+1 = 8 secondes
  */
-export function calculate1RM(weight: number, reps: number, rpe: number): number {
+export function parseTempo(tempo: string | null | undefined): number | null {
+  if (!tempo || tempo.trim() === "") return null;
+  
+  // Nettoyer le tempo
+  const cleaned = tempo.replace(/[^0-9]/g, "");
+  
+  // Format attendu: 4 chiffres
+  if (cleaned.length !== 4) return null;
+  
+  const times = cleaned.split("").map(Number);
+  const totalTime = times.reduce((sum, t) => sum + t, 0);
+  
+  return totalTime > 0 ? totalTime : null;
+}
+
+/**
+ * Retourne le coefficient d'ajustement basé sur le temps sous tension par rep
+ * Plus le tempo est long, plus l'exercice est difficile pour une même charge
+ * Donc on augmente le 1RM estimé pour compenser
+ */
+export function getTempoCoefficient(tempoSeconds: number | null): number {
+  if (tempoSeconds === null) return 1.00; // Pas de tempo = coefficient neutre
+  
+  if (tempoSeconds <= 4) return 1.00;      // Tempo rapide
+  if (tempoSeconds <= 6) return 1.03;      // Tempo modéré (inverse de 0.97)
+  if (tempoSeconds <= 8) return 1.065;     // Tempo contrôlé (inverse de 0.94)
+  if (tempoSeconds <= 10) return 1.11;     // Tempo lent (inverse de 0.90)
+  return 1.18;                              // Tempo très lent (inverse de 0.85)
+}
+
+/**
+ * Calcule le 1RM théorique basé sur la charge, les reps, le RPE et le tempo
+ * Utilise la formule de Brzycki ajustée par le RIR (Reps In Reserve)
+ * Le tempo augmente la difficulté, donc on ajuste le 1RM à la hausse
+ */
+export function calculate1RM(weight: number, reps: number, rpe: number, tempo?: string | null): number {
   // Ajuster les reps selon le RPE (RIR = Reps In Reserve)
   const rir = 10 - rpe;
   const adjustedReps = reps + rir;
@@ -12,8 +48,13 @@ export function calculate1RM(weight: number, reps: number, rpe: number): number 
   const effectiveReps = Math.min(adjustedReps, 30);
   const oneRM = weight * (36 / (37 - effectiveReps));
   
+  // Appliquer le coefficient de tempo
+  const tempoSeconds = parseTempo(tempo);
+  const tempoCoeff = getTempoCoefficient(tempoSeconds);
+  const adjustedRM = oneRM * tempoCoeff;
+  
   // Arrondir à une décimale
-  return Math.round(oneRM * 10) / 10;
+  return Math.round(adjustedRM * 10) / 10;
 }
 
 /**

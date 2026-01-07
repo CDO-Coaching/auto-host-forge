@@ -223,7 +223,7 @@ export default function SupersetDetail() {
 
       if (!weight || !repsValue) return;
 
-      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue);
+      const theoretical1RM = calculate1RM(weight, repsValue, rpeValue, exercise.tempo);
 
       const { data: libraryData } = await supabase
         .from("exercise_library")
