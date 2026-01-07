@@ -39,10 +39,9 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
         const sixWeeksAgo = subDays(new Date(), 42);
         sixWeeksAgo.setHours(0, 0, 0, 0);
 
-        const safeName = exerciseName.trim().slice(0, 100);
-        const pattern = `%${safeName}%`;
+        const safeName = exerciseName.trim();
 
-        // Le feedback d'exercice est horodaté via sportif_feedback_at
+        // Recherche EXACTE par nom d'exercice (pas de ilike avec %)
         const { data, error } = await supabase
           .from("session_exercises")
           .select(`
@@ -60,7 +59,7 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
             )
           `)
           .eq("training_sessions.training_weeks.athlete_id", user.id)
-          .ilike("exercice", pattern)
+          .eq("exercice", safeName)
           .not("sportif_feedback_at", "is", null)
           .not("sportif_rpe", "is", null)
           .gte("sportif_feedback_at", sixWeeksAgo.toISOString())
