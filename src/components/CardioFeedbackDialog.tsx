@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CardioFeedbackDialogProps {
   open: boolean;
@@ -26,6 +27,8 @@ interface CardioFeedbackDialogProps {
   }) => void;
   onCancel: () => void;
   exerciseName?: string;
+  sessionName?: string;
+  sportifId?: string;
 }
 
 export function CardioFeedbackDialog({
@@ -34,6 +37,8 @@ export function CardioFeedbackDialog({
   onValidate,
   onCancel,
   exerciseName,
+  sessionName,
+  sportifId,
 }: CardioFeedbackDialogProps) {
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
@@ -43,6 +48,45 @@ export function CardioFeedbackDialog({
   const [actualPace, setActualPace] = useState("");
   const [actualAvgHeartRate, setActualAvgHeartRate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastWeekRpe, setLastWeekRpe] = useState<number | null>(null);
+
+  // Fetch last week's RPE for the same session name
+  useEffect(() => {
+    const fetchLastWeekRpe = async () => {
+      if (!open || !sessionName || !sportifId) {
+        setLastWeekRpe(null);
+        return;
+      }
+
+      try {
+        // Find sessions with the same name completed by this sportif
+        const { data, error } = await supabase
+          .from("training_sessions")
+          .select("session_rpe, completed_at")
+          .eq("sportif_id", sportifId)
+          .eq("name", sessionName)
+          .not("completed_at", "is", null)
+          .not("session_rpe", "is", null)
+          .order("completed_at", { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error("Erreur lors de la récupération du RPE précédent:", error);
+          return;
+        }
+
+        if (data && data.length > 0 && data[0].session_rpe) {
+          setLastWeekRpe(data[0].session_rpe);
+        } else {
+          setLastWeekRpe(null);
+        }
+      } catch (err) {
+        console.error("Erreur:", err);
+      }
+    };
+
+    fetchLastWeekRpe();
+  }, [open, sessionName, sportifId]);
 
   // Reset date when dialog opens
   useEffect(() => {
@@ -155,7 +199,7 @@ export function CardioFeedbackDialog({
               step="1"
               value={rpe}
               onChange={(e) => setRpe(e.target.value)}
-              placeholder="Ex: 8"
+              placeholder={lastWeekRpe ? `Dernier RPE: ${lastWeekRpe}` : "Ex: 8"}
               className="w-full"
             />
             <p className="text-xs text-muted-foreground">Obligatoire - Ressenti de l'effort (1 = très facile, 10 = maximum)</p>
