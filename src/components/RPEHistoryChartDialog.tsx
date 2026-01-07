@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RPEData {
   date: string;
@@ -15,25 +16,33 @@ interface RPEData {
 }
 
 export function RPEHistoryChartDialog() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [rpeHistory, setRpeHistory] = useState<RPEData[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchRPEHistory = async () => {
-      if (!open) return;
+      if (!open || !user?.id) return;
 
       setLoading(true);
       try {
-        const twoWeeksAgo = subDays(new Date(), 14);
+        // 3 dernières semaines (21 jours)
+        const threeWeeksAgo = subDays(new Date(), 21);
 
-        // RLS limite déjà la lecture aux séances du sportif connecté
+        // Récupérer les séances via training_weeks pour s'assurer que c'est bien le sportif connecté
         const { data, error } = await supabase
           .from("training_sessions")
-          .select("name, session_rpe, completed_at")
+          .select(`
+            name,
+            session_rpe,
+            completed_at,
+            training_weeks!inner(athlete_id)
+          `)
+          .eq("training_weeks.athlete_id", user.id)
           .not("completed_at", "is", null)
           .not("session_rpe", "is", null)
-          .gte("completed_at", twoWeeksAgo.toISOString())
+          .gte("completed_at", threeWeeksAgo.toISOString())
           .order("completed_at", { ascending: true });
 
         if (error) {
@@ -43,7 +52,7 @@ export function RPEHistoryChartDialog() {
 
         const formattedData: RPEData[] = (data ?? []).map((session) => ({
           date: format(new Date(session.completed_at!), "dd/MM", { locale: fr }),
-          fullDate: format(new Date(session.completed_at!), "EEEE d MMMM", { locale: fr }),
+          fullDate: format(new Date(session.completed_at!), "EEEE d MMMM yyyy", { locale: fr }),
           sessionName: session.name || "Séance",
           rpe: session.session_rpe!,
         }));
@@ -57,7 +66,7 @@ export function RPEHistoryChartDialog() {
     };
 
     fetchRPEHistory();
-  }, [open]);
+  }, [open, user?.id]);
 
   const getRPEColor = (rpe: number) => {
     if (rpe <= 3) return "hsl(142, 76%, 36%)"; // vert
@@ -98,9 +107,9 @@ export function RPEHistoryChartDialog() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Historique RPE (2 dernières semaines)</DialogTitle>
+            <DialogTitle>Historique RPE (3 dernières semaines)</DialogTitle>
             <DialogDescription className="sr-only">
-              Graphique des RPE sur les 14 derniers jours pour toutes les séances terminées.
+              Graphique des RPE sur les 21 derniers jours pour toutes tes séances terminées.
             </DialogDescription>
           </DialogHeader>
 
@@ -110,7 +119,7 @@ export function RPEHistoryChartDialog() {
             </div>
           ) : rpeHistory.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Aucune séance complétée ces 2 dernières semaines
+              Aucune séance complétée ces 3 dernières semaines
             </div>
           ) : (
             <div className="h-64 w-full">
