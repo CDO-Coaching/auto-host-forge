@@ -235,7 +235,7 @@ export function SessionCompletionDialog({
                   <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
                 )}
               </Label>
-              <RPEExplanationDialog />
+              <RPEExplanationDialog isCardio={sessionType === "cardio"} />
             </div>
             <Input
               id="session-rpe"
