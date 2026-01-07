@@ -30,11 +30,15 @@ export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps)
 
   useEffect(() => {
     const fetchRPEHistory = async () => {
-      if (!open || !sportifId) return;
+      if (!open || !sportifId) {
+        console.log("RPE History: Dialog not open or no sportifId", { open, sportifId });
+        return;
+      }
       
       setLoading(true);
       try {
         const twoWeeksAgo = subDays(new Date(), 14);
+        console.log("RPE History: Fetching for sportifId:", sportifId, "since:", twoWeeksAgo.toISOString());
         
         const { data, error } = await supabase
           .from("training_sessions")
@@ -44,6 +48,8 @@ export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps)
           .not("session_rpe", "is", null)
           .gte("completed_at", twoWeeksAgo.toISOString())
           .order("completed_at", { ascending: true });
+
+        console.log("RPE History: Query result", { data, error });
 
         if (error) {
           console.error("Erreur lors de la récupération de l'historique RPE:", error);
