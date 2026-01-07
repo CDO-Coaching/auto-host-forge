@@ -213,10 +213,7 @@ export default function SupersetDetail() {
 
   const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
     try {
-      if (exercise.tempo && exercise.tempo.trim() !== "") {
-        console.log("Max théorique non enregistré: tempo défini");
-        return;
-      }
+      // Le tempo est maintenant pris en compte dans le calcul du 1RM via coefficient
 
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
