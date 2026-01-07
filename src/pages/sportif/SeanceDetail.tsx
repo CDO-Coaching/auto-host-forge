@@ -650,17 +650,21 @@ export default function SeanceDetail() {
     });
 
     // Réinitialiser tous les feedbacks à null et skipped à false
-    const { error } = await supabase
+    const { error: exerciseError } = await supabase
       .from("session_exercises")
       .update({
         sportif_rpe: null,
         sportif_comment: null,
         sportif_feedback_at: null,
         skipped: false,
+        actual_distance_km: null,
+        actual_duration_minutes: null,
+        actual_pace_min_per_km: null,
+        actual_avg_heart_rate: null,
       })
       .in("id", exerciseIds);
 
-    if (error) {
+    if (exerciseError) {
       toast({
         title: "Erreur",
         description: "Impossible d'invalider la séance",
@@ -668,6 +672,24 @@ export default function SeanceDetail() {
       });
       return;
     }
+
+    // Supprimer le completed_at de la séance pour qu'elle disparaisse de l'agenda
+    const { error: sessionError } = await supabase
+      .from("training_sessions")
+      .update({
+        completed_at: null,
+        session_rpe: null,
+        session_comment: null,
+        duration_minutes: null,
+      })
+      .eq("id", sessionId);
+
+    if (sessionError) {
+      console.error("Erreur lors de la réinitialisation de la séance:", sessionError);
+    }
+
+    // Réinitialiser la date cardio stockée
+    setCardioSessionDate(null);
 
     toast({
       title: "Séance invalidée",
