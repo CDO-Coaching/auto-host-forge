@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { RPEHistoryChartDialog } from "@/components/RPEHistoryChartDialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, Clock, AlertCircle } from "lucide-react";
@@ -236,6 +237,7 @@ export function SessionCompletionDialog({
                 )}
               </Label>
               <RPEExplanationDialog isCardio={sessionType === "cardio"} />
+              {(sessionType === "renfo" || sessionType === "cardio") && <RPEHistoryChartDialog />}
             </div>
             <Input
               id="session-rpe"
