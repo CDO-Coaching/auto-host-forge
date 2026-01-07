@@ -1252,6 +1252,8 @@ export default function SeanceDetail() {
         open={cardioFeedbackDialogOpen}
         onOpenChange={setCardioFeedbackDialogOpen}
         exerciseName={selectedCardioExercise?.exercice || ""}
+        sessionName={session?.name}
+        sportifId={session?.sportif_id}
         onValidate={handleCardioFeedback}
         onCancel={handleCancelCardioFeedback}
       />
