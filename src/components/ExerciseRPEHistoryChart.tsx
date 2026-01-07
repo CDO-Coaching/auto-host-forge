@@ -62,14 +62,28 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           return;
         }
 
-        const formattedData: ExerciseRPEData[] = (data ?? []).map((ex) => {
+        // Grouper par date pour éviter les doublons
+        const groupedByDate = new Map<string, { rpes: number[]; fullDate: string }>();
+        
+        (data ?? []).forEach((ex) => {
           const d = new Date(ex.sportif_feedback_at!);
-          return {
-            date: format(d, "dd/MM", { locale: fr }),
-            fullDate: format(d, "EEEE d MMMM", { locale: fr }),
-            rpe: ex.sportif_rpe!,
-          };
+          const dateKey = format(d, "dd/MM", { locale: fr });
+          const fullDate = format(d, "EEEE d MMMM", { locale: fr });
+          
+          if (!groupedByDate.has(dateKey)) {
+            groupedByDate.set(dateKey, { rpes: [], fullDate });
+          }
+          groupedByDate.get(dateKey)!.rpes.push(ex.sportif_rpe!);
         });
+
+        // Calculer la moyenne par jour
+        const formattedData: ExerciseRPEData[] = Array.from(groupedByDate.entries()).map(
+          ([date, { rpes, fullDate }]) => ({
+            date,
+            fullDate,
+            rpe: Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length),
+          })
+        );
 
         setRpeHistory(formattedData);
       } catch (err) {
