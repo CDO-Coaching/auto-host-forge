@@ -10,7 +10,6 @@ interface ExerciseRPEData {
   date: string;
   rpe: number;
   fullDate: string;
-  charge?: string;
 }
 
 interface ExerciseRPEHistoryChartProps {
@@ -39,7 +38,6 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
             id,
             exercice,
             sportif_rpe,
-            charge,
             completed_at,
             training_sessions!inner(
               training_weeks!inner(athlete_id)
@@ -61,7 +59,6 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           date: format(new Date(ex.completed_at!), "dd/MM", { locale: fr }),
           fullDate: format(new Date(ex.completed_at!), "EEEE d MMMM", { locale: fr }),
           rpe: ex.sportif_rpe!,
-          charge: ex.charge || undefined,
         }));
 
         setRpeHistory(formattedData);
@@ -91,7 +88,6 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           <p className="font-medium">
             RPE: <span className="font-bold">{data.rpe}</span>
           </p>
-          {data.charge && <p className="text-muted-foreground">Charge: {data.charge}</p>}
         </div>
       );
     }
