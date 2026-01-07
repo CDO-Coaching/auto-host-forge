@@ -53,6 +53,7 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
             reps,
             charge,
             commentaire,
+            sportif_comment,
             training_sessions!inner(
               id,
               training_weeks!inner(athlete_id)
@@ -101,7 +102,9 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
           if (ex.series) group.series.push(ex.series);
           if (ex.reps) group.reps.push(ex.reps);
           if (ex.charge) group.charges.push(ex.charge);
-          if (ex.commentaire) group.commentaires.push(ex.commentaire);
+          // Prendre sportif_comment (commentaire athlète) en priorité, sinon commentaire coach
+          const comment = ex.sportif_comment || ex.commentaire;
+          if (comment) group.commentaires.push(comment);
         });
 
         // Calculer la moyenne par jour et garder les détails
