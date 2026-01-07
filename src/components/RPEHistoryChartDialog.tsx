@@ -1,20 +1,11 @@
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip } from "recharts";
-
-interface RPEHistoryChartDialogProps {
-  sportifId?: string;
-}
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Cell } from "recharts";
 
 interface RPEData {
   date: string;
@@ -23,48 +14,41 @@ interface RPEData {
   fullDate: string;
 }
 
-export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps) {
+export function RPEHistoryChartDialog() {
   const [open, setOpen] = useState(false);
   const [rpeHistory, setRpeHistory] = useState<RPEData[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchRPEHistory = async () => {
-      if (!open || !sportifId) {
-        console.log("RPE History: Dialog not open or no sportifId", { open, sportifId });
-        return;
-      }
-      
+      if (!open) return;
+
       setLoading(true);
       try {
         const twoWeeksAgo = subDays(new Date(), 14);
-        console.log("RPE History: Fetching for sportifId:", sportifId, "since:", twoWeeksAgo.toISOString());
-        
+
+        // RLS limite déjà la lecture aux séances du sportif connecté
         const { data, error } = await supabase
           .from("training_sessions")
           .select("name, session_rpe, completed_at")
-          .eq("sportif_id", sportifId)
           .not("completed_at", "is", null)
           .not("session_rpe", "is", null)
           .gte("completed_at", twoWeeksAgo.toISOString())
           .order("completed_at", { ascending: true });
-
-        console.log("RPE History: Query result", { data, error });
 
         if (error) {
           console.error("Erreur lors de la récupération de l'historique RPE:", error);
           return;
         }
 
-        if (data) {
-          const formattedData: RPEData[] = data.map((session) => ({
-            date: format(new Date(session.completed_at!), "dd/MM", { locale: fr }),
-            fullDate: format(new Date(session.completed_at!), "EEEE d MMMM", { locale: fr }),
-            sessionName: session.name || "Séance",
-            rpe: session.session_rpe!,
-          }));
-          setRpeHistory(formattedData);
-        }
+        const formattedData: RPEData[] = (data ?? []).map((session) => ({
+          date: format(new Date(session.completed_at!), "dd/MM", { locale: fr }),
+          fullDate: format(new Date(session.completed_at!), "EEEE d MMMM", { locale: fr }),
+          sessionName: session.name || "Séance",
+          rpe: session.session_rpe!,
+        }));
+
+        setRpeHistory(formattedData);
       } catch (err) {
         console.error("Erreur:", err);
       } finally {
@@ -73,7 +57,7 @@ export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps)
     };
 
     fetchRPEHistory();
-  }, [open, sportifId]);
+  }, [open]);
 
   const getRPEColor = (rpe: number) => {
     if (rpe <= 3) return "hsl(142, 76%, 36%)"; // vert
@@ -115,11 +99,14 @@ export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps)
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Historique RPE (2 dernières semaines)</DialogTitle>
+            <DialogDescription className="sr-only">
+              Graphique des RPE sur les 14 derniers jours pour toutes les séances terminées.
+            </DialogDescription>
           </DialogHeader>
 
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
           ) : rpeHistory.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -129,18 +116,14 @@ export function RPEHistoryChartDialog({ sportifId }: RPEHistoryChartDialogProps)
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={rpeHistory} margin={{ top: 10, right: 10, left: -10, bottom: 40 }}>
-                  <XAxis 
-                    dataKey="date" 
+                  <XAxis
+                    dataKey="date"
                     tick={{ fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
                     height={50}
                   />
-                  <YAxis 
-                    domain={[0, 10]} 
-                    tick={{ fontSize: 10 }}
-                    ticks={[0, 2, 4, 6, 8, 10]}
-                  />
+                  <YAxis domain={[0, 10]} tick={{ fontSize: 10 }} ticks={[0, 2, 4, 6, 8, 10]} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="rpe" radius={[4, 4, 0, 0]}>
                     {rpeHistory.map((entry, index) => (
