@@ -15,6 +15,7 @@ import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
+import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
 
 export default function ExerciceDetail() {
@@ -508,6 +509,7 @@ export default function ExerciceDetail() {
 
   return (
     <div className="min-h-screen bg-background">
+      {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
       <UniversalTimer ref={timerRef} />
       <CelebrationOverlay
         show={showCelebration}

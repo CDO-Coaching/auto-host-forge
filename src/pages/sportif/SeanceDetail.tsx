@@ -11,6 +11,7 @@ import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import {
   formatCardioTime,
@@ -759,6 +760,7 @@ export default function SeanceDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      <FloatingSessionTimer sessionId={sessionId!} />
       <UniversalTimer />
       <CelebrationOverlay
         show={showCelebration}
