@@ -443,6 +443,14 @@ export default function SeanceDetail() {
   };
 
   const handleCancelCompletion = () => {
+    // Arrêter le timer et nettoyer le localStorage
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+    setTimerInterval(null);
+    setIsSessionActive(false);
+    localStorage.removeItem(`session_timer_${sessionId}`);
+    
     setCompletionDialogOpen(false);
   };
 
