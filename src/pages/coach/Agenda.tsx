@@ -32,6 +32,7 @@ export default function Agenda() {
   const [sessions, setSessions] = useState<AthleteSession[]>([]);
   const [allAthletes, setAllAthletes] = useState<AthleteProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   const fetchSessions = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -329,23 +330,27 @@ export default function Agenda() {
         })}
       </div>
 
-      {/* Week view - Mobile: horizontal day tabs + list */}
+      {/* Week view - Mobile: horizontal day tabs + selected day content */}
       <div className="md:hidden space-y-3">
         {/* Horizontal day tabs */}
         <div className="flex gap-1 overflow-x-auto pb-2">
           {eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) }).map((day) => {
             const daySessions = getSessionsForDay(day);
             const dayIsToday = isToday(day);
+            const isSelected = selectedDay && isSameDay(selectedDay, day);
             
             return (
               <div 
                 key={day.toISOString()} 
-                className={`flex-1 min-w-[45px] text-center p-2 rounded-lg border ${
-                  dayIsToday 
-                    ? "bg-primary text-primary-foreground border-primary" 
-                    : daySessions.length > 0 
-                      ? "bg-muted/50 border-muted" 
-                      : "border-border/50"
+                onClick={() => setSelectedDay(isSelected ? null : day)}
+                className={`flex-1 min-w-[45px] text-center p-2 rounded-lg border cursor-pointer transition-all ${
+                  isSelected
+                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/50 scale-105"
+                    : dayIsToday 
+                      ? "bg-primary/20 text-primary border-primary/50" 
+                      : daySessions.length > 0 
+                        ? "bg-muted/50 border-muted hover:bg-muted" 
+                        : "border-border/50 hover:border-border"
                 }`}
               >
                 <div className="text-[10px] uppercase text-inherit opacity-70">
@@ -355,7 +360,7 @@ export default function Agenda() {
                   {format(day, "d")}
                 </div>
                 {daySessions.length > 0 && (
-                  <div className={`text-[9px] mt-0.5 ${dayIsToday ? "text-primary-foreground" : "text-primary"}`}>
+                  <div className={`text-[9px] mt-0.5 font-medium ${isSelected ? "text-primary-foreground" : "text-primary"}`}>
                     {daySessions.length}
                   </div>
                 )}
@@ -364,61 +369,71 @@ export default function Agenda() {
           })}
         </div>
 
-        {/* Sessions list for the week */}
-        <div className="space-y-2">
-          {eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) }).map((day) => {
-            const daySessions = getSessionsForDay(day);
-            const dayIsToday = isToday(day);
+        {/* Selected day sessions */}
+        {selectedDay && (
+          <div className="space-y-2 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <div className={`text-sm font-medium ${isToday(selectedDay) ? "text-primary" : ""}`}>
+                {format(selectedDay, "EEEE d MMMM", { locale: fr })}
+                {isToday(selectedDay) && <span className="ml-2 text-[10px] bg-primary/20 px-1.5 py-0.5 rounded">Aujourd'hui</span>}
+              </div>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setSelectedDay(null)}
+                className="text-xs h-7"
+              >
+                Fermer
+              </Button>
+            </div>
             
-            if (daySessions.length === 0) return null;
-            
-            return (
-              <div key={day.toISOString()}>
-                <div className={`text-xs font-medium mb-1.5 ${dayIsToday ? "text-primary" : "text-muted-foreground"}`}>
-                  {format(day, "EEEE d", { locale: fr })}
-                  {dayIsToday && <span className="ml-2 text-[10px] bg-primary/20 px-1.5 py-0.5 rounded">Aujourd'hui</span>}
-                </div>
-                <div className="space-y-1.5">
-                  {daySessions.map((s) => (
-                    <Card
-                      key={s.id}
-                      className={`${getSessionTypeColor(s.sessionType)}`}
-                    >
-                      <CardContent className="p-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            <span className="font-medium">
-                              {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
-                            </span>
-                          </div>
-                          <span className="text-xs opacity-75">
-                            {format(parseISO(s.completedAt), "HH:mm")}
+            {getSessionsForDay(selectedDay).length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="p-4 text-center text-muted-foreground text-sm">
+                  Aucune séance ce jour
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {getSessionsForDay(selectedDay).map((s) => (
+                  <Card
+                    key={s.id}
+                    className={`${getSessionTypeColor(s.sessionType)}`}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          <span className="font-medium">
+                            {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 mt-1.5">
-                          <Dumbbell className="h-3 w-3 opacity-75" />
-                          <span className="text-sm">{s.sessionName}</span>
-                        </div>
-                        <div className="flex items-center justify-between mt-1.5 text-xs opacity-75">
-                          <span>{getSessionTypeLabel(s.sessionType)}</span>
-                          {s.sessionRpe && <span>RPE: {s.sessionRpe}</span>}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <span className="text-xs opacity-75">
+                          {format(parseISO(s.completedAt), "HH:mm")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <Dumbbell className="h-3 w-3 opacity-75" />
+                        <span className="text-sm">{s.sessionName}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1.5 text-xs opacity-75">
+                        <span>{getSessionTypeLabel(s.sessionType)}</span>
+                        {s.sessionRpe && <span>RPE: {s.sessionRpe}</span>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            );
-          })}
-          
-          {/* Empty state */}
-          {!isLoading && sessions.length === 0 && (
-            <div className="text-center text-muted-foreground py-8">
-              Aucune séance cette semaine
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        {/* Hint when no day selected */}
+        {!selectedDay && (
+          <div className="text-center text-muted-foreground text-sm py-4">
+            Touchez un jour pour voir les séances
+          </div>
+        )}
       </div>
 
       {/* Summary */}
