@@ -14,6 +14,7 @@ import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { UniversalTimer } from "@/components/UniversalTimer";
+import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
@@ -415,6 +416,7 @@ export default function SupersetDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
+      {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
       <UniversalTimer />
       
       <CelebrationOverlay
