@@ -49,9 +49,9 @@ export function FloatingSessionTimer({ sessionId }: FloatingSessionTimerProps) {
   if (!isActive) return null;
 
   return (
-    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50">
-      <div className="bg-primary/80 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-mono text-lg font-semibold border border-primary/30">
-        <Timer className="h-5 w-5 opacity-80" />
+    <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50">
+      <div className="bg-black/40 backdrop-blur-xl text-white/90 px-5 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 font-mono text-lg font-medium border border-white/10">
+        <Timer className="h-4 w-4 opacity-70" />
         <span>{formatDuration(duration)}</span>
       </div>
     </div>
