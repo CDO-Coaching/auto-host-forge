@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -541,8 +541,11 @@ export default function ExerciceDetail() {
       />
 
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {/* En-tête exercice avec vidéo */}
+        {/* En-tête exercice avec bouton retour et vidéo */}
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <h1 className="text-xl sm:text-2xl font-bold flex-1">{exercise.exercice}</h1>
           {videoUrl && (
             <a
