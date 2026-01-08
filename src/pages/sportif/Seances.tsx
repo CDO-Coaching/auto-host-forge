@@ -257,120 +257,155 @@ export default function Seances() {
             {sessions.length === 0 ? (
               <p className="text-sm sm:text-base text-muted-foreground text-center py-6 sm:py-8">Aucune séance pour cette semaine.</p>
             ) : (
-              sessions.map((session, index) => {
-                const completed = isSessionCompleted(session);
-                const isFirstToDo = index === 0 && !completed;
-                const displayName = session.athlete_custom_name || session.name;
-                const hasSchedule = session.scheduled_date && !completed;
+              <div className="space-y-4">
+                {sessions.map((session, index) => {
+                  const completed = isSessionCompleted(session);
+                  const isFirstToDo = index === 0 && !completed;
+                  const displayName = session.athlete_custom_name || session.name;
+                  const hasSchedule = session.scheduled_date && !completed;
 
-                return (
-                  <Card
-                    key={session.id}
-                    className={`transition-all ${
-                      completed
-                        ? "border-green-500 bg-green-500/10"
-                        : hasSchedule
-                          ? "border-orange-500 bg-orange-500/10"
-                          : isFirstToDo
-                            ? "border-primary border-2 bg-primary/5 shadow-lg"
-                            : "hover:border-primary hover:shadow-md"
-                    }`}
-                  >
-                    <CardContent className="p-4 sm:p-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <div 
-                          className="flex-1 min-w-0 cursor-pointer"
-                          onClick={() => {
-                            if (session.session_type === "recup") {
-                              navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
-                            } else {
-                              navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
-                            }
-                          }}
-                        >
-                           <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-                            <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
-                              {displayName}
-                              {session.athlete_custom_name && (
-                                <span className="text-xs text-muted-foreground font-normal">
-                                  ({session.name})
-                                </span>
-                              )}
-                              {completed && (
-                                <div className="flex items-center gap-1 text-green-500 text-xs sm:text-sm font-normal">
-                                  <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                                  {session.duration_minutes && (
-                                    <span className="flex items-center gap-1 text-green-400">
-                                      <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                      {session.duration_minutes} min
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </h3>
-
-                            {hasSchedule && (
-                              <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 text-xs">
-                                📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
-                              </Badge>
-                            )}
-
-                            {isFirstToDo && !hasSchedule && (
-                              <Badge variant="default" className="bg-primary text-primary-foreground text-xs">
-                                À faire
-                              </Badge>
-                            )}
-                          </div>
-
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1">
-                              {session.session_exercises?.length || 0} exercices
-                            </Badge>
-                            {session.session_type === "recup" && (
-                              <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-purple-500 text-purple-600 dark:text-purple-400">
-                                Récup/Mobilité
-                              </Badge>
-                            )}
-                            {session.session_type === "cardio" && (
-                              <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400">
-                                Cardio
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          {!completed && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 sm:h-10 sm:w-10"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSchedulingSession(session);
+                  return (
+                    <div
+                      key={session.id}
+                      className="group"
+                      style={{
+                        animationDelay: `${index * 50}ms`,
+                      }}
+                    >
+                      <Card
+                        className={`
+                          relative overflow-hidden transition-all duration-300 ease-out
+                          transform-gpu hover:scale-[1.02] hover:-translate-y-1
+                          shadow-lg hover:shadow-2xl
+                          ${completed
+                            ? "border-green-500/50 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent"
+                            : hasSchedule
+                              ? "border-orange-500/50 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent"
+                              : isFirstToDo
+                                ? "border-primary border-2 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent shadow-primary/20"
+                                : "border-border/50 bg-gradient-to-br from-card via-card/80 to-transparent hover:border-primary/50"
+                          }
+                        `}
+                        style={{
+                          boxShadow: completed 
+                            ? '0 8px 30px -10px rgba(34, 197, 94, 0.3), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
+                            : hasSchedule
+                              ? '0 8px 30px -10px rgba(249, 115, 22, 0.3), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
+                              : isFirstToDo
+                                ? '0 8px 30px -10px rgba(var(--primary), 0.4), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
+                                : '0 4px 20px -5px rgba(0, 0, 0, 0.3)',
+                        }}
+                      >
+                        {/* Effet de brillance au survol */}
+                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%]" 
+                          style={{ transition: 'transform 0.75s ease-in-out, opacity 0.3s' }}
+                        />
+                        
+                        <CardContent className="p-4 sm:p-5 relative z-10">
+                          <div className="flex items-center justify-between gap-3">
+                            <div 
+                              className="flex-1 min-w-0 cursor-pointer"
+                              onClick={() => {
+                                if (session.session_type === "recup") {
+                                  navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                                } else {
+                                  navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                                }
                               }}
                             >
-                              <CalendarPlus className={`h-4 w-4 sm:h-5 sm:w-5 ${hasSchedule ? "text-orange-500" : "text-muted-foreground"}`} />
-                            </Button>
-                          )}
-                          <ChevronRight
-                            className={`h-5 w-5 sm:h-7 sm:w-7 cursor-pointer ${
-                              completed ? "text-green-500" : hasSchedule ? "text-orange-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
-                            }`}
-                            onClick={() => {
-                              if (session.session_type === "recup") {
-                                navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
-                              } else {
-                                navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
-                              }
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
+                              <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
+                                <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
+                                  {displayName}
+                                  {session.athlete_custom_name && (
+                                    <span className="text-xs text-muted-foreground font-normal">
+                                      ({session.name})
+                                    </span>
+                                  )}
+                                  {completed && (
+                                    <div className="flex items-center gap-1 text-green-500 text-xs sm:text-sm font-normal">
+                                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+                                      {session.duration_minutes && (
+                                        <span className="flex items-center gap-1 text-green-400">
+                                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                          {session.duration_minutes} min
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </h3>
+
+                                {hasSchedule && (
+                                  <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 text-xs backdrop-blur-sm bg-orange-500/10">
+                                    📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
+                                  </Badge>
+                                )}
+
+                                {isFirstToDo && !hasSchedule && (
+                                  <Badge variant="default" className="bg-primary text-primary-foreground text-xs shadow-lg shadow-primary/30">
+                                    À faire
+                                  </Badge>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1 backdrop-blur-sm">
+                                  {session.session_exercises?.length || 0} exercices
+                                </Badge>
+                                {session.session_type === "recup" && (
+                                  <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-purple-500 text-purple-600 dark:text-purple-400 backdrop-blur-sm bg-purple-500/10">
+                                    Récup/Mobilité
+                                  </Badge>
+                                )}
+                                {session.session_type === "cardio" && (
+                                  <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
+                                    Cardio
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 flex-shrink-0">
+                              {!completed && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 sm:h-10 sm:w-10 hover:bg-white/10 transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSchedulingSession(session);
+                                  }}
+                                >
+                                  <CalendarPlus className={`h-4 w-4 sm:h-5 sm:w-5 ${hasSchedule ? "text-orange-500" : "text-muted-foreground"}`} />
+                                </Button>
+                              )}
+                              <div 
+                                className={`
+                                  h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center cursor-pointer
+                                  transition-all duration-200 hover:scale-110
+                                  ${completed ? "bg-green-500/20" : hasSchedule ? "bg-orange-500/20" : isFirstToDo ? "bg-primary/20" : "bg-white/5 hover:bg-white/10"}
+                                `}
+                                onClick={() => {
+                                  if (session.session_type === "recup") {
+                                    navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                                  } else {
+                                    navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                                  }
+                                }}
+                              >
+                                <ChevronRight
+                                  className={`h-5 w-5 sm:h-6 sm:w-6 ${
+                                    completed ? "text-green-500" : hasSchedule ? "text-orange-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
+                                  }`}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  );
+                })}
+              </div>
             )}
 
             {/* Bouton pour ajouter une séance perso + Dialog d'édition */}
