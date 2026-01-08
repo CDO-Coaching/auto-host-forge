@@ -50,8 +50,8 @@ export function FloatingSessionTimer({ sessionId }: FloatingSessionTimerProps) {
 
   return (
     <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50">
-      <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-mono text-lg font-semibold">
-        <Timer className="h-5 w-5" />
+      <div className="bg-primary/80 backdrop-blur-sm text-primary-foreground px-4 py-2 rounded-full shadow-lg flex items-center gap-2 font-mono text-lg font-semibold border border-primary/30">
+        <Timer className="h-5 w-5 opacity-80" />
         <span>{formatDuration(duration)}</span>
       </div>
     </div>
