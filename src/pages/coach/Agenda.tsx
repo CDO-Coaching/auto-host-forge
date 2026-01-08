@@ -260,41 +260,52 @@ export default function Agenda() {
         </Button>
       </div>
 
-      {/* Week grid - Horizontal scroll on mobile, grid on desktop */}
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="flex md:grid md:grid-cols-7 gap-3 min-w-max md:min-w-0">
-          {eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) }).map((day) => {
-            const daySessions = getSessionsForDay(day);
-            const dayIsToday = isToday(day);
-            
-            return (
-              <Card 
-                key={day.toISOString()} 
-                className={`min-h-[180px] w-[140px] md:w-auto flex-shrink-0 ${dayIsToday ? "ring-2 ring-primary" : ""}`}
-              >
-                <CardContent className="p-3">
-                  <div className={`text-center mb-3 pb-2 border-b ${dayIsToday ? "text-primary font-bold" : ""}`}>
-                    <div className="text-xs uppercase text-muted-foreground">
-                      {format(day, "EEE", { locale: fr })}
-                    </div>
-                    <div className={`text-lg ${dayIsToday ? "bg-primary text-primary-foreground rounded-full w-8 h-8 flex items-center justify-center mx-auto" : ""}`}>
-                      {format(day, "d")}
-                    </div>
+      {/* Week grid - 7 columns on all screen sizes */}
+      <div className="grid grid-cols-7 gap-1 md:gap-3">
+        {eachDayOfInterval({ start: currentWeekStart, end: endOfWeek(currentWeekStart, { weekStartsOn: 1 }) }).map((day) => {
+          const daySessions = getSessionsForDay(day);
+          const dayIsToday = isToday(day);
+          
+          return (
+            <Card 
+              key={day.toISOString()} 
+              className={`min-h-[120px] md:min-h-[150px] ${dayIsToday ? "ring-2 ring-primary" : ""}`}
+            >
+              <CardContent className="p-1 md:p-3">
+                <div className={`text-center mb-1 md:mb-3 pb-1 md:pb-2 border-b ${dayIsToday ? "text-primary font-bold" : ""}`}>
+                  <div className="text-[9px] md:text-xs uppercase text-muted-foreground">
+                    {format(day, "EEEEE", { locale: fr })}
                   </div>
+                  <div className={`text-sm md:text-lg ${dayIsToday ? "bg-primary text-primary-foreground rounded-full w-6 h-6 md:w-8 md:h-8 flex items-center justify-center mx-auto text-xs md:text-lg" : ""}`}>
+                    {format(day, "d")}
+                  </div>
+                </div>
 
-                  {isLoading ? (
-                    <div className="text-xs text-muted-foreground text-center">...</div>
-                  ) : daySessions.length === 0 ? (
-                    <div className="text-xs text-muted-foreground text-center italic">
-                      Aucune séance
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {daySessions.map((s) => (
-                        <div
-                          key={s.id}
-                          className={`p-2 rounded-md border text-xs ${getSessionTypeColor(s.sessionType)}`}
-                        >
+                {isLoading ? (
+                  <div className="text-[8px] md:text-xs text-muted-foreground text-center">...</div>
+                ) : daySessions.length === 0 ? (
+                  <div className="text-[8px] md:text-xs text-muted-foreground text-center italic hidden md:block">
+                    -
+                  </div>
+                ) : (
+                  <div className="space-y-1 md:space-y-2">
+                    {daySessions.slice(0, 3).map((s) => (
+                      <div
+                        key={s.id}
+                        className={`p-1 md:p-2 rounded-md border text-[8px] md:text-xs ${getSessionTypeColor(s.sessionType)}`}
+                      >
+                        {/* Mobile: compact view */}
+                        <div className="md:hidden">
+                          <div className="font-medium truncate">
+                            {s.athleteFirstName?.charAt(0)}{s.athleteLastName?.charAt(0)}
+                          </div>
+                          {s.sessionRpe && (
+                            <div className="text-[7px] opacity-75">{s.sessionRpe}</div>
+                          )}
+                        </div>
+                        
+                        {/* Desktop: full view */}
+                        <div className="hidden md:block">
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-1">
                               <User className="h-3 w-3" />
@@ -321,14 +332,19 @@ export default function Agenda() {
                             )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+                      </div>
+                    ))}
+                    {daySessions.length > 3 && (
+                      <div className="text-[8px] md:text-[10px] text-muted-foreground text-center">
+                        +{daySessions.length - 3}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Summary */}
