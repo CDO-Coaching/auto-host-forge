@@ -222,12 +222,14 @@ export default function RecupDetail() {
   };
 
   const handleCancelCompletion = () => {
-    // Arrêter le timer et nettoyer le localStorage
+    // Arrêter le timer et nettoyer complètement l'état
     if (timerInterval) {
       clearInterval(timerInterval);
     }
     setTimerInterval(null);
     setIsSessionActive(false);
+    setSessionStartTime(null);
+    setSessionDuration(0);
     localStorage.removeItem(`session_timer_${sessionId}`);
     
     setCompletionDialogOpen(false);
