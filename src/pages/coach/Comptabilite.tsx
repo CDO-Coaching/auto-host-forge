@@ -79,7 +79,7 @@ export default function Comptabilite() {
     if (savedRent) {
       setRent(parseFloat(savedRent));
     } else {
-      setRent(0);
+      setRent(300);
     }
     
     // Vérifier s'il y a un backup pour ce mois
