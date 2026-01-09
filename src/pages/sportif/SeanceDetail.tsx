@@ -807,22 +807,22 @@ export default function SeanceDetail() {
 
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
-          <div className="flex flex-col xs:flex-row gap-2 w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
             {!isSessionActive ? (
               <>
-                <Button onClick={startSession} className="flex-1 min-w-0" size="lg">
+                <Button onClick={startSession} className="w-full" size="lg">
                   <Play className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">Démarrer la séance</span>
+                  <span>Démarrer la séance</span>
                 </Button>
-                <Button onClick={requestEndSession} variant="outline" className="flex-1 min-w-0" size="lg">
+                <Button onClick={requestEndSession} variant="outline" className="w-full" size="lg">
                   <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span className="truncate">Séance terminée</span>
+                  <span>Séance terminée</span>
                 </Button>
               </>
             ) : (
-              <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
+              <Button onClick={requestEndSession} variant="destructive" className="w-full sm:col-span-2" size="lg">
                 <Square className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span className="truncate">Terminer la séance</span>
+                <span>Terminer la séance</span>
               </Button>
             )}
           </div>
