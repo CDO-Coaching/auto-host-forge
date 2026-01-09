@@ -785,20 +785,20 @@ export default function SeanceDetail() {
         </Button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         <AthleteFatigueAlert />
         
         <div>
-          <h1 className="text-2xl font-bold">{session.name}</h1>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <Badge variant="outline">{exercises.length} exercices</Badge>
+          <h1 className="text-xl sm:text-2xl font-bold">{session.name}</h1>
+          <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
+            <Badge variant="outline" className="text-xs sm:text-sm">{exercises.length} exercices</Badge>
             {isSessionActive && (
-              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30">
+              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30 text-xs sm:text-sm">
                 {formatDuration(sessionDuration)}
               </Badge>
             )}
             {allCompleted && (
-              <Badge variant="outline" className="border-green-600 text-green-600">
+              <Badge variant="outline" className="border-green-600 text-green-600 text-xs sm:text-sm">
                 Séance terminée
               </Badge>
             )}
@@ -807,22 +807,22 @@ export default function SeanceDetail() {
 
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
-          <div className="flex gap-2">
+          <div className="flex flex-col xs:flex-row gap-2 w-full">
             {!isSessionActive ? (
               <>
-                <Button onClick={startSession} className="flex-1" size="lg">
-                  <Play className="h-4 w-4 mr-2" />
-                  Démarrer la séance
+                <Button onClick={startSession} className="flex-1 min-w-0" size="lg">
+                  <Play className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Démarrer la séance</span>
                 </Button>
-                <Button onClick={requestEndSession} variant="outline" size="lg">
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Séance terminée
+                <Button onClick={requestEndSession} variant="outline" className="flex-1 min-w-0" size="lg">
+                  <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Séance terminée</span>
                 </Button>
               </>
             ) : (
               <Button onClick={requestEndSession} variant="destructive" className="flex-1" size="lg">
-                <Square className="h-4 w-4 mr-2" />
-                Terminer la séance
+                <Square className="h-4 w-4 mr-2 flex-shrink-0" />
+                <span className="truncate">Terminer la séance</span>
               </Button>
             )}
           </div>
@@ -850,7 +850,7 @@ export default function SeanceDetail() {
           </AlertDialog>
         ) : null}
 
-        <div className="space-y-2">
+        <div className="space-y-2 sm:space-y-3">
           {sortedExercises.length === 0 ? (
             <Card>
               <CardContent className="py-8">
@@ -874,18 +874,18 @@ export default function SeanceDetail() {
                         : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)
                     }
                   >
-                    <CardContent className="p-4">
+                    <CardContent className="p-3 sm:p-4">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <Badge className={isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 sm:gap-2">
+                            <Badge className={`text-xs ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>
                               Superset
                             </Badge>
-                            {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                            {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
                           </div>
-                          <p className="text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
                         </div>
-                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
                       </div>
 
                       <div className={`space-y-2 ${allCompleted ? "mt-4 border-t pt-3" : ""}`}>
@@ -996,13 +996,13 @@ export default function SeanceDetail() {
                           : () => navigate(`/sportif/exercice/${item.id}`)
                     }
                   >
-                    <CardContent className="p-4">
-                      <div className="space-y-3">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="space-y-2 sm:space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                              <p className="font-semibold text-lg">{item.exercice}</p>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                              {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
+                              <p className="font-semibold text-base sm:text-lg truncate">{item.exercice}</p>
                             </div>
                             {!isCardio && (
                               <div className="flex gap-2 flex-wrap">
