@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
@@ -10,6 +10,8 @@ import { getWeekNumber, getWeekYear, formatWeekRangeFromNumber, getDateFromWeekN
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
+import { WeeklyCompletionCelebration } from "@/components/WeeklyCompletionCelebration";
+import { useWeeklyCompletionCelebration } from "@/hooks/useWeeklyCompletionCelebration";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -24,6 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
 export default function Seances() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
@@ -160,7 +163,7 @@ export default function Seances() {
     loadWeekSessions(weekId);
   };
 
-  const isSessionCompleted = (session: any) => {
+  const isSessionCompleted = useCallback((session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
     
     // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
@@ -172,7 +175,14 @@ export default function Seances() {
     return session.session_exercises.every((ex: any) => 
       (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
     );
-  };
+  }, []);
+
+  // Hook pour la célébration hebdomadaire
+  const { showCelebration, celebration, closeCelebration } = useWeeklyCompletionCelebration(
+    selectedWeek?.id || null,
+    sessions,
+    isSessionCompleted
+  );
 
   if (loading) {
     return (
@@ -191,6 +201,12 @@ export default function Seances() {
 
   return (
     <div className="space-y-3 sm:space-y-4 pb-4">
+      <WeeklyCompletionCelebration
+        show={showCelebration}
+        title={celebration?.title || ""}
+        message={celebration?.message || ""}
+        onClose={closeCelebration}
+      />
       <AthleteFatigueAlert />
       
       <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-4">
