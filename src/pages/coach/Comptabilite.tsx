@@ -74,9 +74,8 @@ export default function Comptabilite() {
     }
     
     loadData();
-    // Charger le loyer depuis localStorage pour ce mois
-    const rentKey = `rent_${format(currentMonth, "yyyy-MM")}`;
-    const savedRent = localStorage.getItem(rentKey);
+    // Charger le loyer depuis localStorage (valeur globale persistante)
+    const savedRent = localStorage.getItem("rent_global");
     if (savedRent) {
       setRent(parseFloat(savedRent));
     } else {
@@ -91,9 +90,8 @@ export default function Comptabilite() {
 
   const handleRentChange = (value: number) => {
     setRent(value);
-    // Sauvegarder dans localStorage
-    const rentKey = `rent_${format(currentMonth, "yyyy-MM")}`;
-    localStorage.setItem(rentKey, value.toString());
+    // Sauvegarder dans localStorage (valeur globale persistante)
+    localStorage.setItem("rent_global", value.toString());
   };
 
   const loadData = async () => {
