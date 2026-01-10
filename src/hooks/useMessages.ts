@@ -39,27 +39,48 @@ export const useMessages = (otherUserId?: string) => {
 
     loadMessages();
 
-    // Subscribe to new messages
+    // Subscribe to new messages - using simpler filters that work with Supabase realtime
     const channel = supabase
       .channel(`messages-${user.id}-${otherUserId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
-          filter: `or(and(sender_id=eq.${user.id},receiver_id=eq.${otherUserId}),and(sender_id=eq.${otherUserId},receiver_id=eq.${user.id}))`,
         },
         (payload) => {
-          if (payload.eventType === "INSERT") {
-            setMessages((prev) => [...prev, payload.new as Message]);
-          } else if (payload.eventType === "UPDATE") {
-            setMessages((prev) =>
-              prev.map((msg) =>
-                msg.id === payload.new.id ? (payload.new as Message) : msg
-              )
-            );
+          const newMessage = payload.new as Message;
+          // Filter client-side for this conversation
+          const isRelevant =
+            (newMessage.sender_id === user.id && newMessage.receiver_id === otherUserId) ||
+            (newMessage.sender_id === otherUserId && newMessage.receiver_id === user.id);
+          
+          if (isRelevant) {
+            setMessages((prev) => {
+              // Avoid duplicates
+              if (prev.some((msg) => msg.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+        },
+        (payload) => {
+          const updatedMessage = payload.new as Message;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            )
+          );
         }
       )
       .subscribe();
