@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Heart, Dumbbell, MessageSquare, Clock, Activity, User } from "lucide-react";
+import { Dumbbell, MessageSquare, Clock, Activity, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
@@ -21,9 +20,6 @@ interface SessionExercise {
   commentaire: string | null;
   skipped: boolean | null;
   is_duration: boolean | null;
-  actual_duration_minutes: number | null;
-  actual_distance_km: number | null;
-  actual_fc_average: number | null;
 }
 
 interface SessionDetail {
@@ -34,7 +30,6 @@ interface SessionDetail {
   duration_minutes: number | null;
   session_rpe: number | null;
   session_comment: string | null;
-  coach_liked: boolean | null;
   exercises: SessionExercise[];
 }
 
@@ -55,7 +50,6 @@ export function CoachSessionDetailDialog({
 }: CoachSessionDetailDialogProps) {
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const [liking, setLiking] = useState(false);
 
   useEffect(() => {
     if (open && sessionId && sessionType !== "custom") {
@@ -78,7 +72,6 @@ export function CoachSessionDetailDialog({
           duration_minutes,
           session_rpe,
           session_comment,
-          coach_liked,
           session_exercises (
             id,
             exercice,
@@ -89,10 +82,7 @@ export function CoachSessionDetailDialog({
             sportif_comment,
             commentaire,
             skipped,
-            is_duration,
-            actual_duration_minutes,
-            actual_distance_km,
-            actual_fc_average
+            is_duration
           )
         `)
         .eq("id", sessionId)
@@ -109,30 +99,6 @@ export function CoachSessionDetailDialog({
       toast.error("Erreur lors du chargement de la séance");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleToggleLike = async () => {
-    if (!session) return;
-
-    setLiking(true);
-    try {
-      const newLikedState = !session.coach_liked;
-      
-      const { error } = await supabase
-        .from("training_sessions")
-        .update({ coach_liked: newLikedState })
-        .eq("id", session.id);
-
-      if (error) throw error;
-
-      setSession({ ...session, coach_liked: newLikedState });
-      toast.success(newLikedState ? "Séance likée ! 👍" : "Like retiré");
-    } catch (error) {
-      console.error("Error toggling like:", error);
-      toast.error("Erreur lors de la mise à jour");
-    } finally {
-      setLiking(false);
     }
   };
 
@@ -183,21 +149,9 @@ export function CoachSessionDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-8">
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              <span>{athleteName}</span>
-            </div>
-            <Button
-              variant={session?.coach_liked ? "default" : "outline"}
-              size="sm"
-              onClick={handleToggleLike}
-              disabled={liking || loading}
-              className={session?.coach_liked ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              <Heart className={`h-4 w-4 mr-1 ${session?.coach_liked ? "fill-current" : ""}`} />
-              {session?.coach_liked ? "Liké" : "Like"}
-            </Button>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            <span>{athleteName}</span>
           </DialogTitle>
         </DialogHeader>
 
@@ -277,24 +231,15 @@ export function CoachSessionDetailDialog({
                             
                             {/* Prescription */}
                             <div className="text-sm text-muted-foreground mt-1">
-                              {ex.is_duration ? (
-                                <>
-                                  {ex.actual_duration_minutes && (
-                                    <span>{ex.actual_duration_minutes} min</span>
-                                  )}
-                                  {ex.actual_distance_km && (
-                                    <span className="ml-2">{ex.actual_distance_km} km</span>
-                                  )}
-                                  {ex.actual_fc_average && (
-                                    <span className="ml-2">FC moy: {ex.actual_fc_average}</span>
-                                  )}
-                                </>
-                              ) : (
+                              {!ex.is_duration && (
                                 <>
                                   {ex.series && <span>{ex.series}x</span>}
                                   {ex.reps && <span>{ex.reps}</span>}
                                   {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
                                 </>
+                              )}
+                              {ex.is_duration && (
+                                <span className="italic">Durée</span>
                               )}
                             </div>
                           </div>
