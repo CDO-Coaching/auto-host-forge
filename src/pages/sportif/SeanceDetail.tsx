@@ -35,21 +35,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { exportSessionToPdf } from "@/lib/sessionPdfExport";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
+import { EditExerciseFeedbackDialog } from "@/components/EditExerciseFeedbackDialog";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -73,9 +62,6 @@ export default function SeanceDetail() {
   // États pour l'édition des feedbacks
   const [editFeedbackDialogOpen, setEditFeedbackDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<any>(null);
-  const [editRpe, setEditRpe] = useState("");
-  const [editComment, setEditComment] = useState("");
-  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   
   // État pour le dialog de validation de séance
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
@@ -598,64 +584,11 @@ export default function SeanceDetail() {
     setSelectedCardioExercise(null);
   };
 
-  // Fonctions pour l'édition des feedbacks
+  // Fonction pour ouvrir l'édition d'un feedback
   const handleOpenEditFeedback = (exercise: any, e?: React.MouseEvent) => {
     e?.stopPropagation();
     setEditingExercise(exercise);
-    setEditRpe(exercise.sportif_rpe?.toString() || "");
-    setEditComment(exercise.sportif_comment || "");
     setEditFeedbackDialogOpen(true);
-  };
-
-  const handleSaveEditFeedback = async () => {
-    if (!editingExercise) return;
-
-    const rpeValue = editRpe.trim();
-    
-    if (rpeValue) {
-      const rpeNumber = Number(rpeValue);
-      
-      if (isNaN(rpeNumber) || !Number.isInteger(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
-        toast({
-          title: "RPE invalide",
-          description: "Le RPE doit être un chiffre rond entre 1 et 10",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    setIsEditSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from("session_exercises")
-        .update({
-          sportif_rpe: rpeValue ? parseInt(rpeValue) : null,
-          sportif_comment: editComment.trim() || null,
-          sportif_feedback_at: new Date().toISOString(),
-        })
-        .eq("id", editingExercise.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Modifié !",
-        description: "Ton retour a été mis à jour",
-      });
-
-      setEditFeedbackDialogOpen(false);
-      setEditingExercise(null);
-      loadSessionDetail();
-    } catch (error) {
-      console.error("Erreur lors de la modification:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de modifier le retour",
-        variant: "destructive",
-      });
-    } finally {
-      setIsEditSubmitting(false);
-    }
   };
 
   const handleInvalidateSession = async () => {
@@ -1289,60 +1222,12 @@ export default function SeanceDetail() {
       />
 
       {/* Dialog d'édition des feedbacks */}
-      <Dialog open={editFeedbackDialogOpen} onOpenChange={setEditFeedbackDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Modifier le retour</DialogTitle>
-            <DialogDescription>
-              {editingExercise?.exercice ? `Modifier ton retour pour ${editingExercise.exercice}` : "Modifier ton retour"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label htmlFor="edit-rpe">RPE ressenti (1-10)</Label>
-                <RPEExplanationDialog />
-              </div>
-              <Input
-                id="edit-rpe"
-                type="number"
-                min="1"
-                max="10"
-                placeholder="Ex: 8"
-                value={editRpe}
-                onChange={(e) => setEditRpe(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-comment">Commentaires</Label>
-              <Textarea
-                id="edit-comment"
-                placeholder="Comment t'es-tu senti pendant l'exercice ?"
-                value={editComment}
-                onChange={(e) => setEditComment(e.target.value)}
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
-              onClick={() => setEditFeedbackDialogOpen(false)} 
-              disabled={isEditSubmitting}
-              className="w-full sm:w-auto"
-            >
-              Annuler
-            </Button>
-            <Button 
-              onClick={handleSaveEditFeedback} 
-              disabled={isEditSubmitting}
-              className="w-full sm:w-auto"
-            >
-              {isEditSubmitting ? "Enregistrement..." : "Enregistrer"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditExerciseFeedbackDialog
+        open={editFeedbackDialogOpen}
+        onOpenChange={setEditFeedbackDialogOpen}
+        onSaved={loadSessionDetail}
+        exercise={editingExercise}
+      />
 
       {/* Dialog de validation de séance */}
       <SessionCompletionDialog
