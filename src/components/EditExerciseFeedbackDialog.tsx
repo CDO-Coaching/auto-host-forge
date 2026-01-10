@@ -49,10 +49,8 @@ export function EditExerciseFeedbackDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Determine if this is a cardio exercise
-  const isCardio = !!exercise?.cardio_sport || 
-    exercise?.actual_distance_km !== undefined ||
-    exercise?.actual_duration_minutes !== undefined;
+  // Determine if this is a cardio exercise (has cardio_sport defined and not null)
+  const isCardio = !!exercise?.cardio_sport;
 
   // Reset fields when dialog opens with current data
   useEffect(() => {
