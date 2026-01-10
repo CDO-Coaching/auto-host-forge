@@ -221,6 +221,9 @@ export default function MesClients() {
 
   const handleReactivate = async (relationshipId: string) => {
     try {
+      // Trouver l'athlète correspondant pour mettre à jour son profil
+      const relationship = pausedAthletes.find(r => r.id === relationshipId);
+      
       const { error } = await supabase
         .from("coach_athlete_relationships")
         .update({ status: "approved", reminder_date: null })
@@ -230,6 +233,18 @@ export default function MesClients() {
         console.error("Erreur SQL détaillée:", error);
         toast.error(`Erreur: ${error.message}`);
         return;
+      }
+
+      // Mettre à jour approved = true dans user_profiles
+      if (relationship) {
+        const { error: profileError } = await supabase
+          .from("user_profiles")
+          .update({ approved: true })
+          .eq("id", relationship.athlete_id);
+
+        if (profileError) {
+          console.error("Erreur mise à jour profil:", profileError);
+        }
       }
 
       toast.success("Athlète réactivé");
@@ -266,6 +281,16 @@ export default function MesClients() {
         console.error("Erreur SQL détaillée:", error);
         toast.error(`Erreur: ${error.message}`);
         return;
+      }
+
+      // Mettre à jour approved = false dans user_profiles
+      const { error: profileError } = await supabase
+        .from("user_profiles")
+        .update({ approved: false })
+        .eq("id", selectedAthleteForPause.athlete_id);
+
+      if (profileError) {
+        console.error("Erreur mise à jour profil:", profileError);
       }
 
       if (reminderDate) {
