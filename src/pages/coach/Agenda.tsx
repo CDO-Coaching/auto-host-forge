@@ -491,6 +491,7 @@ export default function Agenda() {
         }}
         sessionId={selectedSession?.id || null}
         sessionType={selectedSession?.sessionType || ""}
+        athleteId={selectedSession?.athleteId || ""}
         athleteName={selectedSession ? `${selectedSession.athleteFirstName} ${selectedSession.athleteLastName}` : ""}
       />
     </div>
