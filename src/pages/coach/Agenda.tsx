@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User, Heart } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +23,6 @@ interface AthleteSession {
   athleteId: string;
   athleteFirstName: string;
   athleteLastName: string;
-  coachLiked?: boolean;
 }
 
 export default function Agenda() {
@@ -91,7 +90,6 @@ export default function Agenda() {
           session_type,
           completed_at,
           session_rpe,
-          coach_liked,
           training_weeks!inner(athlete_id)
         `)
         .in("training_weeks.athlete_id", athleteIds)
@@ -126,8 +124,7 @@ export default function Agenda() {
             sessionRpe: ts.session_rpe,
             athleteId,
             athleteFirstName: profile.first_name || "",
-            athleteLastName: profile.last_name || "",
-            coachLiked: ts.coach_liked || false
+            athleteLastName: profile.last_name || ""
           });
         }
       });
@@ -308,14 +305,9 @@ export default function Agenda() {
                               {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
                             </span>
                           </div>
-                          <div className="flex items-center gap-1">
-                            {s.coachLiked && (
-                              <Heart className="h-3 w-3 fill-red-500 text-red-500" />
-                            )}
-                            <span className="text-[10px] opacity-75">
-                              {format(parseISO(s.completedAt), "HH:mm")}
-                            </span>
-                          </div>
+                          <span className="text-[10px] opacity-75">
+                            {format(parseISO(s.completedAt), "HH:mm")}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1">
                           <Dumbbell className="h-3 w-3" />
@@ -420,14 +412,9 @@ export default function Agenda() {
                             {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {s.coachLiked && (
-                            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
-                          )}
-                          <span className="text-xs opacity-75">
-                            {format(parseISO(s.completedAt), "HH:mm")}
-                          </span>
-                        </div>
+                        <span className="text-xs opacity-75">
+                          {format(parseISO(s.completedAt), "HH:mm")}
+                        </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <Dumbbell className="h-3 w-3 opacity-75" />
