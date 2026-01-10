@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { exportSessionToPdf } from "@/lib/sessionPdfExport";
+import { EditSessionDialog } from "@/components/EditSessionDialog";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -78,6 +79,9 @@ export default function SeanceDetail() {
   
   // État pour le dialog de validation de séance
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  
+  // État pour le dialog de modification de séance
+  const [editSessionDialogOpen, setEditSessionDialogOpen] = useState(false);
   
   // Date choisie pour la validation cardio (stockée lors du feedback)
   const [cardioSessionDate, setCardioSessionDate] = useState<Date | null>(null);
@@ -827,27 +831,33 @@ export default function SeanceDetail() {
             )}
           </div>
         ) : allCompleted ? (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="lg" className="w-full">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Invalider la séance
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Invalider cette séance ?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. Tu pourras la
-                  refaire comme si tu ne l'avais jamais complétée.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Annuler</AlertDialogCancel>
-                <AlertDialogAction onClick={handleInvalidateSession}>Confirmer</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <Button variant="outline" size="lg" className="w-full" onClick={() => setEditSessionDialogOpen(true)}>
+              <Settings className="h-4 w-4 mr-2" />
+              Modifier
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="lg" className="w-full">
+                  <RotateCcw className="h-4 w-4 mr-2" />
+                  Invalider
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Invalider cette séance ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. Tu pourras la
+                    refaire comme si tu ne l'avais jamais complétée.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Annuler</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleInvalidateSession}>Confirmer</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         ) : null}
 
         <div className="space-y-2 sm:space-y-3">
@@ -1343,6 +1353,22 @@ export default function SeanceDetail() {
         sessionName={session?.name}
         sessionType={getSessionType()}
         initialDurationSeconds={sessionDuration}
+      />
+
+      {/* Dialog de modification de séance validée */}
+      <EditSessionDialog
+        open={editSessionDialogOpen}
+        onOpenChange={setEditSessionDialogOpen}
+        onSaved={loadSessionDetail}
+        sessionId={sessionId || ""}
+        sessionName={session?.name}
+        sessionType={getSessionType()}
+        currentData={{
+          completedAt: session?.completed_at,
+          durationMinutes: session?.duration_minutes,
+          sessionRpe: session?.session_rpe,
+          sessionComment: session?.session_comment,
+        }}
       />
     </div>
   );
