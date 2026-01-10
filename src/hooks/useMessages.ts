@@ -130,15 +130,37 @@ export const useMessages = (otherUserId?: string) => {
   const sendMessage = async (receiverId: string, content: string) => {
     if (!user || !content.trim()) return;
 
-    const { error } = await supabase.from("messages").insert({
+    // Create optimistic message with temporary ID
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
       sender_id: user.id,
       receiver_id: receiverId,
       content: content.trim(),
-    });
+      created_at: new Date().toISOString(),
+      read_at: null,
+    };
+
+    // Add optimistically to UI immediately
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    const { data, error } = await supabase.from("messages").insert({
+      sender_id: user.id,
+      receiver_id: receiverId,
+      content: content.trim(),
+    }).select().single();
 
     if (error) {
+      // Remove optimistic message on error
+      setMessages((prev) => prev.filter((msg) => msg.id !== optimisticMessage.id));
       console.error("Error sending message:", error);
       throw error;
+    }
+
+    // Replace optimistic message with real one from DB
+    if (data) {
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === optimisticMessage.id ? data : msg))
+      );
     }
   };
 
