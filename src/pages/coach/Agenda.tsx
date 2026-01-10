@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User, Heart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 
 interface AthleteProfile {
   id: string;
@@ -22,6 +23,7 @@ interface AthleteSession {
   athleteId: string;
   athleteFirstName: string;
   athleteLastName: string;
+  coachLiked?: boolean;
 }
 
 export default function Agenda() {
@@ -33,6 +35,7 @@ export default function Agenda() {
   const [allAthletes, setAllAthletes] = useState<AthleteProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
 
   const fetchSessions = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -88,6 +91,7 @@ export default function Agenda() {
           session_type,
           completed_at,
           session_rpe,
+          coach_liked,
           training_weeks!inner(athlete_id)
         `)
         .in("training_weeks.athlete_id", athleteIds)
@@ -122,7 +126,8 @@ export default function Agenda() {
             sessionRpe: ts.session_rpe,
             athleteId,
             athleteFirstName: profile.first_name || "",
-            athleteLastName: profile.last_name || ""
+            athleteLastName: profile.last_name || "",
+            coachLiked: ts.coach_liked || false
           });
         }
       });
@@ -293,7 +298,8 @@ export default function Agenda() {
                     {daySessions.map((s) => (
                       <div
                         key={s.id}
-                        className={`p-2 rounded-md border text-xs ${getSessionTypeColor(s.sessionType)}`}
+                        onClick={() => setSelectedSession(s)}
+                        className={`p-2 rounded-md border text-xs cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all ${getSessionTypeColor(s.sessionType)}`}
                       >
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-1">
@@ -302,9 +308,14 @@ export default function Agenda() {
                               {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
                             </span>
                           </div>
-                          <span className="text-[10px] opacity-75">
-                            {format(parseISO(s.completedAt), "HH:mm")}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {s.coachLiked && (
+                              <Heart className="h-3 w-3 fill-red-500 text-red-500" />
+                            )}
+                            <span className="text-[10px] opacity-75">
+                              {format(parseISO(s.completedAt), "HH:mm")}
+                            </span>
+                          </div>
                         </div>
                         <div className="flex items-center gap-1">
                           <Dumbbell className="h-3 w-3" />
@@ -398,7 +409,8 @@ export default function Agenda() {
                 {getSessionsForDay(selectedDay).map((s) => (
                   <Card
                     key={s.id}
-                    className={`${getSessionTypeColor(s.sessionType)}`}
+                    onClick={() => setSelectedSession(s)}
+                    className={`cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all ${getSessionTypeColor(s.sessionType)}`}
                   >
                     <CardContent className="p-3">
                       <div className="flex items-center justify-between">
@@ -408,9 +420,14 @@ export default function Agenda() {
                             {s.athleteFirstName} {s.athleteLastName?.charAt(0)}.
                           </span>
                         </div>
-                        <span className="text-xs opacity-75">
-                          {format(parseISO(s.completedAt), "HH:mm")}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          {s.coachLiked && (
+                            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                          )}
+                          <span className="text-xs opacity-75">
+                            {format(parseISO(s.completedAt), "HH:mm")}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         <Dumbbell className="h-3 w-3 opacity-75" />
@@ -474,6 +491,21 @@ export default function Agenda() {
           </CardContent>
         </Card>
       )}
+
+      {/* Session Detail Dialog */}
+      <CoachSessionDetailDialog
+        open={!!selectedSession}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedSession(null);
+            // Refresh to update like status
+            fetchSessions();
+          }
+        }}
+        sessionId={selectedSession?.id || null}
+        sessionType={selectedSession?.sessionType || ""}
+        athleteName={selectedSession ? `${selectedSession.athleteFirstName} ${selectedSession.athleteLastName}` : ""}
+      />
     </div>
   );
 }
