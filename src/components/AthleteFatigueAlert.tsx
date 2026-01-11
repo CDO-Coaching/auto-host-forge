@@ -1,9 +1,8 @@
-import { AlertTriangle, AlertCircle, X, MessageCircle, ThumbsUp } from "lucide-react";
+import { AlertTriangle, AlertCircle, X, MessageCircle, ThumbsUp, Wind } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useAthleteFatigueAlert } from "@/hooks/useAthleteFatigueAlert";
 import { useNavigate } from "react-router-dom";
-
 // Descriptions pour le sommeil (score élevé = mauvaise nuit)
 const getSleepDescription = (score: number): string => {
   if (score <= 2) return "correct";
@@ -95,6 +94,11 @@ export function AthleteFatigueAlert() {
     navigate("/sportif");
   };
 
+  const handleMeditation = () => {
+    // Préréglage cohérence cardiaque : 5s inspiration, 5s expiration, 5min
+    navigate("/sportif/meditation?preset=coherence");
+  };
+
   // Mode récupération : aujourd'hui va mieux mais hier était difficile
   if (isRecovery) {
     const yesterdaySleepHigh = (alertData.yesterdaySommeil || 0) >= HIGH_THRESHOLD;
@@ -183,17 +187,31 @@ export function AthleteFatigueAlert() {
         <p className="text-sm opacity-80 italic">
           Rappel : prendre soin de ton corps, c'est éviter les blessures et progresser sur le long terme.
         </p>
-        {isCritical && (
+        <div className="flex flex-wrap gap-2 mt-2">
           <Button 
             variant="outline" 
             size="sm" 
-            className="mt-2 border-destructive/30 hover:bg-destructive/10"
-            onClick={handleContactCoach}
+            className={isCritical 
+              ? "border-destructive/30 hover:bg-destructive/10" 
+              : "border-orange-500/30 hover:bg-orange-500/10"
+            }
+            onClick={handleMeditation}
           >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Contacter mon coach
+            <Wind className="h-4 w-4 mr-2" />
+            Faire une méditation
           </Button>
-        )}
+          {isCritical && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-destructive/30 hover:bg-destructive/10"
+              onClick={handleContactCoach}
+            >
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Contacter mon coach
+            </Button>
+          )}
+        </div>
       </AlertDescription>
     </Alert>
   );
