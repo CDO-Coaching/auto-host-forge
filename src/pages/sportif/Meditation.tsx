@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/collapsible";
 import { Wind, Timer, Play, Pause, RotateCcw, ChevronUp, ChevronDown, Volume2, VolumeX } from "lucide-react";
 import { useWakeLock } from "@/hooks/useWakeLock";
-
 type BreathPhase = "preparation" | "inhale" | "holdIn" | "exhale" | "holdOut" | "finished";
 
 interface MeditationSettings {
@@ -34,6 +34,17 @@ const DEFAULT_SETTINGS: MeditationSettings = {
   soundEnabled: true,
 };
 
+// Préréglages prédéfinis
+const PRESETS: Record<string, Partial<MeditationSettings>> = {
+  coherence: {
+    inhaleDuration: 5,
+    holdInDuration: 0,
+    exhaleDuration: 5,
+    holdOutDuration: 0,
+    totalDuration: 5,
+  },
+};
+
 const PHASE_LABELS: Record<BreathPhase, string> = {
   preparation: "Préparation",
   inhale: "Inspirez",
@@ -53,10 +64,26 @@ const PHASE_COLORS: Record<BreathPhase, string> = {
 };
 
 export default function Meditation() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const presetApplied = useRef(false);
+  
   const [settings, setSettings] = useState<MeditationSettings>(() => {
     const saved = localStorage.getItem("meditation-settings");
     return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
   });
+
+  // Appliquer le préréglage depuis l'URL une seule fois
+  useEffect(() => {
+    if (presetApplied.current) return;
+    
+    const preset = searchParams.get("preset");
+    if (preset && PRESETS[preset]) {
+      setSettings(prev => ({ ...prev, ...PRESETS[preset] }));
+      // Nettoyer l'URL
+      setSearchParams({}, { replace: true });
+      presetApplied.current = true;
+    }
+  }, [searchParams, setSearchParams]);
   
   const [isRunning, setIsRunning] = useState(false);
   const [currentPhase, setCurrentPhase] = useState<BreathPhase>("preparation");
