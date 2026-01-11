@@ -96,13 +96,12 @@ export default function Meditation() {
       ctx.resume();
     }
 
-    // Tibetan bowls have multiple harmonics
+    // Tibetan bowls have multiple harmonics - soft and gentle
     const harmonics = [
-      { ratio: 1, gain: 0.4 },      // Fundamental
-      { ratio: 2.0, gain: 0.25 },   // Octave
-      { ratio: 2.9, gain: 0.15 },   // ~Perfect fifth above octave
-      { ratio: 4.2, gain: 0.1 },    // Higher partial
-      { ratio: 5.4, gain: 0.05 },   // Even higher
+      { ratio: 1, gain: 0.12 },      // Fundamental
+      { ratio: 2.0, gain: 0.08 },    // Octave
+      { ratio: 2.9, gain: 0.04 },    // ~Perfect fifth above octave
+      { ratio: 4.2, gain: 0.02 },    // Higher partial
     ];
 
     harmonics.forEach(({ ratio, gain }) => {
@@ -113,8 +112,8 @@ export default function Meditation() {
       const vibrato = ctx.createOscillator();
       const vibratoGain = ctx.createGain();
       
-      vibrato.frequency.setValueAtTime(4 + Math.random() * 2, ctx.currentTime); // 4-6 Hz wobble
-      vibratoGain.gain.setValueAtTime(baseFrequency * ratio * 0.003, ctx.currentTime);
+      vibrato.frequency.setValueAtTime(3 + Math.random() * 1.5, ctx.currentTime); // 3-4.5 Hz gentle wobble
+      vibratoGain.gain.setValueAtTime(baseFrequency * ratio * 0.002, ctx.currentTime);
       
       vibrato.connect(vibratoGain);
       vibratoGain.connect(oscillator.frequency);
@@ -125,9 +124,9 @@ export default function Meditation() {
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(baseFrequency * ratio, ctx.currentTime);
       
-      // Natural bowl envelope: quick attack, long decay
+      // Soft envelope: gentle attack, long smooth decay
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.02); // Quick attack
+      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.15); // Slower, softer attack
       gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); // Long decay
       
       oscillator.start(ctx.currentTime);
