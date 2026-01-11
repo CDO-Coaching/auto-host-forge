@@ -87,54 +87,78 @@ export default function Meditation() {
     };
   }, []);
 
-  const playTone = useCallback((frequency: number, duration: number, type: OscillatorType = "sine") => {
+  // Tibetan bowl sound with harmonics and natural decay
+  const playBowlSound = useCallback((baseFrequency: number, duration: number = 2.5) => {
     if (!settings.soundEnabled || !audioContextRef.current) return;
     
     const ctx = audioContextRef.current;
     if (ctx.state === "suspended") {
       ctx.resume();
     }
-    
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    oscillator.type = type;
-    oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-    
-    // Fade in and out
-    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
-    gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
-    
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + duration);
+
+    // Tibetan bowls have multiple harmonics
+    const harmonics = [
+      { ratio: 1, gain: 0.4 },      // Fundamental
+      { ratio: 2.0, gain: 0.25 },   // Octave
+      { ratio: 2.9, gain: 0.15 },   // ~Perfect fifth above octave
+      { ratio: 4.2, gain: 0.1 },    // Higher partial
+      { ratio: 5.4, gain: 0.05 },   // Even higher
+    ];
+
+    harmonics.forEach(({ ratio, gain }) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      // Add slight vibrato for warmth
+      const vibrato = ctx.createOscillator();
+      const vibratoGain = ctx.createGain();
+      
+      vibrato.frequency.setValueAtTime(4 + Math.random() * 2, ctx.currentTime); // 4-6 Hz wobble
+      vibratoGain.gain.setValueAtTime(baseFrequency * ratio * 0.003, ctx.currentTime);
+      
+      vibrato.connect(vibratoGain);
+      vibratoGain.connect(oscillator.frequency);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(baseFrequency * ratio, ctx.currentTime);
+      
+      // Natural bowl envelope: quick attack, long decay
+      gainNode.gain.setValueAtTime(0, ctx.currentTime);
+      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.02); // Quick attack
+      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); // Long decay
+      
+      oscillator.start(ctx.currentTime);
+      vibrato.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + duration);
+      vibrato.stop(ctx.currentTime + duration);
+    });
   }, [settings.soundEnabled]);
 
   const playPhaseSound = useCallback((phase: BreathPhase) => {
     switch (phase) {
       case "inhale":
-        playTone(440, 0.3); // A4 - ascending feel
+        playBowlSound(320); // Lower bowl for inhale
         break;
       case "holdIn":
-        playTone(523, 0.2); // C5 - hold
+        playBowlSound(400, 1.5); // Mid-range, shorter
         break;
       case "exhale":
-        playTone(330, 0.3); // E4 - descending feel
+        playBowlSound(260); // Deep bowl for exhale
         break;
       case "holdOut":
-        playTone(262, 0.2); // C4 - low hold
+        playBowlSound(220, 1.5); // Deepest, shorter
         break;
       case "finished":
-        // Play a pleasant chord
-        playTone(440, 0.5);
-        setTimeout(() => playTone(554, 0.5), 100);
-        setTimeout(() => playTone(659, 0.5), 200);
+        // Play a chord of bowls
+        playBowlSound(260, 4);
+        setTimeout(() => playBowlSound(330, 4), 300);
+        setTimeout(() => playBowlSound(400, 4), 600);
         break;
     }
-  }, [playTone]);
+  }, [playBowlSound]);
 
   const getCycleDuration = useCallback(() => {
     return settings.inhaleDuration + settings.holdInDuration + 
