@@ -1068,6 +1068,12 @@ export default function SeanceDetail() {
                                                                   <span>FC: {blockStep.target_heart_rate}</span>
                                                                 </>
                                                               )}
+                                                              {blockStep.target_rpe && (
+                                                                <>
+                                                                  <span className="text-muted-foreground">•</span>
+                                                                  <span className="text-orange-400">RPE: {blockStep.target_rpe}</span>
+                                                                </>
+                                                              )}
                                                             </div>
                                                           </div>
                                                         );
@@ -1102,6 +1108,12 @@ export default function SeanceDetail() {
                                                       <>
                                                         <span className="text-muted-foreground">•</span>
                                                         <span>FC: {step.target_heart_rate}</span>
+                                                      </>
+                                                    )}
+                                                    {step.target_rpe && (
+                                                      <>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span className="text-orange-400">RPE: {step.target_rpe}</span>
                                                       </>
                                                     )}
                                                   </div>
