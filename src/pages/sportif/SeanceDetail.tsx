@@ -1068,10 +1068,10 @@ export default function SeanceDetail() {
                                                                   <span>FC: {blockStep.target_heart_rate}</span>
                                                                 </>
                                                               )}
-                                                              {blockStep.target_rpe && (
+                                                              {typeof blockStep.rpe === "number" && blockStep.rpe > 0 && (
                                                                 <>
                                                                   <span className="text-muted-foreground">•</span>
-                                                                  <span className="text-orange-400">RPE: {blockStep.target_rpe}</span>
+                                                                  <span className="text-primary font-medium">RPE: {blockStep.rpe}</span>
                                                                 </>
                                                               )}
                                                             </div>
@@ -1110,10 +1110,10 @@ export default function SeanceDetail() {
                                                         <span>FC: {step.target_heart_rate}</span>
                                                       </>
                                                     )}
-                                                    {step.target_rpe && (
+                                                    {typeof step.rpe === "number" && step.rpe > 0 && (
                                                       <>
                                                         <span className="text-muted-foreground">•</span>
-                                                        <span className="text-orange-400">RPE: {step.target_rpe}</span>
+                                                        <span className="text-primary font-medium">RPE: {step.rpe}</span>
                                                       </>
                                                     )}
                                                   </div>
