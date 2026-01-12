@@ -135,7 +135,10 @@ export default function ClientDetail() {
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
-  const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number } | null>(null);
+  const [selectedWeekToProgram, setSelectedWeekToProgram] = useState<{ week: number; year: number }>(() => {
+    const today = new Date();
+    return { week: getWeekNumber(today), year: getWeekYear(today) };
+  });
   const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
   const [athleteObjectives, setAthleteObjectives] = useState<any>({});
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
@@ -2389,19 +2392,12 @@ export default function ClientDetail() {
                       <p className="text-[10px] sm:text-xs text-muted-foreground">Semaine à programmer (jusqu'à 12 sem.)</p>
                       <select
                         className="w-full p-1.5 sm:p-2 border rounded-md bg-background text-foreground text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                        value={
-                          selectedWeekToProgram ? `${selectedWeekToProgram.week}-${selectedWeekToProgram.year}` : ""
-                        }
+                        value={`${selectedWeekToProgram.week}-${selectedWeekToProgram.year}`}
                         onChange={(e) => {
-                          if (!e.target.value) {
-                            setSelectedWeekToProgram(null);
-                            return;
-                          }
                           const [week, year] = e.target.value.split("-").map(Number);
                           setSelectedWeekToProgram({ week, year });
                         }}
                       >
-                        <option value="">-- Choisir --</option>
                         {availableWeeks.map((w) => (
                           <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
                             S{w.week} - {w.year} ({formatWeekRange(w.monday)})
