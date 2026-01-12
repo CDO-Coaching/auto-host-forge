@@ -1281,7 +1281,7 @@ export default function ClientDetail() {
       toast.success("Semaine d'entraînement validée et envoyée au sportif !");
 
       // Réinitialiser pour permettre de programmer une nouvelle semaine
-      setSelectedWeekToProgram(null);
+      setSelectedWeekToProgram({ week: getWeekNumber(new Date()), year: getWeekYear(new Date()) });
       setSessions([]);
       setSessionExercises({});
       setCopiedWeekFeedback({});
