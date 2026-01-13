@@ -300,7 +300,27 @@ export default function Messagerie() {
                                 : "bg-muted"
                             }`}
                           >
-                            <p className="text-sm break-words">{msg.content}</p>
+                            {/* Afficher la vidéo si présente */}
+                            {msg.attachment_url && msg.attachment_type === 'video' && (
+                              <video
+                                src={msg.attachment_url}
+                                controls
+                                className="max-w-full rounded-md mb-2"
+                                style={{ maxHeight: '300px' }}
+                              />
+                            )}
+                            {/* Afficher l'image si présente */}
+                            {msg.attachment_url && msg.attachment_type === 'image' && (
+                              <img
+                                src={msg.attachment_url}
+                                alt="Image"
+                                className="max-w-full rounded-md mb-2"
+                                style={{ maxHeight: '300px' }}
+                              />
+                            )}
+                            {msg.content && !msg.content.startsWith('📹') && !msg.content.startsWith('📎') && (
+                              <p className="text-sm break-words">{msg.content}</p>
+                            )}
                             <p className="text-xs opacity-70 mt-1">
                               {new Date(msg.created_at).toLocaleString("fr-FR", {
                                 day: "2-digit",
