@@ -59,7 +59,7 @@ export function PauseReminderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md">
+      <DialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base sm:text-lg">
             Mettre {athleteName} en pause

@@ -105,7 +105,7 @@ export function ScheduleSessionDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[95vw] sm:max-w-md">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Personnaliser la séance</DialogTitle>
         </DialogHeader>
