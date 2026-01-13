@@ -9,6 +9,8 @@ export interface Message {
   content: string;
   created_at: string;
   read_at: string | null;
+  attachment_url?: string | null;
+  attachment_type?: string | null;
 }
 
 export const useMessages = (otherUserId?: string) => {
@@ -127,8 +129,48 @@ export const useMessages = (otherUserId?: string) => {
     };
   }, [user]);
 
-  const sendMessage = async (receiverId: string, content: string) => {
-    if (!user || !content.trim()) return;
+  const uploadAttachment = async (file: File): Promise<{ url: string; type: string } | null> => {
+    if (!user) return null;
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('chat-attachments')
+      .upload(fileName, file);
+    
+    if (uploadError) {
+      console.error('Error uploading attachment:', uploadError);
+      throw uploadError;
+    }
+    
+    const { data: { publicUrl } } = supabase.storage
+      .from('chat-attachments')
+      .getPublicUrl(fileName);
+    
+    // Determine attachment type
+    const mimeType = file.type;
+    let attachmentType = 'file';
+    if (mimeType.startsWith('video/')) attachmentType = 'video';
+    else if (mimeType.startsWith('image/')) attachmentType = 'image';
+    
+    return { url: publicUrl, type: attachmentType };
+  };
+
+  const sendMessage = async (receiverId: string, content: string, attachment?: File) => {
+    if (!user || (!content.trim() && !attachment)) return;
+
+    let attachmentUrl: string | null = null;
+    let attachmentType: string | null = null;
+
+    // Upload attachment if provided
+    if (attachment) {
+      const result = await uploadAttachment(attachment);
+      if (result) {
+        attachmentUrl = result.url;
+        attachmentType = result.type;
+      }
+    }
 
     // Create optimistic message with temporary ID
     const optimisticMessage: Message = {
@@ -138,6 +180,8 @@ export const useMessages = (otherUserId?: string) => {
       content: content.trim(),
       created_at: new Date().toISOString(),
       read_at: null,
+      attachment_url: attachmentUrl,
+      attachment_type: attachmentType,
     };
 
     // Add optimistically to UI immediately
@@ -146,7 +190,9 @@ export const useMessages = (otherUserId?: string) => {
     const { data, error } = await supabase.from("messages").insert({
       sender_id: user.id,
       receiver_id: receiverId,
-      content: content.trim(),
+      content: content.trim() || (attachmentType === 'video' ? '📹 Vidéo' : '📎 Fichier'),
+      attachment_url: attachmentUrl,
+      attachment_type: attachmentType,
     }).select().single();
 
     if (error) {
