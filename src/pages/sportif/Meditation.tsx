@@ -114,8 +114,8 @@ export default function Meditation() {
     };
   }, []);
 
-  // Tibetan bowl sound with harmonics and natural decay
-  const playBowlSound = useCallback((baseFrequency: number, duration: number = 2.5) => {
+  // Soft singing bowl sound with gentle harmonics and very smooth decay
+  const playBowlSound = useCallback((baseFrequency: number, duration: number = 4) => {
     if (!settings.soundEnabled || !audioContextRef.current) return;
     
     const ctx = audioContextRef.current;
@@ -123,65 +123,76 @@ export default function Meditation() {
       ctx.resume();
     }
 
-    // Tibetan bowls have multiple harmonics - soft and gentle
+    // Softer harmonics with lower gains for a more gentle sound
     const harmonics = [
-      { ratio: 1, gain: 0.12 },      // Fundamental
-      { ratio: 2.0, gain: 0.08 },    // Octave
-      { ratio: 2.9, gain: 0.04 },    // ~Perfect fifth above octave
-      { ratio: 4.2, gain: 0.02 },    // Higher partial
+      { ratio: 1, gain: 0.06 },      // Fundamental - very soft
+      { ratio: 2.0, gain: 0.03 },    // Octave - subtle
+      { ratio: 3.0, gain: 0.015 },   // Perfect fifth - barely audible
     ];
 
     harmonics.forEach(({ ratio, gain }) => {
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
       
-      // Add slight vibrato for warmth
+      // Low-pass filter for warmth
+      const filter = ctx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(baseFrequency * 3, ctx.currentTime);
+      filter.Q.setValueAtTime(0.5, ctx.currentTime);
+      
+      // Very subtle vibrato for organic warmth
       const vibrato = ctx.createOscillator();
       const vibratoGain = ctx.createGain();
       
-      vibrato.frequency.setValueAtTime(3 + Math.random() * 1.5, ctx.currentTime); // 3-4.5 Hz gentle wobble
-      vibratoGain.gain.setValueAtTime(baseFrequency * ratio * 0.002, ctx.currentTime);
+      vibrato.frequency.setValueAtTime(2 + Math.random() * 0.5, ctx.currentTime); // 2-2.5 Hz very slow wobble
+      vibratoGain.gain.setValueAtTime(baseFrequency * ratio * 0.001, ctx.currentTime); // Very subtle
       
       vibrato.connect(vibratoGain);
       vibratoGain.connect(oscillator.frequency);
       
-      oscillator.connect(gainNode);
+      oscillator.connect(filter);
+      filter.connect(gainNode);
       gainNode.connect(ctx.destination);
       
       oscillator.type = "sine";
       oscillator.frequency.setValueAtTime(baseFrequency * ratio, ctx.currentTime);
       
-      // Soft envelope: gentle attack, long smooth decay
+      // Ultra-soft envelope: very slow attack, extremely long smooth decay
+      const attackTime = 0.4; // Slow, gentle attack
+      const decayStart = ctx.currentTime + attackTime;
+      const endTime = ctx.currentTime + duration;
+      
       gainNode.gain.setValueAtTime(0, ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(gain, ctx.currentTime + 0.15); // Slower, softer attack
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); // Long decay
+      gainNode.gain.linearRampToValueAtTime(gain, decayStart); // Slow fade in
+      // Use setTargetAtTime for exponential decay that reaches near-zero smoothly
+      gainNode.gain.setTargetAtTime(0, decayStart, (duration - attackTime) / 5); // Smooth exponential decay
       
       oscillator.start(ctx.currentTime);
       vibrato.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + duration);
-      vibrato.stop(ctx.currentTime + duration);
+      oscillator.stop(endTime + 0.5);
+      vibrato.stop(endTime + 0.5);
     });
   }, [settings.soundEnabled]);
 
   const playPhaseSound = useCallback((phase: BreathPhase) => {
     switch (phase) {
       case "inhale":
-        playBowlSound(320); // Lower bowl for inhale
+        playBowlSound(220, 5); // Lower, longer for gentle inhale
         break;
       case "holdIn":
-        playBowlSound(400, 1.5); // Mid-range, shorter
+        playBowlSound(280, 3); // Soft mid-range
         break;
       case "exhale":
-        playBowlSound(260); // Deep bowl for exhale
+        playBowlSound(180, 5); // Deep and soothing for exhale
         break;
       case "holdOut":
-        playBowlSound(220, 1.5); // Deepest, shorter
+        playBowlSound(150, 3); // Very deep, calming
         break;
       case "finished":
-        // Play a chord of bowls
-        playBowlSound(260, 4);
-        setTimeout(() => playBowlSound(330, 4), 300);
-        setTimeout(() => playBowlSound(400, 4), 600);
+        // Play a gentle chord of bowls with staggered timing for peaceful ending
+        playBowlSound(180, 6);
+        setTimeout(() => playBowlSound(220, 6), 500);
+        setTimeout(() => playBowlSound(260, 6), 1000);
         break;
     }
   }, [playBowlSound]);
