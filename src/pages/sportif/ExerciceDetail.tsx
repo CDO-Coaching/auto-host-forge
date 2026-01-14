@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,8 @@ export default function ExerciceDetail() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
+  const [coachName, setCoachName] = useState<string>("ton coach");
+  const [coachId, setCoachId] = useState<string | null>(null);
   const { toast } = useToast();
   const timerRef = useRef<UniversalTimerRef>(null);
 
@@ -70,6 +72,7 @@ export default function ExerciceDetail() {
 
   useEffect(() => {
     loadExerciseDetail();
+    loadCoachInfo();
 
     // Restaurer les données sauvegardées
     const savedData = localStorage.getItem(`exercise-progress-${exerciceId}`);
@@ -126,6 +129,32 @@ export default function ExerciceDetail() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [exerciceId]);
+
+  const loadCoachInfo = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: relationship } = await supabase
+      .from("coach_athlete_relationships")
+      .select("coach_id")
+      .eq("athlete_id", user.id)
+      .eq("status", "approved")
+      .single();
+
+    if (relationship?.coach_id) {
+      setCoachId(relationship.coach_id);
+      
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("first_name, last_name")
+        .eq("id", relationship.coach_id)
+        .single();
+
+      if (profile) {
+        setCoachName(profile.first_name || "ton coach");
+      }
+    }
+  };
 
   // Sauvegarder automatiquement la progression
   useEffect(() => {
@@ -771,10 +800,54 @@ export default function ExerciceDetail() {
           </Card>
         )}
 
+        {/* Demande de vidéo du coach */}
+        {exercise.request_video && (
+          <Card className="border-2 border-blue-500/30 bg-blue-500/5">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-full">
+                  <Video className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-700 mb-1">
+                    📹 {coachName.charAt(0).toUpperCase() + coachName.slice(1)} souhaite voir ta technique
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Pense à enregistrer une vidéo de cet exercice pour que ton coach puisse t'aider à progresser.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/sportif/messagerie")}
+                    className="border-blue-500/50 text-blue-700 hover:bg-blue-500/10"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Envoyer une vidéo
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Bouton exercice terminé */}
         <Button onClick={() => setDialogOpen(true)} size="lg" className="w-full">
           Exercice terminé
         </Button>
+
+        {/* Rappel discret pour la vidéo */}
+        {exercise.request_video && dialogOpen && (
+          <div className="fixed bottom-24 left-4 right-4 z-40 animate-in slide-in-from-bottom-4">
+            <Card className="bg-blue-50 border-blue-200 shadow-lg">
+              <CardContent className="p-3 flex items-center gap-2">
+                <Video className="h-4 w-4 text-blue-600 shrink-0" />
+                <p className="text-xs text-blue-700">
+                  N'oublie pas d'envoyer ta vidéo à {coachName} ! 🎥
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
