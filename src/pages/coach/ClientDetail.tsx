@@ -1272,6 +1272,7 @@ export default function ClientDetail() {
             super_set_group: exercise.super_set_group || null,
             per_side: exercise.per_side || false,
             is_duration: exercise.is_duration || false,
+            request_video: exercise.request_video || false,
           }));
 
           const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
@@ -1389,6 +1390,7 @@ export default function ClientDetail() {
                   cardio_content: ex.cardio_content || "",
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
+                  request_video: ex.request_video || false,
                 };
               });
             newExercises[sessionIndex + 1] = sortedExercises;
