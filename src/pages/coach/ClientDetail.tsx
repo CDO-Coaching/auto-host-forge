@@ -3055,7 +3055,7 @@ export default function ClientDetail() {
                                                         <Input value={ex.commentaire} onChange={(e) => handleExerciseChange(session.id, ex.id, "commentaire", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="..." />
                                                       </div>
                                                     </div>
-                                                    <div className="flex gap-2">
+                                                    <div className="flex gap-2 flex-wrap">
                                                       <div className="flex items-center gap-1">
                                                         <Checkbox id={`mobile-dur-${ex.id}`} checked={ex.is_duration || false} onCheckedChange={(c) => handleExerciseChange(session.id, ex.id, "is_duration", c as boolean)} disabled={isValidated} className="h-3 w-3" />
                                                         <label htmlFor={`mobile-dur-${ex.id}`} className="text-[9px]">durée</label>
@@ -3066,6 +3066,12 @@ export default function ClientDetail() {
                                                           <label htmlFor={`mobile-side-${ex.id}`} className="text-[9px]">par côté</label>
                                                         </div>
                                                       )}
+                                                      <div className="flex items-center gap-1">
+                                                        <Checkbox id={`mobile-video-${ex.id}`} checked={ex.request_video || false} onCheckedChange={(c) => handleExerciseChange(session.id, ex.id, "request_video", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                        <label htmlFor={`mobile-video-${ex.id}`} className="text-[9px] flex items-center gap-0.5">
+                                                          <Video className="h-2.5 w-2.5" /> vidéo
+                                                        </label>
+                                                      </div>
                                                     </div>
                                                   </div>
                                                 ))}
@@ -3154,7 +3160,7 @@ export default function ClientDetail() {
                                                     <Input value={exercise.commentaire} onChange={(e) => handleExerciseChange(session.id, exercise.id, "commentaire", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="..." />
                                                   </div>
                                                 </div>
-                                                <div className="flex gap-2">
+                                                <div className="flex gap-2 flex-wrap">
                                                   <div className="flex items-center gap-1">
                                                     <Checkbox id={`mobile-dur-normal-${exercise.id}`} checked={exercise.is_duration || false} onCheckedChange={(c) => handleExerciseChange(session.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} className="h-3 w-3" />
                                                     <label htmlFor={`mobile-dur-normal-${exercise.id}`} className="text-[9px]">durée</label>
@@ -3165,6 +3171,12 @@ export default function ClientDetail() {
                                                       <label htmlFor={`mobile-side-normal-${exercise.id}`} className="text-[9px]">par côté</label>
                                                     </div>
                                                   )}
+                                                  <div className="flex items-center gap-1">
+                                                    <Checkbox id={`mobile-video-normal-${exercise.id}`} checked={exercise.request_video || false} onCheckedChange={(c) => handleExerciseChange(session.id, exercise.id, "request_video", c as boolean)} disabled={isValidated} className="h-3 w-3" />
+                                                    <label htmlFor={`mobile-video-normal-${exercise.id}`} className="text-[9px] flex items-center gap-0.5">
+                                                      <Video className="h-2.5 w-2.5" /> vidéo
+                                                    </label>
+                                                  </div>
                                                 </div>
                                                 {/* Bouton super-set mobile */}
                                                 {i < exercises.length - 1 && !isValidated && (
