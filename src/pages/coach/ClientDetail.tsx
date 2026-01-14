@@ -612,13 +612,21 @@ export default function ClientDetail() {
 
       toast.success("Semaine supprimée définitivement");
 
+      // Retirer immédiatement de la liste (UX + évite les effets de cache)
+      setHistoricalWeeks((prev) =>
+        prev.filter(
+          (w) => !(w.week_number === selectedHistoricalWeek.week_number && w.year === selectedHistoricalWeek.year),
+        ),
+      );
+
       // Réinitialiser l'état
       setSelectedHistoricalWeek(null);
       setHistoricalSessions([]);
       setIsEditingHistorical(false);
       setShowDeleteWeekDialog(false);
 
-      // Recharger l'historique
+      // Recharger l'historique (petit délai pour laisser la suppression se propager)
+      await new Promise((r) => setTimeout(r, 250));
       await loadHistoricalWeeks();
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
