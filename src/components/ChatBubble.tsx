@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 
 export function ChatBubble() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export function ChatBubble() {
   const [coachName, setCoachName] = useState<string>("Coach");
   const [messageText, setMessageText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
   const { messages, unreadCount, sendMessage, markAsRead } = useMessages(coachId || undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -178,8 +180,9 @@ export function ChatBubble() {
                           <video
                             src={msg.attachment_url}
                             controls
-                            className="max-w-full rounded-md mb-2"
+                            className="max-w-full rounded-md mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                             style={{ maxHeight: '200px' }}
+                            onClick={() => setPreviewMedia({ url: msg.attachment_url!, type: 'video' })}
                           />
                         )}
                         {/* Afficher l'image si présente */}
@@ -187,8 +190,9 @@ export function ChatBubble() {
                           <img
                             src={msg.attachment_url}
                             alt="Image"
-                            className="max-w-full rounded-md mb-2"
+                            className="max-w-full rounded-md mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                             style={{ maxHeight: '200px' }}
+                            onClick={() => setPreviewMedia({ url: msg.attachment_url!, type: 'image' })}
                           />
                         )}
                         {msg.content && !msg.content.startsWith('📹') && !msg.content.startsWith('📎') && (
@@ -247,6 +251,14 @@ export function ChatBubble() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog de prévisualisation média */}
+      <MediaPreviewDialog
+        open={!!previewMedia}
+        onOpenChange={(open) => !open && setPreviewMedia(null)}
+        url={previewMedia?.url || ''}
+        type={previewMedia?.type || 'image'}
+      />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, User, Users } from "lucide-react";
+import { Send, User, Users, Video, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 
 interface Client {
   id: string;
@@ -35,9 +36,12 @@ export default function Messagerie() {
   const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
   
   const { messages, sendMessage, sendBroadcastMessage, markAsRead } = useMessages(selectedClient?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll vers le dernier message
   useEffect(() => {
@@ -147,6 +151,37 @@ export default function Messagerie() {
       setMessageText("");
     } catch (error) {
       console.error("Failed to send message:", error);
+    }
+  };
+
+  const handleVideoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedClient) return;
+
+    // Check file size (100MB max)
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error("Le fichier est trop volumineux (max 100MB)");
+      return;
+    }
+
+    // Check file type
+    if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) {
+      toast.error("Format non supporté. Utilisez une vidéo ou une image.");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      await sendMessage(selectedClient.id, "", file);
+      toast.success("Fichier envoyé !");
+    } catch (error) {
+      console.error("Failed to send file:", error);
+      toast.error("Erreur lors de l'envoi du fichier");
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -305,8 +340,9 @@ export default function Messagerie() {
                               <video
                                 src={msg.attachment_url}
                                 controls
-                                className="max-w-full rounded-md mb-2"
+                                className="max-w-full rounded-md mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                                 style={{ maxHeight: '300px' }}
+                                onClick={() => setPreviewMedia({ url: msg.attachment_url!, type: 'video' })}
                               />
                             )}
                             {/* Afficher l'image si présente */}
@@ -314,8 +350,9 @@ export default function Messagerie() {
                               <img
                                 src={msg.attachment_url}
                                 alt="Image"
-                                className="max-w-full rounded-md mb-2"
+                                className="max-w-full rounded-md mb-2 cursor-pointer hover:opacity-90 transition-opacity"
                                 style={{ maxHeight: '300px' }}
+                                onClick={() => setPreviewMedia({ url: msg.attachment_url!, type: 'image' })}
                               />
                             )}
                             {msg.content && !msg.content.startsWith('📹') && !msg.content.startsWith('📎') && (
@@ -342,15 +379,38 @@ export default function Messagerie() {
                   </div>
                 </ScrollArea>
 
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleVideoSelect}
+                  accept="video/*,image/*"
+                  className="hidden"
+                />
+
                 <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    title="Envoyer une vidéo ou image"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Video className="h-4 w-4" />
+                    )}
+                  </Button>
                   <Input
                     placeholder="Écris ton message..."
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     onKeyPress={handleKeyPress}
                     className="flex-1"
+                    disabled={isUploading}
                   />
-                  <Button onClick={handleSend} size="icon" disabled={!messageText.trim()}>
+                  <Button onClick={handleSend} size="icon" disabled={!messageText.trim() || isUploading}>
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
@@ -365,6 +425,14 @@ export default function Messagerie() {
           )}
         </Card>
       </div>
+
+      {/* Dialog de prévisualisation média */}
+      <MediaPreviewDialog
+        open={!!previewMedia}
+        onOpenChange={(open) => !open && setPreviewMedia(null)}
+        url={previewMedia?.url || ''}
+        type={previewMedia?.type || 'image'}
+      />
     </div>
   );
 }
