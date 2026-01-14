@@ -29,6 +29,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Search,
+  Video,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -103,6 +104,7 @@ interface Exercise {
   per_side?: boolean;
   is_unilateral?: boolean;
   is_duration?: boolean;
+  request_video?: boolean;
 }
 
 export default function ClientDetail() {
@@ -3199,13 +3201,16 @@ export default function ClientDetail() {
                                           <TableHead className="min-w-[70px]">Charge</TableHead>
                                           <TableHead className="min-w-[70px]">Tempo</TableHead>
                                           <TableHead className="min-w-[120px]">Comm.</TableHead>
+                                          <TableHead className="w-[50px] text-center">
+                                            <Video className="h-4 w-4 mx-auto" />
+                                          </TableHead>
                                           <TableHead className="w-[40px]"></TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
                                         {(sessionExercises[session.id] || []).length === 0 ? (
                                           <TableRow>
-                                            <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                                            <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                                               Aucun exercice ajouté.
                                             </TableCell>
                                           </TableRow>
@@ -3237,7 +3242,7 @@ export default function ClientDetail() {
                                                     {/* Séparateur visuel avant le super-set */}
                                                     <TableRow>
                                                       <TableCell
-                                                        colSpan={9}
+                                                        colSpan={10}
                                                         className="p-0 h-2 bg-muted/30"
                                                       ></TableCell>
                                                     </TableRow>
@@ -3522,6 +3527,21 @@ export default function ClientDetail() {
                                                                 data-field="commentaire"
                                                               />
                                                             </TableCell>
+                                                            <TableCell className="text-center">
+                                                              <Checkbox
+                                                                checked={ex.request_video || false}
+                                                                onCheckedChange={(checked) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "request_video",
+                                                                    checked === true,
+                                                                  )
+                                                                }
+                                                                disabled={isValidated}
+                                                                title="Demander une vidéo à l'athlète"
+                                                              />
+                                                            </TableCell>
                                                             <TableCell>
                                                               {!isValidated && (
                                                                 <Button
@@ -3540,9 +3560,9 @@ export default function ClientDetail() {
 
                                                           {/* Bouton pour gérer les liens dans le super-set */}
                                                           {exIndex < groupExercises.length - 1 && !isValidated && (
-                                                            <TableRow>
+                                                             <TableRow>
                                                               <TableCell
-                                                                colSpan={9}
+                                                                colSpan={10}
                                                                 className="p-0 h-6 relative group bg-primary/5 border-l-4 border-l-primary"
                                                               >
                                                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -3568,7 +3588,7 @@ export default function ClientDetail() {
                                                     {/* Séparateur visuel après le super-set */}
                                                     <TableRow>
                                                       <TableCell
-                                                        colSpan={9}
+                                                        colSpan={10}
                                                         className="p-0 h-2 bg-muted/30"
                                                       ></TableCell>
                                                     </TableRow>
@@ -3576,7 +3596,7 @@ export default function ClientDetail() {
                                                     {/* Bouton pour ajouter au super-set si pas le dernier exercice */}
                                                     {i + groupExercises.length < exercises.length && !isValidated && (
                                                       <TableRow>
-                                                        <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                        <TableCell colSpan={10} className="p-0 h-8 relative group">
                                                           <div className="absolute inset-0 flex items-center justify-center">
                                                             <Button
                                                               variant="ghost"
@@ -3864,6 +3884,21 @@ export default function ClientDetail() {
                                                           data-field="commentaire"
                                                         />
                                                       </TableCell>
+                                                      <TableCell className="text-center">
+                                                        <Checkbox
+                                                          checked={exercise.request_video || false}
+                                                          onCheckedChange={(checked) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "request_video",
+                                                              checked === true,
+                                                            )
+                                                          }
+                                                          disabled={isValidated}
+                                                          title="Demander une vidéo à l'athlète"
+                                                        />
+                                                      </TableCell>
                                                       <TableCell>
                                                         {!isValidated && (
                                                           <Button
@@ -3883,7 +3918,7 @@ export default function ClientDetail() {
                                                     {/* Bouton pour créer un super-set */}
                                                     {!isLastExercise && !isValidated && (
                                                       <TableRow>
-                                                        <TableCell colSpan={9} className="p-0 h-8 relative group">
+                                                        <TableCell colSpan={10} className="p-0 h-8 relative group">
                                                           <div className="absolute inset-0 flex items-center justify-center">
                                                             <Button
                                                               variant={inGroup ? "default" : "ghost"}
