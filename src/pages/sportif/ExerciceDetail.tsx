@@ -17,6 +17,7 @@ import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/max
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import { SendVideoDialog } from "@/components/SendVideoDialog";
 
 export default function ExerciceDetail() {
   // Keep screen on during workout
@@ -41,6 +42,7 @@ export default function ExerciceDetail() {
   const [coachId, setCoachId] = useState<string | null>(null);
   const { toast } = useToast();
   const timerRef = useRef<UniversalTimerRef>(null);
+  const [showVideoDialog, setShowVideoDialog] = useState(false);
 
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
@@ -569,6 +571,14 @@ export default function ExerciceDetail() {
         isRpeRequired={true}
       />
 
+      <SendVideoDialog
+        open={showVideoDialog}
+        onOpenChange={setShowVideoDialog}
+        coachId={coachId}
+        coachName={coachName}
+        exerciseName={exercise?.exercice}
+      />
+
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* En-tête exercice avec bouton retour et vidéo */}
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
@@ -818,7 +828,7 @@ export default function ExerciceDetail() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate("/sportif/messagerie")}
+                    onClick={() => setShowVideoDialog(true)}
                     className="border-blue-500/50 text-blue-700 hover:bg-blue-500/10"
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
