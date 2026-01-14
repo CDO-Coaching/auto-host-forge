@@ -551,46 +551,73 @@ export default function ClientDetail() {
   };
 
   const handleDeleteWeek = async () => {
-    if (!selectedHistoricalWeek) return;
+    if (!selectedHistoricalWeek || !athleteId) return;
 
     try {
-      // 1. Supprimer tous les exercices des séances de cette semaine (seulement s'il y a des séances)
-      if (historicalSessions.length > 0) {
+      // Supprimer toutes les semaines correspondant au même couple (athlete_id, week_number, year)
+      // (utile si des doublons ont été créés)
+      const { data: weeksToDelete, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", athleteId)
+        .eq("week_number", selectedHistoricalWeek.week_number)
+        .eq("year", selectedHistoricalWeek.year)
+        .eq("validated", true);
+
+      if (weeksError) throw weeksError;
+
+      const weekIds = (weeksToDelete || []).map((w) => w.id);
+      if (weekIds.length === 0) {
+        toast.error("Semaine introuvable");
+        return;
+      }
+
+      // 1) Récupérer toutes les séances de ces semaines
+      const { data: sessionsToDelete, error: sessionsError } = await supabase
+        .from("training_sessions")
+        .select("id")
+        .in("week_id", weekIds);
+
+      if (sessionsError) throw sessionsError;
+
+      const sessionIds = (sessionsToDelete || []).map((s) => s.id);
+
+      // 2) Supprimer tous les exercices des séances
+      if (sessionIds.length > 0) {
         const { error: exercisesError } = await supabase
           .from("session_exercises")
           .delete()
-          .in(
-            "session_id",
-            historicalSessions.map((s) => s.id)
-          );
+          .in("session_id", sessionIds);
 
         if (exercisesError) throw exercisesError;
       }
 
-      // 2. Supprimer toutes les séances de cette semaine
-      const { error: sessionsError } = await supabase
-        .from("training_sessions")
-        .delete()
-        .eq("week_id", selectedHistoricalWeek.id);
+      // 3) Supprimer toutes les séances
+      if (weekIds.length > 0) {
+        const { error: sessionsDeleteError } = await supabase
+          .from("training_sessions")
+          .delete()
+          .in("week_id", weekIds);
 
-      if (sessionsError) throw sessionsError;
+        if (sessionsDeleteError) throw sessionsDeleteError;
+      }
 
-      // 3. Supprimer la semaine (elle est stockée dans training_weeks avec validated=true)
-      const { error: weekError } = await supabase
+      // 4) Supprimer toutes les semaines
+      const { error: weekDeleteError } = await supabase
         .from("training_weeks")
         .delete()
-        .eq("id", selectedHistoricalWeek.id);
+        .in("id", weekIds);
 
-      if (weekError) throw weekError;
+      if (weekDeleteError) throw weekDeleteError;
 
-      toast.success("Semaine supprimée avec succès");
-      
+      toast.success("Semaine supprimée définitivement");
+
       // Réinitialiser l'état
       setSelectedHistoricalWeek(null);
       setHistoricalSessions([]);
       setIsEditingHistorical(false);
       setShowDeleteWeekDialog(false);
-      
+
       // Recharger l'historique
       await loadHistoricalWeeks();
     } catch (error) {
