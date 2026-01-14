@@ -26,6 +26,7 @@ import MesSeances from "./sportif/MesSeances";
 import Aide from "./sportif/Aide";
 import Agenda from "./sportif/Agenda";
 import Meditation from "./sportif/Meditation";
+import Messagerie from "./sportif/Messagerie";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -112,6 +113,7 @@ export default function DashboardSportif() {
               <Route path="/maxes" element={<Maxes />} />
               <Route path="/poids" element={<Poids />} />
               <Route path="/meditation" element={<Meditation />} />
+              <Route path="/messagerie" element={<Messagerie />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/profil" element={<Profil />} />
               <Route path="/aide" element={<Aide />} />
