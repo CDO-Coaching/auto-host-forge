@@ -78,11 +78,30 @@ export function SendVideoDialog({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file) {
+      console.log("Aucun fichier sélectionné");
+      return;
+    }
 
-    // Vérifier le type
-    const validTypes = ['video/mp4', 'video/quicktime', 'video/webm', 'video/mov', 'image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (!validTypes.includes(file.type) && !file.type.startsWith('video/') && !file.type.startsWith('image/')) {
+    console.log("Fichier sélectionné:", file.name, file.type, file.size);
+
+    // Vérifier le type - plus permissif pour les vidéos de caméra mobile
+    const isVideo = file.type.startsWith('video/') || 
+                    file.name.toLowerCase().endsWith('.mp4') ||
+                    file.name.toLowerCase().endsWith('.mov') ||
+                    file.name.toLowerCase().endsWith('.webm') ||
+                    file.name.toLowerCase().endsWith('.3gp') ||
+                    file.name.toLowerCase().endsWith('.avi');
+    
+    const isImage = file.type.startsWith('image/') ||
+                    file.name.toLowerCase().endsWith('.jpg') ||
+                    file.name.toLowerCase().endsWith('.jpeg') ||
+                    file.name.toLowerCase().endsWith('.png') ||
+                    file.name.toLowerCase().endsWith('.gif') ||
+                    file.name.toLowerCase().endsWith('.webp') ||
+                    file.name.toLowerCase().endsWith('.heic');
+
+    if (!isVideo && !isImage) {
       toast({
         title: "Format non supporté",
         description: "Veuillez sélectionner une vidéo ou une image",
@@ -106,6 +125,7 @@ export function SendVideoDialog({
     // Créer une prévisualisation
     const url = URL.createObjectURL(file);
     setPreview(url);
+    console.log("Fichier chargé avec succès, preview:", url);
   };
 
   const handleRemoveFile = () => {
