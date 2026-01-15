@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Video, Camera, Send, X, Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Video, Camera, Send, X, Loader2, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMessages } from "@/hooks/useMessages";
 
@@ -32,9 +33,47 @@ export function SendVideoDialog({
   const [preview, setPreview] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { sendMessage } = useMessages();
+
+  // Cleanup progress interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const startProgressSimulation = () => {
+    setUploadProgress(0);
+    let progress = 0;
+    
+    progressIntervalRef.current = setInterval(() => {
+      // Simulate progress that slows down as it approaches 90%
+      const increment = Math.max(1, (90 - progress) / 10);
+      progress = Math.min(90, progress + increment);
+      setUploadProgress(Math.round(progress));
+    }, 200);
+  };
+
+  const completeProgress = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+    setUploadProgress(100);
+    setTimeout(() => setUploadProgress(0), 500);
+  };
+
+  const resetProgress = () => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+    setUploadProgress(0);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,11 +138,19 @@ export function SendVideoDialog({
     }
 
     setIsSending(true);
+    
+    // Start progress simulation if there's a file to upload
+    if (selectedFile) {
+      startProgressSimulation();
+    }
+    
     try {
       const messageContent = message.trim() || 
         (exerciseName ? `📹 Vidéo de l'exercice : ${exerciseName}` : "📹 Vidéo de ma technique");
       
       await sendMessage(coachId, messageContent, selectedFile || undefined);
+      
+      completeProgress();
       
       toast({
         title: "Envoyé !",
@@ -116,6 +163,7 @@ export function SendVideoDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Erreur envoi:", error);
+      resetProgress();
       toast({
         title: "Erreur",
         description: "Impossible d'envoyer le message",
@@ -212,7 +260,16 @@ export function SendVideoDialog({
             />
           </div>
 
-          {/* Boutons */}
+          {/* Barre de progression */}
+          {isSending && selectedFile && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Upload className="h-4 w-4 animate-pulse" />
+                <span>Upload en cours... {uploadProgress}%</span>
+              </div>
+              <Progress value={uploadProgress} className="h-2" />
+            </div>
+          )}
           <div className="flex gap-2">
             <Button 
               variant="outline" 
