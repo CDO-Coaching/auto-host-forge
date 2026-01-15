@@ -63,6 +63,17 @@ const PolitiqueRGPD = () => {
               <li>Records personnels (maxes)</li>
               <li>Objectifs sportifs</li>
             </ul>
+
+            <h3 className="text-xl font-medium mt-4 mb-2">Contenus multimédias (avec consentement implicite lors de l'envoi) :</h3>
+            <ul className="list-disc pl-6 text-muted-foreground space-y-1">
+              <li>Vidéos de technique sportive envoyées volontairement au coach</li>
+              <li>Photos d'exercices ou de posture</li>
+              <li>Messages vocaux ou écrits accompagnant ces contenus</li>
+            </ul>
+            <p className="text-muted-foreground mt-2 text-sm italic">
+              Ces contenus sont envoyés à votre initiative via la messagerie intégrée et sont utilisés 
+              exclusivement pour vous fournir des retours personnalisés sur votre technique.
+            </p>
           </section>
 
           <section>
@@ -93,6 +104,11 @@ const PolitiqueRGPD = () => {
                 <strong>Données de santé :</strong> Consentement explicite (Article 9.2.a du RGPD). 
                 Ce consentement est recueilli lors de la création de votre compte et peut être retiré à tout moment.
               </li>
+              <li>
+                <strong>Vidéos et photos :</strong> Consentement implicite par l'action volontaire d'envoi. 
+                L'envoi d'une vidéo ou photo constitue un acte délibéré valant consentement à son traitement 
+                dans le cadre du coaching sportif.
+              </li>
             </ul>
           </section>
 
@@ -116,11 +132,13 @@ const PolitiqueRGPD = () => {
               Vos données sont conservées pendant :
             </p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-1">
-              <li>La durée de votre relation de coaching avec CDO Coaching</li>
-              <li>Plus 12 mois après la fin de la relation (pour permettre une éventuelle reprise)</li>
+              <li><strong>Données de compte et d'entraînement :</strong> Durée de la relation de coaching + 12 mois</li>
+              <li><strong>Vidéos et photos :</strong> 6 mois après leur envoi, sauf demande de conservation plus longue de votre part</li>
+              <li><strong>Messages :</strong> Durée de la relation de coaching + 12 mois</li>
             </ul>
             <p className="text-muted-foreground mt-4">
-              À l'issue de cette période, vos données sont supprimées ou anonymisées.
+              À l'issue de ces périodes, vos données sont supprimées ou anonymisées. Vous pouvez demander 
+              la suppression anticipée de vos vidéos et photos à tout moment.
             </p>
           </section>
 
