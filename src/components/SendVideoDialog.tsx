@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Video, Camera, Send, X, Loader2, Upload } from "lucide-react";
+import { Video, Camera, Send, X, Loader2, Upload, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMessages } from "@/hooks/useMessages";
 
@@ -35,6 +35,7 @@ export function SendVideoDialog({
   const [isSending, setIsSending] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const { sendMessage } = useMessages();
@@ -115,6 +116,9 @@ export function SendVideoDialog({
     setPreview(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
     }
   };
 
@@ -199,24 +203,46 @@ export function SendVideoDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Zone de sélection de fichier */}
+          {/* Inputs cachés pour sélection de fichier */}
           <input
             ref={fileInputRef}
             type="file"
             accept="video/*,image/*"
             onChange={handleFileSelect}
             className="hidden"
+          />
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="video/*"
             capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
           />
 
           {!selectedFile ? (
-            <div 
-              className="border-2 border-dashed border-muted-foreground/30 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Camera className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-sm font-medium">Clique pour sélectionner</p>
-              <p className="text-xs text-muted-foreground mt-1">Vidéo ou photo (max 100 Mo)</p>
+            <div className="space-y-3">
+              {/* Bouton filmer avec la caméra */}
+              <Button
+                variant="default"
+                className="w-full h-16 flex flex-col gap-1"
+                onClick={() => cameraInputRef.current?.click()}
+              >
+                <Video className="h-6 w-6" />
+                <span className="text-sm">Filmer avec la caméra</span>
+              </Button>
+              
+              {/* Bouton sélectionner depuis la galerie */}
+              <Button
+                variant="outline"
+                className="w-full h-14 flex items-center gap-3"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <ImageIcon className="h-5 w-5" />
+                <span>Choisir depuis la galerie</span>
+              </Button>
+              
+              <p className="text-xs text-muted-foreground text-center">Vidéo ou photo (max 100 Mo)</p>
             </div>
           ) : (
             <div className="relative rounded-lg overflow-hidden bg-muted">
