@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.notify-consent-withdrawal]
 verify_jwt = false
+
+[functions.cleanup-old-attachments]
+verify_jwt = false
