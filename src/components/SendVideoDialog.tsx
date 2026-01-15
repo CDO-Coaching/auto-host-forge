@@ -217,6 +217,10 @@ export function SendVideoDialog({
             accept="video/*"
             capture="environment"
             onChange={handleFileSelect}
+            onClick={(e) => {
+              // Force reset pour permettre la re-sélection
+              (e.target as HTMLInputElement).value = '';
+            }}
             className="hidden"
           />
 
