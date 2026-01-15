@@ -691,6 +691,7 @@ export default function ClientDetail() {
               super_set_group: exercise.super_set_group || null,
               per_side: exercise.per_side || false,
               is_duration: exercise.is_duration || false,
+              request_video: exercise.request_video || false,
             })
             .eq("id", exercise.id);
 
@@ -4552,6 +4553,7 @@ export default function ClientDetail() {
                                             <TableHead className="text-xs min-w-[60px]">Tempo</TableHead>
                                             <TableHead className="text-xs min-w-[80px]">Comm.</TableHead>
                                             <TableHead className="text-xs min-w-[80px]">Retour</TableHead>
+                                            <TableHead className="text-xs min-w-[50px]">Vidéo</TableHead>
                                             {isEditingHistorical && <TableHead className="w-[40px]"></TableHead>}
                                           </>
                                         )}
@@ -5115,6 +5117,30 @@ export default function ClientDetail() {
                                                   <span className="text-muted-foreground">-</span>
                                                 )}
                                               </TableCell>
+                                              <TableCell>
+                                                {isEditingHistorical ? (
+                                                  <div className="flex items-center justify-center">
+                                                    <Checkbox
+                                                      id={`historical-request-video-${session.id}-${exercise.id}`}
+                                                      checked={exercise.request_video || false}
+                                                      onCheckedChange={(checked) =>
+                                                        handleHistoricalExerciseChange(
+                                                          session.id,
+                                                          exercise.id,
+                                                          "request_video",
+                                                          checked as boolean
+                                                        )
+                                                      }
+                                                    />
+                                                  </div>
+                                                ) : (
+                                                  exercise.request_video ? (
+                                                    <Video className="h-4 w-4 text-primary" />
+                                                  ) : (
+                                                    <span className="text-muted-foreground">-</span>
+                                                  )
+                                                )}
+                                              </TableCell>
                                               {isEditingHistorical && (
                                                 <TableCell>
                                                   <Button
@@ -5133,7 +5159,7 @@ export default function ClientDetail() {
                                       ) : (
                                         <TableRow>
                                           <TableCell
-                                            colSpan={isEditingHistorical ? 11 : 10}
+                                            colSpan={isEditingHistorical ? 12 : 11}
                                             className="text-center text-muted-foreground"
                                           >
                                             Aucun exercice
