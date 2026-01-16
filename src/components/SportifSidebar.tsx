@@ -1,4 +1,5 @@
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -11,8 +12,10 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const menuItems = [
+const baseMenuItems = [
   { title: "Mes séances", url: "/sportif/seances", icon: Calendar },
   { title: "Mon agenda", url: "/sportif/agenda", icon: ListChecks },
   { title: "Mon suivi fatigue", url: "/sportif/fatigue", icon: Activity },
@@ -26,13 +29,47 @@ const menuItems = [
 
 export function SportifSidebar() {
   const { setOpenMobile, isMobile } = useSidebar();
+  const { user } = useAuth();
+  const [paymentEnabled, setPaymentEnabled] = useState(false);
+
+  useEffect(() => {
+    const checkPaymentEnabled = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("payment_enabled")
+        .eq("id", user.id)
+        .single();
+      
+      if (!error && data) {
+        setPaymentEnabled(data.payment_enabled || false);
+      }
+    };
+
+    checkPaymentEnabled();
+  }, [user]);
 
   const handleLinkClick = () => {
-    // Sur mobile, fermer la sidebar après un clic
     if (isMobile) {
       setOpenMobile(false);
     }
   };
+
+  // Construire le menu dynamiquement
+  const menuItems = [...baseMenuItems];
+  
+  // Ajouter le lien Paiement si activé (après "Mon poids" et avant "Méditation")
+  if (paymentEnabled) {
+    const poidsIndex = menuItems.findIndex(item => item.url === "/sportif/poids");
+    if (poidsIndex !== -1) {
+      menuItems.splice(poidsIndex + 1, 0, {
+        title: "Mes paiements",
+        url: "/sportif/paiement",
+        icon: CreditCard,
+      });
+    }
+  }
 
   return (
     <Sidebar collapsible="offcanvas" className="border-r">
