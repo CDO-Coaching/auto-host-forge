@@ -67,7 +67,20 @@ export function CoachSubscriptionManager({
         .select("*")
         .eq("athlete_id", athleteId);
 
-      if (error) throw error;
+      if (error) {
+        // 42P01 = table doesn't exist (migration pas exécutée)
+        // 42501 / message RLS = policy bloque la requête
+        const msg = String((error as any)?.message || "");
+        if ((error as any)?.code === "42P01") {
+          toast.error("Table abonnements manquante: exécutez la migration SQL.");
+        } else if (msg.toLowerCase().includes("row-level security")) {
+          toast.error("Accès bloqué par la sécurité: il faut corriger les policies RLS.");
+        } else {
+          toast.error("Erreur chargement abonnements");
+        }
+        throw error;
+      }
+
       setAssignedSubscriptions(data || []);
     } catch (error) {
       console.error("Erreur chargement abonnements:", error);

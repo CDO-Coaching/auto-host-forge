@@ -891,7 +891,7 @@ export default function ClientDetail() {
 
   const handleTogglePaymentEnabled = async (enabled: boolean) => {
     if (!athleteId) return;
-    
+
     try {
       const { error } = await supabase
         .from("user_profiles")
@@ -900,8 +900,13 @@ export default function ClientDetail() {
 
       if (error) throw error;
 
-      setAthlete(prev => prev ? { ...prev, payment_enabled: enabled } : null);
+      setAthlete((prev) => (prev ? { ...prev, payment_enabled: enabled } : null));
       toast.success(enabled ? "Mode paiement activé" : "Mode paiement désactivé");
+
+      // UX: basculer directement sur l'onglet Paiements quand on active
+      if (enabled) {
+        setActiveTab("paiements");
+      }
     } catch (error) {
       console.error("Erreur lors de la mise à jour:", error);
       toast.error("Erreur lors de la mise à jour");
