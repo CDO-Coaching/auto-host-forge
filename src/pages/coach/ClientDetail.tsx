@@ -30,7 +30,9 @@ import {
   RefreshCw,
   Search,
   Video,
+  CreditCard,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -78,6 +80,7 @@ interface AthleteProfile {
   gender: string | null;
   role: string;
   adaptation_period_level?: "legere" | "moyenne" | "grosse" | null;
+  payment_enabled?: boolean;
 }
 
 interface Session {
@@ -883,6 +886,25 @@ export default function ClientDetail() {
     }
 
     setLoading(false);
+  };
+
+  const handleTogglePaymentEnabled = async (enabled: boolean) => {
+    if (!athleteId) return;
+    
+    try {
+      const { error } = await supabase
+        .from("user_profiles")
+        .update({ payment_enabled: enabled })
+        .eq("id", athleteId);
+
+      if (error) throw error;
+
+      setAthlete(prev => prev ? { ...prev, payment_enabled: enabled } : null);
+      toast.success(enabled ? "Mode paiement activé" : "Mode paiement désactivé");
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour:", error);
+      toast.error("Erreur lors de la mise à jour");
+    }
   };
 
   const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
@@ -2026,11 +2048,25 @@ export default function ClientDetail() {
             </div>
           </div>
         </div>
-        <div className="text-[10px] sm:text-xs text-muted-foreground text-right flex-shrink-0">
-          {athlete.gender && (
-            <p>{athlete.gender === "female" ? "F" : athlete.gender === "male" ? "H" : "A"}</p>
-          )}
-          {athlete.date_of_birth && <p>{new Date(athlete.date_of_birth).toLocaleDateString("fr-FR")}</p>}
+        <div className="flex items-center gap-3 flex-shrink-0">
+          {/* Toggle paiement Stripe */}
+          <div 
+            className="flex items-center gap-1.5"
+            title={athlete.payment_enabled ? "Paiement activé" : "Paiement désactivé"}
+          >
+            <CreditCard className={`h-3.5 w-3.5 ${athlete.payment_enabled ? "text-green-500" : "text-muted-foreground"}`} />
+            <Switch
+              checked={athlete.payment_enabled || false}
+              onCheckedChange={handleTogglePaymentEnabled}
+              className="scale-75"
+            />
+          </div>
+          <div className="text-[10px] sm:text-xs text-muted-foreground text-right">
+            {athlete.gender && (
+              <p>{athlete.gender === "female" ? "F" : athlete.gender === "male" ? "H" : "A"}</p>
+            )}
+            {athlete.date_of_birth && <p>{new Date(athlete.date_of_birth).toLocaleDateString("fr-FR")}</p>}
+          </div>
         </div>
       </div>
 
