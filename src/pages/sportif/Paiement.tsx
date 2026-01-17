@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Settings, Calendar, XCircle } from "lucide-react";
+import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPaymentLinkWithParams, getProductByPriceId, STRIPE_PRODUCTS } from "@/lib/stripeConfig";
 
@@ -26,36 +26,16 @@ interface ActiveSubscription {
   product_name: string;
   status: string;
   paid_at: string;
-}
-
-// Abonnements Stripe actifs (récurrents)
-interface StripeSubscription {
-  id: string;
-  product_id: string;
-  price_id: string;
-  status: string;
-  current_period_end: string;
-  cancel_at_period_end: boolean;
-}
-
-// Paiements uniques Stripe
-interface StripePayment {
-  id: string;
-  amount: number;
-  currency: string;
-  created: string;
-  receipt_url: string | null;
+  is_recurring?: boolean;
+  expires_at?: string;
 }
 
 export default function Paiement() {
   const { user } = useAuth();
   const [assignedSubscriptions, setAssignedSubscriptions] = useState<AssignedSubscription[]>([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState<ActiveSubscription[]>([]);
-  const [stripeSubscriptions, setStripeSubscriptions] = useState<StripeSubscription[]>([]);
-  const [stripePayments, setStripePayments] = useState<StripePayment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [checkingSubscription, setCheckingSubscription] = useState(false);
-  const [openingPortal, setOpeningPortal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -69,10 +49,22 @@ export default function Paiement() {
       await Promise.all([
         loadAssignedSubscriptions(),
         loadActiveSubscriptions(),
-        checkStripeSubscription(),
       ]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadAssignedSubscriptions(),
+        loadActiveSubscriptions(),
+      ]);
+      toast.success("Données actualisées");
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -97,7 +89,8 @@ export default function Paiement() {
         .from("athlete_subscriptions")
         .select("*")
         .eq("athlete_id", user?.id)
-        .eq("status", "active");
+        .eq("status", "active")
+        .order("paid_at", { ascending: false });
 
       if (error) {
         if ((error as any)?.code === "42P01") {
@@ -113,57 +106,6 @@ export default function Paiement() {
     }
   };
 
-  const checkStripeSubscription = async () => {
-    setCheckingSubscription(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-
-      const { data, error } = await supabase.functions.invoke("check-subscription", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-
-      setStripeSubscriptions(data?.subscriptions || []);
-      setStripePayments(data?.payments || []);
-    } catch (error) {
-      console.error("Erreur vérification Stripe:", error);
-    } finally {
-      setCheckingSubscription(false);
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    setOpeningPortal(true);
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast.error("Vous devez être connecté");
-        return;
-      }
-
-      const { data, error } = await supabase.functions.invoke("customer-portal", {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (error) {
-      console.error("Erreur portail client:", error);
-      toast.error("Impossible d'ouvrir le portail de gestion");
-    } finally {
-      setOpeningPortal(false);
-    }
-  };
-
   const handlePayment = (subscription: AssignedSubscription) => {
     const product = getProductByPriceId(subscription.stripe_price_id);
     
@@ -172,9 +114,6 @@ export default function Paiement() {
       return;
     }
 
-    // Construire l'URL de succès avec les paramètres
-    const successUrl = `${window.location.origin}/sportif/paiement-succes?price_id=${subscription.stripe_price_id}&product_id=${subscription.stripe_product_id}&product_name=${encodeURIComponent(subscription.product_name)}`;
-    
     // Ajouter l'email pré-rempli si disponible
     const paymentUrl = getPaymentLinkWithParams(product.paymentLink, {
       prefillEmail: user?.email,
@@ -204,19 +143,23 @@ export default function Paiement() {
     });
   };
 
-  // Helper pour obtenir le nom du produit depuis Stripe
-  const getProductName = (productId: string) => {
-    const product = STRIPE_PRODUCTS.find(p => p.id === productId);
-    return product?.name || "Abonnement";
-  };
-
-  const hasStripeActivity = stripeSubscriptions.length > 0 || stripePayments.length > 0;
-
-  // Vérifier si un abonnement est actif (soit dans la DB locale, soit dans Stripe)
+  // Vérifier si un abonnement est actif
   const isSubscriptionActive = (priceId: string) => {
-    return activeSubscriptions.some(sub => sub.stripe_price_id === priceId) ||
-           stripeSubscriptions.some(sub => sub.price_id === priceId);
+    return activeSubscriptions.some(sub => sub.stripe_price_id === priceId);
   };
+
+  // Séparer les abonnements récurrents des paiements uniques
+  const recurringSubscriptions = activeSubscriptions.filter(sub => {
+    const productConfig = STRIPE_PRODUCTS.find(p => p.priceId === sub.stripe_price_id);
+    return productConfig?.isRecurring || sub.is_recurring;
+  });
+
+  const oneTimePayments = activeSubscriptions.filter(sub => {
+    const productConfig = STRIPE_PRODUCTS.find(p => p.priceId === sub.stripe_price_id);
+    return !(productConfig?.isRecurring || sub.is_recurring);
+  });
+
+  const hasActiveSubscriptions = activeSubscriptions.length > 0;
 
   if (loading) {
     return (
@@ -226,8 +169,8 @@ export default function Paiement() {
     );
   }
 
-  // Afficher quand même si on a des abonnements Stripe actifs
-  if (assignedSubscriptions.length === 0 && !hasStripeActivity) {
+  // Afficher même si pas de formules assignées mais des abonnements actifs
+  if (assignedSubscriptions.length === 0 && !hasActiveSubscriptions) {
     return (
       <div className="container max-w-2xl mx-auto py-8 px-4">
         <Card>
@@ -258,10 +201,10 @@ export default function Paiement() {
         <Button
           variant="outline"
           size="sm"
-          onClick={loadData}
-          disabled={checkingSubscription}
+          onClick={handleRefresh}
+          disabled={refreshing}
         >
-          {checkingSubscription ? (
+          {refreshing ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <RefreshCw className="h-4 w-4" />
@@ -269,67 +212,46 @@ export default function Paiement() {
         </Button>
       </div>
 
-      {/* Abonnements mensuels Stripe actifs */}
-      {stripeSubscriptions.length > 0 && (
+      {/* Abonnements mensuels récurrents actifs */}
+      {recurringSubscriptions.length > 0 && (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Check className="h-4 w-4 text-primary" />
-                Abonnement actif
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManageSubscription}
-                disabled={openingPortal}
-              >
-                {openingPortal ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Settings className="h-4 w-4 mr-2" />
-                )}
-                Gérer
-              </Button>
-            </div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Repeat className="h-4 w-4 text-primary" />
+              Abonnement mensuel actif
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {stripeSubscriptions.map((sub) => (
+            {recurringSubscriptions.map((sub) => (
               <div key={sub.id} className="p-4 rounded-lg border bg-background">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{getProductName(sub.product_id)}</span>
+                      <span className="font-semibold">{sub.product_name}</span>
                       <Badge variant="default" className="bg-primary">
                         Mensuel
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
                       <Calendar className="h-4 w-4" />
-                      <span>Prochain renouvellement : {formatDate(sub.current_period_end)}</span>
+                      <span>Souscrit le {formatDate(sub.paid_at)}</span>
                     </div>
-                    {sub.cancel_at_period_end && (
-                      <div className="flex items-center gap-2 mt-1 text-sm text-orange-500">
-                        <XCircle className="h-4 w-4" />
-                        <span>Annulation programmée à la fin de la période</span>
+                    {sub.expires_at && (
+                      <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                        <span>Prochain renouvellement : {formatDate(sub.expires_at)}</span>
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    {sub.cancel_at_period_end ? (
-                      <Badge variant="outline" className="text-orange-500 border-orange-500">
-                        Annulé
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-green-500">
-                        Actif
-                      </Badge>
-                    )}
-                  </div>
+                  <Badge className="bg-green-500">
+                    <Check className="h-3 w-3 mr-1" />
+                    Actif
+                  </Badge>
                 </div>
-                <p className="mt-3 text-sm text-muted-foreground">
-                  ✓ Tu es abonné mensuellement et tu peux t'entraîner sans limite !
-                </p>
+                <div className="mt-3 p-3 rounded-lg bg-green-500/10">
+                  <p className="text-sm">
+                    ✓ Tu es abonné mensuellement ! Tu peux t'entraîner sans limite.
+                  </p>
+                </div>
               </div>
             ))}
           </CardContent>
@@ -337,7 +259,7 @@ export default function Paiement() {
       )}
 
       {/* Paiements uniques validés */}
-      {stripePayments.length > 0 && stripeSubscriptions.length === 0 && (
+      {oneTimePayments.length > 0 && (
         <Card className="border-green-500/30 bg-green-500/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -346,57 +268,34 @@ export default function Paiement() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {stripePayments.slice(0, 3).map((payment) => (
-              <div key={payment.id} className="p-4 rounded-lg border bg-background">
+            {oneTimePayments.map((sub) => (
+              <div key={sub.id} className="p-4 rounded-lg border bg-background">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="font-semibold">
-                      {formatPrice(payment.amount, payment.currency)}
-                    </span>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Payé le {formatDate(payment.created)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">{sub.product_name}</span>
+                      <Badge variant="secondary">Paiement unique</Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>Payé le {formatDate(sub.paid_at)}</span>
+                    </div>
+                    {sub.expires_at && (
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Valable jusqu'au {formatDate(sub.expires_at)}
+                      </div>
+                    )}
                   </div>
-                  {payment.receipt_url && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(payment.receipt_url!, "_blank")}
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Badge className="bg-green-500">
+                    <Check className="h-3 w-3 mr-1" />
+                    Actif
+                  </Badge>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  ✓ Tu as accès à un mois complet d'entraînement !
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Abonnements DB locaux (fallback) */}
-      {activeSubscriptions.length > 0 && stripeSubscriptions.length === 0 && stripePayments.length === 0 && (
-        <Card className="border-green-500/30 bg-green-500/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Check className="h-4 w-4 text-green-500" />
-              Abonnements actifs
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {activeSubscriptions.map((sub) => (
-              <div key={sub.id} className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">{sub.product_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Payé le {formatDate(sub.paid_at)}
+                <div className="mt-3 p-3 rounded-lg bg-green-500/10">
+                  <p className="text-sm">
+                    ✓ Tu as accès à un mois complet d'entraînement !
                   </p>
                 </div>
-                <Badge variant="default" className="bg-green-500">
-                  Actif
-                </Badge>
               </div>
             ))}
           </CardContent>
