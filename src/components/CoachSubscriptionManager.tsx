@@ -5,29 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Check, X, Loader2 } from "lucide-react";
-
-// Configuration des produits Stripe
-const STRIPE_PRODUCTS = [
-  {
-    id: "prod_TnpBWRzXzACMFB",
-    name: "Abonnement mensuel",
-    priceId: "price_1SqDX44Ea2SMa31k0hkpUthY",
-    amount: 8000, // en centimes
-    currency: "eur",
-    isRecurring: true,
-    interval: "month",
-  },
-  {
-    id: "prod_TnpCuNWB0wJNRn",
-    name: "Abonnement mensuel ancien",
-    priceId: "price_1SqDYa4Ea2SMa31k8W3kVXUk",
-    amount: 7000, // en centimes
-    currency: "eur",
-    isRecurring: false,
-    interval: null,
-  },
-];
+import { CreditCard, Check, Loader2 } from "lucide-react";
+import { STRIPE_PRODUCTS } from "@/lib/stripeConfig";
 
 interface CoachSubscriptionManagerProps {
   athleteId: string;
@@ -68,8 +47,6 @@ export function CoachSubscriptionManager({
         .eq("athlete_id", athleteId);
 
       if (error) {
-        // 42P01 = table doesn't exist (migration pas exécutée)
-        // 42501 / message RLS = policy bloque la requête
         const msg = String((error as any)?.message || "");
         if ((error as any)?.code === "42P01") {
           toast.error("Table abonnements manquante: exécutez la migration SQL.");
@@ -96,7 +73,6 @@ export function CoachSubscriptionManager({
       if (!user) throw new Error("Non authentifié");
 
       if (isAssigned) {
-        // Supprimer l'assignation
         const { error } = await supabase
           .from("athlete_assigned_subscriptions")
           .delete()
@@ -106,7 +82,6 @@ export function CoachSubscriptionManager({
         if (error) throw error;
         toast.success(`${product.name} retiré pour ${athleteName}`);
       } else {
-        // Ajouter l'assignation
         const { error } = await supabase
           .from("athlete_assigned_subscriptions")
           .insert({

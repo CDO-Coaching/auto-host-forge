@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Receipt } from "lucide-react";
+import { CreditCard, Check, ExternalLink, Loader2, RefreshCw } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { getPaymentLinkWithParams, getProductByPriceId } from "@/lib/stripeConfig";
 
 interface AssignedSubscription {
   id: string;
@@ -21,22 +21,19 @@ interface AssignedSubscription {
 
 interface ActiveSubscription {
   id: string;
-  product_id: string;
-  price_id: string;
+  stripe_price_id: string;
+  stripe_product_id: string;
+  product_name: string;
   status: string;
-  current_period_end: string;
-  cancel_at_period_end: boolean;
+  paid_at: string;
 }
 
 export default function Paiement() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [assignedSubscriptions, setAssignedSubscriptions] = useState<AssignedSubscription[]>([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState<ActiveSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingSubscription, setCheckingSubscription] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState<string | null>(null);
-  const [openingPortal, setOpeningPortal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -49,7 +46,7 @@ export default function Paiement() {
     try {
       await Promise.all([
         loadAssignedSubscriptions(),
-        checkSubscriptionStatus(),
+        loadActiveSubscriptions(),
       ]);
     } finally {
       setLoading(false);
@@ -67,20 +64,29 @@ export default function Paiement() {
       if (error) throw error;
       setAssignedSubscriptions(data || []);
     } catch (error) {
-      console.error("Erreur chargement abonnements:", error);
+      console.error("Erreur chargement abonnements assignés:", error);
     }
   };
 
-  const checkSubscriptionStatus = async () => {
+  const loadActiveSubscriptions = async () => {
     setCheckingSubscription(true);
     try {
-      const { data, error } = await supabase.functions.invoke("check-subscription");
-      
-      if (error) throw error;
-      
-      if (data?.subscriptions) {
-        setActiveSubscriptions(data.subscriptions);
+      const { data, error } = await supabase
+        .from("athlete_subscriptions")
+        .select("*")
+        .eq("athlete_id", user?.id)
+        .eq("status", "active");
+
+      if (error) {
+        // Table peut ne pas exister
+        if ((error as any)?.code === "42P01") {
+          console.log("Table athlete_subscriptions non créée");
+          return;
+        }
+        throw error;
       }
+      
+      setActiveSubscriptions(data || []);
     } catch (error) {
       console.error("Erreur vérification abonnement:", error);
     } finally {
@@ -88,45 +94,29 @@ export default function Paiement() {
     }
   };
 
-  const handleSubscribe = async (subscription: AssignedSubscription) => {
-    setProcessingPayment(subscription.stripe_price_id);
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: subscription.stripe_price_id,
-          mode: subscription.is_recurring ? "subscription" : "payment",
-        },
-      });
-
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (error: any) {
-      console.error("Erreur création checkout:", error);
-      toast.error(error.message || "Erreur lors de la création du paiement");
-    } finally {
-      setProcessingPayment(null);
+  const handlePayment = (subscription: AssignedSubscription) => {
+    const product = getProductByPriceId(subscription.stripe_price_id);
+    
+    if (!product?.paymentLink) {
+      toast.error("Lien de paiement non configuré pour ce produit");
+      return;
     }
-  };
 
-  const handleManageSubscription = async () => {
-    setOpeningPortal(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("customer-portal");
+    // Construire l'URL de succès avec les paramètres
+    const successUrl = `${window.location.origin}/sportif/paiement-succes?price_id=${subscription.stripe_price_id}&product_id=${subscription.stripe_product_id}&product_name=${encodeURIComponent(subscription.product_name)}`;
+    
+    // Ajouter l'email pré-rempli si disponible
+    const paymentUrl = getPaymentLinkWithParams(product.paymentLink, {
+      prefillEmail: user?.email,
+      clientReferenceId: user?.id,
+    });
 
-      if (error) throw error;
-      
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
-    } catch (error: any) {
-      console.error("Erreur ouverture portail:", error);
-      toast.error(error.message || "Erreur lors de l'ouverture du portail");
-    } finally {
-      setOpeningPortal(false);
-    }
+    // Ouvrir le Payment Link Stripe dans un nouvel onglet
+    window.open(paymentUrl, "_blank");
+    
+    toast.info("Redirection vers Stripe...", {
+      description: "Complétez votre paiement puis revenez ici."
+    });
   };
 
   const formatPrice = (amount: number, currency: string) => {
@@ -145,7 +135,7 @@ export default function Paiement() {
   };
 
   const isSubscriptionActive = (priceId: string) => {
-    return activeSubscriptions.some(sub => sub.price_id === priceId);
+    return activeSubscriptions.some(sub => sub.stripe_price_id === priceId);
   };
 
   if (loading) {
@@ -187,7 +177,7 @@ export default function Paiement() {
         <Button
           variant="outline"
           size="sm"
-          onClick={checkSubscriptionStatus}
+          onClick={loadData}
           disabled={checkingSubscription}
         >
           {checkingSubscription ? (
@@ -204,20 +194,16 @@ export default function Paiement() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Check className="h-4 w-4 text-green-500" />
-              Abonnement actif
+              Abonnements actifs
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {activeSubscriptions.map((sub) => (
               <div key={sub.id} className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">
-                    {assignedSubscriptions.find(a => a.stripe_price_id === sub.price_id)?.product_name || "Abonnement"}
-                  </p>
+                  <p className="font-medium">{sub.product_name}</p>
                   <p className="text-sm text-muted-foreground">
-                    {sub.cancel_at_period_end
-                      ? `Se termine le ${formatDate(sub.current_period_end)}`
-                      : `Prochain renouvellement : ${formatDate(sub.current_period_end)}`}
+                    Payé le {formatDate(sub.paid_at)}
                   </p>
                 </div>
                 <Badge variant="default" className="bg-green-500">
@@ -225,19 +211,6 @@ export default function Paiement() {
                 </Badge>
               </div>
             ))}
-            <Button
-              variant="outline"
-              className="w-full mt-3"
-              onClick={handleManageSubscription}
-              disabled={openingPortal}
-            >
-              {openingPortal ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Receipt className="h-4 w-4 mr-2" />
-              )}
-              Gérer mon abonnement
-            </Button>
           </CardContent>
         </Card>
       )}
@@ -253,7 +226,6 @@ export default function Paiement() {
         <CardContent className="space-y-3">
           {assignedSubscriptions.map((subscription) => {
             const isActive = isSubscriptionActive(subscription.stripe_price_id);
-            const isProcessing = processingPayment === subscription.stripe_price_id;
 
             return (
               <div
@@ -290,18 +262,11 @@ export default function Paiement() {
                   {isActive ? (
                     <Badge className="bg-green-500">
                       <Check className="h-3 w-3 mr-1" />
-                      Actif
+                      Payé
                     </Badge>
                   ) : (
-                    <Button
-                      onClick={() => handleSubscribe(subscription)}
-                      disabled={isProcessing}
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                      )}
+                    <Button onClick={() => handlePayment(subscription)}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
                       {subscription.is_recurring ? "S'abonner" : "Payer"}
                     </Button>
                   )}
