@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { CheckCircle, Loader2, ArrowLeft } from "lucide-react";
+import { CheckCircle, Loader2, ArrowLeft, Calendar, Repeat } from "lucide-react";
+import { STRIPE_PRODUCTS } from "@/lib/stripeConfig";
 
 export default function PaiementSucces() {
   const navigate = useNavigate();
@@ -17,6 +18,10 @@ export default function PaiementSucces() {
   const priceId = searchParams.get("price_id");
   const productId = searchParams.get("product_id");
   const productName = searchParams.get("product_name");
+
+  // Récupérer les infos du produit depuis la config
+  const productConfig = STRIPE_PRODUCTS.find(p => p.priceId === priceId);
+  const isRecurring = productConfig?.isRecurring ?? false;
 
   useEffect(() => {
     if (user && priceId && productId && !saved) {
@@ -44,6 +49,10 @@ export default function PaiementSucces() {
         return;
       }
 
+      // Calculer la date d'expiration (1 mois pour les récurrents, sinon 1 mois aussi pour les paiements uniques)
+      const expiresAt = new Date();
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+
       // Enregistrer le nouvel abonnement
       const { error } = await supabase
         .from("athlete_subscriptions")
@@ -54,6 +63,8 @@ export default function PaiementSucces() {
           product_name: decodeURIComponent(productName || "Abonnement"),
           status: "active",
           paid_at: new Date().toISOString(),
+          is_recurring: isRecurring,
+          expires_at: expiresAt.toISOString(),
         });
 
       if (error) {
@@ -74,6 +85,8 @@ export default function PaiementSucces() {
       setSaving(false);
     }
   };
+
+  const decodedProductName = productName ? decodeURIComponent(productName) : "Abonnement";
 
   return (
     <div className="container max-w-md mx-auto py-12 px-4">
@@ -98,18 +111,48 @@ export default function PaiementSucces() {
           </p>
           
           {productName && (
-            <p className="font-medium text-primary">
-              {decodeURIComponent(productName)}
-            </p>
+            <div className="p-4 rounded-lg bg-background border">
+              <p className="font-semibold text-lg text-primary">
+                {decodedProductName}
+              </p>
+              {isRecurring ? (
+                <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+                  <Repeat className="h-4 w-4" />
+                  <span>Abonnement mensuel renouvelé automatiquement</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Accès valable pendant 1 mois</span>
+                </div>
+              )}
+            </div>
           )}
+
+          <div className="bg-green-500/10 p-3 rounded-lg">
+            <p className="text-sm">
+              {isRecurring 
+                ? "✓ Tu es maintenant abonné mensuellement ! Tu peux t'entraîner sans limite."
+                : "✓ Tu as accès à un mois complet d'entraînement !"}
+            </p>
+          </div>
+          
+          <Button
+            onClick={() => navigate("/sportif/paiement")}
+            variant="outline"
+            className="w-full"
+            disabled={saving}
+          >
+            Voir mes paiements
+          </Button>
           
           <Button
             onClick={() => navigate("/sportif/seances")}
-            className="w-full mt-4"
+            className="w-full"
             disabled={saving}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour à mes séances
+            Aller à mes séances
           </Button>
         </CardContent>
       </Card>
