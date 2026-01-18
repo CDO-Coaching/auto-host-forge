@@ -116,6 +116,8 @@ export default function Agenda() {
       });
       setProgrammedCounts(programmedMap);
 
+      // Fetch completed training sessions for the week (based on week_number/year, not completed_at date)
+      // Sessions with completed_at set are considered completed, even if some exercises were skipped
       const { data: trainingSessions, error: tsError } = await supabase
         .from("training_sessions")
         .select(`
@@ -124,12 +126,12 @@ export default function Agenda() {
           session_type,
           completed_at,
           session_rpe,
-          training_weeks!inner(athlete_id)
+          training_weeks!inner(athlete_id, week_number, year)
         `)
         .in("training_weeks.athlete_id", athleteIds)
-        .not("completed_at", "is", null)
-        .gte("completed_at", weekStartStr)
-        .lte("completed_at", weekEndStr + "T23:59:59");
+        .eq("training_weeks.week_number", weekNumber)
+        .eq("training_weeks.year", weekYear)
+        .not("completed_at", "is", null);
 
       if (tsError) throw tsError;
 
