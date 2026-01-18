@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Dumbbell, User, ChevronDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,11 @@ import { toast } from "sonner";
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface AthleteProfile {
   id: string;
@@ -35,6 +40,7 @@ export default function Agenda() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
+  const [expandedAthleteId, setExpandedAthleteId] = useState<string | null>(null);
 
   const fetchSessions = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -197,22 +203,30 @@ export default function Agenda() {
   // Calculate sessions per athlete, sorted by count (highest first, 0 at bottom)
   const athleteSessionCounts = useMemo(() => {
     const counts = new Map<string, number>();
+    const sessionsByAthlete = new Map<string, AthleteSession[]>();
     
     // Initialize all athletes with 0
     allAthletes.forEach(athlete => {
       counts.set(athlete.id, 0);
+      sessionsByAthlete.set(athlete.id, []);
     });
     
-    // Count sessions per athlete
+    // Count sessions per athlete and store session list
     sessions.forEach(session => {
       counts.set(session.athleteId, (counts.get(session.athleteId) || 0) + 1);
+      const athleteSessions = sessionsByAthlete.get(session.athleteId) || [];
+      athleteSessions.push(session);
+      sessionsByAthlete.set(session.athleteId, athleteSessions);
     });
     
     // Create sorted list: athletes with sessions first (sorted desc), then athletes with 0 sessions
     return allAthletes
       .map(athlete => ({
         ...athlete,
-        sessionCount: counts.get(athlete.id) || 0
+        sessionCount: counts.get(athlete.id) || 0,
+        sessions: (sessionsByAthlete.get(athlete.id) || []).sort(
+          (a, b) => parseISO(a.completedAt).getTime() - parseISO(b.completedAt).getTime()
+        )
       }))
       .sort((a, b) => {
         // Both have 0: alphabetical order
@@ -451,28 +465,66 @@ export default function Agenda() {
             
             <div className="space-y-2">
               {athleteSessionCounts.map((athlete) => (
-                <div 
+                <Collapsible 
                   key={athlete.id}
-                  className={`flex items-center justify-between p-2 rounded-md ${
-                    athlete.sessionCount === 0 
-                      ? "bg-muted/50 text-muted-foreground" 
-                      : "bg-primary/10"
-                  }`}
+                  open={expandedAthleteId === athlete.id}
+                  onOpenChange={(open) => setExpandedAthleteId(open ? athlete.id : null)}
                 >
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span className={athlete.sessionCount === 0 ? "" : "font-medium"}>
-                      {athlete.firstName} {athlete.lastName}
-                    </span>
-                  </div>
-                  <span className={`text-sm ${
-                    athlete.sessionCount === 0 
-                      ? "text-muted-foreground" 
-                      : "font-semibold text-primary"
-                  }`}>
-                    {athlete.sessionCount} séance{athlete.sessionCount > 1 ? "s" : ""}
-                  </span>
-                </div>
+                  <CollapsibleTrigger asChild disabled={athlete.sessionCount === 0}>
+                    <div 
+                      className={`flex items-center justify-between p-2 rounded-md transition-all ${
+                        athlete.sessionCount === 0 
+                          ? "bg-muted/50 text-muted-foreground" 
+                          : "bg-primary/10 cursor-pointer hover:bg-primary/20"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span className={athlete.sessionCount === 0 ? "" : "font-medium"}>
+                          {athlete.firstName} {athlete.lastName}
+                        </span>
+                        {athlete.sessionCount > 0 && (
+                          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${
+                            expandedAthleteId === athlete.id ? "rotate-180" : ""
+                          }`} />
+                        )}
+                      </div>
+                      <span className={`text-sm ${
+                        athlete.sessionCount === 0 
+                          ? "text-muted-foreground" 
+                          : "font-semibold text-primary"
+                      }`}>
+                        {athlete.sessionCount} séance{athlete.sessionCount > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </CollapsibleTrigger>
+                  
+                  {athlete.sessionCount > 0 && (
+                    <CollapsibleContent className="pl-6 pr-2 pt-2 space-y-1.5">
+                      {athlete.sessions.map((s) => (
+                        <div 
+                          key={s.id}
+                          onClick={() => setSelectedSession(s)}
+                          className={`p-2 rounded-md text-sm cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all border ${getSessionTypeColor(s.sessionType)}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Dumbbell className="h-3 w-3" />
+                              <span className="font-medium">{s.sessionName}</span>
+                            </div>
+                            <span className="text-xs opacity-75">
+                              {format(parseISO(s.completedAt), "EEE d", { locale: fr })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1 text-xs opacity-75">
+                            <span>{getSessionTypeLabel(s.sessionType)}</span>
+                            {s.sessionRpe && <span>RPE: {s.sessionRpe}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  )}
+                </Collapsible>
               ))}
             </div>
           </CardContent>
