@@ -30,7 +30,7 @@ interface AthleteRelationship {
   status: string;
   requested_at: string;
   athlete: Athlete;
-  hasCurrentWeekProgrammed?: boolean;
+  weeksAheadCount?: number; // 0 = semaine courante seulement, 1 = +1 semaine d'avance, etc.
   display_order?: number;
 }
 
@@ -119,25 +119,66 @@ export default function MesClients() {
       }
     }
 
-    // 3) Vérifier si la semaine en cours est programmée pour chaque athlète
+    // 3) Compter combien de semaines sont programmées à partir de la semaine en cours
     const currentWeek = getWeekNumber(new Date());
     const currentYear = getWeekYear(new Date());
     
-    const athleteWeeksMap = new Map<string, boolean>();
+    const athleteWeeksAheadMap = new Map<string, number>();
     if ((approvedRels || []).length > 0) {
       const approvedAthleteIds = (approvedRels || []).map((r) => r.athlete_id);
       
+      // Récupérer toutes les semaines validées >= semaine courante (jusqu'à 12 semaines)
       const { data: weeks } = await supabase
         .from("training_weeks")
-        .select("athlete_id")
+        .select("athlete_id, week_number, year")
         .in("athlete_id", approvedAthleteIds)
-        .eq("week_number", currentWeek)
-        .eq("year", currentYear)
         .eq("validated", true);
 
       if (weeks) {
-        weeks.forEach((week) => {
-          athleteWeeksMap.set(week.athlete_id, true);
+        // Grouper par athlète et compter les semaines consécutives à partir de la semaine courante
+        const athleteWeeks = new Map<string, { week: number; year: number }[]>();
+        
+        weeks.forEach((w) => {
+          const existing = athleteWeeks.get(w.athlete_id) || [];
+          existing.push({ week: w.week_number, year: w.year });
+          athleteWeeks.set(w.athlete_id, existing);
+        });
+
+        athleteWeeks.forEach((weeksData, athleteId) => {
+          // Filtrer les semaines >= semaine courante
+          const futureWeeks = weeksData.filter((w) => {
+            if (w.year > currentYear) return true;
+            if (w.year === currentYear && w.week >= currentWeek) return true;
+            return false;
+          });
+
+          // Compter les semaines consécutives à partir de la semaine courante
+          let consecutiveCount = 0;
+          for (let i = 0; i < 12; i++) {
+            let targetWeek = currentWeek + i;
+            let targetYear = currentYear;
+            
+            // Gérer le passage d'année (52 ou 53 semaines)
+            if (targetWeek > 52) {
+              targetWeek = targetWeek - 52;
+              targetYear = currentYear + 1;
+            }
+
+            const hasWeek = futureWeeks.some(
+              (w) => w.week === targetWeek && w.year === targetYear
+            );
+
+            if (hasWeek) {
+              consecutiveCount++;
+            } else {
+              break; // Arrêter au premier trou
+            }
+          }
+
+          // weeksAheadCount = nombre de semaines d'avance (0 = seulement semaine courante, 1 = +1, etc.)
+          if (consecutiveCount > 0) {
+            athleteWeeksAheadMap.set(athleteId, consecutiveCount - 1);
+          }
         });
       }
     }
@@ -151,7 +192,7 @@ export default function MesClients() {
       .map((r) => ({ 
         ...r, 
         athlete: athletesMap.get(r.athlete_id)!,
-        hasCurrentWeekProgrammed: athleteWeeksMap.get(r.athlete_id) || false
+        weeksAheadCount: athleteWeeksAheadMap.get(r.athlete_id)
       }))
       .filter((r) => !!r.athlete) as AthleteRelationship[];
 
@@ -409,8 +450,8 @@ export default function MesClients() {
   // Fonction pour déplacer un athlète en début ou fin de liste
   const moveAthlete = (athleteId: string, direction: 'top' | 'bottom') => {
     // Séparer les non-validés et validés
-    const nonValidated = approvedAthletes.filter(a => !a.hasCurrentWeekProgrammed);
-    const validated = approvedAthletes.filter(a => a.hasCurrentWeekProgrammed);
+    const nonValidated = approvedAthletes.filter(a => a.weeksAheadCount === undefined);
+    const validated = approvedAthletes.filter(a => a.weeksAheadCount !== undefined);
     
     // Trouver l'athlète à déplacer
     const athleteIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
@@ -437,11 +478,13 @@ export default function MesClients() {
   // Trier les athlètes approuvés : non validés en haut, validés en bas
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
     // D'abord séparer validés et non-validés
-    if (a.hasCurrentWeekProgrammed !== b.hasCurrentWeekProgrammed) {
-      return a.hasCurrentWeekProgrammed ? 1 : -1;
+    const aValidated = a.weeksAheadCount !== undefined;
+    const bValidated = b.weeksAheadCount !== undefined;
+    if (aValidated !== bValidated) {
+      return aValidated ? 1 : -1;
     }
     // Si ordre manuel existe pour les non-validés, l'utiliser
-    if (!a.hasCurrentWeekProgrammed && manualOrder.length > 0) {
+    if (!aValidated && manualOrder.length > 0) {
       const indexA = manualOrder.indexOf(a.athlete_id);
       const indexB = manualOrder.indexOf(b.athlete_id);
       if (indexA !== -1 && indexB !== -1) {
@@ -457,7 +500,7 @@ export default function MesClients() {
   const filteredExternalClients = filterExternalClients(externalClients);
   
   // Calculer les index pour savoir si on peut monter/descendre
-  const nonValidatedAthletes = filteredApproved.filter(a => !a.hasCurrentWeekProgrammed);
+  const nonValidatedAthletes = filteredApproved.filter(a => a.weeksAheadCount === undefined);
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
@@ -486,7 +529,7 @@ export default function MesClients() {
                   {approvedAthletes.length}
                 </Badge>
                 {(() => {
-                  const validatedCount = approvedAthletes.filter(a => a.hasCurrentWeekProgrammed).length;
+                  const validatedCount = approvedAthletes.filter(a => a.weeksAheadCount !== undefined).length;
                   const totalCount = approvedAthletes.length;
                   // N'afficher que si tous ne sont pas validés
                   if (validatedCount < totalCount) {
@@ -640,7 +683,7 @@ export default function MesClients() {
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
                         {/* Boutons de réordonnancement pour les non-validés */}
-                        {!relationship.hasCurrentWeekProgrammed && (
+                        {relationship.weeksAheadCount === undefined && (
                           <div className="flex gap-0.5">
                             <Button
                               size="sm"
@@ -682,11 +725,15 @@ export default function MesClients() {
                           <Pause className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                           <span className="hidden sm:inline">Pause</span>
                         </Button>
-                        {relationship.hasCurrentWeekProgrammed ? (
+                        {relationship.weeksAheadCount !== undefined ? (
                           <Badge className="bg-green-600 text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
                             <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                            <span className="hidden sm:inline">Validé</span>
-                            <span className="sm:hidden">✓</span>
+                            <span className="hidden sm:inline">
+                              Validé{relationship.weeksAheadCount > 0 ? ` +${relationship.weeksAheadCount}` : ''}
+                            </span>
+                            <span className="sm:hidden">
+                              ✓{relationship.weeksAheadCount > 0 ? `+${relationship.weeksAheadCount}` : ''}
+                            </span>
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
