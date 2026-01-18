@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO } from "date-fns";
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, parseISO, getISOWeek, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import {
@@ -37,6 +37,7 @@ export default function Agenda() {
   );
   const [sessions, setSessions] = useState<AthleteSession[]>([]);
   const [allAthletes, setAllAthletes] = useState<AthleteProfile[]>([]);
+  const [programmedCounts, setProgrammedCounts] = useState<Map<string, number>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [selectedSession, setSelectedSession] = useState<AthleteSession | null>(null);
@@ -87,6 +88,33 @@ export default function Agenda() {
       // Fetch completed training sessions for the week
       const weekStartStr = format(weekStart, "yyyy-MM-dd");
       const weekEndStr = format(weekEndDate, "yyyy-MM-dd");
+      const weekNumber = getISOWeek(weekStart);
+      const weekYear = getYear(weekStart);
+
+      // Fetch ALL programmed training sessions for the week (to count total programmed)
+      const { data: allProgrammedSessions, error: progError } = await supabase
+        .from("training_sessions")
+        .select(`
+          id,
+          completed_at,
+          training_weeks!inner(athlete_id, week_number, year)
+        `)
+        .in("training_weeks.athlete_id", athleteIds)
+        .eq("training_weeks.week_number", weekNumber)
+        .eq("training_weeks.year", weekYear);
+
+      if (progError) throw progError;
+
+      // Count programmed sessions per athlete
+      const programmedMap = new Map<string, number>();
+      athleteIds.forEach(id => programmedMap.set(id, 0));
+      (allProgrammedSessions || []).forEach((s: any) => {
+        const athleteId = s.training_weeks?.athlete_id;
+        if (athleteId) {
+          programmedMap.set(athleteId, (programmedMap.get(athleteId) || 0) + 1);
+        }
+      });
+      setProgrammedCounts(programmedMap);
 
       const { data: trainingSessions, error: tsError } = await supabase
         .from("training_sessions")
@@ -135,10 +163,12 @@ export default function Agenda() {
         }
       });
 
-      // Process custom sessions
+      // Process custom sessions (add to programmed counts as well)
       (customSessions || []).forEach((cs: any) => {
         const profile = profileMap.get(cs.user_id);
         if (profile && cs.completed_at) {
+          // Custom sessions add to both completed and programmed total
+          programmedMap.set(cs.user_id, (programmedMap.get(cs.user_id) || 0) + 1);
           allSessions.push({
             id: cs.id,
             sessionName: cs.session_name,
@@ -152,6 +182,7 @@ export default function Agenda() {
         }
       });
 
+      setProgrammedCounts(new Map(programmedMap));
       setSessions(allSessions);
     } catch (error) {
       console.error("Error fetching sessions:", error);
@@ -221,25 +252,33 @@ export default function Agenda() {
     
     // Create sorted list: athletes with sessions first (sorted desc), then athletes with 0 sessions
     return allAthletes
-      .map(athlete => ({
-        ...athlete,
-        sessionCount: counts.get(athlete.id) || 0,
-        sessions: (sessionsByAthlete.get(athlete.id) || []).sort(
-          (a, b) => parseISO(a.completedAt).getTime() - parseISO(b.completedAt).getTime()
-        )
-      }))
+      .map(athlete => {
+        const completedCount = counts.get(athlete.id) || 0;
+        const programmedTotal = programmedCounts.get(athlete.id) || 0;
+        return {
+          ...athlete,
+          sessionCount: completedCount,
+          programmedCount: programmedTotal,
+          sessions: (sessionsByAthlete.get(athlete.id) || []).sort(
+            (a, b) => parseISO(a.completedAt).getTime() - parseISO(b.completedAt).getTime()
+          )
+        };
+      })
       .sort((a, b) => {
-        // Both have 0: alphabetical order
-        if (a.sessionCount === 0 && b.sessionCount === 0) {
+        // Both have 0 programmed: alphabetical order
+        if (a.programmedCount === 0 && b.programmedCount === 0) {
           return `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
         }
-        // One has 0: put it at the bottom
-        if (a.sessionCount === 0) return 1;
-        if (b.sessionCount === 0) return -1;
-        // Both have sessions: highest first
+        // One has 0 programmed: put it at the bottom
+        if (a.programmedCount === 0) return 1;
+        if (b.programmedCount === 0) return -1;
+        // Sort by completion ratio (desc), then by total sessions
+        const ratioA = a.sessionCount / a.programmedCount;
+        const ratioB = b.sessionCount / b.programmedCount;
+        if (ratioA !== ratioB) return ratioB - ratioA;
         return b.sessionCount - a.sessionCount;
       });
-  }, [sessions, allAthletes]);
+  }, [sessions, allAthletes, programmedCounts]);
 
   return (
     <div className="space-y-6">
@@ -473,33 +512,40 @@ export default function Agenda() {
                   <CollapsibleTrigger asChild disabled={athlete.sessionCount === 0}>
                     <div 
                       className={`flex items-center justify-between p-2 rounded-md transition-all ${
-                        athlete.sessionCount === 0 
+                        athlete.programmedCount === 0 
                           ? "bg-muted/50 text-muted-foreground" 
-                          : "bg-primary/10 cursor-pointer hover:bg-primary/20"
+                          : athlete.sessionCount === athlete.programmedCount
+                            ? "bg-green-500/10 cursor-pointer hover:bg-green-500/20"
+                            : "bg-primary/10 cursor-pointer hover:bg-primary/20"
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4" />
-                        <span className={athlete.sessionCount === 0 ? "" : "font-medium"}>
+                        <span className={athlete.programmedCount === 0 ? "" : "font-medium"}>
                           {athlete.firstName} {athlete.lastName}
                         </span>
-                        {athlete.sessionCount > 0 && (
+                        {athlete.programmedCount > 0 && (
                           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${
                             expandedAthleteId === athlete.id ? "rotate-180" : ""
                           }`} />
                         )}
                       </div>
-                      <span className={`text-sm ${
-                        athlete.sessionCount === 0 
+                      <span className={`text-sm font-semibold ${
+                        athlete.programmedCount === 0 
                           ? "text-muted-foreground" 
-                          : "font-semibold text-primary"
+                          : athlete.sessionCount === athlete.programmedCount
+                            ? "text-green-600"
+                            : "text-primary"
                       }`}>
-                        {athlete.sessionCount} séance{athlete.sessionCount > 1 ? "s" : ""}
+                        {athlete.programmedCount === 0 
+                          ? "0 séance"
+                          : `${athlete.sessionCount}/${athlete.programmedCount}`
+                        }
                       </span>
                     </div>
                   </CollapsibleTrigger>
                   
-                  {athlete.sessionCount > 0 && (
+                  {athlete.programmedCount > 0 && (
                     <CollapsibleContent className="pl-6 pr-2 pt-2 space-y-1.5">
                       {athlete.sessions.map((s) => (
                         <div 
