@@ -15,6 +15,7 @@ import { format, differenceInWeeks, isWithinInterval } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { YearTimeline } from "./YearTimeline";
 
 interface CoachObjectivesViewProps {
   athleteId: string;
@@ -404,6 +405,15 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
   return (
     <div className="space-y-6">
+      {/* Timeline annuelle */}
+      <YearTimeline
+        mesocycles={mesocycles}
+        milestones={milestones}
+        mainObjectiveDate={objective.main_objective_deadline}
+        onMesocycleClick={handleOpenMesocycleDialog}
+        onMilestoneClick={handleOpenMilestoneDialog}
+      />
+
       {/* Objectif Principal */}
       <Card>
         <CardHeader>
