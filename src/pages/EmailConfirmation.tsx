@@ -18,6 +18,25 @@ const EmailConfirmation = () => {
         const token = searchParams.get('token');
         const type = searchParams.get('type');
 
+        // Si c'est un lien de récupération de mot de passe, rediriger vers la page de reset
+        if (type === 'recovery') {
+          // Vérifier le token et laisser Supabase créer la session
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: token || '',
+            type: 'recovery'
+          });
+
+          if (error) {
+            setErrorMessage(error.message);
+            setState("error");
+            return;
+          }
+
+          // Rediriger vers la page de réinitialisation de mot de passe
+          navigate("/reinitialiser-mot-de-passe", { replace: true });
+          return;
+        }
+
         if (!token || type !== 'signup') {
           setErrorMessage("Lien de confirmation invalide.");
           setState("error");
@@ -44,7 +63,7 @@ const EmailConfirmation = () => {
     };
 
     confirmEmail();
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleGoToLogin = () => {
     navigate("/auth", { replace: true });
