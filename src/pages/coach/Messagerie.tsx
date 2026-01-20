@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, User, Users, Video, Loader2 } from "lucide-react";
+import { Send, User, Users, Video, Loader2, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
@@ -38,6 +38,7 @@ export default function Messagerie() {
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const { messages, sendMessage, sendBroadcastMessage, markAsRead } = useMessages(selectedClient?.id);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -266,10 +267,28 @@ export default function Messagerie() {
           <CardHeader>
             <CardTitle>Mes clients</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[600px]">
+          <CardContent className="space-y-3">
+            {/* Barre de recherche */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <ScrollArea className="h-[550px]">
               <div className="space-y-2">
                 {[...clients]
+                  .filter((client) => {
+                    if (!searchQuery.trim()) return true;
+                    const fullName = `${client.first_name} ${client.last_name}`.toLowerCase();
+                    const searchLower = searchQuery.toLowerCase().trim();
+                    return fullName.includes(searchLower) || 
+                           client.first_name.toLowerCase().includes(searchLower) ||
+                           client.last_name.toLowerCase().includes(searchLower);
+                  })
                   .sort((a, b) => {
                     const unreadA = unreadCounts[a.id] || 0;
                     const unreadB = unreadCounts[b.id] || 0;
