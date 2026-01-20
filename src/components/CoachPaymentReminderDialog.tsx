@@ -1,14 +1,7 @@
 import { useNavigate } from "react-router-dom";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { FloatingNotification } from "@/components/FloatingNotification";
+import { Button } from "@/components/ui/button";
+import { CreditCard } from "lucide-react";
 
 interface CoachPaymentReminderDialogProps {
   open: boolean;
@@ -26,26 +19,19 @@ export function CoachPaymentReminderDialog({
     navigate("/coach/comptabilite");
   };
 
-  const handleNo = () => {
-    onDismiss();
-  };
-
   return (
-    <AlertDialog open={open}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Règlements à enregistrer ?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Avez-vous des règlements à enregistrer aujourd'hui ?
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleNo}>Non</AlertDialogCancel>
-          <AlertDialogAction onClick={handleYes}>
-            Oui, aller à la comptabilité
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <FloatingNotification
+      open={open}
+      onDismiss={onDismiss}
+      icon={<CreditCard className="h-5 w-5 text-primary" />}
+      title="Règlements à enregistrer ?"
+      description="Avez-vous des règlements à enregistrer aujourd'hui ?"
+      variant="primary"
+      actions={
+        <Button size="sm" onClick={handleYes} className="text-xs h-7">
+          Aller à la comptabilité
+        </Button>
+      }
+    />
   );
 }
