@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,13 +36,18 @@ export function FloatingNotification({
     primary: "text-primary",
   };
 
-  return (
+  const node = (
     <div
       className={cn(
-        "fixed top-4 right-4 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-lg border shadow-lg backdrop-blur-sm cursor-pointer animate-fade-in",
+        "fixed top-4 right-4 z-[100] w-80 max-w-[calc(100vw-2rem)] rounded-lg border shadow-lg backdrop-blur-sm cursor-pointer animate-enter",
         variantStyles[variant]
       )}
       onClick={onDismiss}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onDismiss();
+      }}
     >
       <div className="p-4">
         <div className="flex items-start gap-3">
@@ -52,11 +58,13 @@ export function FloatingNotification({
                 {title}
               </h4>
               <button
+                type="button"
                 className="flex-shrink-0 p-1 rounded-full hover:bg-muted/50 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDismiss();
                 }}
+                aria-label="Fermer"
               >
                 <X className="h-4 w-4 text-muted-foreground" />
               </button>
@@ -67,7 +75,7 @@ export function FloatingNotification({
               </div>
             )}
             {actions && (
-              <div 
+              <div
                 className="mt-3 flex flex-wrap gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -79,4 +87,9 @@ export function FloatingNotification({
       </div>
     </div>
   );
+
+  // Render in a portal to avoid being clipped by any transformed/overflow ancestors.
+  if (typeof document === "undefined") return node;
+  return createPortal(node, document.body);
 }
+
