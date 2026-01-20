@@ -117,6 +117,12 @@ export default function DashboardCoach() {
         eventTitle={pendingReminder?.eventTitle || ''}
         onAcknowledge={acknowledgeReminder}
       />
+      {pauseReminders.length > 0 && (
+        <CoachPauseReminderAlert
+          reminders={pauseReminders}
+          onDismiss={dismissPauseReminder}
+        />
+      )}
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
         <CoachSidebar />
@@ -136,14 +142,6 @@ export default function DashboardCoach() {
                 <CoachBirthdayAlert
                   athletes={birthdayAthletes}
                   onDismiss={dismissBirthday}
-                />
-              </div>
-            )}
-            {pauseReminders.length > 0 && (
-              <div className="mb-6">
-                <CoachPauseReminderAlert
-                  reminders={pauseReminders}
-                  onDismiss={dismissPauseReminder}
                 />
               </div>
             )}
