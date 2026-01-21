@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { Dialog, DialogOverlay } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles } from "lucide-react";
+import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ConfettiEffect } from "./ConfettiEffect";
 
 interface DailyFatigueDialogProps {
@@ -64,6 +69,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [adaptationLevel, setAdaptationLevel] = useState<AdaptationLevel>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userName, setUserName] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [existingDates, setExistingDates] = useState<string[]>([]);
   const { toast } = useToast();
 
   // État pour la blessure précédente
@@ -85,14 +92,39 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       setInjuryLocation("");
       setInjuryEvolution(null);
       setIsNewInjury(false);
+      setSelectedDate(new Date());
       
       loadUserName();
       loadAdaptationStatus();
+      loadExistingDates();
       if (includeInjuryQuestions) {
         loadPreviousInjury();
       }
     }
   }, [open, includeInjuryQuestions]);
+
+  const loadExistingDates = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Récupérer les 30 derniers jours d'entrées pour désactiver les dates déjà remplies
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data } = await supabase
+        .from("daily_fatigue_log")
+        .select("date")
+        .eq("user_id", user.id)
+        .gte("date", thirtyDaysAgo.toISOString().split('T')[0]);
+
+      if (data) {
+        setExistingDates(data.map(d => d.date));
+      }
+    } catch (error) {
+      console.error("Erreur chargement dates existantes:", error);
+    }
+  };
 
   const loadUserName = async () => {
     try {
@@ -264,7 +296,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const today = new Date().toISOString().split('T')[0];
+      const dateToSave = selectedDate.toISOString().split('T')[0];
 
       // Déterminer si on a une blessure à enregistrer
       let finalHasInjury: boolean;
@@ -299,7 +331,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       const insertData: any = {
         user_id: user.id,
-        date: today,
+        date: dateToSave,
         fatigue: answers.fatigue,
         courbatures: answers.courbatures,
         sommeil: 8 - answers.sommeil, // Inversé : 7/7 = très bonne nuit = 1 point
@@ -318,9 +350,12 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       if (error) throw error;
 
+      const isToday = dateToSave === new Date().toISOString().split('T')[0];
       toast({
         title: "✅ Enregistré !",
-        description: "Ton suivi de fatigue du jour a été enregistré.",
+        description: isToday 
+          ? "Ton suivi de fatigue du jour a été enregistré."
+          : `Suivi de fatigue du ${format(selectedDate, "d MMMM", { locale: fr })} enregistré.`,
       });
 
       onClose();
@@ -416,6 +451,50 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                     Une journée de plus pour prendre soin de toi ✨
                   </motion.p>
                 </div>
+
+        {/* Sélecteur de date */}
+        <div className="pb-3 border-b">
+          <div className="flex items-center gap-2">
+            <Label className="text-xs sm:text-sm text-muted-foreground">Date :</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "justify-start text-left font-normal h-8",
+                    selectedDate.toDateString() !== new Date().toDateString() && "text-primary border-primary"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(selectedDate, "d MMMM yyyy", { locale: fr })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  disabled={(date) => {
+                    const dateStr = date.toISOString().split('T')[0];
+                    const today = new Date();
+                    today.setHours(23, 59, 59, 999);
+                    // Désactiver les dates futures et les dates déjà remplies
+                    return date > today || existingDates.includes(dateStr);
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                  locale={fr}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          {selectedDate.toDateString() !== new Date().toDateString() && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Tu remplis le questionnaire pour une date passée. Le rappel d'aujourd'hui restera actif.
+            </p>
+          )}
+        </div>
 
         <div className="space-y-3 sm:space-y-5 flex-1 overflow-y-auto pr-1">
           {questions.map((question) => (
