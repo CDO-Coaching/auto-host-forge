@@ -7,6 +7,15 @@ import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
+interface Macrocycle {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  color: string;
+}
+
 interface Mesocycle {
   id: string;
   name: string;
@@ -14,6 +23,17 @@ interface Mesocycle {
   end_date: string;
   description?: string;
   color: string;
+  macrocycle_id?: string;
+}
+
+interface Microcycle {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  color: string;
+  mesocycle_id?: string;
 }
 
 interface ObjectiveMilestone {
@@ -25,20 +45,28 @@ interface ObjectiveMilestone {
 }
 
 interface YearTimelineProps {
+  macrocycles: Macrocycle[];
   mesocycles: Mesocycle[];
+  microcycles: Microcycle[];
   milestones: ObjectiveMilestone[];
   mainObjectiveDate?: string;
+  onMacrocycleClick?: (macrocycle: Macrocycle) => void;
   onMesocycleClick?: (mesocycle: Mesocycle) => void;
+  onMicrocycleClick?: (microcycle: Microcycle) => void;
   onMilestoneClick?: (milestone: ObjectiveMilestone) => void;
 }
 
 const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
 export function YearTimeline({ 
+  macrocycles,
   mesocycles, 
+  microcycles,
   milestones, 
   mainObjectiveDate,
+  onMacrocycleClick,
   onMesocycleClick,
+  onMicrocycleClick,
   onMilestoneClick 
 }: YearTimelineProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -62,26 +90,29 @@ export function YearTimeline({
     return Math.max(1, (durationDays / totalDays) * 100);
   };
 
-  // Filter mesocycles that overlap with selected year
-  const visibleMesocycles = useMemo(() => {
-    return mesocycles.filter(m => {
-      const start = parseISO(m.start_date);
-      const end = parseISO(m.end_date);
+  // Generic filter for cycles that overlap with selected year
+  const filterCyclesForYear = <T extends { start_date: string; end_date: string }>(cycles: T[]) => {
+    return cycles.filter(c => {
+      const start = parseISO(c.start_date);
+      const end = parseISO(c.end_date);
       return (
         isWithinInterval(yearStart, { start, end }) ||
         isWithinInterval(yearEnd, { start, end }) ||
         isWithinInterval(start, { start: yearStart, end: yearEnd }) ||
         isWithinInterval(end, { start: yearStart, end: yearEnd })
       );
-    }).map(m => {
-      // Clamp dates to year boundaries
-      const start = parseISO(m.start_date);
-      const end = parseISO(m.end_date);
-      const clampedStart = start < yearStart ? format(yearStart, "yyyy-MM-dd") : m.start_date;
-      const clampedEnd = end > yearEnd ? format(yearEnd, "yyyy-MM-dd") : m.end_date;
-      return { ...m, clampedStart, clampedEnd };
+    }).map(c => {
+      const start = parseISO(c.start_date);
+      const end = parseISO(c.end_date);
+      const clampedStart = start < yearStart ? format(yearStart, "yyyy-MM-dd") : c.start_date;
+      const clampedEnd = end > yearEnd ? format(yearEnd, "yyyy-MM-dd") : c.end_date;
+      return { ...c, clampedStart, clampedEnd };
     });
-  }, [mesocycles, selectedYear, yearStart, yearEnd]);
+  };
+
+  const visibleMacrocycles = useMemo(() => filterCyclesForYear(macrocycles), [macrocycles, selectedYear, yearStart, yearEnd]);
+  const visibleMesocycles = useMemo(() => filterCyclesForYear(mesocycles), [mesocycles, selectedYear, yearStart, yearEnd]);
+  const visibleMicrocycles = useMemo(() => filterCyclesForYear(microcycles), [microcycles, selectedYear, yearStart, yearEnd]);
 
   // Filter milestones for selected year
   const visibleMilestones = useMemo(() => {
@@ -103,15 +134,14 @@ export function YearTimeline({
   const showTodayMarker = today.getFullYear() === selectedYear;
   const todayPosition = showTodayMarker ? getPositionPercent(format(today, "yyyy-MM-dd")) : 0;
 
-  // Arrange mesocycles in rows to avoid overlaps
-  const mesocycleRows = useMemo(() => {
-    const rows: Array<typeof visibleMesocycles> = [];
+  // Arrange cycles in rows to avoid overlaps
+  const arrangeCyclesInRows = <T extends { clampedStart: string; clampedEnd: string }>(cycles: T[]) => {
+    const rows: Array<T[]> = [];
     
-    visibleMesocycles.forEach(mesocycle => {
-      const startPos = getPositionPercent(mesocycle.clampedStart);
-      const endPos = startPos + getWidthPercent(mesocycle.clampedStart, mesocycle.clampedEnd);
+    cycles.forEach(cycle => {
+      const startPos = getPositionPercent(cycle.clampedStart);
+      const endPos = startPos + getWidthPercent(cycle.clampedStart, cycle.clampedEnd);
       
-      // Find a row where this mesocycle doesn't overlap
       let placed = false;
       for (let i = 0; i < rows.length; i++) {
         const canPlace = rows[i].every(existing => {
@@ -121,19 +151,85 @@ export function YearTimeline({
         });
         
         if (canPlace) {
-          rows[i].push(mesocycle);
+          rows[i].push(cycle);
           placed = true;
           break;
         }
       }
       
       if (!placed) {
-        rows.push([mesocycle]);
+        rows.push([cycle]);
       }
     });
     
     return rows;
-  }, [visibleMesocycles]);
+  };
+
+  const macrocycleRows = useMemo(() => arrangeCyclesInRows(visibleMacrocycles), [visibleMacrocycles]);
+  const mesocycleRows = useMemo(() => arrangeCyclesInRows(visibleMesocycles), [visibleMesocycles]);
+  const microcycleRows = useMemo(() => arrangeCyclesInRows(visibleMicrocycles), [visibleMicrocycles]);
+
+  // Calculate heights for each section
+  const macroHeight = macrocycleRows.length * 32 + (macrocycleRows.length > 0 ? 8 : 0);
+  const mesoHeight = mesocycleRows.length * 32 + (mesocycleRows.length > 0 ? 8 : 0);
+  const microHeight = microcycleRows.length * 32 + (microcycleRows.length > 0 ? 8 : 0);
+  const markersHeight = 32;
+  
+  const totalHeight = macroHeight + mesoHeight + microHeight + markersHeight;
+
+  const renderCycleRow = <T extends { id: string; name: string; start_date: string; end_date: string; description?: string; color: string; clampedStart: string; clampedEnd: string }>(
+    rows: T[][],
+    offsetY: number,
+    rowHeight: number,
+    onClick?: (cycle: T) => void,
+    opacity: number = 1
+  ) => {
+    return rows.map((row, rowIndex) => (
+      <div 
+        key={rowIndex} 
+        className="absolute left-0 right-0"
+        style={{ top: `${offsetY + rowIndex * rowHeight}px`, height: `${rowHeight - 4}px` }}
+      >
+        {row.map((cycle) => {
+          const left = getPositionPercent(cycle.clampedStart);
+          const width = getWidthPercent(cycle.clampedStart, cycle.clampedEnd);
+          
+          return (
+            <Tooltip key={cycle.id}>
+              <TooltipTrigger asChild>
+                <button
+                  className="absolute h-full rounded-md flex items-center justify-center text-white text-xs font-medium overflow-hidden px-2 hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+                  style={{ 
+                    left: `${left}%`, 
+                    width: `${width}%`,
+                    backgroundColor: cycle.color,
+                    minWidth: "20px",
+                    opacity
+                  }}
+                  onClick={() => onClick?.(cycle)}
+                >
+                  <span className="truncate">{cycle.name}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <div className="space-y-1">
+                  <p className="font-semibold">{cycle.name}</p>
+                  <p className="text-sm">
+                    {format(parseISO(cycle.start_date), "d MMM yyyy", { locale: fr })}
+                    {" → "}
+                    {format(parseISO(cycle.end_date), "d MMM yyyy", { locale: fr })}
+                  </p>
+                  {cycle.description && (
+                    <p className="text-sm text-muted-foreground">{cycle.description}</p>
+                  )}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    ));
+  };
 
   return (
     <Card>
@@ -180,7 +276,7 @@ export function YearTimeline({
             </div>
 
             {/* Timeline container */}
-            <div className="relative" style={{ minHeight: `${Math.max(60, mesocycleRows.length * 36 + 40)}px` }}>
+            <div className="relative" style={{ minHeight: `${Math.max(100, totalHeight)}px` }}>
               {/* Month grid lines */}
               <div className="absolute inset-0 flex pointer-events-none">
                 {MONTHS.map((_, index) => (
@@ -203,56 +299,61 @@ export function YearTimeline({
                 </div>
               )}
 
-              {/* Mesocycles */}
-              {mesocycleRows.map((row, rowIndex) => (
+              {/* Section labels */}
+              {macrocycleRows.length > 0 && (
                 <div 
-                  key={rowIndex} 
-                  className="absolute left-0 right-0"
-                  style={{ top: `${rowIndex * 36 + 4}px`, height: "28px" }}
+                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
+                  style={{ top: "2px" }}
                 >
-                  {row.map((mesocycle) => {
-                    const left = getPositionPercent(mesocycle.clampedStart);
-                    const width = getWidthPercent(mesocycle.clampedStart, mesocycle.clampedEnd);
-                    
-                    return (
-                      <Tooltip key={mesocycle.id}>
-                        <TooltipTrigger asChild>
-                          <button
-                            className="absolute h-full rounded-md flex items-center justify-center text-white text-xs font-medium overflow-hidden px-2 hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
-                            style={{ 
-                              left: `${left}%`, 
-                              width: `${width}%`,
-                              backgroundColor: mesocycle.color,
-                              minWidth: "20px"
-                            }}
-                            onClick={() => onMesocycleClick?.(mesocycle)}
-                          >
-                            <span className="truncate">{mesocycle.name}</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs">
-                          <div className="space-y-1">
-                            <p className="font-semibold">{mesocycle.name}</p>
-                            <p className="text-sm">
-                              {format(parseISO(mesocycle.start_date), "d MMM yyyy", { locale: fr })}
-                              {" → "}
-                              {format(parseISO(mesocycle.end_date), "d MMM yyyy", { locale: fr })}
-                            </p>
-                            {mesocycle.description && (
-                              <p className="text-sm text-muted-foreground">{mesocycle.description}</p>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
+                  Macro
                 </div>
-              ))}
+              )}
+              {mesocycleRows.length > 0 && (
+                <div 
+                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
+                  style={{ top: `${macroHeight + 2}px` }}
+                >
+                  Méso
+                </div>
+              )}
+              {microcycleRows.length > 0 && (
+                <div 
+                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
+                  style={{ top: `${macroHeight + mesoHeight + 2}px` }}
+                >
+                  Micro
+                </div>
+              )}
+
+              {/* Macrocycles (top level) */}
+              {renderCycleRow(macrocycleRows, 0, 32, onMacrocycleClick, 1)}
+
+              {/* Separator after macrocycles */}
+              {macrocycleRows.length > 0 && mesocycleRows.length > 0 && (
+                <div 
+                  className="absolute left-0 right-0 border-t border-dashed border-border/50"
+                  style={{ top: `${macroHeight - 4}px` }}
+                />
+              )}
+
+              {/* Mesocycles (middle level) */}
+              {renderCycleRow(mesocycleRows, macroHeight, 32, onMesocycleClick, 0.9)}
+
+              {/* Separator after mesocycles */}
+              {mesocycleRows.length > 0 && microcycleRows.length > 0 && (
+                <div 
+                  className="absolute left-0 right-0 border-t border-dashed border-border/50"
+                  style={{ top: `${macroHeight + mesoHeight - 4}px` }}
+                />
+              )}
+
+              {/* Microcycles (bottom level) */}
+              {renderCycleRow(microcycleRows, macroHeight + mesoHeight, 32, onMicrocycleClick, 0.8)}
 
               {/* Milestones and main objective markers */}
               <div 
                 className="absolute left-0 right-0 flex items-end"
-                style={{ top: `${mesocycleRows.length * 36 + 8}px`, height: "24px" }}
+                style={{ top: `${macroHeight + mesoHeight + microHeight + 8}px`, height: "24px" }}
               >
                 {/* Milestones */}
                 {visibleMilestones.map((milestone) => {
@@ -323,6 +424,18 @@ export function YearTimeline({
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-destructive" />
                 <span>Aujourd'hui</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded bg-violet-500" />
+                <span>Macrocycle</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded bg-blue-500 opacity-90" />
+                <span>Mésocycle</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-3 rounded bg-cyan-500 opacity-80" />
+                <span>Microcycle</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
