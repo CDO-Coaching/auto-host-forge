@@ -73,6 +73,13 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [existingDates, setExistingDates] = useState<string[]>([]);
   const { toast } = useToast();
 
+  const toLocalDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   // État pour la blessure précédente
   const [previousInjury, setPreviousInjury] = useState<PreviousInjury | null>(null);
   const [injuryEvolution, setInjuryEvolution] = useState<InjuryEvolution>(null);
@@ -303,7 +310,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const dateToSave = selectedDate.toISOString().split('T')[0];
+      // IMPORTANT: ne pas utiliser toISOString() (UTC) sinon risque de décalage d'un jour
+      const dateToSave = toLocalDateKey(selectedDate);
 
       // Déterminer si on a une blessure à enregistrer
       let finalHasInjury: boolean;
@@ -357,7 +365,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
       if (error) throw error;
 
-      const isToday = dateToSave === new Date().toISOString().split('T')[0];
+      const isToday = dateToSave === toLocalDateKey(new Date());
       toast({
         title: "✅ Enregistré !",
         description: isToday 
@@ -483,11 +491,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
                   disabled={(date) => {
-                    // Utiliser format local pour éviter les problèmes de timezone
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const dateStr = `${year}-${month}-${day}`;
+                    const dateStr = toLocalDateKey(date);
                     
                     const today = new Date();
                     today.setHours(23, 59, 59, 999);
