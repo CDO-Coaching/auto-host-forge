@@ -108,18 +108,25 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Récupérer les 30 derniers jours d'entrées pour désactiver les dates déjà remplies
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      // Récupérer les 90 derniers jours d'entrées pour désactiver les dates déjà remplies
+      const ninetyDaysAgo = new Date();
+      ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      
+      // Utiliser format local pour éviter les problèmes de timezone
+      const year = ninetyDaysAgo.getFullYear();
+      const month = String(ninetyDaysAgo.getMonth() + 1).padStart(2, '0');
+      const day = String(ninetyDaysAgo.getDate()).padStart(2, '0');
+      const ninetyDaysAgoStr = `${year}-${month}-${day}`;
       
       const { data } = await supabase
         .from("daily_fatigue_log")
         .select("date")
         .eq("user_id", user.id)
-        .gte("date", thirtyDaysAgo.toISOString().split('T')[0]);
+        .gte("date", ninetyDaysAgoStr);
 
       if (data) {
         setExistingDates(data.map(d => d.date));
+        console.log("Dates existantes chargées:", data.map(d => d.date));
       }
     } catch (error) {
       console.error("Erreur chargement dates existantes:", error);
