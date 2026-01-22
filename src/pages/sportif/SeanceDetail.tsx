@@ -188,11 +188,28 @@ export default function SeanceDetail() {
     // Utiliser la date choisie dans le CardioFeedbackDialog, ou la date actuelle par défaut
     const completionDate = cardioSessionDate || new Date();
     
+    // Récupérer le RPE de l'exercice cardio pour le mettre sur la session parente
+    // Chercher le RPE dans les exercices (sportif_rpe du premier exercice cardio validé)
+    const cardioExerciseWithRpe = exercises.find((ex: any) => 
+      (ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation') && 
+      ex.sportif_rpe !== null
+    );
+    
+    const sessionRpe = cardioExerciseWithRpe?.sportif_rpe || null;
+    
+    // Construire les données de mise à jour
+    const updateData: { completed_at: string; session_rpe?: number } = {
+      completed_at: completionDate.toISOString(),
+    };
+    
+    // Ajouter le session_rpe si on l'a trouvé
+    if (sessionRpe !== null) {
+      updateData.session_rpe = sessionRpe;
+    }
+    
     const { error } = await supabase
       .from("training_sessions")
-      .update({
-        completed_at: completionDate.toISOString(),
-      })
+      .update(updateData)
       .eq("id", sessionId);
 
     if (error) {

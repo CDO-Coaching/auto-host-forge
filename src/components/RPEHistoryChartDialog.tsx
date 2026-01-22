@@ -66,8 +66,8 @@ export function RPEHistoryChartDialog() {
         const threeWeeksAgo = subDays(new Date(), 21);
         threeWeeksAgo.setHours(0, 0, 0, 0);
 
-        // Récupérer les séances via training_weeks pour s'assurer que c'est bien le sportif connecté
-        const { data, error } = await supabase
+        // Requête 1: Séances avec session_rpe rempli (renfo, recup, etc.)
+        const { data: sessionsWithRpe, error: error1 } = await supabase
           .from("training_sessions")
           .select(`
             id,
@@ -83,12 +83,36 @@ export function RPEHistoryChartDialog() {
           .gte("completed_at", threeWeeksAgo.toISOString())
           .order("completed_at", { ascending: true });
 
-        if (error) {
-          console.error("Erreur lors de la récupération de l'historique RPE:", error);
+        if (error1) {
+          console.error("Erreur lors de la récupération de l'historique RPE:", error1);
           return;
         }
 
-        const formattedData: RPEData[] = (data ?? []).map((session) => ({
+        // Requête 2: Séances cardio complétées SANS session_rpe mais avec sportif_rpe dans les exercices
+        const { data: cardioSessionsWithoutRpe, error: error2 } = await supabase
+          .from("training_sessions")
+          .select(`
+            id,
+            name,
+            session_type,
+            session_rpe,
+            completed_at,
+            training_weeks!inner(athlete_id),
+            session_exercises!inner(sportif_rpe, cardio_sport)
+          `)
+          .eq("training_weeks.athlete_id", user.id)
+          .not("completed_at", "is", null)
+          .is("session_rpe", null)
+          .in("session_type", ["course", "velo", "natation", "cardio"])
+          .gte("completed_at", threeWeeksAgo.toISOString())
+          .order("completed_at", { ascending: true });
+
+        if (error2) {
+          console.error("Erreur lors de la récupération des séances cardio:", error2);
+        }
+
+        // Formatter les séances avec session_rpe
+        const formattedSessions: RPEData[] = (sessionsWithRpe ?? []).map((session) => ({
           date: format(new Date(session.completed_at!), "dd/MM", { locale: fr }),
           fullDate: format(new Date(session.completed_at!), "EEEE d MMMM yyyy", { locale: fr }),
           sessionName: session.name || "Séance",
@@ -97,7 +121,49 @@ export function RPEHistoryChartDialog() {
           sessionType: session.session_type || "renfo",
         }));
 
-        setRpeHistory(formattedData);
+        // Formatter les séances cardio sans session_rpe mais avec sportif_rpe dans exercices
+        const formattedCardioSessions: RPEData[] = [];
+        const processedIds = new Set(formattedSessions.map(s => s.sessionId));
+
+        (cardioSessionsWithoutRpe ?? []).forEach((session: any) => {
+          // Éviter les doublons
+          if (processedIds.has(session.id)) return;
+          
+          // Trouver le RPE dans les exercices cardio
+          const exercises = session.session_exercises || [];
+          const cardioExercise = exercises.find((ex: any) => 
+            ex.sportif_rpe !== null && 
+            (ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation')
+          );
+
+          if (cardioExercise && cardioExercise.sportif_rpe) {
+            formattedCardioSessions.push({
+              date: format(new Date(session.completed_at!), "dd/MM", { locale: fr }),
+              fullDate: format(new Date(session.completed_at!), "EEEE d MMMM yyyy", { locale: fr }),
+              sessionName: session.name || "Séance Cardio",
+              rpe: cardioExercise.sportif_rpe,
+              sessionId: session.id,
+              sessionType: session.session_type === 'course' ? 'cardio' : 
+                          session.session_type === 'velo' ? 'cardio' : 
+                          session.session_type === 'natation' ? 'cardio' : 
+                          session.session_type || "cardio",
+            });
+          }
+        });
+
+        // Combiner et trier par date
+        const allSessions = [...formattedSessions, ...formattedCardioSessions]
+          .sort((a, b) => {
+            // Parser les dates dd/MM pour trier
+            const parseDate = (str: string) => {
+              const [day, month] = str.split('/').map(Number);
+              const year = new Date().getFullYear();
+              return new Date(year, month - 1, day);
+            };
+            return parseDate(a.date).getTime() - parseDate(b.date).getTime();
+          });
+
+        setRpeHistory(allSessions);
       } catch (err) {
         console.error("Erreur:", err);
       } finally {
