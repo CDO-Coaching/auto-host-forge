@@ -476,10 +476,15 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   selected={selectedDate}
                   onSelect={(date) => date && setSelectedDate(date)}
                   disabled={(date) => {
-                    const dateStr = date.toISOString().split('T')[0];
+                    // Utiliser format local pour éviter les problèmes de timezone
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    
                     const today = new Date();
                     today.setHours(23, 59, 59, 999);
-                    // Désactiver les dates futures et les dates déjà remplies
+                    // Désactiver UNIQUEMENT les dates futures et les dates déjà remplies
                     return date > today || existingDates.includes(dateStr);
                   }}
                   initialFocus
