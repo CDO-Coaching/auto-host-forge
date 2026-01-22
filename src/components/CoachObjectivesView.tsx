@@ -7,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Target, CalendarDays, Save, X, RefreshCw } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Target, CalendarDays, Save, X, RefreshCw, Layers, Layers2, Layers3 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { format, differenceInWeeks, isWithinInterval } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { format, differenceInWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,7 +38,7 @@ interface ObjectiveMilestone {
   completed: boolean;
 }
 
-interface Mesocycle {
+interface Macrocycle {
   id: string;
   name: string;
   start_date: string;
@@ -46,27 +47,52 @@ interface Mesocycle {
   color: string;
 }
 
-const MESOCYCLE_COLORS = [
+interface Mesocycle {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  color: string;
+  macrocycle_id?: string;
+}
+
+interface Microcycle {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
+  description?: string;
+  color: string;
+  mesocycle_id?: string;
+}
+
+const CYCLE_COLORS = [
+  { value: "#8B5CF6", label: "Violet" },
   { value: "#3B82F6", label: "Bleu" },
   { value: "#10B981", label: "Vert" },
   { value: "#F59E0B", label: "Orange" },
   { value: "#EF4444", label: "Rouge" },
-  { value: "#8B5CF6", label: "Violet" },
   { value: "#EC4899", label: "Rose" },
   { value: "#06B6D4", label: "Cyan" },
   { value: "#84CC16", label: "Lime" },
 ];
 
+type CycleType = "macro" | "meso" | "micro";
+
 export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesViewProps) {
   const [objective, setObjective] = useState<AthleteObjective>({});
   const [milestones, setMilestones] = useState<ObjectiveMilestone[]>([]);
+  const [macrocycles, setMacrocycles] = useState<Macrocycle[]>([]);
   const [mesocycles, setMesocycles] = useState<Mesocycle[]>([]);
+  const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSavingMain, setIsSavingMain] = useState(false);
   const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
-  const [showMesocycleDialog, setShowMesocycleDialog] = useState(false);
+  const [showCycleDialog, setShowCycleDialog] = useState(false);
+  const [cycleDialogType, setCycleDialogType] = useState<CycleType>("macro");
   const [editingMilestone, setEditingMilestone] = useState<ObjectiveMilestone | null>(null);
-  const [editingMesocycle, setEditingMesocycle] = useState<Mesocycle | null>(null);
+  const [editingCycle, setEditingCycle] = useState<Macrocycle | Mesocycle | Microcycle | null>(null);
   const [mainDeadlineDate, setMainDeadlineDate] = useState<Date | undefined>(undefined);
   const [milestoneForm, setMilestoneForm] = useState({
     label: "",
@@ -74,18 +100,17 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     notes: "",
     completed: false,
   });
-  const [mesocycleForm, setMesocycleForm] = useState({
+  const [cycleForm, setCycleForm] = useState({
     name: "",
     start_date: new Date(),
     end_date: new Date(),
     description: "",
-    color: "#3B82F6",
+    color: "#8B5CF6",
+    parent_id: "" as string,
   });
 
   useEffect(() => {
-    loadObjectives();
-    loadMilestones();
-    loadMesocycles();
+    loadAll();
   }, [athleteId]);
 
   useEffect(() => {
@@ -93,6 +118,18 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       setMainDeadlineDate(new Date(objective.main_objective_deadline));
     }
   }, [objective.main_objective_deadline]);
+
+  const loadAll = async () => {
+    setLoading(true);
+    await Promise.all([
+      loadObjectives(),
+      loadMilestones(),
+      loadMacrocycles(),
+      loadMesocycles(),
+      loadMicrocycles(),
+    ]);
+    setLoading(false);
+  };
 
   const loadObjectives = async () => {
     try {
@@ -103,15 +140,9 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         .maybeSingle();
 
       if (error && error.code !== "PGRST116") throw error;
-      
-      if (data) {
-        setObjective(data);
-      }
+      if (data) setObjective(data);
     } catch (error) {
       console.error("Erreur lors du chargement des objectifs:", error);
-      toast.error("Erreur lors du chargement des objectifs");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -130,6 +161,21 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
+  const loadMacrocycles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("macrocycles")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("start_date", { ascending: true });
+
+      if (error) throw error;
+      setMacrocycles(data || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des macrocycles:", error);
+    }
+  };
+
   const loadMesocycles = async () => {
     try {
       const { data, error } = await supabase
@@ -142,6 +188,21 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       setMesocycles(data || []);
     } catch (error) {
       console.error("Erreur lors du chargement des mésocycles:", error);
+    }
+  };
+
+  const loadMicrocycles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("microcycles")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("start_date", { ascending: true });
+
+      if (error) throw error;
+      setMicrocycles(data || []);
+    } catch (error) {
+      console.error("Erreur lors du chargement des microcycles:", error);
     }
   };
 
@@ -184,6 +245,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
+  // Milestone handlers
   const handleOpenMilestoneDialog = (milestone?: ObjectiveMilestone) => {
     if (milestone) {
       setEditingMilestone(milestone);
@@ -251,9 +313,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   };
 
   const handleDeleteMilestone = async (milestoneId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette date d'objectif ?")) {
-      return;
-    }
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette date d'objectif ?")) return;
 
     try {
       const { error } = await supabase
@@ -262,7 +322,6 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         .eq("id", milestoneId);
 
       if (error) throw error;
-
       toast.success("Date d'objectif supprimée");
       await loadMilestones();
     } catch (error) {
@@ -271,37 +330,44 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
-  // Mesocycle handlers
-  const handleOpenMesocycleDialog = (mesocycle?: Mesocycle) => {
-    if (mesocycle) {
-      setEditingMesocycle(mesocycle);
-      setMesocycleForm({
-        name: mesocycle.name,
-        start_date: new Date(mesocycle.start_date),
-        end_date: new Date(mesocycle.end_date),
-        description: mesocycle.description || "",
-        color: mesocycle.color,
+  // Cycle handlers (generic for macro/meso/micro)
+  const handleOpenCycleDialog = (type: CycleType, cycle?: Macrocycle | Mesocycle | Microcycle) => {
+    setCycleDialogType(type);
+    if (cycle) {
+      setEditingCycle(cycle);
+      setCycleForm({
+        name: cycle.name,
+        start_date: new Date(cycle.start_date),
+        end_date: new Date(cycle.end_date),
+        description: cycle.description || "",
+        color: cycle.color,
+        parent_id: type === "meso" 
+          ? (cycle as Mesocycle).macrocycle_id || ""
+          : type === "micro"
+          ? (cycle as Microcycle).mesocycle_id || ""
+          : "",
       });
     } else {
-      setEditingMesocycle(null);
-      setMesocycleForm({
+      setEditingCycle(null);
+      setCycleForm({
         name: "",
         start_date: new Date(),
         end_date: new Date(),
         description: "",
-        color: "#3B82F6",
+        color: type === "macro" ? "#8B5CF6" : type === "meso" ? "#3B82F6" : "#06B6D4",
+        parent_id: "",
       });
     }
-    setShowMesocycleDialog(true);
+    setShowCycleDialog(true);
   };
 
-  const handleSaveMesocycle = async () => {
-    if (!mesocycleForm.name.trim()) {
-      toast.error("Veuillez remplir le nom du mésocycle");
+  const handleSaveCycle = async () => {
+    if (!cycleForm.name.trim()) {
+      toast.error("Veuillez remplir le nom");
       return;
     }
 
-    if (mesocycleForm.end_date < mesocycleForm.start_date) {
+    if (cycleForm.end_date < cycleForm.start_date) {
       toast.error("La date de fin doit être après la date de début");
       return;
     }
@@ -310,60 +376,88 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
-      const mesocycleData = {
+      const baseData = {
         athlete_id: athleteId,
         coach_id: user.id,
-        name: mesocycleForm.name,
-        start_date: format(mesocycleForm.start_date, "yyyy-MM-dd"),
-        end_date: format(mesocycleForm.end_date, "yyyy-MM-dd"),
-        description: mesocycleForm.description || null,
-        color: mesocycleForm.color,
+        name: cycleForm.name,
+        start_date: format(cycleForm.start_date, "yyyy-MM-dd"),
+        end_date: format(cycleForm.end_date, "yyyy-MM-dd"),
+        description: cycleForm.description || null,
+        color: cycleForm.color,
         updated_at: new Date().toISOString(),
       };
 
-      if (editingMesocycle) {
+      const tableName = cycleDialogType === "macro" 
+        ? "macrocycles" 
+        : cycleDialogType === "meso" 
+        ? "mesocycles" 
+        : "microcycles";
+
+      const cycleData = cycleDialogType === "meso"
+        ? { ...baseData, macrocycle_id: cycleForm.parent_id || null }
+        : cycleDialogType === "micro"
+        ? { ...baseData, mesocycle_id: cycleForm.parent_id || null }
+        : baseData;
+
+      if (editingCycle) {
         const { error } = await supabase
-          .from("mesocycles")
-          .update(mesocycleData)
-          .eq("id", editingMesocycle.id);
+          .from(tableName)
+          .update(cycleData)
+          .eq("id", editingCycle.id);
 
         if (error) throw error;
-        toast.success("Mésocycle modifié");
+        toast.success(`${getCycleLabel(cycleDialogType)} modifié`);
       } else {
         const { error } = await supabase
-          .from("mesocycles")
-          .insert(mesocycleData);
+          .from(tableName)
+          .insert(cycleData);
 
         if (error) throw error;
-        toast.success("Mésocycle créé");
+        toast.success(`${getCycleLabel(cycleDialogType)} créé`);
       }
 
-      setShowMesocycleDialog(false);
-      await loadMesocycles();
+      setShowCycleDialog(false);
+      await loadAll();
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de l'enregistrement");
     }
   };
 
-  const handleDeleteMesocycle = async (mesocycleId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce mésocycle ?")) {
-      return;
-    }
+  const handleDeleteCycle = async (type: CycleType, cycleId: string) => {
+    const label = getCycleLabel(type);
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ce ${label.toLowerCase()} ?`)) return;
+
+    const tableName = type === "macro" ? "macrocycles" : type === "meso" ? "mesocycles" : "microcycles";
 
     try {
       const { error } = await supabase
-        .from("mesocycles")
+        .from(tableName)
         .delete()
-        .eq("id", mesocycleId);
+        .eq("id", cycleId);
 
       if (error) throw error;
-
-      toast.success("Mésocycle supprimé");
-      await loadMesocycles();
+      toast.success(`${label} supprimé`);
+      await loadAll();
     } catch (error) {
       console.error("Erreur:", error);
       toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const getCycleLabel = (type: CycleType) => {
+    switch (type) {
+      case "macro": return "Macrocycle";
+      case "meso": return "Mésocycle";
+      case "micro": return "Microcycle";
+    }
+  };
+
+  const getCycleIcon = (type: CycleType) => {
+    switch (type) {
+      case "macro": return Layers;
+      case "meso": return Layers2;
+      case "micro": return Layers3;
     }
   };
 
@@ -383,20 +477,83 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     return "outline";
   };
 
-  const getMesocycleStatus = (mesocycle: Mesocycle) => {
+  const getCycleStatus = (cycle: { start_date: string; end_date: string }) => {
     const today = new Date();
-    const startDate = new Date(mesocycle.start_date);
-    const endDate = new Date(mesocycle.end_date);
+    const startDate = new Date(cycle.start_date);
+    const endDate = new Date(cycle.end_date);
     
     if (today < startDate) return "upcoming";
     if (today > endDate) return "completed";
     return "active";
   };
 
-  const getMesocycleWeeks = (mesocycle: Mesocycle) => {
-    const start = new Date(mesocycle.start_date);
-    const end = new Date(mesocycle.end_date);
+  const getCycleWeeks = (cycle: { start_date: string; end_date: string }) => {
+    const start = new Date(cycle.start_date);
+    const end = new Date(cycle.end_date);
     return differenceInWeeks(end, start) + 1;
+  };
+
+  const renderCycleCard = (
+    cycle: Macrocycle | Mesocycle | Microcycle,
+    type: CycleType,
+    parentName?: string
+  ) => {
+    const status = getCycleStatus(cycle);
+    const weeks = getCycleWeeks(cycle);
+    const CycleIcon = getCycleIcon(type);
+
+    return (
+      <Card 
+        key={cycle.id} 
+        className="p-4"
+        style={{ borderLeftColor: cycle.color, borderLeftWidth: "4px" }}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CycleIcon className="h-4 w-4 text-muted-foreground" />
+              <h4 className="font-semibold">{cycle.name}</h4>
+              <Badge 
+                variant={status === "active" ? "default" : status === "upcoming" ? "secondary" : "outline"}
+              >
+                {status === "active" ? "En cours" : status === "upcoming" ? "À venir" : "Terminé"}
+              </Badge>
+              <Badge variant="outline">{weeks} sem.</Badge>
+            </div>
+            {parentName && (
+              <p className="text-xs text-muted-foreground">
+                Dans: {parentName}
+              </p>
+            )}
+            <p className="text-sm text-muted-foreground">
+              <CalendarIcon className="inline h-4 w-4 mr-1" />
+              {format(new Date(cycle.start_date), "d MMM yyyy", { locale: fr })}
+              {" → "}
+              {format(new Date(cycle.end_date), "d MMM yyyy", { locale: fr })}
+            </p>
+            {cycle.description && (
+              <p className="text-sm text-muted-foreground italic">{cycle.description}</p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenCycleDialog(type, cycle)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeleteCycle(type, cycle.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -407,10 +564,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     <div className="space-y-6">
       {/* Timeline annuelle */}
       <YearTimeline
+        macrocycles={macrocycles}
         mesocycles={mesocycles}
+        microcycles={microcycles}
         milestones={milestones}
         mainObjectiveDate={objective.main_objective_deadline}
-        onMesocycleClick={handleOpenMesocycleDialog}
+        onMacrocycleClick={(m) => handleOpenCycleDialog("macro", m)}
+        onMesocycleClick={(m) => handleOpenCycleDialog("meso", m)}
+        onMicrocycleClick={(m) => handleOpenCycleDialog("micro", m)}
         onMilestoneClick={handleOpenMilestoneDialog}
       />
 
@@ -474,15 +635,44 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
+      {/* Macrocycles */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              Macrocycles
+              <Badge variant="outline" className="ml-2">{macrocycles.length}</Badge>
+            </div>
+            <Button onClick={() => handleOpenCycleDialog("macro")} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {macrocycles.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Aucun macrocycle. Créez un grand cycle de planification (ex: saison, préparation olympique).
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {macrocycles.map((m) => renderCycleCard(m, "macro"))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Mésocycles */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-primary" />
+              <Layers2 className="h-5 w-5 text-primary" />
               Mésocycles
+              <Badge variant="outline" className="ml-2">{mesocycles.length}</Badge>
             </div>
-            <Button onClick={() => handleOpenMesocycleDialog()} size="sm">
+            <Button onClick={() => handleOpenCycleDialog("meso")} size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Ajouter
             </Button>
@@ -491,63 +681,44 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         <CardContent>
           {mesocycles.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              Aucun mésocycle pour le moment. Créez des cycles pour organiser l'entraînement.
+              Aucun mésocycle. Créez des cycles intermédiaires (ex: préparation générale, spécifique).
             </p>
           ) : (
             <div className="space-y-3">
-              {mesocycles.map((mesocycle) => {
-                const status = getMesocycleStatus(mesocycle);
-                const weeks = getMesocycleWeeks(mesocycle);
-                return (
-                  <Card 
-                    key={mesocycle.id} 
-                    className="p-4"
-                    style={{ borderLeftColor: mesocycle.color, borderLeftWidth: "4px" }}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold">{mesocycle.name}</h4>
-                          <Badge 
-                            variant={status === "active" ? "default" : status === "upcoming" ? "secondary" : "outline"}
-                          >
-                            {status === "active" 
-                              ? "En cours" 
-                              : status === "upcoming" 
-                              ? "À venir" 
-                              : "Terminé"}
-                          </Badge>
-                          <Badge variant="outline">{weeks} sem.</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          <CalendarIcon className="inline h-4 w-4 mr-1" />
-                          {format(new Date(mesocycle.start_date), "d MMM yyyy", { locale: fr })}
-                          {" → "}
-                          {format(new Date(mesocycle.end_date), "d MMM yyyy", { locale: fr })}
-                        </p>
-                        {mesocycle.description && (
-                          <p className="text-sm text-muted-foreground italic">{mesocycle.description}</p>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenMesocycleDialog(mesocycle)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteMesocycle(mesocycle.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
+              {mesocycles.map((m) => {
+                const parentMacro = macrocycles.find(mac => mac.id === m.macrocycle_id);
+                return renderCycleCard(m, "meso", parentMacro?.name);
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Microcycles */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers3 className="h-5 w-5 text-primary" />
+              Microcycles
+              <Badge variant="outline" className="ml-2">{microcycles.length}</Badge>
+            </div>
+            <Button onClick={() => handleOpenCycleDialog("micro")} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {microcycles.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              Aucun microcycle. Créez des cycles courts (ex: semaine type, bloc d'entraînement).
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {microcycles.map((m) => {
+                const parentMeso = mesocycles.find(meso => meso.id === m.mesocycle_id);
+                return renderCycleCard(m, "micro", parentMeso?.name);
               })}
             </div>
           )}
@@ -716,44 +887,93 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </DialogContent>
       </Dialog>
 
-      {/* Dialog pour ajouter/modifier un mésocycle */}
-      <Dialog open={showMesocycleDialog} onOpenChange={setShowMesocycleDialog}>
+      {/* Dialog pour ajouter/modifier un cycle (macro/meso/micro) */}
+      <Dialog open={showCycleDialog} onOpenChange={setShowCycleDialog}>
         <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
-              {editingMesocycle ? "Modifier le mésocycle" : "Ajouter un mésocycle"}
+              {editingCycle ? `Modifier le ${getCycleLabel(cycleDialogType).toLowerCase()}` : `Ajouter un ${getCycleLabel(cycleDialogType).toLowerCase()}`}
             </DialogTitle>
             <DialogDescription>
-              Créez un cycle d'entraînement avec une période définie pour {athleteName}.
+              {cycleDialogType === "macro" && "Créez un grand cycle de planification pour organiser la saison."}
+              {cycleDialogType === "meso" && "Créez un cycle intermédiaire au sein d'un macrocycle."}
+              {cycleDialogType === "micro" && "Créez un cycle court (semaine type) au sein d'un mésocycle."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4 overflow-y-auto flex-1">
             <div className="space-y-2">
-              <Label htmlFor="mesocycle-name">Nom du mésocycle *</Label>
+              <Label htmlFor="cycle-name">Nom *</Label>
               <Input
-                id="mesocycle-name"
-                placeholder="Ex: Préparation générale, Spécifique, Affûtage..."
-                value={mesocycleForm.name}
-                onChange={(e) => setMesocycleForm({ ...mesocycleForm, name: e.target.value })}
+                id="cycle-name"
+                placeholder={
+                  cycleDialogType === "macro" 
+                    ? "Ex: Saison 2025, Préparation Olympique..."
+                    : cycleDialogType === "meso"
+                    ? "Ex: Préparation générale, Spécifique, Affûtage..."
+                    : "Ex: Semaine de charge, Semaine de récup..."
+                }
+                value={cycleForm.name}
+                onChange={(e) => setCycleForm({ ...cycleForm, name: e.target.value })}
               />
             </div>
+
+            {/* Parent selection for meso and micro */}
+            {cycleDialogType === "meso" && macrocycles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Macrocycle parent (optionnel)</Label>
+                <Select
+                  value={cycleForm.parent_id}
+                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun macrocycle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun</SelectItem>
+                    {macrocycles.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {cycleDialogType === "micro" && mesocycles.length > 0 && (
+              <div className="space-y-2">
+                <Label>Mésocycle parent (optionnel)</Label>
+                <Select
+                  value={cycleForm.parent_id}
+                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Aucun mésocycle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Aucun</SelectItem>
+                    {mesocycles.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Couleur</Label>
               <div className="flex gap-2 flex-wrap">
-                {MESOCYCLE_COLORS.map((color) => (
+                {CYCLE_COLORS.map((color) => (
                   <button
                     key={color.value}
                     type="button"
                     className={cn(
                       "h-8 w-8 rounded-full border-2 transition-all",
-                      mesocycleForm.color === color.value 
+                      cycleForm.color === color.value 
                         ? "border-foreground scale-110" 
                         : "border-transparent hover:scale-105"
                     )}
                     style={{ backgroundColor: color.value }}
-                    onClick={() => setMesocycleForm({ ...mesocycleForm, color: color.value })}
+                    onClick={() => setCycleForm({ ...cycleForm, color: color.value })}
                     title={color.label}
                   />
                 ))}
@@ -770,14 +990,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                       className="w-full justify-start text-left font-normal"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(mesocycleForm.start_date, "d MMMM yyyy", { locale: fr })}
+                      {format(cycleForm.start_date, "d MMMM yyyy", { locale: fr })}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={mesocycleForm.start_date}
-                      onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, start_date: date })}
+                      selected={cycleForm.start_date}
+                      onSelect={(date) => date && setCycleForm({ ...cycleForm, start_date: date })}
                       locale={fr}
                       weekStartsOn={1}
                       className="pointer-events-auto"
@@ -795,14 +1015,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                       className="w-full justify-start text-left font-normal"
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(mesocycleForm.end_date, "d MMMM yyyy", { locale: fr })}
+                      {format(cycleForm.end_date, "d MMMM yyyy", { locale: fr })}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
                       mode="single"
-                      selected={mesocycleForm.end_date}
-                      onSelect={(date) => date && setMesocycleForm({ ...mesocycleForm, end_date: date })}
+                      selected={cycleForm.end_date}
+                      onSelect={(date) => date && setCycleForm({ ...cycleForm, end_date: date })}
                       locale={fr}
                       weekStartsOn={1}
                       className="pointer-events-auto"
@@ -813,23 +1033,23 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="mesocycle-description">Description (optionnel)</Label>
+              <Label htmlFor="cycle-description">Description (optionnel)</Label>
               <Textarea
-                id="mesocycle-description"
+                id="cycle-description"
                 placeholder="Objectifs de ce cycle, focus particulier..."
-                value={mesocycleForm.description}
-                onChange={(e) => setMesocycleForm({ ...mesocycleForm, description: e.target.value })}
+                value={cycleForm.description}
+                onChange={(e) => setCycleForm({ ...cycleForm, description: e.target.value })}
                 rows={3}
               />
             </div>
           </div>
 
           <DialogFooter className="flex-shrink-0">
-            <Button variant="outline" onClick={() => setShowMesocycleDialog(false)}>
+            <Button variant="outline" onClick={() => setShowCycleDialog(false)}>
               <X className="h-4 w-4 mr-2" />
               Annuler
             </Button>
-            <Button onClick={handleSaveMesocycle}>
+            <Button onClick={handleSaveCycle}>
               <Save className="h-4 w-4 mr-2" />
               Enregistrer
             </Button>
