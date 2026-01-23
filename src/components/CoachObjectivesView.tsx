@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Target, CalendarDays, Save, X, RefreshCw, Layers, Layers2, Layers3 } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Pencil, Trash2, Target, CalendarDays, Save, X, RefreshCw, Layers, Layers2, Layers3, AlertTriangle, Clock } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, differenceInWeeks } from "date-fns";
+import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO } from "date-fns";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -526,6 +527,38 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     return differenceInWeeks(end, start) + 1;
   };
 
+  // Find current active cycles
+  const getCurrentCycle = <T extends { id: string; start_date: string; end_date: string; name: string; color: string }>(
+    cycles: T[]
+  ): T | null => {
+    const today = new Date();
+    return cycles.find(c => {
+      const start = parseISO(c.start_date);
+      const end = parseISO(c.end_date);
+      return isWithinInterval(today, { start, end });
+    }) || null;
+  };
+
+  const currentMacrocycle = getCurrentCycle(macrocycles);
+  const currentMesocycle = getCurrentCycle(mesocycles);
+  const currentMicrocycle = getCurrentCycle(microcycles);
+
+  // Check for cycles ending soon (within 7 days)
+  const getCycleEndingAlert = (cycle: { end_date: string; name: string } | null, label: string): { daysLeft: number; name: string; label: string } | null => {
+    if (!cycle) return null;
+    const daysLeft = differenceInDays(parseISO(cycle.end_date), new Date());
+    if (daysLeft >= 0 && daysLeft <= 7) {
+      return { daysLeft, name: cycle.name, label };
+    }
+    return null;
+  };
+
+  const macroAlert = getCycleEndingAlert(currentMacrocycle, "Macrocycle");
+  const mesoAlert = getCycleEndingAlert(currentMesocycle, "Mésocycle");
+  const microAlert = getCycleEndingAlert(currentMicrocycle, "Microcycle");
+
+  const cycleAlerts = [macroAlert, mesoAlert, microAlert].filter(Boolean) as { daysLeft: number; name: string; label: string }[];
+
   const renderCycleCard = (
     cycle: Macrocycle | Mesocycle | Microcycle,
     type: CycleType,
@@ -595,6 +628,110 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
   return (
     <div className="space-y-6">
+      {/* Cycle Alerts - ending soon */}
+      {cycleAlerts.length > 0 && (
+        <div className="space-y-2">
+          {cycleAlerts.map((alert, index) => (
+            <Alert key={index} variant="destructive" className="border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-amber-600">
+                Attention : nouveau {alert.label.toLowerCase()} imminent
+              </AlertTitle>
+              <AlertDescription>
+                Le {alert.label.toLowerCase()} "{alert.name}" se termine {
+                  alert.daysLeft === 0 
+                    ? "aujourd'hui" 
+                    : alert.daysLeft === 1 
+                    ? "demain" 
+                    : `dans ${alert.daysLeft} jours`
+                }. Pensez à planifier la suite.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
+
+      {/* Current Cycles Summary */}
+      {(currentMacrocycle || currentMesocycle || currentMicrocycle) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Clock className="h-5 w-5 text-primary" />
+              Cycles en cours
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {/* Current Macrocycle */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                  <Layers className="h-3 w-3" />
+                  Macrocycle
+                </div>
+                {currentMacrocycle ? (
+                  <div 
+                    className="p-2 rounded-md border-l-4 bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                    style={{ borderLeftColor: currentMacrocycle.color }}
+                    onClick={() => handleOpenCycleDialog("macro", currentMacrocycle)}
+                  >
+                    <p className="font-medium text-sm truncate">{currentMacrocycle.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      jusqu'au {format(parseISO(currentMacrocycle.end_date), "d MMM", { locale: fr })}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Aucun</p>
+                )}
+              </div>
+
+              {/* Current Mesocycle */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                  <Layers2 className="h-3 w-3" />
+                  Mésocycle
+                </div>
+                {currentMesocycle ? (
+                  <div 
+                    className="p-2 rounded-md border-l-4 bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                    style={{ borderLeftColor: currentMesocycle.color }}
+                    onClick={() => handleOpenCycleDialog("meso", currentMesocycle)}
+                  >
+                    <p className="font-medium text-sm truncate">{currentMesocycle.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      jusqu'au {format(parseISO(currentMesocycle.end_date), "d MMM", { locale: fr })}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Aucun</p>
+                )}
+              </div>
+
+              {/* Current Microcycle */}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wider">
+                  <Layers3 className="h-3 w-3" />
+                  Microcycle
+                </div>
+                {currentMicrocycle ? (
+                  <div 
+                    className="p-2 rounded-md border-l-4 bg-card cursor-pointer hover:bg-muted/50 transition-colors"
+                    style={{ borderLeftColor: currentMicrocycle.color }}
+                    onClick={() => handleOpenCycleDialog("micro", currentMicrocycle)}
+                  >
+                    <p className="font-medium text-sm truncate">{currentMicrocycle.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      jusqu'au {format(parseISO(currentMicrocycle.end_date), "d MMM", { locale: fr })}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Aucun</p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Timeline annuelle */}
       <YearTimeline
         macrocycles={macrocycles}
