@@ -445,6 +445,39 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
+  // Handler for drag/resize updates from timeline
+  const handleCycleDatesChange = async (
+    cycleType: CycleType,
+    cycleId: string,
+    newStartDate: string,
+    newEndDate: string
+  ) => {
+    const tableName = cycleType === "macro" 
+      ? "macrocycles" 
+      : cycleType === "meso" 
+      ? "mesocycles" 
+      : "microcycles";
+
+    try {
+      const { error } = await supabase
+        .from(tableName)
+        .update({
+          start_date: newStartDate,
+          end_date: newEndDate,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", cycleId);
+
+      if (error) throw error;
+      
+      toast.success("Dates mises à jour");
+      await loadAll();
+    } catch (error) {
+      console.error("Erreur:", error);
+      toast.error("Erreur lors de la mise à jour des dates");
+    }
+  };
+
   const getCycleLabel = (type: CycleType) => {
     switch (type) {
       case "macro": return "Macrocycle";
@@ -573,6 +606,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         onMesocycleClick={(m) => handleOpenCycleDialog("meso", m)}
         onMicrocycleClick={(m) => handleOpenCycleDialog("micro", m)}
         onMilestoneClick={handleOpenMilestoneDialog}
+        onCycleDatesChange={handleCycleDatesChange}
       />
 
       {/* Objectif Principal */}
