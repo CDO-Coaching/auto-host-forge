@@ -149,6 +149,8 @@ export default function ClientDetail() {
   const [athleteObjectives, setAthleteObjectives] = useState<any>({});
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
   const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
+  const [athleteMacrocycles, setAthleteMacrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
+  const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
@@ -378,6 +380,32 @@ export default function ClientDetail() {
         console.error("Erreur lors du chargement des mésocycles:", mesocyclesError);
       } else {
         setAthleteMesocycles(mesocyclesData || []);
+      }
+
+      // Charger les macrocycles
+      const { data: macrocyclesData, error: macrocyclesError } = await supabase
+        .from("macrocycles")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("start_date", { ascending: true });
+
+      if (macrocyclesError) {
+        console.error("Erreur lors du chargement des macrocycles:", macrocyclesError);
+      } else {
+        setAthleteMacrocycles(macrocyclesData || []);
+      }
+
+      // Charger les microcycles
+      const { data: microcyclesData, error: microcyclesError } = await supabase
+        .from("microcycles")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .order("start_date", { ascending: true });
+
+      if (microcyclesError) {
+        console.error("Erreur lors du chargement des microcycles:", microcyclesError);
+      } else {
+        setAthleteMicrocycles(microcyclesData || []);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des objectifs:", error);
@@ -2211,8 +2239,148 @@ export default function ClientDetail() {
                         </CardContent>
                       </Card>
                     )}
+
+                    {/* Cycles en cours */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+
+                      const getCurrentCycle = (cycles: Array<{ id: string; name: string; start_date: string; end_date: string; color: string }>) => {
+                        return cycles.find(cycle => {
+                          const startDate = new Date(cycle.start_date);
+                          const endDate = new Date(cycle.end_date);
+                          startDate.setHours(0, 0, 0, 0);
+                          endDate.setHours(23, 59, 59, 999);
+                          return today >= startDate && today <= endDate;
+                        });
+                      };
+
+                      const getDaysUntilEnd = (endDate: string) => {
+                        const end = new Date(endDate);
+                        end.setHours(0, 0, 0, 0);
+                        const diffTime = end.getTime() - today.getTime();
+                        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      };
+
+                      const currentMacro = getCurrentCycle(athleteMacrocycles);
+                      const currentMeso = getCurrentCycle(athleteMesocycles);
+                      const currentMicro = getCurrentCycle(athleteMicrocycles);
+
+                      const hasCycles = currentMacro || currentMeso || currentMicro;
+
+                      if (!hasCycles) return null;
+
+                      return (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Activity className="h-4 w-4 text-primary" />
+                              Cycles en cours
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {/* Macrocycle */}
+                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Macrocycle</p>
+                                {currentMacro ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="h-3 w-3 rounded-full" 
+                                        style={{ backgroundColor: currentMacro.color || 'hsl(var(--primary))' }}
+                                      />
+                                      <p className="font-medium text-sm">{currentMacro.name}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Fin : {new Date(currentMacro.end_date).toLocaleDateString("fr-FR")}
+                                    </p>
+                                    {getDaysUntilEnd(currentMacro.end_date) <= 7 && getDaysUntilEnd(currentMacro.end_date) >= 0 && (
+                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        <span className="text-xs font-medium">
+                                          {getDaysUntilEnd(currentMacro.end_date) === 0 
+                                            ? "Se termine aujourd'hui" 
+                                            : `Fin dans ${getDaysUntilEnd(currentMacro.end_date)} jour${getDaysUntilEnd(currentMacro.end_date) > 1 ? 's' : ''}`
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">Aucun</p>
+                                )}
+                              </div>
+
+                              {/* Mésocycle */}
+                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Mésocycle</p>
+                                {currentMeso ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="h-3 w-3 rounded-full" 
+                                        style={{ backgroundColor: currentMeso.color || 'hsl(var(--primary))' }}
+                                      />
+                                      <p className="font-medium text-sm">{currentMeso.name}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Fin : {new Date(currentMeso.end_date).toLocaleDateString("fr-FR")}
+                                    </p>
+                                    {getDaysUntilEnd(currentMeso.end_date) <= 7 && getDaysUntilEnd(currentMeso.end_date) >= 0 && (
+                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        <span className="text-xs font-medium">
+                                          {getDaysUntilEnd(currentMeso.end_date) === 0 
+                                            ? "Se termine aujourd'hui" 
+                                            : `Fin dans ${getDaysUntilEnd(currentMeso.end_date)} jour${getDaysUntilEnd(currentMeso.end_date) > 1 ? 's' : ''}`
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">Aucun</p>
+                                )}
+                              </div>
+
+                              {/* Microcycle */}
+                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Microcycle</p>
+                                {currentMicro ? (
+                                  <>
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="h-3 w-3 rounded-full" 
+                                        style={{ backgroundColor: currentMicro.color || 'hsl(var(--primary))' }}
+                                      />
+                                      <p className="font-medium text-sm">{currentMicro.name}</p>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Fin : {new Date(currentMicro.end_date).toLocaleDateString("fr-FR")}
+                                    </p>
+                                    {getDaysUntilEnd(currentMicro.end_date) <= 7 && getDaysUntilEnd(currentMicro.end_date) >= 0 && (
+                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
+                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                        <span className="text-xs font-medium">
+                                          {getDaysUntilEnd(currentMicro.end_date) === 0 
+                                            ? "Se termine aujourd'hui" 
+                                            : `Fin dans ${getDaysUntilEnd(currentMicro.end_date)} jour${getDaysUntilEnd(currentMicro.end_date) > 1 ? 's' : ''}`
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">Aucun</p>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
                     
-                    {/* Objectif Secondaire */}
                     {athleteObjectives.secondary_objective && (
                       <Card>
                         <CardHeader>
