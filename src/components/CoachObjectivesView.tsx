@@ -12,7 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO } from "date-fns";
+import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO, addWeeks, addDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -108,6 +108,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     description: "",
     color: "#8B5CF6",
     parent_id: "" as string,
+    weeks: 4,
   });
 
   useEffect(() => {
@@ -331,15 +332,31 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     }
   };
 
-  // Cycle handlers (generic for macro/meso/micro)
+  // Get the last end date for a given cycle type to auto-set start date for new cycles
+  const getLastCycleEndDate = (type: CycleType): Date | null => {
+    const cycles = type === "macro" ? macrocycles : type === "meso" ? mesocycles : microcycles;
+    if (cycles.length === 0) return null;
+    
+    // Sort by end_date descending and get the latest one
+    const sorted = [...cycles].sort((a, b) => 
+      new Date(b.end_date).getTime() - new Date(a.end_date).getTime()
+    );
+    return new Date(sorted[0].end_date);
+  };
+
   const handleOpenCycleDialog = (type: CycleType, cycle?: Macrocycle | Mesocycle | Microcycle) => {
     setCycleDialogType(type);
     if (cycle) {
+      // Editing existing cycle - calculate weeks from dates
+      const start = new Date(cycle.start_date);
+      const end = new Date(cycle.end_date);
+      const weeks = Math.max(1, differenceInWeeks(end, start) + 1);
+      
       setEditingCycle(cycle);
       setCycleForm({
         name: cycle.name,
-        start_date: new Date(cycle.start_date),
-        end_date: new Date(cycle.end_date),
+        start_date: start,
+        end_date: end,
         description: cycle.description || "",
         color: cycle.color,
         parent_id: type === "meso" 
@@ -347,16 +364,24 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           : type === "micro"
           ? (cycle as Microcycle).mesocycle_id || ""
           : "",
+        weeks,
       });
     } else {
+      // New cycle - auto-set start date after last cycle of same type
+      const lastEndDate = getLastCycleEndDate(type);
+      const defaultStartDate = lastEndDate ? addDays(lastEndDate, 1) : new Date();
+      const defaultWeeks = type === "macro" ? 12 : type === "meso" ? 4 : 1;
+      const defaultEndDate = addDays(addWeeks(defaultStartDate, defaultWeeks), -1);
+      
       setEditingCycle(null);
       setCycleForm({
         name: "",
-        start_date: new Date(),
-        end_date: new Date(),
+        start_date: defaultStartDate,
+        end_date: defaultEndDate,
         description: "",
         color: type === "macro" ? "#8B5CF6" : type === "meso" ? "#3B82F6" : "#06B6D4",
         parent_id: "",
+        weeks: defaultWeeks,
       });
     }
     setShowCycleDialog(true);
@@ -1170,7 +1195,12 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                     <Calendar
                       mode="single"
                       selected={cycleForm.start_date}
-                      onSelect={(date) => date && setCycleForm({ ...cycleForm, start_date: date })}
+                      onSelect={(date) => {
+                        if (date) {
+                          const newEndDate = addDays(addWeeks(date, cycleForm.weeks), -1);
+                          setCycleForm({ ...cycleForm, start_date: date, end_date: newEndDate });
+                        }
+                      }}
                       locale={fr}
                       weekStartsOn={1}
                       className="pointer-events-auto"
@@ -1180,28 +1210,50 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               </div>
 
               <div className="space-y-2">
-                <Label>Date de fin *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {format(cycleForm.end_date, "d MMMM yyyy", { locale: fr })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={cycleForm.end_date}
-                      onSelect={(date) => date && setCycleForm({ ...cycleForm, end_date: date })}
-                      locale={fr}
-                      weekStartsOn={1}
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Label>Durée (semaines) *</Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newWeeks = Math.max(1, cycleForm.weeks - 1);
+                      const newEndDate = addDays(addWeeks(cycleForm.start_date, newWeeks), -1);
+                      setCycleForm({ ...cycleForm, weeks: newWeeks, end_date: newEndDate });
+                    }}
+                    disabled={cycleForm.weeks <= 1}
+                  >
+                    -
+                  </Button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={52}
+                    value={cycleForm.weeks}
+                    onChange={(e) => {
+                      const newWeeks = Math.max(1, Math.min(52, parseInt(e.target.value) || 1));
+                      const newEndDate = addDays(addWeeks(cycleForm.start_date, newWeeks), -1);
+                      setCycleForm({ ...cycleForm, weeks: newWeeks, end_date: newEndDate });
+                    }}
+                    className="w-20 text-center"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      const newWeeks = Math.min(52, cycleForm.weeks + 1);
+                      const newEndDate = addDays(addWeeks(cycleForm.start_date, newWeeks), -1);
+                      setCycleForm({ ...cycleForm, weeks: newWeeks, end_date: newEndDate });
+                    }}
+                    disabled={cycleForm.weeks >= 52}
+                  >
+                    +
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Fin : {format(cycleForm.end_date, "d MMMM yyyy", { locale: fr })}
+                </p>
               </div>
             </div>
 
