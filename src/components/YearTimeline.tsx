@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { format, startOfYear, endOfYear, differenceInDays, isWithinInterval, parseISO } from "date-fns";
+import { format, startOfYear, endOfYear, differenceInDays, isWithinInterval, parseISO, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -44,6 +44,8 @@ interface ObjectiveMilestone {
   completed: boolean;
 }
 
+type CycleType = "macro" | "meso" | "micro";
+
 interface YearTimelineProps {
   macrocycles: Macrocycle[];
   mesocycles: Mesocycle[];
@@ -54,9 +56,20 @@ interface YearTimelineProps {
   onMesocycleClick?: (mesocycle: Mesocycle) => void;
   onMicrocycleClick?: (microcycle: Microcycle) => void;
   onMilestoneClick?: (milestone: ObjectiveMilestone) => void;
+  onCycleDatesChange?: (cycleType: CycleType, cycleId: string, newStartDate: string, newEndDate: string) => void;
 }
 
 const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+
+interface DragState {
+  cycleId: string;
+  cycleType: CycleType;
+  mode: "move" | "resize-left" | "resize-right";
+  initialMouseX: number;
+  initialStartDate: string;
+  initialEndDate: string;
+  containerWidth: number;
+}
 
 export function YearTimeline({ 
   macrocycles,
@@ -67,28 +80,140 @@ export function YearTimeline({
   onMacrocycleClick,
   onMesocycleClick,
   onMicrocycleClick,
-  onMilestoneClick 
+  onMilestoneClick,
+  onCycleDatesChange
 }: YearTimelineProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const [previewDates, setPreviewDates] = useState<{ startDate: string; endDate: string } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const yearStart = useMemo(() => startOfYear(new Date(selectedYear, 0, 1)), [selectedYear]);
   const yearEnd = useMemo(() => endOfYear(new Date(selectedYear, 0, 1)), [selectedYear]);
   const totalDays = useMemo(() => differenceInDays(yearEnd, yearStart) + 1, [yearStart, yearEnd]);
 
   // Calculate position as percentage for a given date
-  const getPositionPercent = (dateString: string): number => {
+  const getPositionPercent = useCallback((dateString: string): number => {
     const date = parseISO(dateString);
     const dayOfYear = differenceInDays(date, yearStart);
     return Math.max(0, Math.min(100, (dayOfYear / totalDays) * 100));
-  };
+  }, [yearStart, totalDays]);
 
   // Calculate width as percentage for a date range
-  const getWidthPercent = (startDate: string, endDate: string): number => {
+  const getWidthPercent = useCallback((startDate: string, endDate: string): number => {
     const start = parseISO(startDate);
     const end = parseISO(endDate);
     const durationDays = differenceInDays(end, start) + 1;
     return Math.max(1, (durationDays / totalDays) * 100);
-  };
+  }, [totalDays]);
+
+  // Convert pixel offset to days
+  const pixelsToDays = useCallback((pixels: number, containerWidth: number): number => {
+    return Math.round((pixels / containerWidth) * totalDays);
+  }, [totalDays]);
+
+  // Handle drag start
+  const handleDragStart = useCallback((
+    e: React.MouseEvent,
+    cycleId: string,
+    cycleType: CycleType,
+    startDate: string,
+    endDate: string,
+    mode: "move" | "resize-left" | "resize-right"
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    
+    setDragState({
+      cycleId,
+      cycleType,
+      mode,
+      initialMouseX: e.clientX,
+      initialStartDate: startDate,
+      initialEndDate: endDate,
+      containerWidth: containerRect.width
+    });
+    
+    setPreviewDates({ startDate, endDate });
+  }, []);
+
+  // Handle mouse move during drag
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragState) return;
+    
+    const deltaX = e.clientX - dragState.initialMouseX;
+    const deltaDays = pixelsToDays(deltaX, dragState.containerWidth);
+    
+    const initialStart = parseISO(dragState.initialStartDate);
+    const initialEnd = parseISO(dragState.initialEndDate);
+    
+    let newStart: Date;
+    let newEnd: Date;
+    
+    if (dragState.mode === "move") {
+      newStart = addDays(initialStart, deltaDays);
+      newEnd = addDays(initialEnd, deltaDays);
+    } else if (dragState.mode === "resize-left") {
+      newStart = addDays(initialStart, deltaDays);
+      newEnd = initialEnd;
+      // Ensure minimum 1 day duration
+      if (newStart >= newEnd) {
+        newStart = addDays(newEnd, -1);
+      }
+    } else {
+      // resize-right
+      newStart = initialStart;
+      newEnd = addDays(initialEnd, deltaDays);
+      // Ensure minimum 1 day duration
+      if (newEnd <= newStart) {
+        newEnd = addDays(newStart, 1);
+      }
+    }
+    
+    setPreviewDates({
+      startDate: format(newStart, "yyyy-MM-dd"),
+      endDate: format(newEnd, "yyyy-MM-dd")
+    });
+  }, [dragState, pixelsToDays]);
+
+  // Handle drag end
+  const handleMouseUp = useCallback(() => {
+    if (dragState && previewDates && onCycleDatesChange) {
+      // Only save if dates actually changed
+      if (previewDates.startDate !== dragState.initialStartDate || 
+          previewDates.endDate !== dragState.initialEndDate) {
+        onCycleDatesChange(
+          dragState.cycleType,
+          dragState.cycleId,
+          previewDates.startDate,
+          previewDates.endDate
+        );
+      }
+    }
+    setDragState(null);
+    setPreviewDates(null);
+  }, [dragState, previewDates, onCycleDatesChange]);
+
+  // Add/remove global mouse event listeners
+  React.useEffect(() => {
+    if (dragState) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = dragState.mode === "move" ? "grabbing" : "ew-resize";
+      document.body.style.userSelect = "none";
+      
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+      };
+    }
+  }, [dragState, handleMouseMove, handleMouseUp]);
 
   // Generic filter for cycles that overlap with selected year
   const filterCyclesForYear = <T extends { start_date: string; end_date: string }>(cycles: T[]) => {
@@ -170,9 +295,9 @@ export function YearTimeline({
   const microcycleRows = useMemo(() => arrangeCyclesInRows(visibleMicrocycles), [visibleMicrocycles]);
 
   // Calculate heights for each section
-  const macroHeight = macrocycleRows.length * 32 + (macrocycleRows.length > 0 ? 8 : 0);
-  const mesoHeight = mesocycleRows.length * 32 + (mesocycleRows.length > 0 ? 8 : 0);
-  const microHeight = microcycleRows.length * 32 + (microcycleRows.length > 0 ? 8 : 0);
+  const macroHeight = macrocycleRows.length * 36 + (macrocycleRows.length > 0 ? 8 : 0);
+  const mesoHeight = mesocycleRows.length * 36 + (mesocycleRows.length > 0 ? 8 : 0);
+  const microHeight = microcycleRows.length * 36 + (microcycleRows.length > 0 ? 8 : 0);
   const markersHeight = 32;
   
   const totalHeight = macroHeight + mesoHeight + microHeight + markersHeight;
@@ -181,6 +306,7 @@ export function YearTimeline({
     rows: T[][],
     offsetY: number,
     rowHeight: number,
+    cycleType: CycleType,
     onClick?: (cycle: T) => void,
     opacity: number = 1
   ) => {
@@ -191,36 +317,83 @@ export function YearTimeline({
         style={{ top: `${offsetY + rowIndex * rowHeight}px`, height: `${rowHeight - 4}px` }}
       >
         {row.map((cycle) => {
-          const left = getPositionPercent(cycle.clampedStart);
-          const width = getWidthPercent(cycle.clampedStart, cycle.clampedEnd);
+          const isDragging = dragState?.cycleId === cycle.id;
+          const displayStartDate = isDragging && previewDates ? previewDates.startDate : cycle.start_date;
+          const displayEndDate = isDragging && previewDates ? previewDates.endDate : cycle.end_date;
+          
+          // For display, clamp to year boundaries
+          const clampedDisplayStart = parseISO(displayStartDate) < yearStart 
+            ? format(yearStart, "yyyy-MM-dd") 
+            : displayStartDate;
+          const clampedDisplayEnd = parseISO(displayEndDate) > yearEnd 
+            ? format(yearEnd, "yyyy-MM-dd") 
+            : displayEndDate;
+          
+          const left = getPositionPercent(clampedDisplayStart);
+          const width = getWidthPercent(clampedDisplayStart, clampedDisplayEnd);
           
           return (
             <Tooltip key={cycle.id}>
               <TooltipTrigger asChild>
-                <button
-                  className="absolute h-full rounded-md flex items-center justify-center text-white text-xs font-medium overflow-hidden px-2 hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
+                <div
+                  className={`absolute h-full rounded-md flex items-center text-white text-xs font-medium overflow-hidden shadow-sm group ${
+                    isDragging ? "z-50 ring-2 ring-white/50" : "hover:ring-2 hover:ring-white/30"
+                  }`}
                   style={{ 
                     left: `${left}%`, 
                     width: `${width}%`,
                     backgroundColor: cycle.color,
-                    minWidth: "20px",
-                    opacity
+                    minWidth: "40px",
+                    opacity: isDragging ? 1 : opacity,
+                    cursor: isDragging ? (dragState?.mode === "move" ? "grabbing" : "ew-resize") : "pointer"
                   }}
-                  onClick={() => onClick?.(cycle)}
                 >
-                  <span className="truncate">{cycle.name}</span>
-                </button>
+                  {/* Left resize handle */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 transition-colors flex items-center justify-center"
+                    onMouseDown={(e) => handleDragStart(e, cycle.id, cycleType, cycle.start_date, cycle.end_date, "resize-left")}
+                  >
+                    <div className="w-0.5 h-3 bg-white/50 rounded-full opacity-0 group-hover:opacity-100" />
+                  </div>
+                  
+                  {/* Main drag area */}
+                  <div 
+                    className="flex-1 flex items-center justify-center px-3 cursor-grab active:cursor-grabbing"
+                    onMouseDown={(e) => handleDragStart(e, cycle.id, cycleType, cycle.start_date, cycle.end_date, "move")}
+                    onClick={(e) => {
+                      if (!dragState) {
+                        e.stopPropagation();
+                        onClick?.(cycle);
+                      }
+                    }}
+                  >
+                    <span className="truncate">{cycle.name}</span>
+                  </div>
+                  
+                  {/* Right resize handle */}
+                  <div
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 transition-colors flex items-center justify-center"
+                    onMouseDown={(e) => handleDragStart(e, cycle.id, cycleType, cycle.start_date, cycle.end_date, "resize-right")}
+                  >
+                    <div className="w-0.5 h-3 bg-white/50 rounded-full opacity-0 group-hover:opacity-100" />
+                  </div>
+                </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs">
                 <div className="space-y-1">
                   <p className="font-semibold">{cycle.name}</p>
                   <p className="text-sm">
-                    {format(parseISO(cycle.start_date), "d MMM yyyy", { locale: fr })}
+                    {format(parseISO(isDragging && previewDates ? previewDates.startDate : cycle.start_date), "d MMM yyyy", { locale: fr })}
                     {" → "}
-                    {format(parseISO(cycle.end_date), "d MMM yyyy", { locale: fr })}
+                    {format(parseISO(isDragging && previewDates ? previewDates.endDate : cycle.end_date), "d MMM yyyy", { locale: fr })}
                   </p>
                   {cycle.description && (
                     <p className="text-sm text-muted-foreground">{cycle.description}</p>
+                  )}
+                  {!isDragging && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Glisser pour déplacer • Étirer les côtés pour redimensionner
+                    </p>
                   )}
                 </div>
               </TooltipContent>
@@ -229,6 +402,29 @@ export function YearTimeline({
         })}
       </div>
     ));
+  };
+
+  // Date preview overlay during drag
+  const renderDragPreview = () => {
+    if (!dragState || !previewDates) return null;
+    
+    return (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-lg shadow-lg px-4 py-2">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4 text-primary" />
+          <span className="font-medium">
+            {format(parseISO(previewDates.startDate), "d MMM yyyy", { locale: fr })}
+          </span>
+          <span className="text-muted-foreground">→</span>
+          <span className="font-medium">
+            {format(parseISO(previewDates.endDate), "d MMM yyyy", { locale: fr })}
+          </span>
+          <span className="text-muted-foreground ml-2">
+            ({differenceInDays(parseISO(previewDates.endDate), parseISO(previewDates.startDate)) + 1} jours)
+          </span>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -276,7 +472,11 @@ export function YearTimeline({
             </div>
 
             {/* Timeline container */}
-            <div className="relative" style={{ minHeight: `${Math.max(100, totalHeight)}px` }}>
+            <div 
+              ref={containerRef}
+              className="relative" 
+              style={{ minHeight: `${Math.max(100, totalHeight)}px` }}
+            >
               {/* Month grid lines */}
               <div className="absolute inset-0 flex pointer-events-none">
                 {MONTHS.map((_, index) => (
@@ -326,7 +526,7 @@ export function YearTimeline({
               )}
 
               {/* Macrocycles (top level) */}
-              {renderCycleRow(macrocycleRows, 0, 32, onMacrocycleClick, 1)}
+              {renderCycleRow(macrocycleRows, 0, 36, "macro", onMacrocycleClick, 1)}
 
               {/* Separator after macrocycles */}
               {macrocycleRows.length > 0 && mesocycleRows.length > 0 && (
@@ -337,7 +537,7 @@ export function YearTimeline({
               )}
 
               {/* Mesocycles (middle level) */}
-              {renderCycleRow(mesocycleRows, macroHeight, 32, onMesocycleClick, 0.9)}
+              {renderCycleRow(mesocycleRows, macroHeight, 36, "meso", onMesocycleClick, 0.9)}
 
               {/* Separator after mesocycles */}
               {mesocycleRows.length > 0 && microcycleRows.length > 0 && (
@@ -348,7 +548,7 @@ export function YearTimeline({
               )}
 
               {/* Microcycles (bottom level) */}
-              {renderCycleRow(microcycleRows, macroHeight + mesoHeight, 32, onMicrocycleClick, 0.8)}
+              {renderCycleRow(microcycleRows, macroHeight + mesoHeight, 36, "micro", onMicrocycleClick, 0.8)}
 
               {/* Milestones and main objective markers */}
               <div 
@@ -454,6 +654,9 @@ export function YearTimeline({
             </div>
           </div>
         </TooltipProvider>
+        
+        {/* Drag preview overlay */}
+        {renderDragPreview()}
       </CardContent>
     </Card>
   );
