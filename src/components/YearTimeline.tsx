@@ -3,9 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format, startOfYear, endOfYear, differenceInDays, isWithinInterval, parseISO, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Calendar, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar, Plus, Layers, Layers2, Layers3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 interface Macrocycle {
   id: string;
@@ -57,6 +58,7 @@ interface YearTimelineProps {
   onMicrocycleClick?: (microcycle: Microcycle) => void;
   onMilestoneClick?: (milestone: ObjectiveMilestone) => void;
   onCycleDatesChange?: (cycleType: CycleType, cycleId: string, newStartDate: string, newEndDate: string) => void;
+  onAddCycle?: (cycleType: CycleType) => void;
 }
 
 const MONTHS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
@@ -81,7 +83,8 @@ export function YearTimeline({
   onMesocycleClick,
   onMicrocycleClick,
   onMilestoneClick,
-  onCycleDatesChange
+  onCycleDatesChange,
+  onAddCycle
 }: YearTimelineProps) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -435,7 +438,34 @@ export function YearTimeline({
             <Calendar className="h-5 w-5 text-primary" />
             Planning Annuel
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Add cycle dropdown */}
+            {onAddCycle && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Ajouter
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onAddCycle("macro")} className="gap-2">
+                    <Layers className="h-4 w-4 text-violet-500" />
+                    Macrocycle
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAddCycle("meso")} className="gap-2">
+                    <Layers2 className="h-4 w-4 text-blue-500" />
+                    Mésocycle
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAddCycle("micro")} className="gap-2">
+                    <Layers3 className="h-4 w-4 text-cyan-500" />
+                    Microcycle
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            {/* Year navigation */}
             <Button 
               variant="outline" 
               size="icon" 
