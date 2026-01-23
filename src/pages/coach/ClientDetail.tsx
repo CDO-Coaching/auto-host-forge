@@ -2262,6 +2262,21 @@ export default function ClientDetail() {
                         return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                       };
 
+                      const getWeekProgress = (startDate: string, endDate: string) => {
+                        const start = new Date(startDate);
+                        const end = new Date(endDate);
+                        start.setHours(0, 0, 0, 0);
+                        end.setHours(0, 0, 0, 0);
+                        
+                        const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        const totalWeeks = Math.ceil(totalDays / 7);
+                        
+                        const daysSinceStart = Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                        const currentWeek = Math.min(Math.floor(daysSinceStart / 7) + 1, totalWeeks);
+                        
+                        return { currentWeek, totalWeeks };
+                      };
+
                       const currentMacro = getCurrentCycle(athleteMacrocycles);
                       const currentMeso = getCurrentCycle(athleteMesocycles);
                       const currentMicro = getCurrentCycle(athleteMicrocycles);
@@ -2292,7 +2307,15 @@ export default function ClientDetail() {
                                       />
                                       <p className="font-medium text-sm">{currentMacro.name}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                    {(() => {
+                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMacro.start_date, currentMacro.end_date);
+                                      return (
+                                        <p className="text-xs font-medium text-primary mt-1">
+                                          Semaine {currentWeek}/{totalWeeks}
+                                        </p>
+                                      );
+                                    })()}
+                                    <p className="text-xs text-muted-foreground">
                                       Fin : {new Date(currentMacro.end_date).toLocaleDateString("fr-FR")}
                                     </p>
                                     {getDaysUntilEnd(currentMacro.end_date) <= 7 && getDaysUntilEnd(currentMacro.end_date) >= 0 && (
@@ -2324,7 +2347,15 @@ export default function ClientDetail() {
                                       />
                                       <p className="font-medium text-sm">{currentMeso.name}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                    {(() => {
+                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMeso.start_date, currentMeso.end_date);
+                                      return (
+                                        <p className="text-xs font-medium text-primary mt-1">
+                                          Semaine {currentWeek}/{totalWeeks}
+                                        </p>
+                                      );
+                                    })()}
+                                    <p className="text-xs text-muted-foreground">
                                       Fin : {new Date(currentMeso.end_date).toLocaleDateString("fr-FR")}
                                     </p>
                                     {getDaysUntilEnd(currentMeso.end_date) <= 7 && getDaysUntilEnd(currentMeso.end_date) >= 0 && (
@@ -2356,7 +2387,15 @@ export default function ClientDetail() {
                                       />
                                       <p className="font-medium text-sm">{currentMicro.name}</p>
                                     </div>
-                                    <p className="text-xs text-muted-foreground mt-1">
+                                    {(() => {
+                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMicro.start_date, currentMicro.end_date);
+                                      return (
+                                        <p className="text-xs font-medium text-primary mt-1">
+                                          Semaine {currentWeek}/{totalWeeks}
+                                        </p>
+                                      );
+                                    })()}
+                                    <p className="text-xs text-muted-foreground">
                                       Fin : {new Date(currentMicro.end_date).toLocaleDateString("fr-FR")}
                                     </p>
                                     {getDaysUntilEnd(currentMicro.end_date) <= 7 && getDaysUntilEnd(currentMicro.end_date) >= 0 && (
