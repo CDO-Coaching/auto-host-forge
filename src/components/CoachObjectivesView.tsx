@@ -608,6 +608,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         onMilestoneClick={handleOpenMilestoneDialog}
         onCycleDatesChange={handleCycleDatesChange}
         onAddCycle={(type) => handleOpenCycleDialog(type)}
+        onAddMilestone={() => handleOpenMilestoneDialog()}
       />
 
       {/* Objectif Principal */}
