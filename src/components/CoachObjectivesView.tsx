@@ -958,14 +958,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               <div className="space-y-2">
                 <Label>Macrocycle parent (optionnel)</Label>
                 <Select
-                  value={cycleForm.parent_id}
-                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value })}
+                  value={cycleForm.parent_id || "none"}
+                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun macrocycle" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {macrocycles.map((m) => (
                       <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                     ))}
@@ -978,14 +978,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               <div className="space-y-2">
                 <Label>Mésocycle parent (optionnel)</Label>
                 <Select
-                  value={cycleForm.parent_id}
-                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value })}
+                  value={cycleForm.parent_id || "none"}
+                  onValueChange={(value) => setCycleForm({ ...cycleForm, parent_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Aucun mésocycle" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Aucun</SelectItem>
+                    <SelectItem value="none">Aucun</SelectItem>
                     {mesocycles.map((m) => (
                       <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                     ))}
