@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle, BarChart3, Eye, EyeOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle, BarChart3, Eye, EyeOff, FileText } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 import { getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
+import { exportMonthlyInvoicesToPdf, exportMonthlySummaryToPdf } from "@/lib/invoicePdfExport";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface Client {
   id: string;
@@ -43,6 +45,7 @@ interface AccountingEntry {
 export default function Comptabilite() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [clients, setClients] = useState<Client[]>([]);
   const [entries, setEntries] = useState<AccountingEntry[]>([]);
@@ -615,6 +618,24 @@ export default function Comptabilite() {
           >
             <Copy className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
             {isMobile ? "Copier mois préc." : "Copier du mois précédent"}
+          </Button>
+
+          <Button
+            variant="outline"
+            size={isMobile ? "sm" : "default"}
+            onClick={() => {
+              const coachInfo = {
+                first_name: profile?.first_name || "Coach",
+                last_name: profile?.last_name || "",
+                email: profile?.email || undefined
+              };
+              exportMonthlyInvoicesToPdf(entries, currentMonth, coachInfo);
+              toast.success("Factures téléchargées");
+            }}
+            className="text-xs md:text-sm"
+          >
+            <FileText className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+            {isMobile ? "Factures" : "Télécharger factures"}
           </Button>
 
           <Dialog open={showAddClientDialog} onOpenChange={setShowAddClientDialog}>
