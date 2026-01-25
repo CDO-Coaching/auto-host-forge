@@ -22,6 +22,9 @@ const profileSchema = z.object({
   last_name: z.string().trim().min(1, "Le nom est requis").max(100),
   date_of_birth: z.string().optional(),
   gender: z.enum(["male", "female", "other"]).optional(),
+  address: z.string().trim().max(500).optional(),
+  siret: z.string().trim().max(20).optional(),
+  phone: z.string().trim().max(20).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -40,6 +43,9 @@ export default function Profil() {
       last_name: "",
       date_of_birth: "",
       gender: undefined,
+      address: "",
+      siret: "",
+      phone: "",
     },
   });
 
@@ -58,7 +64,7 @@ export default function Profil() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("email, first_name, last_name, date_of_birth, gender")
+        .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone")
         .eq("id", session.user.id)
         .single();
 
@@ -69,6 +75,9 @@ export default function Profil() {
           last_name: profile.last_name || "",
           date_of_birth: profile.date_of_birth || "",
           gender: profile.gender || undefined,
+          address: profile.address || "",
+          siret: profile.siret || "",
+          phone: profile.phone || "",
         });
       }
       setLoading(false);
@@ -87,6 +96,9 @@ export default function Profil() {
           last_name: data.last_name,
           date_of_birth: data.date_of_birth || null,
           gender: data.gender,
+          address: data.address || null,
+          siret: data.siret || null,
+          phone: data.phone || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
@@ -295,6 +307,53 @@ export default function Profil() {
                         <SelectItem value="other">Autre</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Section Facturation */}
+              <div className="pt-4 border-t">
+                <h3 className="text-base font-semibold mb-4">Informations de facturation</h3>
+              </div>
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Adresse professionnelle</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="123 rue Example, 75001 Paris" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="siret"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>N° SIRET</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="123 456 789 00012" maxLength={20} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Téléphone</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="06 12 34 56 78" type="tel" />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -32,6 +32,7 @@ interface AccountingEntry {
   client_id?: string;
   external_client_id?: string;
   client_name: string;
+  client_address?: string;
   sessions_planned: number;
   sessions_done: number;
   sessions_paid: number;
@@ -162,7 +163,7 @@ export default function Comptabilite() {
         .select(`
           *,
           user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-          external_clients (first_name, last_name)
+          external_clients (first_name, last_name, address)
         `)
         .eq("coach_id", session.user.id)
         .eq("month", monthStr);
@@ -190,7 +191,7 @@ export default function Comptabilite() {
             .select(`
               *,
               user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-              external_clients (first_name, last_name)
+              external_clients (first_name, last_name, address)
             `)
             .eq("coach_id", session.user.id)
             .eq("month", monthStr);
@@ -237,6 +238,7 @@ export default function Comptabilite() {
             client_name: entry.client_id
               ? `${entry.user_profiles?.first_name} ${entry.user_profiles?.last_name}`
               : `${entry.external_clients?.first_name} ${entry.external_clients?.last_name}`,
+            client_address: entry.external_clients?.address || undefined,
             sessions_planned: entry.sessions_planned || 0,
             sessions_done: entry.sessions_done || 0,
             sessions_paid: entry.sessions_paid || 0,
@@ -627,7 +629,10 @@ export default function Comptabilite() {
               const coachInfo = {
                 first_name: profile?.first_name || "Coach",
                 last_name: profile?.last_name || "",
-                email: profile?.email || undefined
+                email: profile?.email || undefined,
+                address: profile?.address || undefined,
+                siret: profile?.siret || undefined,
+                phone: profile?.phone || undefined
               };
               exportMonthlyInvoicesToPdf(entries, currentMonth, coachInfo);
               toast.success("Factures téléchargées");
