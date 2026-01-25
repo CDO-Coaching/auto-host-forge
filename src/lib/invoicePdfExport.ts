@@ -5,6 +5,7 @@ import { fr } from "date-fns/locale";
 export interface InvoiceEntry {
   id: string;
   client_name: string;
+  client_address?: string;
   sessions_planned: number;
   sessions_done: number;
   sessions_paid: number;
@@ -17,6 +18,9 @@ export interface CoachInfo {
   first_name: string;
   last_name: string;
   email?: string;
+  address?: string;
+  siret?: string;
+  phone?: string;
 }
 
 /**
@@ -92,8 +96,23 @@ export const exportMonthlyInvoicesToPdf = (
     doc.setFont("helvetica", "normal");
     doc.text(`${coachInfo.first_name} ${coachInfo.last_name}`, margin, y);
     y += 5;
+    if (coachInfo.address) {
+      const addressLines = doc.splitTextToSize(coachInfo.address, 80);
+      addressLines.forEach((line: string) => {
+        doc.text(line, margin, y);
+        y += 5;
+      });
+    }
+    if (coachInfo.phone) {
+      doc.text(`Tél: ${coachInfo.phone}`, margin, y);
+      y += 5;
+    }
     if (coachInfo.email) {
       doc.text(coachInfo.email, margin, y);
+      y += 5;
+    }
+    if (coachInfo.siret) {
+      doc.text(`SIRET: ${coachInfo.siret}`, margin, y);
       y += 5;
     }
     doc.text("Coach sportif", margin, y);
@@ -105,7 +124,15 @@ export const exportMonthlyInvoicesToPdf = (
     y += 6;
     doc.setFont("helvetica", "normal");
     doc.text(entry.client_name, margin, y);
-    y += 20;
+    y += 5;
+    if (entry.client_address) {
+      const clientAddressLines = doc.splitTextToSize(entry.client_address, 80);
+      clientAddressLines.forEach((line: string) => {
+        doc.text(line, margin, y);
+        y += 5;
+      });
+    }
+    y += 15;
     
     // Période de facturation
     doc.setFont("helvetica", "bold");

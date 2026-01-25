@@ -39,6 +39,7 @@ interface ExternalClient {
   first_name: string;
   last_name: string;
   email: string | null;
+  address: string | null;
   is_active: boolean;
 }
 
@@ -56,6 +57,7 @@ export default function MesClients() {
   const [newExternalFirstName, setNewExternalFirstName] = useState("");
   const [newExternalLastName, setNewExternalLastName] = useState("");
   const [newExternalEmail, setNewExternalEmail] = useState("");
+  const [newExternalAddress, setNewExternalAddress] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
@@ -212,7 +214,7 @@ export default function MesClients() {
     // 5) Charger les clients externes
     const { data: externalClientsData } = await supabase
       .from("external_clients")
-      .select("id, first_name, last_name, email, is_active")
+      .select("id, first_name, last_name, email, address, is_active")
       .eq("coach_id", profile.id)
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true });
@@ -386,6 +388,7 @@ export default function MesClients() {
           first_name: newExternalFirstName.trim(),
           last_name: newExternalLastName.trim(),
           email: newExternalEmail.trim() || null,
+          address: newExternalAddress.trim() || null,
           is_active: true
         });
 
@@ -398,6 +401,7 @@ export default function MesClients() {
       setNewExternalFirstName("");
       setNewExternalLastName("");
       setNewExternalEmail("");
+      setNewExternalAddress("");
       setShowAddExternalDialog(false);
       await loadRelationships();
     } catch (error: any) {
@@ -868,6 +872,16 @@ export default function MesClients() {
                           value={newExternalEmail}
                           onChange={(e) => setNewExternalEmail(e.target.value)}
                           placeholder="email@exemple.com"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="address" className="text-xs sm:text-sm">Adresse (optionnel - pour factures B2B)</Label>
+                        <Input
+                          id="address"
+                          value={newExternalAddress}
+                          onChange={(e) => setNewExternalAddress(e.target.value)}
+                          placeholder="123 rue Example, 75001 Paris"
                           className="h-9 text-sm"
                         />
                       </div>

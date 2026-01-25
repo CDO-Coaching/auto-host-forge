@@ -8,6 +8,9 @@ interface UserProfile {
   last_name: string | null;
   date_of_birth: string | null;
   gender: string | null;
+  address: string | null;
+  siret: string | null;
+  phone: string | null;
 }
 
 export const useUserProfile = () => {
