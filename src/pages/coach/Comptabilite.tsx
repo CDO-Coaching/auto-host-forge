@@ -801,8 +801,8 @@ export default function Comptabilite() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={entry.sessions_planned}
-                                onChange={(e) => updateEntry(entry.id, "sessions_planned", parseInt(e.target.value) || 0)}
+                                value={entry.sessions_planned || ""}
+                                onChange={(e) => updateEntry(entry.id, "sessions_planned", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="w-20 text-center"
                               />
                             </TableCell>
@@ -811,8 +811,8 @@ export default function Comptabilite() {
                                 <Input
                                   type="number"
                                   min="0"
-                                  value={entry.sessions_done}
-                                  onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
+                                  value={entry.sessions_done || ""}
+                                  onChange={(e) => updateEntry(entry.id, "sessions_done", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                   className="w-20 text-center"
                                 />
                                 {entry.weekly_difference !== undefined && (
@@ -834,8 +834,8 @@ export default function Comptabilite() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={entry.sessions_paid}
-                                onChange={(e) => updateEntry(entry.id, "sessions_paid", parseInt(e.target.value) || 0)}
+                                value={entry.sessions_paid || ""}
+                                onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="w-20 text-center"
                               />
                             </TableCell>
@@ -860,8 +860,8 @@ export default function Comptabilite() {
                                   type="number"
                                   min="0"
                                   step="0.01"
-                                  value={entry.amount_cash}
-                                  onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
+                                  value={entry.amount_cash || ""}
+                                  onChange={(e) => updateEntry(entry.id, "amount_cash", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                   className="w-24 text-right"
                                 />
                               ) : (
@@ -874,8 +874,8 @@ export default function Comptabilite() {
                                   type="number"
                                   min="0"
                                   step="0.01"
-                                  value={entry.amount_transfer}
-                                  onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
+                                  value={entry.amount_transfer || ""}
+                                  onChange={(e) => updateEntry(entry.id, "amount_transfer", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                   className="w-24 text-right"
                                 />
                               ) : (
@@ -926,8 +926,8 @@ export default function Comptabilite() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={entry.sessions_planned}
-                                onChange={(e) => updateEntry(entry.id, "sessions_planned", parseInt(e.target.value) || 0)}
+                                value={entry.sessions_planned || ""}
+                                onChange={(e) => updateEntry(entry.id, "sessions_planned", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="h-9 text-center"
                               />
                             </div>
@@ -937,8 +937,8 @@ export default function Comptabilite() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={entry.sessions_paid}
-                                onChange={(e) => updateEntry(entry.id, "sessions_paid", parseInt(e.target.value) || 0)}
+                                value={entry.sessions_paid || ""}
+                                onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="h-9 text-center"
                               />
                             </div>
@@ -950,8 +950,8 @@ export default function Comptabilite() {
                               <Input
                                 type="number"
                                 min="0"
-                                value={entry.sessions_done}
-                                onChange={(e) => updateEntry(entry.id, "sessions_done", parseInt(e.target.value) || 0)}
+                                value={entry.sessions_done || ""}
+                                onChange={(e) => updateEntry(entry.id, "sessions_done", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="h-9 text-center flex-1"
                               />
                               {entry.weekly_difference !== undefined && (
@@ -994,8 +994,8 @@ export default function Comptabilite() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={entry.amount_cash}
-                                onChange={(e) => updateEntry(entry.id, "amount_cash", parseFloat(e.target.value) || 0)}
+                                value={entry.amount_cash || ""}
+                                onChange={(e) => updateEntry(entry.id, "amount_cash", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                 className="h-9"
                               />
                             </div>
@@ -1008,8 +1008,8 @@ export default function Comptabilite() {
                                 type="number"
                                 min="0"
                                 step="0.01"
-                                value={entry.amount_transfer}
-                                onChange={(e) => updateEntry(entry.id, "amount_transfer", parseFloat(e.target.value) || 0)}
+                                value={entry.amount_transfer || ""}
+                                onChange={(e) => updateEntry(entry.id, "amount_transfer", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                 className="h-9"
                               />
                             </div>
