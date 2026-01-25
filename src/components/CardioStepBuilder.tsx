@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +41,66 @@ interface CardioStepBuilderProps {
   athleteVma?: number | null;
   disabled?: boolean;
   sportType?: CardioSportType;
+}
+
+// Composant interne pour l'input de durée avec état local
+function DurationInput({ 
+  value, 
+  onChange, 
+  disabled, 
+  placeholder = "ex: 10:00" 
+}: { 
+  value: number | undefined; 
+  onChange: (value: number | undefined) => void; 
+  disabled?: boolean;
+  placeholder?: string;
+}) {
+  const formatDurationValue = (seconds: number | undefined) => {
+    if (seconds === undefined || seconds === 0) return "";
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const [localValue, setLocalValue] = useState(formatDurationValue(value));
+
+  useEffect(() => {
+    setLocalValue(formatDurationValue(value));
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    setLocalValue(inputValue);
+  };
+
+  const handleBlur = () => {
+    if (!localValue || localValue.trim() === "") {
+      onChange(undefined);
+      return;
+    }
+    const parts = localValue.split(':');
+    if (parts.length === 2) {
+      const mins = parseInt(parts[0]) || 0;
+      const secs = parseInt(parts[1]) || 0;
+      onChange(mins * 60 + secs);
+    } else {
+      const parsed = parseInt(localValue);
+      if (!isNaN(parsed)) {
+        onChange(parsed * 60);
+      }
+    }
+  };
+
+  return (
+    <Input
+      type="text"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      disabled={disabled}
+    />
+  );
 }
 
 export function CardioStepBuilder({ 
@@ -121,20 +181,24 @@ export function CardioStepBuilder({
     onChange({ steps: updatedSteps, blocks });
   };
 
-  const formatDuration = (seconds: number) => {
+  const formatDuration = (seconds: number | undefined) => {
+    if (seconds === undefined || seconds === 0) return "";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const parseDuration = (value: string): number => {
+  const parseDuration = (value: string): number | undefined => {
+    if (!value || value.trim() === "") return undefined;
     const parts = value.split(':');
     if (parts.length === 2) {
       const mins = parseInt(parts[0]) || 0;
       const secs = parseInt(parts[1]) || 0;
       return mins * 60 + secs;
     }
-    return parseInt(value) * 60 || 0;
+    // Si c'est juste un nombre, le traiter comme des minutes
+    const parsed = parseInt(value);
+    return isNaN(parsed) ? undefined : parsed * 60;
   };
 
   const toggleStepSelection = (stepId: number) => {
@@ -409,10 +473,9 @@ export function CardioStepBuilder({
               {step.effort_type === "duration" ? (
                 <div>
                   <label className="text-xs sm:text-sm font-medium mb-1 sm:mb-2 block">Durée (mm:ss)</label>
-                  <Input
-                    type="text"
-                    value={formatDuration(step.duration || 0)}
-                    onChange={(e) => handleStepChange(step.id, "duration", parseDuration(e.target.value))}
+                  <DurationInput
+                    value={step.duration}
+                    onChange={(value) => handleStepChange(step.id, "duration", value)}
                     placeholder="ex: 10:00"
                     disabled={disabled}
                   />
