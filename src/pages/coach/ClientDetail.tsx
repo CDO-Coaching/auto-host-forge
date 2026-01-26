@@ -31,6 +31,7 @@ import {
   Search,
   Video,
   CreditCard,
+  Footprints,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -153,6 +154,7 @@ export default function ClientDetail() {
   const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
+  const [showRunningSheet, setShowRunningSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("programmation");
@@ -2587,6 +2589,34 @@ export default function ClientDetail() {
                   </div>
                 </SheetContent>
               </Sheet>
+
+            {/* Bouton Course */}
+            <Sheet open={showRunningSheet} onOpenChange={setShowRunningSheet}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+                >
+                  <Footprints className="h-4 w-4 mr-1 text-primary" />
+                  <span className="text-xs">Course</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="top" className="h-[85vh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Footprints className="h-5 w-5 text-primary" />
+                    Suivi Course à Pied - {athlete?.first_name}
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <CoachRunningView 
+                    athleteId={athleteId!} 
+                    athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`} 
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
 
             {/* Bouton Notes */}
             <Sheet open={showNotesSheet} onOpenChange={(open) => {
