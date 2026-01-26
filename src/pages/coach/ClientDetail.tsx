@@ -1504,6 +1504,133 @@ export default function ClientDetail() {
     }
   };
 
+  // Copier directement la semaine précédente (sans passer par le dialog)
+  const handleCopyPreviousWeek = async () => {
+    if (!selectedWeekToProgram) {
+      toast.error("Veuillez sélectionner une semaine à programmer");
+      return;
+    }
+
+    // Calculer la semaine précédente par rapport à selectedWeekToProgram
+    let previousWeek = selectedWeekToProgram.week - 1;
+    let previousYear = selectedWeekToProgram.year;
+    if (previousWeek <= 0) {
+      previousWeek = 52;
+      previousYear = selectedWeekToProgram.year - 1;
+    }
+
+    try {
+      // Trouver la semaine précédente validée
+      const { data: weeks, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .eq("validated", true)
+        .eq("week_number", previousWeek)
+        .eq("year", previousYear)
+        .limit(1);
+
+      if (weeksError || !weeks || weeks.length === 0) {
+        toast.error(`Aucune semaine validée trouvée pour S${previousWeek} ${previousYear}`);
+        return;
+      }
+
+      const previousWeekData = weeks[0];
+
+      // Charger les données de la semaine précédente
+      const { data: sessionsData, error } = await supabase
+        .from("training_sessions")
+        .select(
+          `
+          *,
+          session_exercises (*)
+        `,
+        )
+        .eq("week_id", previousWeekData.id)
+        .order("session_number");
+
+      if (error) throw error;
+
+      if (sessionsData && sessionsData.length > 0) {
+        // Créer les nouvelles séances avec les exercices
+        const newSessions: Session[] = sessionsData.map((session, index) => {
+          let sessionType = session.session_type;
+          if (!sessionType && session.session_exercises && session.session_exercises.length > 0) {
+            const hasCardioFields = session.session_exercises.some((ex: any) => 
+              ex.cardio_sport || ex.cardio_content || ex.cardio_pace
+            );
+            sessionType = hasCardioFields ? "cardio" : "renfo";
+          }
+          
+          return {
+            id: index + 1,
+            name: session.name,
+            isExpanded: false,
+            session_type: sessionType || "renfo",
+          };
+        });
+
+        const newExercises: Record<number, Exercise[]> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        const superSetGroupMapping: Record<string, string> = {};
+        
+        sessionsData.forEach((session, sessionIndex) => {
+          if (session.session_exercises) {
+            const sortedExercises = session.session_exercises
+              .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+              .map((ex: any, exIndex: number) => {
+                const feedbackKey = `${sessionIndex + 1}-${ex.exercice}`;
+                if (ex.sportif_rpe || ex.sportif_comment || ex.skipped) {
+                  feedbackMapping[feedbackKey] = {
+                    sportif_rpe: ex.sportif_rpe,
+                    sportif_comment: ex.sportif_comment,
+                    skipped: ex.skipped || false,
+                  };
+                }
+                
+                let newSuperSetGroup: string | null = null;
+                if (ex.super_set_group) {
+                  if (!superSetGroupMapping[ex.super_set_group]) {
+                    superSetGroupMapping[ex.super_set_group] = crypto.randomUUID();
+                  }
+                  newSuperSetGroup = superSetGroupMapping[ex.super_set_group];
+                }
+                
+                return {
+                  id: exIndex + 1,
+                  exercice: ex.exercice,
+                  recuperation: ex.recuperation,
+                  reps: ex.reps,
+                  series: ex.series,
+                  charge: ex.charge,
+                  rpe: ex.rpe,
+                  tempo: ex.tempo,
+                  commentaire: ex.commentaire,
+                  cardio_sport: ex.cardio_sport || "",
+                  cardio_content: ex.cardio_content || "",
+                  cardio_pace: ex.cardio_pace || "",
+                  super_set_group: newSuperSetGroup,
+                  request_video: ex.request_video || false,
+                };
+              });
+            newExercises[sessionIndex + 1] = sortedExercises;
+          }
+        });
+
+        setSessions(newSessions);
+        setSessionExercises(newExercises);
+        setCopiedWeekFeedback(feedbackMapping);
+        setWeekToCopyData(sessionsData);
+        toast.success(`Semaine S${previousWeek} copiée ! Vous pouvez maintenant la modifier.`);
+      } else {
+        toast.error("La semaine précédente ne contient aucune séance");
+      }
+    } catch (error) {
+      console.error("Erreur lors de la copie:", error);
+      toast.error("Erreur lors de la copie de la semaine précédente");
+    }
+  };
+
   const handleSelectWeekForPreview = async (weekId: string) => {
     setSelectedWeekToCopy(weekId);
 
@@ -4353,17 +4480,30 @@ export default function ClientDetail() {
               {!isValidated && (
                 <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
                   {historicalWeeks.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCopyDialog(true)}
-                      disabled={!selectedWeekToProgram}
-                      className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                    >
-                      <Copy className="h-3 w-3 mr-1" />
-                      <span className="sm:hidden">Copier semaine</span>
-                      <span className="hidden sm:inline">Copier d'une semaine</span>
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCopyPreviousWeek}
+                        disabled={!selectedWeekToProgram}
+                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="sm:hidden">Copier précédente</span>
+                        <span className="hidden sm:inline">Copier semaine précédente</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowCopyDialog(true)}
+                        disabled={!selectedWeekToProgram}
+                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        <span className="sm:hidden">Autre semaine</span>
+                        <span className="hidden sm:inline">Copier d'une semaine</span>
+                      </Button>
+                    </div>
                   )}
                   {/* Grille 2x2 sur mobile, inline sur desktop */}
                   <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2 sm:ml-auto">
