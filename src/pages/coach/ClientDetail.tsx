@@ -2612,7 +2612,11 @@ export default function ClientDetail() {
                 <div className="mt-4">
                   <CoachRunningView 
                     athleteId={athleteId!} 
-                    athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`} 
+                    athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`}
+                    programmingWeek={selectedWeekToProgram}
+                    programmingSessions={sessions}
+                    programmingExercises={sessionExercises}
+                    athleteVmaOverride={athleteVma}
                   />
                 </div>
               </SheetContent>
