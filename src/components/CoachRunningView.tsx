@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { formatCardioTime, formatCardioDistance, parsePaceToDecimal } from "@/lib/cardioCalculations";
+import { formatCardioTime, formatCardioDistance, parsePaceToDecimal, calculateCardioMetrics } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
@@ -36,6 +36,8 @@ interface CardioSessionData {
   actualIntensityKarvonen: number | null;
   // Temps passé dans chaque zone d'intensité
   intensityZones: IntensityZones;
+  // Flag pour indiquer si c'est la semaine en cours de programmation
+  isProgramming?: boolean;
 }
 
 interface PlannedVolume {
@@ -45,12 +47,36 @@ interface PlannedVolume {
   sessionCount: number;
 }
 
+// Interface pour les sessions en cours de programmation
+interface ProgrammingSession {
+  id: number;
+  name: string;
+  session_type: "renfo" | "cardio" | "recup";
+}
+
+interface ProgrammingExercise {
+  cardio_sport?: "course" | "natation" | "velo" | "yoga" | "hiit" | "";
+  cardio_content?: string;
+}
+
 interface CoachRunningViewProps {
   athleteId: string;
   athleteName: string;
+  // Props optionnelles pour afficher les données en temps réel pendant la programmation
+  programmingWeek?: { week: number; year: number } | null;
+  programmingSessions?: ProgrammingSession[];
+  programmingExercises?: Record<number, ProgrammingExercise[]>;
+  athleteVmaOverride?: number | null;
 }
 
-export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewProps) {
+export function CoachRunningView({ 
+  athleteId, 
+  athleteName,
+  programmingWeek,
+  programmingSessions,
+  programmingExercises,
+  athleteVmaOverride
+}: CoachRunningViewProps) {
   const [loading, setLoading] = useState(true);
   const [cardioSessions, setCardioSessions] = useState<CardioSessionData[]>([]);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
@@ -367,6 +393,121 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     setLoading(false);
   };
 
+  // Calculer les métriques de la semaine en cours de programmation en temps réel
+  const programmingWeekMetrics = useMemo(() => {
+    if (!programmingWeek || !programmingSessions || !programmingExercises) {
+      return null;
+    }
+
+    const vma = athleteVmaOverride ?? athleteVma;
+    let totalDistance = 0;
+    let totalDuration = 0;
+    let totalIntensityWeighted = 0;
+    let totalDurationForIntensity = 0;
+    let sessionCount = 0;
+
+    // Parcourir les sessions cardio de course
+    programmingSessions.forEach((session) => {
+      if (session.session_type !== "cardio") return;
+
+      const exercises = programmingExercises[session.id] || [];
+      exercises.forEach((exercise) => {
+        if (exercise.cardio_sport !== "course" || !exercise.cardio_content) return;
+
+        try {
+          const cardioData = JSON.parse(exercise.cardio_content) as CardioData;
+          const metrics = calculateCardioMetrics(cardioData, vma);
+          
+          totalDistance += metrics.totalDistanceKm;
+          totalDuration += metrics.totalDurationMinutes;
+          if (metrics.averageIntensity > 0) {
+            totalIntensityWeighted += metrics.averageIntensity * metrics.totalDurationMinutes;
+            totalDurationForIntensity += metrics.totalDurationMinutes;
+          }
+          sessionCount++;
+        } catch (e) {
+          // Ignorer les erreurs de parsing
+        }
+      });
+    });
+
+    if (sessionCount === 0) {
+      return null;
+    }
+
+    const averageIntensity = totalDurationForIntensity > 0
+      ? Math.round(totalIntensityWeighted / totalDurationForIntensity)
+      : 0;
+
+    return {
+      weekNumber: programmingWeek.week,
+      year: programmingWeek.year,
+      weekKey: `${programmingWeek.year}-W${programmingWeek.week.toString().padStart(2, '0')}`,
+      distanceKm: Number(totalDistance.toFixed(2)),
+      durationMinutes: Number(totalDuration.toFixed(2)),
+      averageIntensity,
+      sessionCount
+    };
+  }, [programmingWeek, programmingSessions, programmingExercises, athleteVma, athleteVmaOverride]);
+
+  // Fusionner les données existantes avec les données de programmation en temps réel
+  const mergedCardioSessions = useMemo(() => {
+    if (!programmingWeekMetrics) {
+      return cardioSessions;
+    }
+
+    const programmingWeekKey = programmingWeekMetrics.weekKey;
+    
+    // Créer une copie des données existantes
+    const merged = [...cardioSessions];
+    
+    // Chercher si la semaine existe déjà
+    const existingIndex = merged.findIndex(
+      (s) => s.weekNumber === programmingWeekMetrics.weekNumber && s.year === programmingWeekMetrics.year
+    );
+
+    const programmingData: CardioSessionData = {
+      week: programmingWeekKey,
+      weekNumber: programmingWeekMetrics.weekNumber,
+      year: programmingWeekMetrics.year,
+      plannedDistanceKm: programmingWeekMetrics.distanceKm,
+      plannedDurationMinutes: programmingWeekMetrics.durationMinutes,
+      plannedAverageIntensity: programmingWeekMetrics.averageIntensity,
+      plannedSessionCount: programmingWeekMetrics.sessionCount,
+      actualDistanceKm: 0,
+      actualDurationMinutes: 0,
+      actualAverageIntensity: 0,
+      actualSessionCount: 0,
+      actualAveragePace: null,
+      actualAverageHeartRate: null,
+      actualAverageRpe: null,
+      actualIntensityKarvonen: null,
+      intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
+      isProgramming: true
+    };
+
+    if (existingIndex >= 0) {
+      // Mettre à jour les données programmées de la semaine existante
+      merged[existingIndex] = {
+        ...merged[existingIndex],
+        plannedDistanceKm: programmingWeekMetrics.distanceKm,
+        plannedDurationMinutes: programmingWeekMetrics.durationMinutes,
+        plannedAverageIntensity: programmingWeekMetrics.averageIntensity,
+        plannedSessionCount: programmingWeekMetrics.sessionCount,
+        isProgramming: true
+      };
+    } else {
+      // Ajouter la nouvelle semaine et trier
+      merged.push(programmingData);
+      merged.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.weekNumber - b.weekNumber;
+      });
+    }
+
+    return merged;
+  }, [cardioSessions, programmingWeekMetrics]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -375,7 +516,10 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     );
   }
 
-  if (cardioSessions.length === 0) {
+  // Afficher même s'il n'y a que des données de programmation en cours
+  const hasData = mergedCardioSessions.length > 0;
+  
+  if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center p-8 text-center">
         <Activity className="h-12 w-12 text-muted-foreground mb-4" />
@@ -387,17 +531,17 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     );
   }
 
-  const totalPlannedDistance = cardioSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0);
-  const totalPlannedDuration = cardioSessions.reduce((sum, s) => sum + s.plannedDurationMinutes, 0);
-  const totalActualDistance = cardioSessions.reduce((sum, s) => sum + s.actualDistanceKm, 0);
-  const totalActualDuration = cardioSessions.reduce((sum, s) => sum + s.actualDurationMinutes, 0);
-  const totalWeeks = cardioSessions.length;
-  const avgPlannedIntensity = cardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks;
-  const avgActualIntensity = cardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks;
+  const totalPlannedDistance = mergedCardioSessions.reduce((sum, s) => sum + s.plannedDistanceKm, 0);
+  const totalPlannedDuration = mergedCardioSessions.reduce((sum, s) => sum + s.plannedDurationMinutes, 0);
+  const totalActualDistance = mergedCardioSessions.reduce((sum, s) => sum + s.actualDistanceKm, 0);
+  const totalActualDuration = mergedCardioSessions.reduce((sum, s) => sum + s.actualDurationMinutes, 0);
+  const totalWeeks = mergedCardioSessions.length;
+  const avgPlannedIntensity = mergedCardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks;
+  const avgActualIntensity = mergedCardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks;
 
   // Calculer les métriques de la semaine précédente pour comparaison
-  const lastWeek = cardioSessions[cardioSessions.length - 1];
-  const previousWeek = cardioSessions[cardioSessions.length - 2];
+  const lastWeek = mergedCardioSessions[mergedCardioSessions.length - 1];
+  const previousWeek = mergedCardioSessions[mergedCardioSessions.length - 2];
   
   const calculatePercentChange = (current: number, previous: number): { value: number; isIncrease: boolean } => {
     if (!previous || previous === 0) return { value: 0, isIncrease: true };
@@ -421,7 +565,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
     : null;
 
   // Comparaison intensité basée sur Karvonen
-  const sessionsWithIntensity = cardioSessions.filter(s => s.actualIntensityKarvonen !== null);
+  const sessionsWithIntensity = mergedCardioSessions.filter(s => s.actualIntensityKarvonen !== null);
   const lastWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 1];
   const previousWeekWithIntensity = sessionsWithIntensity[sessionsWithIntensity.length - 2];
   
@@ -441,8 +585,45 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
         <h2 className="text-2xl font-bold">Suivi de course - {athleteName}</h2>
       </div>
 
-      {/* Volume prévu cette semaine */}
-      {plannedVolume && (
+      {/* Volume en cours de programmation (temps réel) */}
+      {programmingWeekMetrics && (
+        <Card className="bg-yellow-500/10 border-yellow-500/50 border-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5 text-yellow-600" />
+              <span>Programmation en cours - Semaine {programmingWeekMetrics.weekNumber}</span>
+              <Badge variant="outline" className="ml-2 border-yellow-500 text-yellow-600">En direct</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 font-medium text-sm">Séances course</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Distance totale</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Durée totale</th>
+                    <th className="text-left py-3 px-4 font-medium text-sm">Intensité moyenne</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.sessionCount}</td>
+                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.distanceKm.toFixed(1)} km</td>
+                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">
+                      {Math.floor(programmingWeekMetrics.durationMinutes / 60)}h{Math.round(programmingWeekMetrics.durationMinutes % 60).toString().padStart(2, '0')}
+                    </td>
+                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.averageIntensity}% VMA</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Volume prévu cette semaine (depuis la DB) */}
+      {plannedVolume && !programmingWeekMetrics && (
         <Card className="bg-muted/50 border-primary/20">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -550,7 +731,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+              <BarChart data={mergedCardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -563,9 +744,13 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                 <Tooltip 
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
+                      const isProgramming = payload[0].payload.isProgramming;
                       return (
                         <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="font-medium mb-2">
+                            {payload[0].payload.week}
+                            {isProgramming && <Badge variant="outline" className="ml-2 text-xs">En cours</Badge>}
+                          </p>
                           <p className="text-sm text-yellow-600">
                             Programmée: {payload[0].payload.plannedDistanceKm.toFixed(1)} km
                           </p>
@@ -579,7 +764,16 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Bar dataKey="plannedDistanceKm" fill="hsl(48 100% 50%)" name="Programmée (km)" />
+                <Bar dataKey="plannedDistanceKm" name="Programmée (km)">
+                  {mergedCardioSessions.map((entry, index) => (
+                    <Cell 
+                      key={`cell-planned-dist-${index}`} 
+                      fill={entry.isProgramming ? "hsl(48 100% 60%)" : "hsl(48 100% 50%)"}
+                      stroke={entry.isProgramming ? "hsl(48 100% 40%)" : undefined}
+                      strokeWidth={entry.isProgramming ? 2 : 0}
+                    />
+                  ))}
+                </Bar>
                 <Bar dataKey="actualDistanceKm" fill="hsl(142 71% 45%)" name="Réalisée (km)" />
               </BarChart>
             </ResponsiveContainer>
@@ -600,7 +794,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+              <BarChart data={mergedCardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="week" 
@@ -615,9 +809,13 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                     if (active && payload && payload.length) {
                       const plannedMinutes = payload[0].payload.plannedDurationMinutes;
                       const actualMinutes = payload[0].payload.actualDurationMinutes;
+                      const isProgramming = payload[0].payload.isProgramming;
                       return (
                         <div className="bg-background border rounded-lg p-3 shadow-lg">
-                          <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                          <p className="font-medium mb-2">
+                            {payload[0].payload.week}
+                            {isProgramming && <Badge variant="outline" className="ml-2 text-xs">En cours</Badge>}
+                          </p>
                           <p className="text-sm text-yellow-600">
                             Programmée: {Math.floor(plannedMinutes / 60)}h{(plannedMinutes % 60).toString().padStart(2, '0')}
                           </p>
@@ -631,7 +829,16 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
                   }}
                 />
                 <Legend />
-                <Bar dataKey="plannedDurationMinutes" fill="hsl(48 100% 50%)" name="Programmée (min)" />
+                <Bar dataKey="plannedDurationMinutes" name="Programmée (min)">
+                  {mergedCardioSessions.map((entry, index) => (
+                    <Cell 
+                      key={`cell-planned-dur-${index}`} 
+                      fill={entry.isProgramming ? "hsl(48 100% 60%)" : "hsl(48 100% 50%)"}
+                      stroke={entry.isProgramming ? "hsl(48 100% 40%)" : undefined}
+                      strokeWidth={entry.isProgramming ? 2 : 0}
+                    />
+                  ))}
+                </Bar>
                 <Bar dataKey="actualDurationMinutes" fill="hsl(142 71% 45%)" name="Réalisée (min)" />
               </BarChart>
             </ResponsiveContainer>
@@ -664,7 +871,7 @@ export function CoachRunningView({ athleteId, athleteName }: CoachRunningViewPro
             {canCalculateKarvonen ? (
               (() => {
                 // Préparer les données avec les zones en pourcentage de l'intensité moyenne
-                const filteredData = cardioSessions.filter(s => {
+                const filteredData = mergedCardioSessions.filter(s => {
                   const total = s.intensityZones.zoneLow + s.intensityZones.zoneMid + s.intensityZones.zoneHigh;
                   return total > 0 && s.actualIntensityKarvonen !== null;
                 });
