@@ -54,6 +54,17 @@ serve(async (req) => {
     const checkoutMode = mode === "subscription" ? "subscription" : "payment";
     logStep("Checkout mode", { checkoutMode });
 
+    // Récupérer les infos du prix pour les passer à la page succès
+    const price = await stripe.prices.retrieve(priceId);
+    const productId = typeof price.product === "string" ? price.product : price.product.id;
+    const product = await stripe.products.retrieve(productId);
+    
+    const successParams = new URLSearchParams({
+      price_id: priceId,
+      product_id: productId,
+      product_name: encodeURIComponent(product.name),
+    });
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
@@ -64,7 +75,7 @@ serve(async (req) => {
         },
       ],
       mode: checkoutMode,
-      success_url: `${req.headers.get("origin")}/sportif/paiement-succes`,
+      success_url: `${req.headers.get("origin")}/sportif/paiement-succes?${successParams.toString()}`,
       cancel_url: `${req.headers.get("origin")}/sportif/paiement`,
       metadata: {
         user_id: user.id,
