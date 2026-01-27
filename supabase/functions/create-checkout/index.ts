@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -30,21 +30,26 @@ serve(async (req) => {
     
     logStep("Request params", { priceId, mode });
 
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header");
+    
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
+    const { data, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError) throw new Error(`Auth error: ${authError.message}`);
+    
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Stripe key found");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
+    let customerId: string | undefined;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       logStep("Found existing customer", { customerId });
@@ -55,9 +60,15 @@ serve(async (req) => {
     logStep("Checkout mode", { checkoutMode });
 
     // Récupérer les infos du prix pour les passer à la page succès
+    logStep("Retrieving price", { priceId });
     const price = await stripe.prices.retrieve(priceId);
-    const productId = typeof price.product === "string" ? price.product : price.product.id;
+    const productId = typeof price.product === "string" ? price.product : (price.product as any).id;
+    logStep("Price retrieved", { productId });
+    
     const product = await stripe.products.retrieve(productId);
+    logStep("Product retrieved", { productName: product.name });
+    
+    const origin = req.headers.get("origin") || "https://auto-host-forge.lovable.app";
     
     const successParams = new URLSearchParams({
       price_id: priceId,
@@ -74,9 +85,9 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
-      mode: checkoutMode,
-      success_url: `${req.headers.get("origin")}/sportif/paiement-succes?${successParams.toString()}`,
-      cancel_url: `${req.headers.get("origin")}/sportif/paiement`,
+      mode: checkoutMode as "payment" | "subscription",
+      success_url: `${origin}/sportif/paiement-succes?${successParams.toString()}`,
+      cancel_url: `${origin}/sportif/paiement`,
       metadata: {
         user_id: user.id,
         price_id: priceId,
@@ -91,7 +102,7 @@ serve(async (req) => {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR", { message: errorMessage });
+    logStep("ERROR", { message: errorMessage, stack: error instanceof Error ? error.stack : undefined });
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
