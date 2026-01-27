@@ -106,26 +106,31 @@ export default function Paiement() {
     }
   };
 
-  const handlePayment = (subscription: AssignedSubscription) => {
-    const product = getProductByPriceId(subscription.stripe_price_id);
-    
-    if (!product?.paymentLink) {
-      toast.error("Lien de paiement non configuré pour ce produit");
-      return;
+  const handlePayment = async (subscription: AssignedSubscription) => {
+    try {
+      toast.info("Préparation du paiement...");
+      
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          priceId: subscription.stripe_price_id,
+          mode: subscription.is_recurring ? "subscription" : "payment",
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Rediriger dans le même onglet pour que le retour fonctionne
+        window.location.href = data.url;
+      } else {
+        throw new Error("URL de paiement non reçue");
+      }
+    } catch (error) {
+      console.error("Erreur création checkout:", error);
+      toast.error("Erreur lors de la création du paiement");
     }
-
-    // Ajouter l'email pré-rempli si disponible
-    const paymentUrl = getPaymentLinkWithParams(product.paymentLink, {
-      prefillEmail: user?.email,
-      clientReferenceId: user?.id,
-    });
-
-    // Ouvrir le Payment Link Stripe dans un nouvel onglet
-    window.open(paymentUrl, "_blank");
-    
-    toast.info("Redirection vers Stripe...", {
-      description: "Complétez votre paiement puis revenez ici."
-    });
   };
 
   const formatPrice = (amount: number, currency: string) => {
