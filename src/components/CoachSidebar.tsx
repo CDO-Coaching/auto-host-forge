@@ -39,15 +39,15 @@ export function CoachSidebar() {
   };
 
   return (
-    <Sidebar collapsible="offcanvas">
+    <Sidebar collapsible="offcanvas" className="border-r">
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Menu Coach</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs sm:text-sm">Menu Coach</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="h-10 sm:h-auto">
                     <NavLink 
                       to={item.url}
                       onClick={handleLinkClick}
@@ -55,10 +55,10 @@ export function CoachSidebar() {
                         isActive ? "bg-primary/10 text-primary font-medium" : ""
                       }
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
+                      <item.icon className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                      <span className="text-sm sm:text-base">{item.title}</span>
                       {item.showBadge && unreadCount > 0 && (
-                        <Badge variant="destructive" className="ml-auto">
+                        <Badge variant="destructive" className="ml-auto text-xs">
                           {unreadCount}
                         </Badge>
                       )}
