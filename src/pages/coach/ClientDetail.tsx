@@ -2260,8 +2260,9 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="programmation" className="space-y-4">
-          {/* Boutons flottants en haut */}
-          <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
+          {/* Boutons flottants en haut - scrollable sur mobile */}
+          <div className="fixed top-16 left-0 right-0 z-50 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:w-auto overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-1.5 sm:gap-2 w-max mx-auto sm:w-auto">
             {/* Bouton Exercices */}
             <Sheet open={showExerciseProgressSheet} onOpenChange={setShowExerciseProgressSheet}>
               <SheetTrigger asChild>
@@ -2811,6 +2812,7 @@ export default function ClientDetail() {
                 </SheetContent>
               </Sheet>
             )}
+            </div>
           </div>
 
           {/* Alerte de fatigue */}
