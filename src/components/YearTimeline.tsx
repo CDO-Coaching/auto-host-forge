@@ -274,16 +274,17 @@ export function YearTimeline({
     );
     
     sortedCycles.forEach(cycle => {
-      const startPos = getPositionPercent(cycle.clampedStart);
-      const endPos = startPos + getWidthPercent(cycle.clampedStart, cycle.clampedEnd);
+      const cycleStart = parseISO(cycle.clampedStart).getTime();
+      const cycleEnd = parseISO(cycle.clampedEnd).getTime();
       
       let placed = false;
       for (let i = 0; i < rows.length; i++) {
         const canPlace = rows[i].every(existing => {
-          const existingStart = getPositionPercent(existing.clampedStart);
-          const existingEnd = existingStart + getWidthPercent(existing.clampedStart, existing.clampedEnd);
-          // Check for overlap with small margin
-          return endPos <= existingStart || startPos >= existingEnd;
+          const existingStart = parseISO(existing.clampedStart).getTime();
+          const existingEnd = parseISO(existing.clampedEnd).getTime();
+          // No overlap if cycle ends before existing starts, or cycle starts after existing ends
+          // Cycles sharing a boundary day are NOT considered overlapping
+          return cycleEnd < existingStart || cycleStart > existingEnd;
         });
         
         if (canPlace) {
