@@ -299,10 +299,15 @@ export function YearTimeline({
   const mesocycleRows = useMemo(() => arrangeCyclesInRows(visibleMesocycles), [visibleMesocycles]);
   const microcycleRows = useMemo(() => arrangeCyclesInRows(visibleMicrocycles), [visibleMicrocycles]);
 
-  // Calculate heights for each section
-  const macroHeight = macrocycleRows.length * 36 + (macrocycleRows.length > 0 ? 8 : 0);
-  const mesoHeight = mesocycleRows.length * 36 + (mesocycleRows.length > 0 ? 8 : 0);
-  const microHeight = microcycleRows.length * 36 + (microcycleRows.length > 0 ? 8 : 0);
+  // Fixed row height for each cycle level
+  const ROW_HEIGHT = 36;
+  const SECTION_PADDING = 8;
+  const MIN_SECTION_HEIGHT = ROW_HEIGHT + SECTION_PADDING; // Minimum height even when empty
+  
+  // Calculate heights for each section - always have at least minimum height
+  const macroHeight = Math.max(MIN_SECTION_HEIGHT, macrocycleRows.length * ROW_HEIGHT + SECTION_PADDING);
+  const mesoHeight = Math.max(MIN_SECTION_HEIGHT, mesocycleRows.length * ROW_HEIGHT + SECTION_PADDING);
+  const microHeight = Math.max(MIN_SECTION_HEIGHT, microcycleRows.length * ROW_HEIGHT + SECTION_PADDING);
   const markersHeight = 32;
   
   const totalHeight = macroHeight + mesoHeight + microHeight + markersHeight;
@@ -541,56 +546,44 @@ export function YearTimeline({
                 </div>
               )}
 
-              {/* Section labels */}
-              {macrocycleRows.length > 0 && (
-                <div 
-                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
-                  style={{ top: "2px" }}
-                >
-                  Macro
-                </div>
-              )}
-              {mesocycleRows.length > 0 && (
-                <div 
-                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
-                  style={{ top: `${macroHeight + 2}px` }}
-                >
-                  Méso
-                </div>
-              )}
-              {microcycleRows.length > 0 && (
-                <div 
-                  className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider"
-                  style={{ top: `${macroHeight + mesoHeight + 2}px` }}
-                >
-                  Micro
-                </div>
-              )}
+              {/* Section labels - Always visible */}
+              <div 
+                className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider bg-card/80 px-1 rounded z-10"
+                style={{ top: "4px" }}
+              >
+                Macro
+              </div>
+              <div 
+                className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider bg-card/80 px-1 rounded z-10"
+                style={{ top: `${macroHeight + 4}px` }}
+              >
+                Méso
+              </div>
+              <div 
+                className="absolute left-0 text-[10px] text-muted-foreground font-medium uppercase tracking-wider bg-card/80 px-1 rounded z-10"
+                style={{ top: `${macroHeight + mesoHeight + 4}px` }}
+              >
+                Micro
+              </div>
+
+              {/* Horizontal separator lines - Always visible */}
+              <div 
+                className="absolute left-0 right-0 border-t-2 border-dashed border-border/60"
+                style={{ top: `${macroHeight}px` }}
+              />
+              <div 
+                className="absolute left-0 right-0 border-t-2 border-dashed border-border/60"
+                style={{ top: `${macroHeight + mesoHeight}px` }}
+              />
 
               {/* Macrocycles (top level) */}
-              {renderCycleRow(macrocycleRows, 0, 36, "macro", onMacrocycleClick, 1)}
-
-              {/* Separator after macrocycles */}
-              {macrocycleRows.length > 0 && mesocycleRows.length > 0 && (
-                <div 
-                  className="absolute left-0 right-0 border-t border-dashed border-border/50"
-                  style={{ top: `${macroHeight - 4}px` }}
-                />
-              )}
+              {renderCycleRow(macrocycleRows, 0, ROW_HEIGHT, "macro", onMacrocycleClick, 1)}
 
               {/* Mesocycles (middle level) */}
-              {renderCycleRow(mesocycleRows, macroHeight, 36, "meso", onMesocycleClick, 0.9)}
-
-              {/* Separator after mesocycles */}
-              {mesocycleRows.length > 0 && microcycleRows.length > 0 && (
-                <div 
-                  className="absolute left-0 right-0 border-t border-dashed border-border/50"
-                  style={{ top: `${macroHeight + mesoHeight - 4}px` }}
-                />
-              )}
+              {renderCycleRow(mesocycleRows, macroHeight, ROW_HEIGHT, "meso", onMesocycleClick, 0.9)}
 
               {/* Microcycles (bottom level) */}
-              {renderCycleRow(microcycleRows, macroHeight + mesoHeight, 36, "micro", onMicrocycleClick, 0.8)}
+              {renderCycleRow(microcycleRows, macroHeight + mesoHeight, ROW_HEIGHT, "micro", onMicrocycleClick, 0.8)}
 
               {/* Milestones and main objective markers */}
               <div 
