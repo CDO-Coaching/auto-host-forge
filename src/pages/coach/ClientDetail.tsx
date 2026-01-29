@@ -2312,71 +2312,14 @@ export default function ClientDetail() {
                       Objectifs de {athlete?.first_name}
                     </SheetTitle>
                   </SheetHeader>
-                  <div className="mt-6 space-y-6">
-                    {/* Objectif Principal */}
-                    {athleteObjectives.main_objective && athleteObjectives.main_objective_deadline && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base flex items-center gap-2">
-                            <Target className="h-4 w-4 text-primary" />
-                            Objectif Principal
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                          <p className="text-sm">{athleteObjectives.main_objective}</p>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Progression</span>
-                              <Badge variant="default" className="text-sm font-semibold">
-                                {(() => {
-                                  const today = new Date();
-                                  const deadline = new Date(athleteObjectives.main_objective_deadline);
-                                  const createdAt = athleteObjectives.created_at 
-                                    ? new Date(athleteObjectives.created_at)
-                                    : new Date();
-                                  
-                                  const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                  const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                  const currentWeek = Math.max(1, Math.min(elapsedWeeks, totalWeeks));
-                                  
-                                  return `Semaine ${currentWeek} / ${totalWeeks}`;
-                                })()}
-                              </Badge>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div 
-                                className="h-full bg-primary transition-all duration-300"
-                                style={{
-                                  width: `${(() => {
-                                    const today = new Date();
-                                    const deadline = new Date(athleteObjectives.main_objective_deadline);
-                                    const createdAt = athleteObjectives.created_at 
-                                      ? new Date(athleteObjectives.created_at)
-                                      : new Date();
-                                    
-                                    const totalWeeks = Math.ceil((deadline.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                    const elapsedWeeks = Math.ceil((today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 7));
-                                    
-                                    return Math.min(100, Math.max(0, (elapsedWeeks / totalWeeks) * 100));
-                                  })()}%`
-                                }}
-                              />
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Échéance : {new Date(athleteObjectives.main_objective_deadline).toLocaleDateString("fr-FR")}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Cycles en cours */}
+                  <div className="mt-6 space-y-4">
+                    {/* Cycles en cours - Affichage principal */}
                     {(() => {
                       const today = new Date();
                       today.setHours(0, 0, 0, 0);
 
-                      const getCurrentCycle = (cycles: Array<{ id: string; name: string; start_date: string; end_date: string; color: string }>) => {
-                        return cycles.find(cycle => {
+                      const getCurrentCycles = (cycles: Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>) => {
+                        return cycles.filter(cycle => {
                           const startDate = new Date(cycle.start_date);
                           const endDate = new Date(cycle.end_date);
                           startDate.setHours(0, 0, 0, 0);
@@ -2385,11 +2328,12 @@ export default function ClientDetail() {
                         });
                       };
 
-                      const getDaysUntilEnd = (endDate: string) => {
+                      const getWeeksRemaining = (endDate: string) => {
                         const end = new Date(endDate);
                         end.setHours(0, 0, 0, 0);
                         const diffTime = end.getTime() - today.getTime();
-                        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return Math.ceil(diffDays / 7);
                       };
 
                       const getWeekProgress = (startDate: string, endDate: string) => {
@@ -2407,186 +2351,136 @@ export default function ClientDetail() {
                         return { currentWeek, totalWeeks };
                       };
 
-                      const currentMacro = getCurrentCycle(athleteMacrocycles);
-                      const currentMeso = getCurrentCycle(athleteMesocycles);
-                      const currentMicro = getCurrentCycle(athleteMicrocycles);
+                      const currentMacros = getCurrentCycles(athleteMacrocycles);
+                      const currentMesos = getCurrentCycles(athleteMesocycles);
+                      const currentMicros = getCurrentCycles(athleteMicrocycles);
 
-                      const hasCycles = currentMacro || currentMeso || currentMicro;
+                      const hasAnyCycle = currentMacros.length > 0 || currentMesos.length > 0 || currentMicros.length > 0;
 
-                      if (!hasCycles) return null;
+                      if (!hasAnyCycle) {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Activity className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                            <p className="text-sm">Aucun cycle actif pour cet athlète</p>
+                            <p className="text-xs mt-1">Créez des cycles dans l'onglet Objectifs</p>
+                          </div>
+                        );
+                      }
 
-                      return (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-base flex items-center gap-2">
-                              <Activity className="h-4 w-4 text-primary" />
-                              Cycles en cours
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              {/* Macrocycle */}
-                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                                <p className="text-xs text-muted-foreground mb-1">Macrocycle</p>
-                                {currentMacro ? (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <div 
-                                        className="h-3 w-3 rounded-full" 
-                                        style={{ backgroundColor: currentMacro.color || 'hsl(var(--primary))' }}
-                                      />
-                                      <p className="font-medium text-sm">{currentMacro.name}</p>
-                                    </div>
-                                    {(() => {
-                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMacro.start_date, currentMacro.end_date);
-                                      return (
-                                        <p className="text-xs font-medium text-primary mt-1">
-                                          Semaine {currentWeek}/{totalWeeks}
-                                        </p>
-                                      );
-                                    })()}
-                                    <p className="text-xs text-muted-foreground">
-                                      Fin : {new Date(currentMacro.end_date).toLocaleDateString("fr-FR")}
-                                    </p>
-                                    {getDaysUntilEnd(currentMacro.end_date) <= 7 && getDaysUntilEnd(currentMacro.end_date) >= 0 && (
-                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
-                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                        <span className="text-xs font-medium">
-                                          {getDaysUntilEnd(currentMacro.end_date) === 0 
-                                            ? "Se termine aujourd'hui" 
-                                            : `Fin dans ${getDaysUntilEnd(currentMacro.end_date)} jour${getDaysUntilEnd(currentMacro.end_date) > 1 ? 's' : ''}`
-                                          }
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">Aucun</p>
+                      const renderCycleCard = (
+                        cycle: { id: string; name: string; start_date: string; end_date: string; color: string; description?: string },
+                        type: string
+                      ) => {
+                        const { currentWeek, totalWeeks } = getWeekProgress(cycle.start_date, cycle.end_date);
+                        const weeksRemaining = getWeeksRemaining(cycle.end_date);
+                        const progressPercent = (currentWeek / totalWeeks) * 100;
+
+                        return (
+                          <div 
+                            key={cycle.id}
+                            className="p-4 rounded-lg border-2 transition-all"
+                            style={{ 
+                              borderColor: cycle.color,
+                              backgroundColor: `${cycle.color}10`
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <div 
+                                    className="h-3 w-3 rounded-full flex-shrink-0" 
+                                    style={{ backgroundColor: cycle.color }}
+                                  />
+                                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                    {type}
+                                  </span>
+                                </div>
+                                <p className="font-semibold text-base" style={{ color: cycle.color }}>
+                                  {cycle.name}
+                                </p>
+                                {cycle.description && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                    {cycle.description}
+                                  </p>
                                 )}
                               </div>
-
-                              {/* Mésocycle */}
-                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                                <p className="text-xs text-muted-foreground mb-1">Mésocycle</p>
-                                {currentMeso ? (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <div 
-                                        className="h-3 w-3 rounded-full" 
-                                        style={{ backgroundColor: currentMeso.color || 'hsl(var(--primary))' }}
-                                      />
-                                      <p className="font-medium text-sm">{currentMeso.name}</p>
-                                    </div>
-                                    {(() => {
-                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMeso.start_date, currentMeso.end_date);
-                                      return (
-                                        <p className="text-xs font-medium text-primary mt-1">
-                                          Semaine {currentWeek}/{totalWeeks}
-                                        </p>
-                                      );
-                                    })()}
-                                    <p className="text-xs text-muted-foreground">
-                                      Fin : {new Date(currentMeso.end_date).toLocaleDateString("fr-FR")}
-                                    </p>
-                                    {getDaysUntilEnd(currentMeso.end_date) <= 7 && getDaysUntilEnd(currentMeso.end_date) >= 0 && (
-                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
-                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                        <span className="text-xs font-medium">
-                                          {getDaysUntilEnd(currentMeso.end_date) === 0 
-                                            ? "Se termine aujourd'hui" 
-                                            : `Fin dans ${getDaysUntilEnd(currentMeso.end_date)} jour${getDaysUntilEnd(currentMeso.end_date) > 1 ? 's' : ''}`
-                                          }
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">Aucun</p>
-                                )}
-                              </div>
-
-                              {/* Microcycle */}
-                              <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                                <p className="text-xs text-muted-foreground mb-1">Microcycle</p>
-                                {currentMicro ? (
-                                  <>
-                                    <div className="flex items-center gap-2">
-                                      <div 
-                                        className="h-3 w-3 rounded-full" 
-                                        style={{ backgroundColor: currentMicro.color || 'hsl(var(--primary))' }}
-                                      />
-                                      <p className="font-medium text-sm">{currentMicro.name}</p>
-                                    </div>
-                                    {(() => {
-                                      const { currentWeek, totalWeeks } = getWeekProgress(currentMicro.start_date, currentMicro.end_date);
-                                      return (
-                                        <p className="text-xs font-medium text-primary mt-1">
-                                          Semaine {currentWeek}/{totalWeeks}
-                                        </p>
-                                      );
-                                    })()}
-                                    <p className="text-xs text-muted-foreground">
-                                      Fin : {new Date(currentMicro.end_date).toLocaleDateString("fr-FR")}
-                                    </p>
-                                    {getDaysUntilEnd(currentMicro.end_date) <= 7 && getDaysUntilEnd(currentMicro.end_date) >= 0 && (
-                                      <div className="flex items-center gap-1.5 mt-2 text-amber-500">
-                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                        <span className="text-xs font-medium">
-                                          {getDaysUntilEnd(currentMicro.end_date) === 0 
-                                            ? "Se termine aujourd'hui" 
-                                            : `Fin dans ${getDaysUntilEnd(currentMicro.end_date)} jour${getDaysUntilEnd(currentMicro.end_date) > 1 ? 's' : ''}`
-                                          }
-                                        </span>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <p className="text-sm text-muted-foreground">Aucun</p>
-                                )}
+                              <div className="text-right flex-shrink-0">
+                                <Badge 
+                                  variant="outline" 
+                                  className="font-bold text-sm"
+                                  style={{ 
+                                    borderColor: cycle.color, 
+                                    color: cycle.color 
+                                  }}
+                                >
+                                  {weeksRemaining <= 0 
+                                    ? "Dernière semaine" 
+                                    : `${weeksRemaining} sem. restante${weeksRemaining > 1 ? 's' : ''}`
+                                  }
+                                </Badge>
                               </div>
                             </div>
-                          </CardContent>
-                        </Card>
+                            
+                            {/* Barre de progression */}
+                            <div className="mt-3 space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">Semaine {currentWeek}/{totalWeeks}</span>
+                                <span className="text-muted-foreground">
+                                  Fin : {new Date(cycle.end_date).toLocaleDateString("fr-FR")}
+                                </span>
+                              </div>
+                              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full transition-all duration-300 rounded-full"
+                                  style={{ 
+                                    width: `${progressPercent}%`,
+                                    backgroundColor: cycle.color
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Alerte si fin proche */}
+                            {weeksRemaining <= 1 && weeksRemaining >= 0 && (
+                              <div className="flex items-center gap-1.5 mt-3 text-amber-500">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium">
+                                  {weeksRemaining <= 0 
+                                    ? "Dernière semaine du cycle" 
+                                    : "Plus qu'une semaine"
+                                  }
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <div className="space-y-4">
+                          {/* Macrocycles */}
+                          {currentMacros.length > 0 && (
+                            <div className="space-y-3">
+                              {currentMacros.map(cycle => renderCycleCard(cycle, "Macrocycle"))}
+                            </div>
+                          )}
+
+                          {/* Mésocycles */}
+                          {currentMesos.length > 0 && (
+                            <div className="space-y-3">
+                              {currentMesos.map(cycle => renderCycleCard(cycle, "Mésocycle"))}
+                            </div>
+                          )}
+
+                          {/* Microcycles */}
+                          {currentMicros.length > 0 && (
+                            <div className="space-y-3">
+                              {currentMicros.map(cycle => renderCycleCard(cycle, "Microcycle"))}
+                            </div>
+                          )}
+                        </div>
                       );
                     })()}
-                    
-                    {athleteObjectives.secondary_objective && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">Objectif Secondaire</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm">{athleteObjectives.secondary_objective}</p>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Milestones */}
-                    {athleteMilestones.length > 0 && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">Dates clés</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {athleteMilestones.map((milestone) => (
-                              <div key={milestone.id} className="flex items-start gap-3 p-2 rounded-lg bg-muted/50">
-                                <div className={`mt-1 h-3 w-3 rounded-full ${milestone.is_completed ? 'bg-green-500' : 'bg-muted-foreground/30'}`} />
-                                <div className="flex-1">
-                                  <p className="font-medium text-sm">{milestone.label}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {new Date(milestone.target_date).toLocaleDateString("fr-FR")}
-                                  </p>
-                                  {milestone.notes && (
-                                    <p className="text-xs text-muted-foreground mt-1">{milestone.notes}</p>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
                   </div>
                 </SheetContent>
               </Sheet>
