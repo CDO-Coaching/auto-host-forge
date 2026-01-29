@@ -264,11 +264,16 @@ export function YearTimeline({
   const showTodayMarker = today.getFullYear() === selectedYear;
   const todayPosition = showTodayMarker ? getPositionPercent(format(today, "yyyy-MM-dd")) : 0;
 
-  // Arrange cycles in rows to avoid overlaps
+  // Arrange cycles in rows to avoid overlaps - sort by start date first for optimal packing
   const arrangeCyclesInRows = <T extends { clampedStart: string; clampedEnd: string }>(cycles: T[]) => {
     const rows: Array<T[]> = [];
     
-    cycles.forEach(cycle => {
+    // Sort cycles by start date to ensure optimal row packing
+    const sortedCycles = [...cycles].sort((a, b) => 
+      parseISO(a.clampedStart).getTime() - parseISO(b.clampedStart).getTime()
+    );
+    
+    sortedCycles.forEach(cycle => {
       const startPos = getPositionPercent(cycle.clampedStart);
       const endPos = startPos + getWidthPercent(cycle.clampedStart, cycle.clampedEnd);
       
@@ -277,6 +282,7 @@ export function YearTimeline({
         const canPlace = rows[i].every(existing => {
           const existingStart = getPositionPercent(existing.clampedStart);
           const existingEnd = existingStart + getWidthPercent(existing.clampedStart, existing.clampedEnd);
+          // Check for overlap with small margin
           return endPos <= existingStart || startPos >= existingEnd;
         });
         
