@@ -1,10 +1,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const logStep = (step: string, details?: any) => {
@@ -42,10 +42,21 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key found");
+    if (!stripeKey) {
+      throw new Error("STRIPE_SECRET_KEY not configured. Add it in Supabase Dashboard > Edge Functions > Secrets");
+    }
+    
+    // Validate key format
+    if (stripeKey.startsWith("pk_")) {
+      throw new Error("Invalid key type: STRIPE_SECRET_KEY contains publishable key (pk_*). Need secret key (sk_*)");
+    }
+    if (stripeKey.startsWith("rk_")) {
+      throw new Error("Restricted keys not supported. Use full secret key (sk_test_* or sk_live_*)");
+    }
+    
+    logStep("Stripe key found and validated");
 
-    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     
     // Check if customer exists
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
