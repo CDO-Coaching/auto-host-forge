@@ -108,28 +108,39 @@ export default function Paiement() {
 
   const handlePayment = async (subscription: AssignedSubscription) => {
     try {
-      toast.info("Préparation du paiement...");
+      toast.info("Redirection vers le paiement...");
       
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: subscription.stripe_price_id,
-          mode: subscription.is_recurring ? "subscription" : "payment",
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data?.url) {
-        // Rediriger dans le même onglet pour que le retour fonctionne
-        window.location.href = data.url;
+      // Chercher le Payment Link dans la config locale
+      const productConfig = STRIPE_PRODUCTS.find(
+        p => p.priceId === subscription.stripe_price_id || p.id === subscription.stripe_product_id
+      );
+      
+      if (productConfig?.paymentLink) {
+        // Utiliser le Payment Link avec l'email pré-rempli
+        const paymentUrl = getPaymentLinkWithParams(productConfig.paymentLink, {
+          prefillEmail: user?.email,
+          clientReferenceId: user?.id,
+        });
+        window.location.href = paymentUrl;
       } else {
-        throw new Error("URL de paiement non reçue");
+        // Fallback: essayer l'Edge Function si disponible
+        const { data, error } = await supabase.functions.invoke("create-checkout", {
+          body: {
+            priceId: subscription.stripe_price_id,
+            mode: subscription.is_recurring ? "subscription" : "payment",
+          },
+        });
+
+        if (error) throw error;
+        if (data?.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error("URL de paiement non reçue");
+        }
       }
     } catch (error) {
       console.error("Erreur création checkout:", error);
-      toast.error("Erreur lors de la création du paiement");
+      toast.error("Erreur lors de la création du paiement. Contactez votre coach.");
     }
   };
 
