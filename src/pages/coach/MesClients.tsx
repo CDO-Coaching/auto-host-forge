@@ -7,13 +7,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown, CreditCard, UserX } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { PauseReminderDialog } from "@/components/PauseReminderDialog";
+import { useAthleteSubscriptionStatus } from "@/hooks/useAthleteSubscriptionStatus";
 
 interface Athlete {
   id: string;
@@ -61,6 +62,7 @@ export default function MesClients() {
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
   const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const { statuses: subscriptionStatuses } = useAthleteSubscriptionStatus(profile?.id);
 
   useEffect(() => {
     if (profile?.id) {
@@ -672,9 +674,24 @@ export default function MesClients() {
                           <User className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm sm:text-base truncate">
-                            {relationship.athlete.first_name} {relationship.athlete.last_name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm sm:text-base truncate">
+                              {relationship.athlete.first_name} {relationship.athlete.last_name}
+                            </p>
+                            {/* Badges abonnement */}
+                            {subscriptionStatuses.get(relationship.athlete_id)?.hasNewPayment && (
+                              <Badge className="bg-green-500 text-[10px] h-4 px-1.5 flex-shrink-0" title="Paiement reçu">
+                                <CreditCard className="h-2.5 w-2.5 mr-0.5" />
+                                <span className="hidden sm:inline">Payé</span>
+                              </Badge>
+                            )}
+                            {subscriptionStatuses.get(relationship.athlete_id)?.hasCancelledRecently && (
+                              <Badge variant="destructive" className="text-[10px] h-4 px-1.5 flex-shrink-0" title="Désabonnement récent">
+                                <UserX className="h-2.5 w-2.5 mr-0.5" />
+                                <span className="hidden sm:inline">Désabo</span>
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-xs sm:text-sm text-muted-foreground truncate">
                             {relationship.athlete.email}
                           </p>

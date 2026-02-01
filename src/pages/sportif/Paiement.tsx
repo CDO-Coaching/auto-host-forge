@@ -4,9 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat } from "lucide-react";
+import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat, XCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPaymentLinkWithParams, getProductByPriceId, STRIPE_PRODUCTS } from "@/lib/stripeConfig";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface AssignedSubscription {
   id: string;
@@ -36,6 +46,9 @@ export default function Paiement() {
   const [activeSubscriptions, setActiveSubscriptions] = useState<ActiveSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState<ActiveSubscription | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -144,6 +157,39 @@ export default function Paiement() {
     }
   };
 
+  const handleCancelClick = (subscription: ActiveSubscription) => {
+    setSubscriptionToCancel(subscription);
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!subscriptionToCancel) return;
+    
+    setCancelling(subscriptionToCancel.id);
+    try {
+      const { error } = await supabase
+        .from("athlete_subscriptions")
+        .update({
+          status: "cancelled",
+          cancelled_at: new Date().toISOString(),
+          cancelled_notified: false,
+        })
+        .eq("id", subscriptionToCancel.id);
+
+      if (error) throw error;
+
+      toast.success("Désabonnement effectué. Ton coach sera notifié.");
+      setShowCancelDialog(false);
+      setSubscriptionToCancel(null);
+      await loadActiveSubscriptions();
+    } catch (error) {
+      console.error("Erreur désabonnement:", error);
+      toast.error("Erreur lors du désabonnement");
+    } finally {
+      setCancelling(null);
+    }
+  };
+
   const formatPrice = (amount: number, currency: string) => {
     return new Intl.NumberFormat("fr-FR", {
       style: "currency",
@@ -203,7 +249,8 @@ export default function Paiement() {
   }
 
   return (
-    <div className="container max-w-2xl mx-auto py-8 px-4 space-y-6">
+    <>
+      <div className="container max-w-2xl mx-auto py-8 px-4 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -257,18 +304,32 @@ export default function Paiement() {
                         <span>Prochain renouvellement : {formatDate(sub.expires_at)}</span>
                       </div>
                     )}
+                    </div>
+                    <Badge className="bg-green-500">
+                      <Check className="h-3 w-3 mr-1" />
+                      Actif
+                    </Badge>
                   </div>
-                  <Badge className="bg-green-500">
-                    <Check className="h-3 w-3 mr-1" />
-                    Actif
-                  </Badge>
+                  <div className="mt-3 p-3 rounded-lg bg-green-500/10">
+                    <p className="text-sm">
+                      ✓ Tu es abonné mensuellement ! Tu peux t'entraîner sans limite.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 text-destructive hover:bg-destructive/10"
+                    onClick={() => handleCancelClick(sub)}
+                    disabled={cancelling === sub.id}
+                  >
+                    {cancelling === sub.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <XCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Se désabonner
+                  </Button>
                 </div>
-                <div className="mt-3 p-3 rounded-lg bg-green-500/10">
-                  <p className="text-sm">
-                    ✓ Tu es abonné mensuellement ! Tu peux t'entraîner sans limite.
-                  </p>
-                </div>
-              </div>
             ))}
           </CardContent>
         </Card>
@@ -382,5 +443,32 @@ export default function Paiement() {
         </Card>
       )}
     </div>
+
+      {/* Dialog de confirmation de désabonnement */}
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer le désabonnement</AlertDialogTitle>
+            <AlertDialogDescription>
+              Es-tu sûr(e) de vouloir te désabonner de "{subscriptionToCancel?.product_name}" ?
+              <br /><br />
+              Tu ne seras plus facturé(e) le mois prochain et ton coach sera notifié de ta décision.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {cancelling ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Se désabonner
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

@@ -19,6 +19,8 @@ import { useCoachBirthdayReminder } from "@/hooks/useCoachBirthdayReminder";
 import { CoachBirthdayAlert } from "@/components/CoachBirthdayAlert";
 import { useCoachPaymentNotifications } from "@/hooks/useCoachPaymentNotifications";
 import { CoachAthletePaymentAlert } from "@/components/CoachAthletePaymentAlert";
+import { useCoachCancellationNotifications } from "@/hooks/useCoachCancellationNotifications";
+import { CoachCancellationAlert } from "@/components/CoachCancellationAlert";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
@@ -41,6 +43,7 @@ export default function DashboardCoach() {
   const { pendingReminder, acknowledgeReminder } = useCoachNoteReminder();
   const { birthdayAthletes, dismissBirthday } = useCoachBirthdayReminder(profile?.id);
   const { pendingNotifications: paymentNotifications, dismissNotification: dismissPaymentNotification, dismissAll: dismissAllPayments } = useCoachPaymentNotifications(profile?.id);
+  const { pendingCancellations, dismissCancellation } = useCoachCancellationNotifications(profile?.id);
 
   useEffect(() => {
     // Attendre que l'authentification soit chargée
@@ -131,6 +134,12 @@ export default function DashboardCoach() {
           notifications={paymentNotifications}
           onDismiss={dismissPaymentNotification}
           onDismissAll={dismissAllPayments}
+        />
+      )}
+      {pendingCancellations.length > 0 && (
+        <CoachCancellationAlert
+          notifications={pendingCancellations}
+          onDismiss={dismissCancellation}
         />
       )}
       <SidebarProvider>
