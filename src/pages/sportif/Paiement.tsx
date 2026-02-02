@@ -87,10 +87,21 @@ export default function Paiement() {
         .from("athlete_assigned_subscriptions")
         .select("*")
         .eq("athlete_id", user?.id)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setAssignedSubscriptions(data || []);
+      
+      // Dédupliquer par stripe_price_id (garder le plus récent)
+      const uniqueSubs = data?.reduce((acc: AssignedSubscription[], sub) => {
+        const exists = acc.find(s => s.stripe_price_id === sub.stripe_price_id);
+        if (!exists) {
+          acc.push(sub);
+        }
+        return acc;
+      }, []) || [];
+      
+      setAssignedSubscriptions(uniqueSubs);
     } catch (error) {
       console.error("Erreur chargement abonnements assignés:", error);
     }
