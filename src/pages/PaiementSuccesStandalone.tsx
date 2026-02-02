@@ -1,19 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CheckCircle, Loader2, ArrowLeft, Calendar, Repeat } from "lucide-react";
 import { STRIPE_PRODUCTS } from "@/lib/stripeConfig";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function PaiementSuccesStandalone() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [waitingForAuth, setWaitingForAuth] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const { session, loading: authLoading } = useAuth();
   
   const priceId = searchParams.get("price_id");
   const productId = searchParams.get("product_id");
@@ -23,55 +24,15 @@ export default function PaiementSuccesStandalone() {
   const productConfig = STRIPE_PRODUCTS.find(p => p.priceId === priceId);
   const isRecurring = productConfig?.isRecurring ?? false;
 
-  // Attendre que la session soit restaurée (après retour Stripe)
-  useEffect(() => {
-    const checkSession = async () => {
-      // Attendre un peu pour que la session soit restaurée
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        setWaitingForAuth(false);
-      } else {
-        // Si pas de session après 2 secondes, on attend encore un peu
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (retrySession?.user) {
-            setUser(retrySession.user);
-            setWaitingForAuth(false);
-          } else {
-            // Toujours pas de session, rediriger vers login
-            toast.error("Session expirée, veuillez vous reconnecter");
-            navigate("/auth", { replace: true });
-          }
-        }, 2000);
-      }
-    };
-
-    checkSession();
-
-    // Écouter les changements d'auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session?.user) {
-          setUser(session.user);
-          setWaitingForAuth(false);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
   // Enregistrer le paiement une fois l'utilisateur authentifié
   useEffect(() => {
-    if (user && priceId && productId && !saved && !waitingForAuth) {
+    if (!authLoading && session?.user && priceId && productId && !saved) {
       enregistrerPaiement();
     }
-  }, [user, priceId, productId, saved, waitingForAuth]);
+  }, [authLoading, session?.user, priceId, productId, saved]);
 
   const enregistrerPaiement = async () => {
-    if (!user || !priceId || !productId) return;
+    if (!session?.user || !priceId || !productId) return;
     
     setSaving(true);
     try {
@@ -79,7 +40,7 @@ export default function PaiementSuccesStandalone() {
       const { data: existing } = await supabase
         .from("athlete_subscriptions")
         .select("id")
-        .eq("athlete_id", user.id)
+        .eq("athlete_id", session.user.id)
         .eq("stripe_price_id", priceId)
         .eq("status", "active")
         .maybeSingle();
@@ -98,7 +59,7 @@ export default function PaiementSuccesStandalone() {
       const { error } = await supabase
         .from("athlete_subscriptions")
         .insert({
-          athlete_id: user.id,
+          athlete_id: session.user.id,
           stripe_price_id: priceId,
           stripe_product_id: productId,
           product_name: decodeURIComponent(productName || "Abonnement"),
@@ -129,14 +90,52 @@ export default function PaiementSuccesStandalone() {
 
   const decodedProductName = productName ? decodeURIComponent(productName) : "Abonnement";
 
-  // Afficher un loader pendant l'attente de la session
-  if (waitingForAuth) {
+  const redirectTo = useMemo(() => {
+    // On conserve exactement la route + query pour pouvoir reprendre l'enregistrement après login
+    return `${location.pathname}${location.search}`;
+  }, [location.pathname, location.search]);
+
+  // Afficher un loader pendant la restauration de session (retour Stripe)
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
           <Loader2 className="h-12 w-12 text-primary animate-spin mx-auto" />
           <p className="text-muted-foreground">Vérification de votre session...</p>
         </div>
+      </div>
+    );
+  }
+
+  // Si aucune session n'est disponible sur CETTE URL (souvent un souci d'origine: preview vs domaine publié),
+  // on ne force pas une redirection automatique: on propose une reconnexion puis retour ici.
+  if (!session?.user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl">Connexion requise</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p className="text-muted-foreground">
+              On n'a pas retrouvé ta session sur cette page. Ça arrive si tu étais connecté sur un autre domaine
+              (ex: preview) avant de payer.
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => navigate(`/auth?redirectTo=${encodeURIComponent(redirectTo)}`)}
+            >
+              Me reconnecter
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate("/", { replace: true })}
+            >
+              Retour à l'accueil
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
