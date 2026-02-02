@@ -127,14 +127,27 @@ export default function Paiement() {
     try {
       toast.info("Redirection vers le paiement...");
       
-      // Chercher le Payment Link dans la config locale par priceId OU productId
-      const productConfig = STRIPE_PRODUCTS.find(
+      // Chercher le Payment Link dans la config locale par priceId, productId, OU nom de produit
+      let productConfig = STRIPE_PRODUCTS.find(
         p => p.priceId === subscription.stripe_price_id || p.id === subscription.stripe_product_id
       );
+      
+      // Fallback: matcher par nom de produit si les IDs ne correspondent pas
+      if (!productConfig) {
+        productConfig = STRIPE_PRODUCTS.find(
+          p => p.name.toLowerCase() === subscription.product_name.toLowerCase()
+        );
+      }
+      
+      // Fallback ultime: si un seul produit configuré, l'utiliser
+      if (!productConfig && STRIPE_PRODUCTS.length === 1) {
+        productConfig = STRIPE_PRODUCTS[0];
+      }
       
       console.log("Payment debug:", {
         subscriptionPriceId: subscription.stripe_price_id,
         subscriptionProductId: subscription.stripe_product_id,
+        subscriptionProductName: subscription.product_name,
         foundConfig: productConfig,
         availableProducts: STRIPE_PRODUCTS,
       });
@@ -152,6 +165,7 @@ export default function Paiement() {
         console.error("No matching product config found for:", {
           priceId: subscription.stripe_price_id,
           productId: subscription.stripe_product_id,
+          productName: subscription.product_name,
         });
         toast.error("Configuration de paiement manquante. Veuillez contacter votre coach.");
       }
