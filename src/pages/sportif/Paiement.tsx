@@ -127,10 +127,17 @@ export default function Paiement() {
     try {
       toast.info("Redirection vers le paiement...");
       
-      // Chercher le Payment Link dans la config locale
+      // Chercher le Payment Link dans la config locale par priceId OU productId
       const productConfig = STRIPE_PRODUCTS.find(
         p => p.priceId === subscription.stripe_price_id || p.id === subscription.stripe_product_id
       );
+      
+      console.log("Payment debug:", {
+        subscriptionPriceId: subscription.stripe_price_id,
+        subscriptionProductId: subscription.stripe_product_id,
+        foundConfig: productConfig,
+        availableProducts: STRIPE_PRODUCTS,
+      });
       
       if (productConfig?.paymentLink) {
         // Utiliser le Payment Link avec l'email pré-rempli
@@ -138,22 +145,15 @@ export default function Paiement() {
           prefillEmail: user?.email,
           clientReferenceId: user?.id,
         });
+        console.log("Redirecting to Payment Link:", paymentUrl);
         window.location.href = paymentUrl;
       } else {
-        // Fallback: essayer l'Edge Function si disponible
-        const { data, error } = await supabase.functions.invoke("create-checkout", {
-          body: {
-            priceId: subscription.stripe_price_id,
-            mode: subscription.is_recurring ? "subscription" : "payment",
-          },
+        // Aucun Payment Link trouvé - afficher un message plus clair
+        console.error("No matching product config found for:", {
+          priceId: subscription.stripe_price_id,
+          productId: subscription.stripe_product_id,
         });
-
-        if (error) throw error;
-        if (data?.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error("URL de paiement non reçue");
-        }
+        toast.error("Configuration de paiement manquante. Veuillez contacter votre coach.");
       }
     } catch (error) {
       console.error("Erreur création checkout:", error);
