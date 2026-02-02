@@ -9,9 +9,9 @@ export const STRIPE_PUBLIC_KEY = "pk_test_51SqDMn4Ea2SMa31kKtg8O43pIREW2EuApnI0F
 // NOTE: La route est /paiement-succes (sans /sportif) pour éviter les problèmes d'auth après retour Stripe
 export const STRIPE_PRODUCTS = [
   {
-    id: "prod_default",
+    id: "prod_TnpBWRzXzACMFB",
     name: "Abonnement mensuel",
-    priceId: "price_default",
+    priceId: "price_1SqDX44Ea2SMa31k0hkpUthY",
     paymentLink: "https://buy.stripe.com/test_3cI4gsepfbO6bOQalwdIA04",
     amount: 8000, // en centimes
     currency: "eur",
