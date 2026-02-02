@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +21,11 @@ const Auth = () => {
   const [healthDataConsent, setHealthDataConsent] = useState(false);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session, loading } = useAuth();
+
+  const redirectToParam = searchParams.get("redirectTo");
+  const safeRedirectTo = redirectToParam && redirectToParam.startsWith("/") ? redirectToParam : null;
 
   useEffect(() => {
     if (loading) return;
@@ -37,6 +41,11 @@ const Auth = () => {
     }
 
     if (session) {
+      if (safeRedirectTo) {
+        navigate(safeRedirectTo, { replace: true });
+        return;
+      }
+
       const redirectUser = async () => {
         const { data: profile } = await supabase
           .from("user_profiles")
@@ -58,7 +67,7 @@ const Auth = () => {
 
       redirectUser();
     }
-  }, [session, loading, navigate]);
+  }, [session, loading, navigate, safeRedirectTo]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +79,12 @@ const Auth = () => {
         if (error) throw error;
         
         toast({ title: "Connexion réussie" });
+
+        // Si on a un redirect demandé (ex: retour Stripe), on le respecte.
+        if (safeRedirectTo) {
+          navigate(safeRedirectTo, { replace: true });
+          return;
+        }
         
         // Redirection explicite après connexion
         if (data.user) {
