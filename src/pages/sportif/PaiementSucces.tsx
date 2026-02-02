@@ -65,6 +65,7 @@ export default function PaiementSucces() {
           paid_at: new Date().toISOString(),
           is_recurring: isRecurring,
           expires_at: expiresAt.toISOString(),
+          coach_notified: false, // Pour que le coach soit notifié
         });
 
       if (error) {
