@@ -91,17 +91,10 @@ export default function Paiement() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      
-      // Dédupliquer par stripe_price_id (garder le plus récent)
-      const uniqueSubs = data?.reduce((acc: AssignedSubscription[], sub) => {
-        const exists = acc.find(s => s.stripe_price_id === sub.stripe_price_id);
-        if (!exists) {
-          acc.push(sub);
-        }
-        return acc;
-      }, []) || [];
-      
-      setAssignedSubscriptions(uniqueSubs);
+
+      // On n'affiche qu'une seule formule : la plus récente assignée par le coach.
+      // (Certaines anciennes assignations peuvent rester actives en base si elles n'ont pas été désactivées.)
+      setAssignedSubscriptions(data?.slice(0, 1) ?? []);
     } catch (error) {
       console.error("Erreur chargement abonnements assignés:", error);
     }
