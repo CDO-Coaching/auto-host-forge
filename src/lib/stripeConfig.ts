@@ -5,7 +5,8 @@ export const STRIPE_PUBLIC_KEY = "pk_test_51SqDMn4Ea2SMa31kKtg8O43pIREW2EuApnI0F
 
 // Configuration des produits Stripe avec leurs Payment Links
 // IMPORTANT: Dans Stripe Dashboard > Payment Links > ton lien > Settings > After payment
-// Configurer la redirection vers: https://auto-host-forge.lovable.app/sportif/paiement-succes?price_id=price_xxx&product_id=prod_xxx&product_name=Abonnement%20mensuel
+// Configurer la redirection vers: https://auto-host-forge.lovable.app/paiement-succes?price_id=price_xxx&product_id=prod_xxx&product_name=Abonnement%20mensuel
+// NOTE: La route est /paiement-succes (sans /sportif) pour éviter les problèmes d'auth après retour Stripe
 export const STRIPE_PRODUCTS = [
   {
     id: "prod_default",

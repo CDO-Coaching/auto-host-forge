@@ -25,6 +25,7 @@ const PolitiqueRGPD = lazy(() => import("./pages/PolitiqueRGPD"));
 const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const PaiementSuccesStandalone = lazy(() => import("./pages/PaiementSuccesStandalone"));
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -49,6 +50,8 @@ const App = () => (
               <Route path="/mentions-legales" element={<MentionsLegales />} />
               <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
               <Route path="/reinitialiser-mot-de-passe" element={<ResetPassword />} />
+              {/* Route standalone pour le retour Stripe - ne nécessite pas d'auth immédiate */}
+              <Route path="/paiement-succes" element={<PaiementSuccesStandalone />} />
               <Route path="/coach/*" element={<DashboardCoach />} />
               <Route path="/dashboard-sportif/*" element={<DashboardSportif />} />
               <Route path="/sportif/*" element={<DashboardSportif />} />
