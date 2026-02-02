@@ -6,24 +6,14 @@ export const STRIPE_PUBLIC_KEY = "pk_test_51SqDMn4Ea2SMa31kKtg8O43pIREW2EuApnI0F
 // Configuration des produits Stripe avec leurs Payment Links
 export const STRIPE_PRODUCTS = [
   {
-    id: "prod_TnpBWRzXzACMFB",
+    id: "prod_default",
     name: "Abonnement mensuel",
-    priceId: "price_1SqDX44Ea2SMa31k0hkpUthY",
-    paymentLink: "https://buy.stripe.com/test_dRmfZa0ypf0i8CEalwdIA02",
+    priceId: "price_default",
+    paymentLink: "https://buy.stripe.com/test_3cI4gsepfbO6bOQalwdIA04",
     amount: 8000, // en centimes
     currency: "eur",
     isRecurring: true,
     interval: "month",
-  },
-  {
-    id: "prod_TnpCuNWB0wJNRn",
-    name: "Abonnement mensuel ancien",
-    priceId: "price_1SqDYa4Ea2SMa31k8W3kVXUk",
-    paymentLink: "https://buy.stripe.com/test_eVq5kwdlb7xQ8CE51cdIA03",
-    amount: 7000, // en centimes
-    currency: "eur",
-    isRecurring: false,
-    interval: null,
   },
 ];
 
