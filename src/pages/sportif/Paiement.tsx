@@ -185,12 +185,37 @@ export default function Paiement() {
     
     setCancelling(subscriptionToCancel.id);
     try {
+      // 1. Annuler l'abonnement Stripe (important!)
+      const { data: cancelResult, error: cancelError } = await supabase.functions.invoke(
+        "cancel-subscription"
+      );
+
+      if (cancelError) {
+        console.error("Error cancelling Stripe subscription:", cancelError);
+        // Continuer malgré l'erreur pour au moins mettre à jour la base locale
+      } else {
+        console.log("Stripe subscription cancellation result:", cancelResult);
+      }
+
+      // 2. Mettre à jour le statut dans notre base de données
+      // Calculer expires_at basé sur le résultat Stripe ou +1 mois par défaut
+      let expiresAt = subscriptionToCancel.expires_at;
+      if (!expiresAt && cancelResult?.cancelledSubscriptions?.[0]?.current_period_end) {
+        expiresAt = cancelResult.cancelledSubscriptions[0].current_period_end;
+      } else if (!expiresAt) {
+        // Fallback: +1 mois depuis le paiement
+        const paidDate = new Date(subscriptionToCancel.paid_at);
+        paidDate.setMonth(paidDate.getMonth() + 1);
+        expiresAt = paidDate.toISOString();
+      }
+
       const { error } = await supabase
         .from("athlete_subscriptions")
         .update({
           status: "cancelled",
           cancelled_at: new Date().toISOString(),
           cancelled_notified: false,
+          expires_at: expiresAt,
         })
         .eq("id", subscriptionToCancel.id);
 

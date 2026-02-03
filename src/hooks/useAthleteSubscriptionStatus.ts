@@ -6,6 +6,7 @@ interface AthleteSubscriptionStatus {
   hasActiveSubscription: boolean;
   hasCancelledRecently: boolean; // désabonné dans les 7 derniers jours
   hasNewPayment: boolean; // paiement non notifié
+  cancelledExpiresAt: string | null; // date jusqu'à laquelle l'athlète a payé (pour désabo)
 }
 
 export function useAthleteSubscriptionStatus(coachId: string | undefined) {
@@ -38,7 +39,7 @@ export function useAthleteSubscriptionStatus(coachId: string | undefined) {
       // Récupérer tous les abonnements de ces athlètes
       const { data: subscriptions, error: subError } = await supabase
         .from("athlete_subscriptions")
-        .select("id, athlete_id, status, paid_at, cancelled_at, coach_notified, cancelled_notified")
+        .select("id, athlete_id, status, paid_at, cancelled_at, coach_notified, cancelled_notified, expires_at")
         .in("athlete_id", athleteIds)
         .order("paid_at", { ascending: false });
 
@@ -57,10 +58,14 @@ export function useAthleteSubscriptionStatus(coachId: string | undefined) {
         
         const hasActiveSubscription = athleteSubs.some((s) => s.status === "active");
         
-        const hasCancelledRecently = athleteSubs.some((s) => {
+        // Trouver le désabonnement le plus récent (pour afficher la date de fin)
+        const recentCancellation = athleteSubs.find((s) => {
           if (s.status !== "cancelled" || !s.cancelled_at) return false;
           return new Date(s.cancelled_at) >= sevenDaysAgo;
         });
+        
+        const hasCancelledRecently = !!recentCancellation;
+        const cancelledExpiresAt = recentCancellation?.expires_at || null;
         
         const hasNewPayment = athleteSubs.some((s) => 
           s.status === "active" && s.coach_notified === false
@@ -71,6 +76,7 @@ export function useAthleteSubscriptionStatus(coachId: string | undefined) {
           hasActiveSubscription,
           hasCancelledRecently,
           hasNewPayment,
+          cancelledExpiresAt,
         });
       });
 
