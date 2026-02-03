@@ -19,6 +19,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@/integrations/supabase/client": [
+        "./src/lib/supabase.ts"
       ]
     },
     "skipLibCheck": true,
