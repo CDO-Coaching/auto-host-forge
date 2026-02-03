@@ -7,6 +7,7 @@ interface CancellationNotification {
   athleteName: string;
   productName: string;
   cancelledAt: string;
+  expiresAt: string | null;
 }
 
 interface CoachCancellationAlertProps {
@@ -38,8 +39,13 @@ export function CoachCancellationAlert({ notifications, onDismiss }: CoachCancel
               {notification.athleteName} s'est désabonné(e)
             </p>
             <p className="text-xs text-white/80 truncate">
-              {notification.productName} • {formatDate(notification.cancelledAt)}
+              {notification.productName} • désabo le {formatDate(notification.cancelledAt)}
             </p>
+            {notification.expiresAt && (
+              <p className="text-xs text-white font-semibold mt-0.5">
+                ⏰ Programmation jusqu'au {formatDate(notification.expiresAt)}
+              </p>
+            )}
           </div>
           <X className="h-4 w-4 flex-shrink-0 opacity-70 hover:opacity-100" />
         </div>
