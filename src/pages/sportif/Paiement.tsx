@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat, XCircle } from "lucide-react";
@@ -49,6 +51,7 @@ export default function Paiement() {
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [subscriptionToCancel, setSubscriptionToCancel] = useState<ActiveSubscription | null>(null);
+  const [cgvAccepted, setCgvAccepted] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -124,6 +127,11 @@ export default function Paiement() {
   };
 
   const handlePayment = async (subscription: AssignedSubscription) => {
+    if (!cgvAccepted) {
+      toast.error("Veuillez accepter les Conditions Générales de Vente pour continuer.");
+      return;
+    }
+    
     try {
       toast.info("Redirection vers le paiement...");
       
@@ -431,7 +439,7 @@ export default function Paiement() {
               Choisissez la formule qui vous convient
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {assignedSubscriptions.map((subscription) => {
               const isActive = isSubscriptionActive(subscription.stripe_price_id);
 
@@ -473,7 +481,10 @@ export default function Paiement() {
                         Actif
                       </Badge>
                     ) : (
-                      <Button onClick={() => handlePayment(subscription)}>
+                      <Button 
+                        onClick={() => handlePayment(subscription)}
+                        disabled={!cgvAccepted}
+                      >
                         <ExternalLink className="h-4 w-4 mr-2" />
                         {subscription.is_recurring ? "S'abonner" : "Payer"}
                       </Button>
@@ -482,6 +493,36 @@ export default function Paiement() {
                 </div>
               );
             })}
+            
+            {/* Case d'acceptation CGV - obligatoire */}
+            {!activeSubscriptions.some(sub => sub.stripe_price_id === assignedSubscriptions[0]?.stripe_price_id) && (
+              <div className="pt-4 border-t border-border">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="cgv-accept"
+                    checked={cgvAccepted}
+                    onCheckedChange={(checked) => setCgvAccepted(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="cgv-accept" className="text-sm text-muted-foreground cursor-pointer">
+                    J'ai lu et j'accepte les{" "}
+                    <Link 
+                      to="/cgv" 
+                      target="_blank"
+                      className="text-primary hover:underline font-medium"
+                    >
+                      Conditions Générales de Vente
+                    </Link>
+                    {" "}et je reconnais mon droit de rétractation de 14 jours.
+                  </label>
+                </div>
+                {!cgvAccepted && (
+                  <p className="text-xs text-muted-foreground mt-2 ml-6">
+                    * L'acceptation des CGV est obligatoire pour procéder au paiement
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

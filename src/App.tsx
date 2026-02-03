@@ -23,6 +23,7 @@ const DashboardSportif = lazy(() => import("./pages/DashboardSportif"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PolitiqueRGPD = lazy(() => import("./pages/PolitiqueRGPD"));
 const MentionsLegales = lazy(() => import("./pages/MentionsLegales"));
+const CGV = lazy(() => import("./pages/CGV"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const PaiementSuccesStandalone = lazy(() => import("./pages/PaiementSuccesStandalone"));
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="/en-attente" element={<EnAttente />} />
               <Route path="/politique-rgpd" element={<PolitiqueRGPD />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />
+              <Route path="/cgv" element={<CGV />} />
               <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
               <Route path="/reinitialiser-mot-de-passe" element={<ResetPassword />} />
               {/* Route standalone pour le retour Stripe - ne nécessite pas d'auth immédiate */}

@@ -44,6 +44,9 @@ const Footer = () => {
               <Link to="/mentions-legales" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 Mentions légales
               </Link>
+              <Link to="/cgv" className="text-sm text-muted-foreground hover:text-primary transition-colors">
+                Conditions Générales de Vente
+              </Link>
               <Link to="/politique-rgpd" className="text-sm text-muted-foreground hover:text-primary transition-colors">
                 Politique RGPD
               </Link>
