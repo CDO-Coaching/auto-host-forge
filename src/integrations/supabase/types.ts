@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      athlete_subscriptions: {
+        Row: {
+          athlete_id: string
+          cancelled_at: string | null
+          cgv_accepted_at: string | null
+          coach_notified: boolean | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          is_recurring: boolean | null
+          paid_at: string
+          product_name: string
+          status: string
+          stripe_price_id: string
+          stripe_product_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          athlete_id: string
+          cancelled_at?: string | null
+          cgv_accepted_at?: string | null
+          coach_notified?: boolean | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          paid_at?: string
+          product_name: string
+          status?: string
+          stripe_price_id: string
+          stripe_product_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          athlete_id?: string
+          cancelled_at?: string | null
+          cgv_accepted_at?: string | null
+          coach_notified?: boolean | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          is_recurring?: boolean | null
+          paid_at?: string
+          product_name?: string
+          status?: string
+          stripe_price_id?: string
+          stripe_product_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
