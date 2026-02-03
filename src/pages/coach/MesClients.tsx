@@ -688,7 +688,12 @@ export default function MesClients() {
                             {subscriptionStatuses.get(relationship.athlete_id)?.hasCancelledRecently && (
                               <Badge variant="destructive" className="text-[10px] h-4 px-1.5 flex-shrink-0" title="Désabonnement récent">
                                 <UserX className="h-2.5 w-2.5 mr-0.5" />
-                                <span className="hidden sm:inline">Désabo</span>
+                                <span className="hidden sm:inline">
+                                  Désabo
+                                  {subscriptionStatuses.get(relationship.athlete_id)?.cancelledExpiresAt && (
+                                    <> → {new Date(subscriptionStatuses.get(relationship.athlete_id)!.cancelledExpiresAt!).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</>
+                                  )}
+                                </span>
                               </Badge>
                             )}
                           </div>
