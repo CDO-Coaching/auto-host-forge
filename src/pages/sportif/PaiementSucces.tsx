@@ -53,27 +53,51 @@ export default function PaiementSucces() {
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
+      const decodedName = decodeURIComponent(productName || "Abonnement");
+
       // Enregistrer le nouvel abonnement
-      const { error } = await supabase
+      const { data: subscription, error } = await supabase
         .from("athlete_subscriptions")
         .insert({
           athlete_id: user.id,
           stripe_price_id: priceId,
           stripe_product_id: productId,
-          product_name: decodeURIComponent(productName || "Abonnement"),
+          product_name: decodedName,
           status: "active",
           paid_at: new Date().toISOString(),
           is_recurring: isRecurring,
           expires_at: expiresAt.toISOString(),
-          coach_notified: false, // Pour que le coach soit notifié
-        });
+          coach_notified: false,
+        })
+        .select("id")
+        .single();
 
       if (error) {
-        // Table peut ne pas exister encore
         if ((error as any)?.code === "42P01") {
           console.log("Table athlete_subscriptions non créée encore - paiement OK quand même");
         } else {
           throw error;
+        }
+      }
+
+      // Générer la facture via Edge Function
+      if (subscription?.id) {
+        try {
+          const priceAmount = productConfig?.amount || 0;
+          
+          await supabase.functions.invoke("generate-invoice", {
+            body: {
+              subscriptionId: subscription.id,
+              athleteId: user.id,
+              productName: decodedName,
+              amount: priceAmount,
+              paidAt: new Date().toISOString(),
+            },
+          });
+          console.log("Invoice generation triggered");
+        } catch (invoiceErr) {
+          console.error("Invoice generation error:", invoiceErr);
+          // Ne pas bloquer le flux si la facture échoue
         }
       }
 
