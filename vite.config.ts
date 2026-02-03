@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Rediriger le client Supabase vers la version avec les types complets du Supabase auto-hébergé
+      "@/integrations/supabase/client": path.resolve(__dirname, "./src/lib/supabase.ts"),
     },
   },
   optimizeDeps: {
