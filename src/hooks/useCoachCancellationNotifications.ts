@@ -6,6 +6,7 @@ interface CancellationNotification {
   athleteName: string;
   productName: string;
   cancelledAt: string;
+  expiresAt: string | null;
 }
 
 export function useCoachCancellationNotifications(coachId: string | undefined) {
@@ -34,7 +35,7 @@ export function useCoachCancellationNotifications(coachId: string | undefined) {
       // Récupérer les désabonnements non notifiés
       const { data: cancellations, error: cancelError } = await supabase
         .from("athlete_subscriptions")
-        .select("id, athlete_id, product_name, cancelled_at, cancelled_notified")
+        .select("id, athlete_id, product_name, cancelled_at, cancelled_notified, expires_at")
         .in("athlete_id", athleteIds)
         .eq("cancelled_notified", false)
         .eq("status", "cancelled")
@@ -60,6 +61,7 @@ export function useCoachCancellationNotifications(coachId: string | undefined) {
             : "Athlète",
           productName: c.product_name,
           cancelledAt: c.cancelled_at,
+          expiresAt: c.expires_at,
         };
       });
 
