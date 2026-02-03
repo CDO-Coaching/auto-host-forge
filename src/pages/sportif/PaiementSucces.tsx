@@ -53,7 +53,7 @@ export default function PaiementSucces() {
       const expiresAt = new Date();
       expiresAt.setMonth(expiresAt.getMonth() + 1);
 
-      // Enregistrer le nouvel abonnement avec horodatage CGV
+      // Enregistrer le nouvel abonnement
       const { error } = await supabase
         .from("athlete_subscriptions")
         .insert({
@@ -65,8 +65,7 @@ export default function PaiementSucces() {
           paid_at: new Date().toISOString(),
           is_recurring: isRecurring,
           expires_at: expiresAt.toISOString(),
-          coach_notified: false,
-          cgv_accepted_at: new Date().toISOString(), // Preuve horodatée d'acceptation des CGV
+          coach_notified: false, // Pour que le coach soit notifié
         });
 
       if (error) {

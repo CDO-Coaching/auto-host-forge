@@ -1,1 +1,19 @@
-project_id = "plxjldbrttgyzlydttjc"
+project_id = "default"
+
+[functions.notify-signup]
+verify_jwt = false
+
+[functions.notify-contact]
+verify_jwt = false
+
+[functions.google-calendar-auth]
+verify_jwt = false
+
+[functions.google-calendar-events]
+verify_jwt = false
+
+[functions.notify-consent-withdrawal]
+verify_jwt = false
+
+[functions.cleanup-old-attachments]
+verify_jwt = false

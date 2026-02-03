@@ -4,8 +4,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
-      "@/integrations/supabase/client": ["./src/lib/supabase.ts"]
+      "@/*": ["./src/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,

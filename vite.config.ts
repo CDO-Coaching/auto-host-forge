@@ -13,9 +13,10 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Rediriger le client Supabase vers la version avec les types complets du Supabase auto-hébergé
-      "@/integrations/supabase/client": path.resolve(__dirname, "./src/lib/supabase.ts"),
+      "react": path.resolve(__dirname, "./node_modules/react"),
+      "react-dom": path.resolve(__dirname, "./node_modules/react-dom"),
     },
+    dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
   },
   optimizeDeps: {
     include: ["react", "react-dom", "@tanstack/react-query", "react/jsx-runtime", "react/jsx-dev-runtime"],
