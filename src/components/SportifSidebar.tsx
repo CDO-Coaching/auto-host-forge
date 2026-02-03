@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -63,11 +63,18 @@ export function SportifSidebar() {
   if (paymentEnabled) {
     const poidsIndex = menuItems.findIndex(item => item.url === "/sportif/poids");
     if (poidsIndex !== -1) {
-      menuItems.splice(poidsIndex + 1, 0, {
-        title: "Mes paiements",
-        url: "/sportif/paiement",
-        icon: CreditCard,
-      });
+      menuItems.splice(poidsIndex + 1, 0, 
+        {
+          title: "Mes paiements",
+          url: "/sportif/paiement",
+          icon: CreditCard,
+        },
+        {
+          title: "Mes factures",
+          url: "/sportif/factures",
+          icon: FileText,
+        }
+      );
     }
   }
 
