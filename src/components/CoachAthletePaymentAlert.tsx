@@ -13,23 +13,17 @@ interface CoachAthletePaymentAlertProps {
   notifications: PaymentNotification[];
   onDismiss: (id: string) => void;
   onDismissAll: () => void;
+  /** Offset for stacking with other notifications */
+  stackOffset?: number;
 }
 
 export function CoachAthletePaymentAlert({
   notifications,
   onDismiss,
   onDismissAll,
+  stackOffset = 0,
 }: CoachAthletePaymentAlertProps) {
   if (notifications.length === 0) return null;
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   // Afficher le premier paiement en notification flottante
   const firstNotification = notifications[0];
@@ -39,7 +33,7 @@ export function CoachAthletePaymentAlert({
     <FloatingNotification
       open
       onDismiss={() => (hasMore ? onDismissAll() : onDismiss(firstNotification.id))}
-      icon={<CreditCard className="h-5 w-5 text-primary" />}
+      icon={<CreditCard className="h-5 w-5 text-primary-foreground" />}
       title="Nouveau paiement reçu !"
       description={
         hasMore
@@ -47,13 +41,14 @@ export function CoachAthletePaymentAlert({
           : `${firstNotification.athleteName} a payé "${firstNotification.productName}"`
       }
       variant="primary"
+      stackIndex={stackOffset}
       actions={
         <div className="flex gap-2">
           <Button
             size="sm"
-            variant="outline"
+            variant="secondary"
             onClick={() => (hasMore ? onDismissAll() : onDismiss(firstNotification.id))}
-            className="text-xs h-7"
+            className="text-xs h-7 bg-white/20 hover:bg-white/30 text-white border-0"
           >
             <Check className="h-3 w-3 mr-1" />
             {hasMore ? "Tout marquer comme vu" : "OK"}
