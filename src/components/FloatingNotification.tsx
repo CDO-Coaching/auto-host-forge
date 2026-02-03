@@ -10,7 +10,9 @@ interface FloatingNotificationProps {
   title: string;
   description?: ReactNode;
   actions?: ReactNode;
-  variant?: "default" | "amber" | "primary";
+  variant?: "default" | "amber" | "primary" | "orange";
+  /** Position in the stack (0 = top, 1 = second, etc.) */
+  stackIndex?: number;
 }
 
 export function FloatingNotification({
@@ -21,27 +23,48 @@ export function FloatingNotification({
   description,
   actions,
   variant = "default",
+  stackIndex = 0,
 }: FloatingNotificationProps) {
   if (!open) return null;
 
   const variantStyles = {
-    default: "bg-card border-border",
-    amber: "bg-amber-500/10 border-amber-500/50",
-    primary: "bg-primary/10 border-primary/50",
+    default: "bg-card border-border text-foreground",
+    amber: "bg-amber-500 border-amber-600 text-white",
+    primary: "bg-primary border-primary text-primary-foreground",
+    orange: "bg-orange-500 border-orange-600 text-white",
   };
 
   const titleStyles = {
     default: "text-foreground",
-    amber: "text-amber-600 dark:text-amber-400",
-    primary: "text-primary",
+    amber: "text-white",
+    primary: "text-primary-foreground",
+    orange: "text-white",
   };
+
+  const descStyles = {
+    default: "text-muted-foreground",
+    amber: "text-white/90",
+    primary: "text-primary-foreground/90",
+    orange: "text-white/90",
+  };
+
+  const closeStyles = {
+    default: "text-muted-foreground hover:text-foreground",
+    amber: "text-white/70 hover:text-white",
+    primary: "text-primary-foreground/70 hover:text-primary-foreground",
+    orange: "text-white/70 hover:text-white",
+  };
+
+  // Calculer la position verticale en fonction de l'index dans la stack
+  const topOffset = 16 + stackIndex * 90; // 16px de base + 90px par notification
 
   const node = (
     <div
       className={cn(
-        "fixed top-4 right-4 z-[100] w-80 max-w-[calc(100vw-2rem)] rounded-lg border shadow-lg backdrop-blur-sm cursor-pointer animate-enter",
+        "fixed right-4 z-[100] w-80 max-w-[calc(100vw-2rem)] rounded-lg border-2 shadow-xl cursor-pointer animate-in slide-in-from-right duration-300",
         variantStyles[variant]
       )}
+      style={{ top: `${topOffset}px` }}
       onClick={onDismiss}
       role="button"
       tabIndex={0}
@@ -59,18 +82,21 @@ export function FloatingNotification({
               </h4>
               <button
                 type="button"
-                className="flex-shrink-0 p-1 rounded-full hover:bg-muted/50 transition-colors"
+                className={cn(
+                  "flex-shrink-0 p-1 rounded-full transition-colors",
+                  closeStyles[variant]
+                )}
                 onClick={(e) => {
                   e.stopPropagation();
                   onDismiss();
                 }}
                 aria-label="Fermer"
               >
-                <X className="h-4 w-4 text-muted-foreground" />
+                <X className="h-4 w-4" />
               </button>
             </div>
             {description && (
-              <div className="text-sm text-muted-foreground mt-1">
+              <div className={cn("text-sm mt-1", descStyles[variant])}>
                 {description}
               </div>
             )}

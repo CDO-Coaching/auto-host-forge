@@ -13,11 +13,14 @@ interface PauseReminder {
 interface CoachPauseReminderAlertProps {
   reminders: PauseReminder[];
   onDismiss: (relationshipId: string) => void;
+  /** Offset for stacking with other notifications */
+  stackOffset?: number;
 }
 
 export function CoachPauseReminderAlert({
   reminders,
   onDismiss,
+  stackOffset = 0,
 }: CoachPauseReminderAlertProps) {
   const navigate = useNavigate();
 
@@ -31,7 +34,7 @@ export function CoachPauseReminderAlert({
     <FloatingNotification
       open={true}
       onDismiss={() => onDismiss(reminder.relationshipId)}
-      icon={<Bell className="h-5 w-5 text-amber-500" />}
+      icon={<Bell className="h-5 w-5 text-white" />}
       title="Rappel de recontact"
       description={
         <p>
@@ -39,12 +42,13 @@ export function CoachPauseReminderAlert({
         </p>
       }
       variant="amber"
+      stackIndex={stackOffset}
       actions={
         <>
           <Button
             size="sm"
-            variant="outline"
-            className="text-xs h-7"
+            variant="secondary"
+            className="text-xs h-7 bg-white/20 hover:bg-white/30 text-white border-0"
             onClick={() => {
               onDismiss(reminder.relationshipId);
               navigate("/coach/messagerie");
@@ -55,8 +59,8 @@ export function CoachPauseReminderAlert({
           </Button>
           <Button
             size="sm"
-            variant="outline"
-            className="text-xs h-7"
+            variant="secondary"
+            className="text-xs h-7 bg-white/20 hover:bg-white/30 text-white border-0"
             onClick={() => {
               onDismiss(reminder.relationshipId);
               navigate("/coach/mes-clients");

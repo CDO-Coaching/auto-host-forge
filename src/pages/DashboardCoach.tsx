@@ -123,25 +123,39 @@ export default function DashboardCoach() {
         eventTitle={pendingReminder?.eventTitle || ''}
         onAcknowledge={acknowledgeReminder}
       />
-      {pauseReminders.length > 0 && (
-        <CoachPauseReminderAlert
-          reminders={pauseReminders}
-          onDismiss={dismissPauseReminder}
-        />
-      )}
-      {paymentNotifications.length > 0 && (
-        <CoachAthletePaymentAlert
-          notifications={paymentNotifications}
-          onDismiss={dismissPaymentNotification}
-          onDismissAll={dismissAllPayments}
-        />
-      )}
-      {pendingCancellations.length > 0 && (
-        <CoachCancellationAlert
-          notifications={pendingCancellations}
-          onDismiss={dismissCancellation}
-        />
-      )}
+      {/* Notifications flottantes empilées */}
+      {(() => {
+        let stackIndex = 0;
+        return (
+          <>
+            {pauseReminders.length > 0 && (
+              <CoachPauseReminderAlert
+                reminders={pauseReminders}
+                onDismiss={dismissPauseReminder}
+                stackOffset={stackIndex++}
+              />
+            )}
+            {paymentNotifications.length > 0 && (
+              <CoachAthletePaymentAlert
+                notifications={paymentNotifications}
+                onDismiss={dismissPaymentNotification}
+                onDismissAll={dismissAllPayments}
+                stackOffset={pauseReminders.length > 0 ? stackIndex++ : stackIndex++}
+              />
+            )}
+            {pendingCancellations.length > 0 && (
+              <CoachCancellationAlert
+                notifications={pendingCancellations}
+                onDismiss={dismissCancellation}
+                stackOffset={
+                  (pauseReminders.length > 0 ? 1 : 0) +
+                  (paymentNotifications.length > 0 ? 1 : 0)
+                }
+              />
+            )}
+          </>
+        );
+      })()}
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
         <CoachSidebar />
