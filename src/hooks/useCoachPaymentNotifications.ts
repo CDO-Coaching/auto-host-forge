@@ -31,13 +31,15 @@ export function useCoachPaymentNotifications(coachId: string | undefined) {
 
       const athleteIds = relationships.map((r) => r.athlete_id);
 
-      // Récupérer les paiements non notifiés
+      // Récupérer les paiements non notifiés des dernières 24h
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: payments, error: payError } = await supabase
         .from("athlete_subscriptions")
         .select("id, athlete_id, product_name, paid_at, coach_notified")
         .in("athlete_id", athleteIds)
         .eq("coach_notified", false)
         .eq("status", "active")
+        .gte("paid_at", twentyFourHoursAgo)
         .order("paid_at", { ascending: false });
 
       if (payError || !payments?.length) return;

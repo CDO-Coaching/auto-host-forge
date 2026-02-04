@@ -32,7 +32,8 @@ export function useCoachCancellationNotifications(coachId: string | undefined) {
 
       const athleteIds = relationships.map((r) => r.athlete_id);
 
-      // Récupérer les désabonnements non notifiés
+      // Récupérer les désabonnements non notifiés des dernières 24h
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       const { data: cancellations, error: cancelError } = await supabase
         .from("athlete_subscriptions")
         .select("id, athlete_id, product_name, cancelled_at, cancelled_notified, expires_at")
@@ -40,6 +41,7 @@ export function useCoachCancellationNotifications(coachId: string | undefined) {
         .eq("cancelled_notified", false)
         .eq("status", "cancelled")
         .not("cancelled_at", "is", null)
+        .gte("cancelled_at", twentyFourHoursAgo)
         .order("cancelled_at", { ascending: false });
 
       if (cancelError || !cancellations?.length) return;
