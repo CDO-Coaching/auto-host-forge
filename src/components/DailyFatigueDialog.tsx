@@ -432,7 +432,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   damping: 20,
                   duration: 0.6
                 }}
-                className="fixed left-[50%] top-[50%] z-50 w-full max-w-[500px] max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 overflow-hidden border bg-background shadow-2xl sm:rounded-xl"
+                className="fixed left-[50%] top-[50%] z-50 w-full max-w-[500px] max-h-[90vh] sm:max-h-[95vh] flex flex-col p-3 sm:p-6 gap-0 border bg-background shadow-2xl sm:rounded-xl"
               >
                 {/* Close button */}
                 <button
@@ -512,7 +512,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
           )}
         </div>
 
-        <div className="space-y-3 sm:space-y-5 flex-1 overflow-y-auto pr-1">
+        <div className="space-y-3 sm:space-y-5 flex-1 min-h-0 overflow-y-auto pr-1 py-2">
           {questions.map((question) => (
             <div key={question.id} className="space-y-1 sm:space-y-2">
               <Label className="text-xs sm:text-base font-medium block">{question.label}</Label>
