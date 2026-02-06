@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer } from "lucide-react";
-import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, addDays, subHours } from "date-fns";
+import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours, addHours } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
@@ -22,12 +22,12 @@ interface DashboardData {
 }
 
 interface UpcomingSession {
-  sessionId: string;
+  eventId: string;
   athleteId: string;
   athleteName: string;
-  sessionName: string;
-  sessionType: string;
-  scheduledDate: string;
+  eventTitle: string;
+  startTime: string;
+  endTime: string;
 }
 
 interface UnvalidatedAthlete {
@@ -185,30 +185,68 @@ export default function CoachDashboard() {
           }
         });
 
-        // Upcoming sessions (scheduled between -5h and +24h)
-        const today = format(now, "yyyy-MM-dd");
-        const tomorrow = format(addDays(now, 1), "yyyy-MM-dd");
-        const { data: upcomingData } = await supabase
-          .from("training_sessions")
-          .select("id, name, session_type, scheduled_date, completed_at, training_weeks!inner(athlete_id)")
-          .in("training_weeks.athlete_id", athleteIds)
-          .is("completed_at", null)
-          .not("scheduled_date", "is", null)
-          .gte("scheduled_date", today)
-          .lte("scheduled_date", tomorrow);
+        // Fetch Google Calendar events via n8n webhook (-5h to +24h)
+        const timeMin = subHours(now, 5);
+        const timeMax = addHours(now, 24);
+        let upcomingSessions: UpcomingSession[] = [];
+        try {
+          const calResponse = await fetch(
+            "https://n8n-i4coc8gkwgok0s4k0gsscsgw.168.231.84.252.sslip.io/webhook/64ef905d-e4d8-49be-b4f9-f008823baa66",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                timeMin: timeMin.toISOString(),
+                timeMax: timeMax.toISOString(),
+              }),
+            }
+          );
+          if (calResponse.ok) {
+            const calData = await calResponse.json();
+            let events: any[] = [];
+            if (Array.isArray(calData)) events = calData;
+            else if (calData.events) events = calData.events;
+            else if (calData.items) events = calData.items;
 
-        const upcomingSessions: UpcomingSession[] = (upcomingData || []).map((s: any) => {
-          const athleteId = s.training_weeks?.athlete_id;
-          const profile = profileMap.get(athleteId);
-          return {
-            sessionId: s.id,
-            athleteId,
-            athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
-            sessionName: s.name,
-            sessionType: s.session_type,
-            scheduledDate: s.scheduled_date,
-          };
-        }).sort((a: UpcomingSession, b: UpcomingSession) => a.scheduledDate.localeCompare(b.scheduledDate));
+            // Build email -> athleteId map
+            const emailToAthlete = new Map<string, { id: string; name: string }>();
+            profileMap.forEach((profile, id) => {
+              if (profile.email) {
+                emailToAthlete.set(profile.email.toLowerCase(), {
+                  id,
+                  name: `${profile.first_name} ${profile.last_name}`,
+                });
+              }
+            });
+
+            for (const event of events) {
+              const attendees = event.attendees || [];
+              for (const att of attendees) {
+                const match = emailToAthlete.get(att.email?.toLowerCase());
+                if (match) {
+                  const startStr = typeof event.start === "object"
+                    ? (event.start?.dateTime || event.start?.date)
+                    : event.start;
+                  const endStr = typeof event.end === "object"
+                    ? (event.end?.dateTime || event.end?.date)
+                    : event.end;
+                  upcomingSessions.push({
+                    eventId: event.id,
+                    athleteId: match.id,
+                    athleteName: match.name,
+                    eventTitle: event.summary || event.title || "RDV",
+                    startTime: startStr || "",
+                    endTime: endStr || "",
+                  });
+                  break; // one match per event
+                }
+              }
+            }
+            upcomingSessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
+          }
+        } catch (calErr) {
+          console.error("Calendar fetch error:", calErr);
+        }
 
         // Fatigue alerts
         const threeDaysAgo = new Date();
@@ -413,40 +451,48 @@ export default function CoachDashboard() {
         </div>
       )}
 
-      {/* Séances programmées à venir (aujourd'hui / demain) */}
+      {/* RDV coaching à venir (Google Calendar) */}
       {hasUpcoming && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Timer className="h-4 w-4 text-primary" />
-              Séances programmées à venir
+              RDV coaching à venir
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.upcomingSessions.map(s => (
-              <div
-                key={s.sessionId}
-                className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => navigate(`/coach/client/${s.athleteId}`)}
-              >
-                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                  <User className="h-5 w-5 text-primary" />
+            {data.upcomingSessions.map(s => {
+              const startDate = s.startTime ? parseISO(s.startTime) : null;
+              const endDate = s.endTime ? parseISO(s.endTime) : null;
+              const isPast = endDate ? endDate < new Date() : false;
+              return (
+                <div
+                  key={s.eventId}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:border-primary/50 transition-colors ${isPast ? "border-border opacity-60" : "border-border"}`}
+                  onClick={() => navigate(`/coach/client/${s.athleteId}`)}
+                >
+                  <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground truncate">{s.athleteName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.eventTitle}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {startDate && (
+                      <Badge variant="outline" className="text-xs">
+                        {format(startDate, "HH:mm", { locale: fr })}
+                        {endDate && ` - ${format(endDate, "HH:mm", { locale: fr })}`}
+                      </Badge>
+                    )}
+                    {isPast && (
+                      <Badge variant="secondary" className="text-xs">Passé</Badge>
+                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground truncate">{s.athleteName}</p>
-                  <p className="text-xs text-muted-foreground truncate">{s.sessionName}</p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className="text-xs">
-                    📅 {format(parseISO(s.scheduledDate), "EEE d MMM", { locale: fr })}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    {s.sessionType === "cardio" ? "Cardio" : s.sessionType === "recup" ? "Récup" : "Renfo"}
-                  </Badge>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
