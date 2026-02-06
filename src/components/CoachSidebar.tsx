@@ -1,4 +1,4 @@
-import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList } from "lucide-react";
+import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList, LayoutDashboard } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
+  { title: "Tableau de bord", url: "/coach/dashboard", icon: LayoutDashboard },
   { title: "Mes clients", url: "/coach/mes-clients", icon: Users },
   { title: "Agenda", url: "/coach/agenda", icon: CalendarDays },
   { title: "Séances programmées", url: "/coach/seances-programmees", icon: ClipboardList },
