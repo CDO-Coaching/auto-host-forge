@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity } from "lucide-react";
+import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User } from "lucide-react";
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -21,7 +21,9 @@ interface DashboardData {
 
 interface UnvalidatedAthlete {
   athleteId: string;
-  athleteName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
   totalSessions: number;
   completedSessions: number;
 }
@@ -69,7 +71,6 @@ export default function CoachDashboard() {
     try {
       const coachId = session.user.id;
 
-      // Fetch relationships
       const { data: relationships } = await supabase
         .from("coach_athlete_relationships")
         .select("athlete_id, status")
@@ -79,17 +80,19 @@ export default function CoachDashboard() {
       const pending = relationships?.filter(r => r.status === "pending") || [];
       const athleteIds = approved.map(r => r.athlete_id);
 
-      // Fetch athlete profiles
-      const profileMap = new Map<string, { first_name: string; last_name: string }>();
+      const profileMap = new Map<string, { first_name: string; last_name: string; email: string }>();
       if (athleteIds.length > 0) {
         const { data: profiles } = await supabase
           .from("user_profiles")
-          .select("id, first_name, last_name")
+          .select("id, first_name, last_name, email")
           .in("id", athleteIds);
-        (profiles || []).forEach(p => profileMap.set(p.id, { first_name: p.first_name || "", last_name: p.last_name || "" }));
+        (profiles || []).forEach(p => profileMap.set(p.id, {
+          first_name: p.first_name || "",
+          last_name: p.last_name || "",
+          email: p.email || "",
+        }));
       }
 
-      // Week data
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
@@ -99,13 +102,10 @@ export default function CoachDashboard() {
       let sessionsCompleted = 0;
       let sessionsProgrammed = 0;
       const recentActivities: RecentActivity[] = [];
-
-      // Track per-athlete session counts for unvalidated list
       const athleteSessionCounts = new Map<string, { total: number; completed: number }>();
       athleteIds.forEach(id => athleteSessionCounts.set(id, { total: 0, completed: 0 }));
 
       if (athleteIds.length > 0) {
-        // Training sessions this week
         const { data: trainingSessions } = await supabase
           .from("training_sessions")
           .select("id, name, session_type, completed_at, training_weeks!inner(athlete_id, week_number, year)")
@@ -123,13 +123,11 @@ export default function CoachDashboard() {
             if (ts.completed_at) {
               counts.completed++;
               sessionsCompleted++;
-
               const profile = profileMap.get(athleteId);
-              const athleteName = profile ? `${profile.first_name} ${profile.last_name}` : "Athlète";
               recentActivities.push({
                 id: ts.id,
                 type: "session_completed",
-                label: athleteName,
+                label: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
                 detail: ts.name,
                 date: ts.completed_at,
               });
@@ -138,7 +136,6 @@ export default function CoachDashboard() {
           }
         });
 
-        // Custom sessions this week
         const weekStartStr = format(weekStart, "yyyy-MM-dd");
         const weekEndStr = format(weekEnd, "yyyy-MM-dd");
         const { data: customSessions } = await supabase
@@ -159,23 +156,23 @@ export default function CoachDashboard() {
           }
         });
 
-        // Build unvalidated athletes list (those with incomplete sessions this week)
         const unvalidatedAthletes: UnvalidatedAthlete[] = [];
         athleteSessionCounts.forEach((counts, athleteId) => {
           if (counts.total > 0 && counts.completed < counts.total) {
             const profile = profileMap.get(athleteId);
             unvalidatedAthletes.push({
               athleteId,
-              athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
+              firstName: profile?.first_name || "",
+              lastName: profile?.last_name || "",
+              email: profile?.email || "",
               totalSessions: counts.total,
               completedSessions: counts.completed,
             });
           }
         });
-        // Sort by least completed first, take top 5
         unvalidatedAthletes.sort((a, b) => (a.completedSessions / a.totalSessions) - (b.completedSessions / b.totalSessions));
 
-        // Fatigue alerts (last 3 days, score >= 4)
+        // Fatigue alerts
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const { data: fatigueEntries } = await supabase
@@ -247,6 +244,9 @@ export default function CoachDashboard() {
     ? Math.round((data.sessionsCompletedThisWeek / data.sessionsProgrammedThisWeek) * 100)
     : 0;
 
+  const hasUnvalidated = data.unvalidatedAthletes.length > 0;
+  const hasFatigueAlerts = data.fatigueAlerts.length > 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -303,76 +303,75 @@ export default function CoachDashboard() {
         </Card>
       </div>
 
-      <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
-        {/* Séances non validées cette semaine */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary" />
-              Séances à valider
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data.unvalidatedAthletes.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                Toutes les séances sont validées 👍
-              </p>
-            ) : (
-              data.unvalidatedAthletes.map(a => (
-                <div
-                  key={a.athleteId}
-                  className="flex items-center justify-between p-2 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
-                  onClick={() => navigate(`/coach/client/${a.athleteId}`)}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{a.athleteName}</p>
+      {/* Sections dynamiques : séances à valider + alertes fatigue */}
+      {(hasUnvalidated || hasFatigueAlerts) && (
+        <div className={`grid ${isMobile ? "grid-cols-1" : (hasUnvalidated && hasFatigueAlerts ? "grid-cols-2" : "grid-cols-1")} gap-4`}>
+          {hasUnvalidated && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4 text-primary" />
+                  Séances à valider
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {data.unvalidatedAthletes.map(a => (
+                  <div
+                    key={a.athleteId}
+                    className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => navigate(`/coach/client/${a.athleteId}`)}
+                  >
+                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <User className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground truncate">
+                        {a.firstName} {a.lastName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className="text-xs">
+                        {a.completedSessions}/{a.totalSessions}
+                      </Badge>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <Badge variant="outline" className="text-xs">
-                      {a.completedSessions}/{a.totalSessions}
-                    </Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Alertes fatigue */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4 text-destructive" />
-              Alertes fatigue
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data.fatigueAlerts.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                Aucune alerte en cours 👍
-              </p>
-            ) : (
-              data.fatigueAlerts.map(a => (
-                <div
-                  key={a.athleteId}
-                  className="flex items-center justify-between p-2 rounded-lg bg-destructive/10 cursor-pointer hover:bg-destructive/20 transition-colors"
-                  onClick={() => navigate(`/coach/client/${a.athleteId}`)}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{a.athleteName}</p>
-                    <p className="text-xs text-muted-foreground">{format(parseISO(a.date), "d MMM", { locale: fr })}</p>
+          {hasFatigueAlerts && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-destructive" />
+                  Alertes fatigue
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {data.fatigueAlerts.map(a => (
+                  <div
+                    key={a.athleteId}
+                    className="flex items-center justify-between p-3 rounded-lg bg-destructive/10 cursor-pointer hover:bg-destructive/20 transition-colors"
+                    onClick={() => navigate(`/coach/client/${a.athleteId}`)}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{a.athleteName}</p>
+                      <p className="text-xs text-muted-foreground">{format(parseISO(a.date), "d MMM", { locale: fr })}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <Badge variant="destructive" className="text-xs">{a.score}/7</Badge>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 ml-2">
-                    <Badge variant="destructive" className="text-xs">{a.score}/7</Badge>
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Dernières activités */}
       <Card>
