@@ -1,32 +1,29 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Users, Dumbbell, Euro, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity } from "lucide-react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, parseISO, getISOWeek, getYear } from "date-fns";
+import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity } from "lucide-react";
+import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardData {
   activeClients: number;
-  pausedClients: number;
   pendingRequests: number;
   sessionsCompletedThisWeek: number;
   sessionsProgrammedThisWeek: number;
-  monthlyRevenue: number;
-  todaySessions: TodaySession[];
+  unvalidatedAthletes: UnvalidatedAthlete[];
   recentActivities: RecentActivity[];
   fatigueAlerts: FatigueAlert[];
 }
 
-interface TodaySession {
-  id: string;
+interface UnvalidatedAthlete {
+  athleteId: string;
   athleteName: string;
-  sessionName: string;
-  sessionType: string;
-  completedAt: string;
+  totalSessions: number;
+  completedSessions: number;
 }
 
 interface RecentActivity {
@@ -50,12 +47,10 @@ export default function CoachDashboard() {
   const isMobile = useIsMobile();
   const [data, setData] = useState<DashboardData>({
     activeClients: 0,
-    pausedClients: 0,
     pendingRequests: 0,
     sessionsCompletedThisWeek: 0,
     sessionsProgrammedThisWeek: 0,
-    monthlyRevenue: 0,
-    todaySessions: [],
+    unvalidatedAthletes: [],
     recentActivities: [],
     fatigueAlerts: [],
   });
@@ -81,12 +76,11 @@ export default function CoachDashboard() {
         .eq("coach_id", coachId);
 
       const approved = relationships?.filter(r => r.status === "approved") || [];
-      const paused = relationships?.filter(r => r.status === "paused") || [];
       const pending = relationships?.filter(r => r.status === "pending") || [];
       const athleteIds = approved.map(r => r.athlete_id);
 
       // Fetch athlete profiles
-      let profileMap = new Map<string, { first_name: string; last_name: string }>();
+      const profileMap = new Map<string, { first_name: string; last_name: string }>();
       if (athleteIds.length > 0) {
         const { data: profiles } = await supabase
           .from("user_profiles")
@@ -104,8 +98,11 @@ export default function CoachDashboard() {
 
       let sessionsCompleted = 0;
       let sessionsProgrammed = 0;
-      const todaySessions: TodaySession[] = [];
       const recentActivities: RecentActivity[] = [];
+
+      // Track per-athlete session counts for unvalidated list
+      const athleteSessionCounts = new Map<string, { total: number; completed: number }>();
+      athleteIds.forEach(id => athleteSessionCounts.set(id, { total: 0, completed: 0 }));
 
       if (athleteIds.length > 0) {
         // Training sessions this week
@@ -119,29 +116,25 @@ export default function CoachDashboard() {
         sessionsProgrammed = trainingSessions?.length || 0;
 
         (trainingSessions || []).forEach((ts: any) => {
-          if (ts.completed_at) {
-            sessionsCompleted++;
-            const athleteId = ts.training_weeks?.athlete_id;
-            const profile = profileMap.get(athleteId);
-            const athleteName = profile ? `${profile.first_name} ${profile.last_name}` : "Athlète";
+          const athleteId = ts.training_weeks?.athlete_id;
+          if (athleteId) {
+            const counts = athleteSessionCounts.get(athleteId) || { total: 0, completed: 0 };
+            counts.total++;
+            if (ts.completed_at) {
+              counts.completed++;
+              sessionsCompleted++;
 
-            if (isToday(parseISO(ts.completed_at))) {
-              todaySessions.push({
+              const profile = profileMap.get(athleteId);
+              const athleteName = profile ? `${profile.first_name} ${profile.last_name}` : "Athlète";
+              recentActivities.push({
                 id: ts.id,
-                athleteName,
-                sessionName: ts.name,
-                sessionType: ts.session_type,
-                completedAt: ts.completed_at,
+                type: "session_completed",
+                label: athleteName,
+                detail: ts.name,
+                date: ts.completed_at,
               });
             }
-
-            recentActivities.push({
-              id: ts.id,
-              type: "session_completed",
-              label: athleteName,
-              detail: ts.name,
-              date: ts.completed_at,
-            });
+            athleteSessionCounts.set(athleteId, counts);
           }
         });
 
@@ -159,20 +152,28 @@ export default function CoachDashboard() {
           if (cs.completed_at) {
             sessionsCompleted++;
             sessionsProgrammed++;
-            const profile = profileMap.get(cs.user_id);
-            const athleteName = profile ? `${profile.first_name} ${profile.last_name}` : "Athlète";
-
-            if (isToday(parseISO(cs.completed_at))) {
-              todaySessions.push({
-                id: cs.id,
-                athleteName,
-                sessionName: cs.session_name,
-                sessionType: "custom",
-                completedAt: cs.completed_at,
-              });
-            }
+            const counts = athleteSessionCounts.get(cs.user_id) || { total: 0, completed: 0 };
+            counts.total++;
+            counts.completed++;
+            athleteSessionCounts.set(cs.user_id, counts);
           }
         });
+
+        // Build unvalidated athletes list (those with incomplete sessions this week)
+        const unvalidatedAthletes: UnvalidatedAthlete[] = [];
+        athleteSessionCounts.forEach((counts, athleteId) => {
+          if (counts.total > 0 && counts.completed < counts.total) {
+            const profile = profileMap.get(athleteId);
+            unvalidatedAthletes.push({
+              athleteId,
+              athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
+              totalSessions: counts.total,
+              completedSessions: counts.completed,
+            });
+          }
+        });
+        // Sort by least completed first, take top 5
+        unvalidatedAthletes.sort((a, b) => (a.completedSessions / a.totalSessions) - (b.completedSessions / b.totalSessions));
 
         // Fatigue alerts (last 3 days, score >= 4)
         const threeDaysAgo = new Date();
@@ -200,21 +201,6 @@ export default function CoachDashboard() {
           }
         });
 
-        // Monthly revenue from accounting
-        const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
-        const monthEnd = format(endOfMonth(now), "yyyy-MM-dd");
-        const { data: accountingEntries } = await supabase
-          .from("accounting_entries")
-          .select("amount_cash, amount_transfer")
-          .eq("coach_id", coachId)
-          .gte("month", monthStart)
-          .lte("month", monthEnd);
-
-        let monthlyRevenue = 0;
-        (accountingEntries || []).forEach((entry: any) => {
-          monthlyRevenue += (entry.amount_cash || 0) + (entry.amount_transfer || 0);
-        });
-
         // Recent payments
         const { data: recentPayments } = await supabase
           .from("athlete_subscriptions")
@@ -236,12 +222,10 @@ export default function CoachDashboard() {
 
         setData({
           activeClients: approved.length,
-          pausedClients: paused.length,
           pendingRequests: pending.length,
           sessionsCompletedThisWeek: sessionsCompleted,
           sessionsProgrammedThisWeek: sessionsProgrammed,
-          monthlyRevenue,
-          todaySessions,
+          unvalidatedAthletes: unvalidatedAthletes.slice(0, 5),
           recentActivities: recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8),
           fatigueAlerts,
         });
@@ -249,7 +233,6 @@ export default function CoachDashboard() {
         setData(prev => ({
           ...prev,
           activeClients: approved.length,
-          pausedClients: paused.length,
           pendingRequests: pending.length,
         }));
       }
@@ -282,7 +265,7 @@ export default function CoachDashboard() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate("/coach/mes-clients")}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
@@ -293,9 +276,6 @@ export default function CoachDashboard() {
             </div>
             <p className="text-2xl font-bold text-foreground">{data.activeClients}</p>
             <p className="text-xs text-muted-foreground">Clients actifs</p>
-            {data.pausedClients > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">+ {data.pausedClients} en pause</p>
-            )}
           </CardContent>
         </Card>
 
@@ -312,16 +292,6 @@ export default function CoachDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => navigate("/coach/comptabilite")}>
-          <CardContent className="p-4">
-            <div className="flex items-center mb-2">
-              <Euro className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">{data.monthlyRevenue}€</p>
-            <p className="text-xs text-muted-foreground">Revenus du mois</p>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center mb-2">
@@ -334,29 +304,35 @@ export default function CoachDashboard() {
       </div>
 
       <div className={`grid ${isMobile ? "grid-cols-1" : "grid-cols-2"} gap-4`}>
-        {/* Agenda du jour */}
+        {/* Séances non validées cette semaine */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-primary" />
-              Aujourd'hui
+              Séances à valider
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {data.todaySessions.length === 0 ? (
+            {data.unvalidatedAthletes.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">
-                Aucune séance complétée aujourd'hui
+                Toutes les séances sont validées 👍
               </p>
             ) : (
-              data.todaySessions.map(s => (
-                <div key={s.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/50">
+              data.unvalidatedAthletes.map(a => (
+                <div
+                  key={a.athleteId}
+                  className="flex items-center justify-between p-2 rounded-lg bg-secondary/50 cursor-pointer hover:bg-secondary/80 transition-colors"
+                  onClick={() => navigate(`/coach/client/${a.athleteId}`)}
+                >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{s.athleteName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{s.sessionName}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{a.athleteName}</p>
                   </div>
-                  <Badge variant="outline" className="text-xs shrink-0 ml-2">
-                    {s.sessionType === "cardio" ? "Cardio" : s.sessionType === "custom" ? "Perso" : "Renfo"}
-                  </Badge>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <Badge variant="outline" className="text-xs">
+                      {a.completedSessions}/{a.totalSessions}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
                 </div>
               ))
             )}
