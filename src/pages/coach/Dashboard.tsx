@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User } from "lucide-react";
-import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear } from "date-fns";
+import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer } from "lucide-react";
+import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, addDays, subHours } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
@@ -16,8 +16,18 @@ interface DashboardData {
   sessionsCompletedThisWeek: number;
   sessionsProgrammedThisWeek: number;
   unvalidatedAthletes: UnvalidatedAthlete[];
+  upcomingSessions: UpcomingSession[];
   recentActivities: RecentActivity[];
   fatigueAlerts: FatigueAlert[];
+}
+
+interface UpcomingSession {
+  sessionId: string;
+  athleteId: string;
+  athleteName: string;
+  sessionName: string;
+  sessionType: string;
+  scheduledDate: string;
 }
 
 interface UnvalidatedAthlete {
@@ -52,6 +62,7 @@ export default function CoachDashboard() {
     sessionsCompletedThisWeek: 0,
     sessionsProgrammedThisWeek: 0,
     unvalidatedAthletes: [],
+    upcomingSessions: [],
     recentActivities: [],
     fatigueAlerts: [],
   });
@@ -174,6 +185,31 @@ export default function CoachDashboard() {
           }
         });
 
+        // Upcoming sessions (scheduled between -5h and +24h)
+        const today = format(now, "yyyy-MM-dd");
+        const tomorrow = format(addDays(now, 1), "yyyy-MM-dd");
+        const { data: upcomingData } = await supabase
+          .from("training_sessions")
+          .select("id, name, session_type, scheduled_date, completed_at, training_weeks!inner(athlete_id)")
+          .in("training_weeks.athlete_id", athleteIds)
+          .is("completed_at", null)
+          .not("scheduled_date", "is", null)
+          .gte("scheduled_date", today)
+          .lte("scheduled_date", tomorrow);
+
+        const upcomingSessions: UpcomingSession[] = (upcomingData || []).map((s: any) => {
+          const athleteId = s.training_weeks?.athlete_id;
+          const profile = profileMap.get(athleteId);
+          return {
+            sessionId: s.id,
+            athleteId,
+            athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
+            sessionName: s.name,
+            sessionType: s.session_type,
+            scheduledDate: s.scheduled_date,
+          };
+        }).sort((a: UpcomingSession, b: UpcomingSession) => a.scheduledDate.localeCompare(b.scheduledDate));
+
         // Fatigue alerts
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
@@ -225,6 +261,7 @@ export default function CoachDashboard() {
           sessionsCompletedThisWeek: sessionsCompleted,
           sessionsProgrammedThisWeek: sessionsProgrammed,
           unvalidatedAthletes,
+          upcomingSessions,
           recentActivities: recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8),
           fatigueAlerts,
         });
@@ -248,6 +285,7 @@ export default function CoachDashboard() {
 
   const hasUnvalidated = data.unvalidatedAthletes.length > 0;
   const hasFatigueAlerts = data.fatigueAlerts.length > 0;
+  const hasUpcoming = data.upcomingSessions.length > 0;
 
   if (loading) {
     return (
@@ -373,6 +411,44 @@ export default function CoachDashboard() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Séances programmées à venir (aujourd'hui / demain) */}
+      {hasUpcoming && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Timer className="h-4 w-4 text-primary" />
+              Séances programmées à venir
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.upcomingSessions.map(s => (
+              <div
+                key={s.sessionId}
+                className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => navigate(`/coach/client/${s.athleteId}`)}
+              >
+                <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <User className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground truncate">{s.athleteName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{s.sessionName}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant="outline" className="text-xs">
+                    📅 {format(parseISO(s.scheduledDate), "EEE d MMM", { locale: fr })}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {s.sessionType === "cardio" ? "Cardio" : s.sessionType === "recup" ? "Récup" : "Renfo"}
+                  </Badge>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Dernières activités */}
