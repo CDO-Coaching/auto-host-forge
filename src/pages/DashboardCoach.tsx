@@ -32,6 +32,7 @@ import SuiviSalaire from "./coach/SuiviSalaire";
 import Notes from "./coach/Notes";
 import Agenda from "./coach/Agenda";
 import SeancesProgrammees from "./coach/SeancesProgrammees";
+import CoachDashboard from "./coach/Dashboard";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
@@ -195,7 +196,8 @@ export default function DashboardCoach() {
               </Alert>
             )}
             <Routes>
-              <Route path="/" element={<Navigate to="/coach/mes-clients" replace />} />
+              <Route path="/" element={<Navigate to="/coach/dashboard" replace />} />
+              <Route path="/dashboard" element={<CoachDashboard />} />
               <Route path="/mes-clients" element={<MesClients />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/seances-programmees" element={<SeancesProgrammees />} />
