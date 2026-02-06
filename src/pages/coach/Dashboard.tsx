@@ -8,6 +8,7 @@ import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Acti
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 
 interface DashboardData {
   activeClients: number;
@@ -24,8 +25,6 @@ interface UnvalidatedAthlete {
   firstName: string;
   lastName: string;
   email: string;
-  totalSessions: number;
-  completedSessions: number;
 }
 
 interface RecentActivity {
@@ -98,14 +97,42 @@ export default function CoachDashboard() {
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
       const weekNumber = getISOWeek(weekStart);
       const weekYear = getYear(weekStart);
+      const currentWeek = getWeekNumber(now);
+      const currentYear = getWeekYear(now);
 
       let sessionsCompleted = 0;
       let sessionsProgrammed = 0;
       const recentActivities: RecentActivity[] = [];
-      const athleteSessionCounts = new Map<string, { total: number; completed: number }>();
-      athleteIds.forEach(id => athleteSessionCounts.set(id, { total: 0, completed: 0 }));
 
       if (athleteIds.length > 0) {
+        // Check which athletes have their current week validated by the coach
+        const { data: validatedWeeks } = await supabase
+          .from("training_weeks")
+          .select("athlete_id, validated")
+          .in("athlete_id", athleteIds)
+          .eq("week_number", currentWeek)
+          .eq("year", currentYear);
+
+        const validatedAthleteIds = new Set(
+          (validatedWeeks || []).filter((w: any) => w.validated).map((w: any) => w.athlete_id)
+        );
+
+        // Athletes whose current week is NOT validated
+        const unvalidatedAthletes: UnvalidatedAthlete[] = athleteIds
+          .filter(id => !validatedAthleteIds.has(id))
+          .map(id => {
+            const profile = profileMap.get(id);
+            return {
+              athleteId: id,
+              firstName: profile?.first_name || "",
+              lastName: profile?.last_name || "",
+              email: profile?.email || "",
+            };
+          })
+          .sort((a, b) => `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`))
+          .slice(0, 5);
+
+        // Training sessions this week (for KPI)
         const { data: trainingSessions } = await supabase
           .from("training_sessions")
           .select("id, name, session_type, completed_at, training_weeks!inner(athlete_id, week_number, year)")
@@ -116,26 +143,21 @@ export default function CoachDashboard() {
         sessionsProgrammed = trainingSessions?.length || 0;
 
         (trainingSessions || []).forEach((ts: any) => {
-          const athleteId = ts.training_weeks?.athlete_id;
-          if (athleteId) {
-            const counts = athleteSessionCounts.get(athleteId) || { total: 0, completed: 0 };
-            counts.total++;
-            if (ts.completed_at) {
-              counts.completed++;
-              sessionsCompleted++;
-              const profile = profileMap.get(athleteId);
-              recentActivities.push({
-                id: ts.id,
-                type: "session_completed",
-                label: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
-                detail: ts.name,
-                date: ts.completed_at,
-              });
-            }
-            athleteSessionCounts.set(athleteId, counts);
+          if (ts.completed_at) {
+            sessionsCompleted++;
+            const athleteId = ts.training_weeks?.athlete_id;
+            const profile = profileMap.get(athleteId);
+            recentActivities.push({
+              id: ts.id,
+              type: "session_completed",
+              label: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
+              detail: ts.name,
+              date: ts.completed_at,
+            });
           }
         });
 
+        // Custom sessions this week
         const weekStartStr = format(weekStart, "yyyy-MM-dd");
         const weekEndStr = format(weekEnd, "yyyy-MM-dd");
         const { data: customSessions } = await supabase
@@ -149,28 +171,8 @@ export default function CoachDashboard() {
           if (cs.completed_at) {
             sessionsCompleted++;
             sessionsProgrammed++;
-            const counts = athleteSessionCounts.get(cs.user_id) || { total: 0, completed: 0 };
-            counts.total++;
-            counts.completed++;
-            athleteSessionCounts.set(cs.user_id, counts);
           }
         });
-
-        const unvalidatedAthletes: UnvalidatedAthlete[] = [];
-        athleteSessionCounts.forEach((counts, athleteId) => {
-          if (counts.total > 0 && counts.completed < counts.total) {
-            const profile = profileMap.get(athleteId);
-            unvalidatedAthletes.push({
-              athleteId,
-              firstName: profile?.first_name || "",
-              lastName: profile?.last_name || "",
-              email: profile?.email || "",
-              totalSessions: counts.total,
-              completedSessions: counts.completed,
-            });
-          }
-        });
-        unvalidatedAthletes.sort((a, b) => (a.completedSessions / a.totalSessions) - (b.completedSessions / b.totalSessions));
 
         // Fatigue alerts
         const threeDaysAgo = new Date();
@@ -222,7 +224,7 @@ export default function CoachDashboard() {
           pendingRequests: pending.length,
           sessionsCompletedThisWeek: sessionsCompleted,
           sessionsProgrammedThisWeek: sessionsProgrammed,
-          unvalidatedAthletes: unvalidatedAthletes.slice(0, 5),
+          unvalidatedAthletes,
           recentActivities: recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8),
           fatigueAlerts,
         });
@@ -303,7 +305,7 @@ export default function CoachDashboard() {
         </Card>
       </div>
 
-      {/* Sections dynamiques : séances à valider + alertes fatigue */}
+      {/* Sections dynamiques */}
       {(hasUnvalidated || hasFatigueAlerts) && (
         <div className={`grid ${isMobile ? "grid-cols-1" : (hasUnvalidated && hasFatigueAlerts ? "grid-cols-2" : "grid-cols-1")} gap-4`}>
           {hasUnvalidated && (
@@ -311,7 +313,7 @@ export default function CoachDashboard() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-primary" />
-                  Séances à valider
+                  Semaines non validées
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -331,8 +333,8 @@ export default function CoachDashboard() {
                       <p className="text-xs text-muted-foreground truncate">{a.email}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="outline" className="text-xs">
-                        {a.completedSessions}/{a.totalSessions}
+                      <Badge variant="outline" className="text-xs text-orange-400 border-orange-400/50">
+                        Non validé
                       </Badge>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
