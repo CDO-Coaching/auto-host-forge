@@ -604,8 +604,7 @@ export default function ClientDetail() {
         .select("id")
         .eq("athlete_id", athleteId)
         .eq("week_number", selectedHistoricalWeek.week_number)
-        .eq("year", selectedHistoricalWeek.year)
-        .eq("validated", true);
+        .eq("year", selectedHistoricalWeek.year);
 
       if (weeksError) throw weeksError;
 
