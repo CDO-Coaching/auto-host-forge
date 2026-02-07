@@ -69,7 +69,7 @@ export default function DashboardSportif() {
       }
 
       if (profileData.role === "coach") {
-        navigate("/coach/programmation");
+        navigate("/coach/dashboard");
         return;
       }
     };
