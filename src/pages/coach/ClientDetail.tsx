@@ -262,12 +262,21 @@ export default function ClientDetail() {
       .eq("athlete_id", athleteId)
       .eq("validated", true)
       .order("year", { ascending: false })
-      .order("week_number", { ascending: false });
+      .order("week_number", { ascending: false })
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Erreur lors du chargement de l'historique:", error);
     } else {
-      setHistoricalWeeks(data || []);
+      // Deduplicate: keep only the latest entry per (week_number, year)
+      const seen = new Set<string>();
+      const unique = (data || []).filter((w: any) => {
+        const key = `${w.year}-${w.week_number}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setHistoricalWeeks(unique);
     }
   };
 
