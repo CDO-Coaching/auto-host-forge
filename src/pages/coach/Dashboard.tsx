@@ -221,15 +221,22 @@ export default function CoachDashboard() {
 
             for (const event of events) {
               const attendees = event.attendees || [];
+              const startStr = typeof event.start === "object"
+                ? (event.start?.dateTime || event.start?.date)
+                : event.start;
+              const endStr = typeof event.end === "object"
+                ? (event.end?.dateTime || event.end?.date)
+                : event.end;
+
+              // Filter: only keep events whose start is within [-5h, +24h] local time
+              if (startStr) {
+                const eventStart = new Date(startStr);
+                if (eventStart < timeMin || eventStart > timeMax) continue;
+              }
+
               for (const att of attendees) {
                 const match = emailToAthlete.get(att.email?.toLowerCase());
                 if (match) {
-                  const startStr = typeof event.start === "object"
-                    ? (event.start?.dateTime || event.start?.date)
-                    : event.start;
-                  const endStr = typeof event.end === "object"
-                    ? (event.end?.dateTime || event.end?.date)
-                    : event.end;
                   upcomingSessions.push({
                     eventId: event.id,
                     athleteId: match.id,
@@ -238,7 +245,7 @@ export default function CoachDashboard() {
                     startTime: startStr || "",
                     endTime: endStr || "",
                   });
-                  break; // one match per event
+                  break;
                 }
               }
             }
