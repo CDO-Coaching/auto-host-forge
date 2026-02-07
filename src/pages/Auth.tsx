@@ -59,7 +59,7 @@ const Auth = () => {
         } else if (!profile?.approved) {
           navigate("/en-attente", { replace: true });
         } else if (profile.role === "coach") {
-          navigate("/coach/mes-clients", { replace: true });
+          navigate("/coach/dashboard", { replace: true });
         } else {
           navigate("/sportif/seances", { replace: true });
         }
@@ -100,7 +100,7 @@ const Auth = () => {
           } else if (!profile?.approved) {
             navigate("/en-attente");
           } else if (profile.role === "coach") {
-            navigate("/coach/mes-clients");
+            navigate("/coach/dashboard");
           } else {
             navigate("/sportif/seances");
           }
