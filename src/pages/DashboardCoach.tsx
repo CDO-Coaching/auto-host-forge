@@ -76,7 +76,7 @@ export default function DashboardCoach() {
       }
 
       if (profileData.role !== "coach") {
-        navigate("/sportif/seances");
+        navigate("/sportif/dashboard");
         return;
       }
     };

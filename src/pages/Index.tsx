@@ -46,7 +46,7 @@ const Index = () => {
           if (profile.role === 'coach') {
             navigate("/coach/programmation");
           } else {
-            navigate("/sportif/seances");
+            navigate("/sportif/dashboard");
           }
         }
       }
