@@ -30,21 +30,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+      (event, newSession) => {
+        // Si on perd le réseau et que Supabase tente un refresh qui échoue,
+        // il envoie SIGNED_OUT. On ignore cette déconnexion si on est hors ligne
+        // pour éviter de perdre la session de l'utilisateur.
+        if (event === 'SIGNED_OUT' && !navigator.onLine) {
+          console.log('Ignoring SIGNED_OUT event while offline');
+          return;
+        }
+
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
         setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Quand on revient en ligne, tenter de rafraîchir la session silencieusement
+    const handleOnline = () => {
+      supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
+        if (refreshedSession) {
+          setSession(refreshedSession);
+          setUser(refreshedSession.user);
+        }
+      });
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('online', handleOnline);
+    };
   }, []);
 
   return (
