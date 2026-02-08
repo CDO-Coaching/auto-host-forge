@@ -172,25 +172,28 @@ export default function SportifDashboard() {
 
   const progressPercent = weeklyInfo.total > 0 ? Math.round((weeklyInfo.completed / weeklyInfo.total) * 100) : 0;
 
-  const getFatigueColor = (score: number) => {
-    if (score <= 9) return "text-green-500";
-    if (score <= 14) return "text-green-400";
-    if (score <= 18) return "text-yellow-500";
-    if (score <= 22) return "text-orange-500";
+  // Score min = 4 (meilleur), max = 28 (pire) → plage de 24
+  const getRecoveryPercent = (score: number) => Math.max(0, Math.min(100, Math.round(((28 - score) / 24) * 100)));
+
+  const getRecoveryColor = (percent: number) => {
+    if (percent >= 68) return "text-green-500";
+    if (percent >= 50) return "text-green-400";
+    if (percent >= 36) return "text-yellow-500";
+    if (percent >= 22) return "text-orange-500";
     return "text-red-500";
   };
 
-  const getFatigueIcon = (score: number) => {
-    if (score <= 14) return <Smile className="h-8 w-8 text-green-500" />;
-    if (score <= 18) return <Meh className="h-8 w-8 text-yellow-500" />;
+  const getRecoveryIcon = (percent: number) => {
+    if (percent >= 50) return <Smile className="h-8 w-8 text-green-500" />;
+    if (percent >= 36) return <Meh className="h-8 w-8 text-yellow-500" />;
     return <Frown className="h-8 w-8 text-red-500" />;
   };
 
-  const getFatigueLabel = (score: number) => {
-    if (score <= 9) return "Très bon";
-    if (score <= 14) return "Bon";
-    if (score <= 18) return "Alerte";
-    if (score <= 22) return "Risque";
+  const getRecoveryLabel = (percent: number) => {
+    if (percent >= 68) return "Très bon";
+    if (percent >= 50) return "Bon";
+    if (percent >= 36) return "Alerte";
+    if (percent >= 22) return "Risque";
     return "Critique";
   };
 
@@ -267,21 +270,28 @@ export default function SportifDashboard() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <Activity className="h-5 w-5 text-primary" />
-              Fatigue
+              Récupération
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {fatigue.score !== null ? (
-              <div className="flex items-center gap-3">
-                {getFatigueIcon(fatigue.score)}
-                <div>
-                  <p className={`text-2xl font-bold ${getFatigueColor(fatigue.score)}`}>
-                    {fatigue.score}/28
-                  </p>
-                  <p className="text-xs text-muted-foreground">{getFatigueLabel(fatigue.score)}</p>
+            {fatigue.score !== null ? (() => {
+              const percent = getRecoveryPercent(fatigue.score);
+              return (
+                <div className="flex items-center gap-3">
+                  {getRecoveryIcon(percent)}
+                  <div className="flex-1">
+                    <div className="flex items-baseline gap-1">
+                      <p className={`text-2xl font-bold ${getRecoveryColor(percent)}`}>
+                        {percent}%
+                      </p>
+                      <span className="text-xs text-muted-foreground">de forme</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{getRecoveryLabel(percent)}</p>
+                    <Progress value={percent} className="h-2 mt-1.5" />
+                  </div>
                 </div>
-              </div>
-            ) : (
+              );
+            })() : (
               <p className="text-sm text-muted-foreground">Aucune donnée récente</p>
             )}
             {!fatigue.hasToday && (
