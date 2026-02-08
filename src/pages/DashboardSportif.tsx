@@ -30,6 +30,7 @@ import Messagerie from "./sportif/Messagerie";
 import Paiement from "./sportif/Paiement";
 import PaiementSucces from "./sportif/PaiementSucces";
 import MesFactures from "./sportif/MesFactures";
+import SportifDashboard from "./sportif/Dashboard";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -104,7 +105,8 @@ export default function DashboardSportif() {
           </header>
           <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 sm:pb-6">
             <Routes>
-              <Route path="/" element={<Navigate to="/sportif/seances" replace />} />
+              <Route path="/" element={<Navigate to="/sportif/dashboard" replace />} />
+              <Route path="/dashboard" element={<SportifDashboard />} />
               <Route path="/seances" element={<Seances />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/mes-seances" element={<MesSeances />} />
