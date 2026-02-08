@@ -47,7 +47,7 @@ export default function EnAttente() {
         if (profile.role === "coach") {
           navigate("/coach/programmation", { replace: true });
         } else {
-          navigate("/sportif/seances", { replace: true });
+          navigate("/sportif/dashboard", { replace: true });
         }
       }
     };

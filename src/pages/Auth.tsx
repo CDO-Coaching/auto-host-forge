@@ -61,7 +61,7 @@ const Auth = () => {
         } else if (profile.role === "coach") {
           navigate("/coach/dashboard", { replace: true });
         } else {
-          navigate("/sportif/seances", { replace: true });
+          navigate("/sportif/dashboard", { replace: true });
         }
       };
 
@@ -102,7 +102,7 @@ const Auth = () => {
           } else if (profile.role === "coach") {
             navigate("/coach/dashboard");
           } else {
-            navigate("/sportif/seances");
+            navigate("/sportif/dashboard");
           }
         }
       } else {
