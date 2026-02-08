@@ -31,7 +31,8 @@ interface WeeklySessionInfo {
 }
 
 interface FatigueInfo {
-  score: number | null;
+  avgScore: number | null;
+  entryCount: number;
   hasToday: boolean;
 }
 
@@ -42,7 +43,7 @@ export default function SportifDashboard() {
   const firstName = profile?.first_name || "Champion";
 
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null });
-  const [fatigue, setFatigue] = useState<FatigueInfo>({ score: null, hasToday: false });
+  const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -129,19 +130,31 @@ export default function SportifDashboard() {
   };
 
   const loadFatigue = async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date();
+    const todayStr = today.toISOString().split("T")[0];
+    const fiveDaysAgo = new Date(today);
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 4); // aujourd'hui inclus = 5 jours
 
     const { data } = await supabase
       .from("daily_fatigue_log")
       .select("score_total, date")
       .eq("user_id", user!.id)
-      .order("date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .gte("date", fiveDaysAgo.toISOString().split("T")[0])
+      .lte("date", todayStr)
+      .order("date", { ascending: false });
+
+    if (!data || data.length === 0) {
+      setFatigue({ avgScore: null, entryCount: 0, hasToday: false });
+      return;
+    }
+
+    const scores = data.map(d => d.score_total).filter((s): s is number => s !== null);
+    const avg = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null;
 
     setFatigue({
-      score: data?.score_total ?? null,
-      hasToday: data?.date === today,
+      avgScore: avg,
+      entryCount: scores.length,
+      hasToday: data.some(d => d.date === todayStr),
     });
   };
 
@@ -274,8 +287,8 @@ export default function SportifDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {fatigue.score !== null ? (() => {
-              const percent = getRecoveryPercent(fatigue.score);
+            {fatigue.avgScore !== null ? (() => {
+              const percent = getRecoveryPercent(fatigue.avgScore);
               return (
                 <div className="flex items-center gap-3">
                   {getRecoveryIcon(percent)}
@@ -288,6 +301,9 @@ export default function SportifDashboard() {
                     </div>
                     <p className="text-xs text-muted-foreground">{getRecoveryLabel(percent)}</p>
                     <Progress value={percent} className="h-2 mt-1.5" />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Moyenne sur {fatigue.entryCount} jour{fatigue.entryCount > 1 ? "s" : ""} (5 derniers jours)
+                    </p>
                   </div>
                 </div>
               );
