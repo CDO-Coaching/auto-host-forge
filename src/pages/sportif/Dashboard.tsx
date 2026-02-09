@@ -16,6 +16,7 @@ import {
   ChevronRight,
   MessageSquare,
   CalendarCheck,
+  CalendarDays,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -98,20 +99,33 @@ export default function SportifDashboard() {
     }
 
     let completed = 0;
-    let nextSession: WeeklySessionInfo["nextSession"] = null;
+    const incompleteSessions: typeof sessions = [];
 
     for (const s of sessions) {
       if (isSessionCompleted(s)) {
         completed++;
-      } else if (!nextSession) {
-        nextSession = {
-          name: s.athlete_custom_name || s.name,
-          type: s.session_type || "renfo",
-          id: s.id,
-          weekId: week.id,
-        };
+      } else {
+        incompleteSessions.push(s);
       }
     }
+
+    // Sort incomplete sessions: scheduled ones first (by date), then unscheduled by session_number
+    incompleteSessions.sort((a, b) => {
+      const aDate = a.scheduled_date;
+      const bDate = b.scheduled_date;
+      if (aDate && bDate) return aDate.localeCompare(bDate);
+      if (aDate && !bDate) return -1;
+      if (!aDate && bDate) return 1;
+      return a.session_number - b.session_number;
+    });
+
+    const nextS = incompleteSessions[0] || null;
+    const nextSession: WeeklySessionInfo["nextSession"] = nextS ? {
+      name: nextS.athlete_custom_name || nextS.name,
+      type: nextS.session_type || "renfo",
+      id: nextS.id,
+      weekId: week.id,
+    } : null;
 
     // Also count custom sessions for the week
     const { count: customCount } = await supabase
@@ -347,8 +361,17 @@ export default function SportifDashboard() {
         </Card>
       </div>
 
-      {/* Prochaine séance */}
+      {/* Bouton programmer + Prochaine séance */}
       {weeklyInfo.nextSession && (
+        <>
+        <Button
+          variant="outline"
+          className="w-full border-primary/30 text-primary hover:bg-primary/10"
+          onClick={() => navigate("/sportif/programmer")}
+        >
+          <CalendarDays className="h-4 w-4 mr-2" />
+          Programmer mes séances
+        </Button>
         <Card
           className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => {
@@ -382,6 +405,7 @@ export default function SportifDashboard() {
             </div>
           </CardContent>
         </Card>
+        </>
       )}
     </div>
   );
