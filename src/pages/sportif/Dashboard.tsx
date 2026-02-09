@@ -109,11 +109,14 @@ export default function SportifDashboard() {
       }
     }
 
-    // Sort incomplete sessions: scheduled ones first (by date), then unscheduled by session_number
+    // Sort incomplete sessions: scheduled ones first (by date), then by session_number for same-day ordering
     incompleteSessions.sort((a, b) => {
       const aDate = a.scheduled_date;
       const bDate = b.scheduled_date;
-      if (aDate && bDate) return aDate.localeCompare(bDate);
+      if (aDate && bDate) {
+        const dateCmp = aDate.localeCompare(bDate);
+        if (dateCmp !== 0) return dateCmp;
+      }
       if (aDate && !bDate) return -1;
       if (!aDate && bDate) return 1;
       return a.session_number - b.session_number;

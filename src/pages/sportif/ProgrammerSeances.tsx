@@ -212,10 +212,24 @@ export default function ProgrammerSeances() {
         ids.forEach((id) => (sessionDateMap[id] = dateStr));
       });
 
-      const updates = Object.entries(sessionDateMap).map(([sessionId, date]) =>
+      // Build ordered session number: sessions ordered by their scheduled date then position in day
+      const orderedIds: string[] = [];
+      const allDates = Object.keys(dayAssignments).sort();
+      allDates.forEach((dateStr) => {
+        dayAssignments[dateStr].forEach((id) => orderedIds.push(id));
+      });
+      // Append unassigned sessions at the end
+      sessions.forEach((s) => {
+        if (!orderedIds.includes(s.id)) orderedIds.push(s.id);
+      });
+
+      const updates = orderedIds.map((sessionId, index) =>
         supabase
           .from("training_sessions")
-          .update({ scheduled_date: date })
+          .update({
+            scheduled_date: sessionDateMap[sessionId],
+            session_number: index + 1,
+          })
           .eq("id", sessionId)
       );
 
