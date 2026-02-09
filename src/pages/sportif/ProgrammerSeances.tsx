@@ -89,7 +89,7 @@ export default function ProgrammerSeances() {
     const { data: sessionsData } = await supabase
       .from("training_sessions")
       .select(
-        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, session_exercises(sportif_rpe, skipped, cardio_data, cardio_sport)"
+        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, session_exercises(sportif_rpe, skipped, cardio_content, cardio_sport)"
       )
       .eq("week_id", week.id)
       .order("session_number");
