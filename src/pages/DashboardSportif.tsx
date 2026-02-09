@@ -31,6 +31,7 @@ import Paiement from "./sportif/Paiement";
 import PaiementSucces from "./sportif/PaiementSucces";
 import MesFactures from "./sportif/MesFactures";
 import SportifDashboard from "./sportif/Dashboard";
+import ProgrammerSeances from "./sportif/ProgrammerSeances";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -117,6 +118,7 @@ export default function DashboardSportif() {
               <Route path="/fatigue" element={<Fatigue />} />
               <Route path="/maxes" element={<Maxes />} />
               <Route path="/poids" element={<Poids />} />
+              <Route path="/programmer" element={<ProgrammerSeances />} />
               <Route path="/meditation" element={<Meditation />} />
               <Route path="/messagerie" element={<Messagerie />} />
               <Route path="/paiement" element={<Paiement />} />
