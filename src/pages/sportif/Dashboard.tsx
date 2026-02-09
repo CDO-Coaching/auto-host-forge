@@ -10,6 +10,7 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { getWeekNumber, getWeekYear, formatWeekRangeFromNumber } from "@/lib/weekUtils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getCardioEstimatedDuration, isCardioSession } from "@/lib/cardioEstimatedDuration";
 import {
   Dumbbell,
   Activity,
@@ -28,7 +29,7 @@ import {
 interface WeeklySessionInfo {
   total: number;
   completed: number;
-  nextSession: { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string } | null;
+  nextSession: { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string; estimatedDuration: string | null } | null;
 }
 
 interface FatigueInfo {
@@ -73,6 +74,13 @@ export default function SportifDashboard() {
     const now = new Date();
     const weekNumber = getWeekNumber(now);
     const year = getWeekYear(now);
+
+    // Fetch VMA for cardio duration calculation
+    let athleteVma: number | null = null;
+    if (user) {
+      const { data: profileData } = await supabase.from("user_profiles").select("vma").eq("id", user.id).single();
+      if (profileData?.vma) athleteVma = profileData.vma;
+    }
 
     const { data: week } = await supabase
       .from("training_weeks")
@@ -132,6 +140,7 @@ export default function SportifDashboard() {
       weekId: week.id,
       overdue: isOverdue,
       scheduledLabel: nextS.scheduled_date ? format(new Date(nextS.scheduled_date + "T00:00:00"), "EEEE d", { locale: fr }) : "",
+      estimatedDuration: isCardioSession(nextS) ? getCardioEstimatedDuration(nextS.session_exercises || [], athleteVma) : null,
     } : null;
 
     // Also count custom sessions for the week
@@ -406,13 +415,20 @@ export default function SportifDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold text-lg">{weeklyInfo.nextSession.name}</p>
-                <Badge variant="outline" className="mt-1 text-xs capitalize">
-                  {weeklyInfo.nextSession.type === "recup"
-                    ? "Récup/Mobilité"
-                    : weeklyInfo.nextSession.type === "cardio"
-                    ? "Cardio"
-                    : "Renforcement"}
-                </Badge>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {weeklyInfo.nextSession.type === "recup"
+                      ? "Récup/Mobilité"
+                      : weeklyInfo.nextSession.type === "cardio"
+                      ? "Cardio"
+                      : "Renforcement"}
+                  </Badge>
+                  {weeklyInfo.nextSession.estimatedDuration && (
+                    <Badge variant="secondary" className="text-xs">
+                      ⏱ {weeklyInfo.nextSession.estimatedDuration}
+                    </Badge>
+                  )}
+                </div>
               </div>
               <ChevronRight className="h-5 w-5 text-muted-foreground" />
             </div>

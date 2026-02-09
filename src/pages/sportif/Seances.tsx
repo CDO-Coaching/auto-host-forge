@@ -15,6 +15,7 @@ import { useWeeklyCompletionCelebration } from "@/hooks/useWeeklyCompletionCeleb
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getCardioEstimatedDuration, isCardioSession } from "@/lib/cardioEstimatedDuration";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -377,6 +378,14 @@ export default function Seances() {
                                     Cardio
                                   </Badge>
                                 )}
+                                {isCardioSession(session) && (() => {
+                                  const dur = getCardioEstimatedDuration(session.session_exercises || [], (profile as any)?.vma || null);
+                                  return dur ? (
+                                    <Badge variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
+                                      ⏱ {dur}
+                                    </Badge>
+                                  ) : null;
+                                })()}
                               </div>
                             </div>
 

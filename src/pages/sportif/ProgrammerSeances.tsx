@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { getCardioEstimatedDuration, isCardioSession as checkCardio } from "@/lib/cardioEstimatedDuration";
 import { getWeekNumber, getWeekYear, getMondayOfWeek } from "@/lib/weekUtils";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -33,6 +34,7 @@ interface SessionToSchedule {
   session_number: number;
   scheduled_date: string | null;
   exerciseCount: number;
+  estimatedDuration: string | null;
 }
 
 // Assignments: day -> ordered list of session ids
@@ -63,6 +65,11 @@ export default function ProgrammerSeances() {
     if (!session?.user?.id) return;
     setLoading(true);
 
+    // Fetch VMA for cardio duration
+    let athleteVma: number | null = null;
+    const { data: profileData } = await supabase.from("user_profiles").select("vma").eq("id", session.user.id).single();
+    if (profileData?.vma) athleteVma = profileData.vma;
+
     const weekNumber = getWeekNumber(now);
     const year = getWeekYear(now);
 
@@ -82,7 +89,7 @@ export default function ProgrammerSeances() {
     const { data: sessionsData } = await supabase
       .from("training_sessions")
       .select(
-        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, session_exercises(sportif_rpe, skipped)"
+        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, session_exercises(sportif_rpe, skipped, cardio_data, cardio_sport)"
       )
       .eq("week_id", week.id)
       .order("session_number");
@@ -114,6 +121,7 @@ export default function ProgrammerSeances() {
       session_number: s.session_number,
       scheduled_date: s.scheduled_date,
       exerciseCount: s.session_exercises?.length || 0,
+      estimatedDuration: checkCardio(s) ? getCardioEstimatedDuration(s.session_exercises || [], athleteVma) : null,
     }));
 
     setSessions(mapped);
@@ -319,7 +327,10 @@ export default function ProgrammerSeances() {
                     <span className="text-sm font-semibold block leading-tight">
                       {s.athlete_custom_name || s.name}
                     </span>
-                    <span className="text-[11px] opacity-70">{getTypeLabel(s.session_type)}</span>
+                    <span className="text-[11px] opacity-70">
+                      {getTypeLabel(s.session_type)}
+                      {s.estimatedDuration && ` • ⏱ ${s.estimatedDuration}`}
+                    </span>
                   </div>
                 </button>
               );
@@ -399,6 +410,11 @@ export default function ProgrammerSeances() {
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-current opacity-60">
                               {getTypeLabel(s.session_type)}
                             </Badge>
+                            {s.estimatedDuration && (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
+                                ⏱ {s.estimatedDuration}
+                              </Badge>
+                            )}
                             {!dayPast && (
                               <button
                                 onClick={(e) => {
