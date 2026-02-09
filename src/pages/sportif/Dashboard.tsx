@@ -28,7 +28,7 @@ import {
 interface WeeklySessionInfo {
   total: number;
   completed: number;
-  nextSession: { name: string; type: string; id: string; weekId: string } | null;
+  nextSession: { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string } | null;
 }
 
 interface FatigueInfo {
@@ -123,11 +123,15 @@ export default function SportifDashboard() {
     });
 
     const nextS = incompleteSessions[0] || null;
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const isOverdue = nextS?.scheduled_date ? nextS.scheduled_date < todayStr : false;
     const nextSession: WeeklySessionInfo["nextSession"] = nextS ? {
       name: nextS.athlete_custom_name || nextS.name,
       type: nextS.session_type || "renfo",
       id: nextS.id,
       weekId: week.id,
+      overdue: isOverdue,
+      scheduledLabel: nextS.scheduled_date ? format(new Date(nextS.scheduled_date + "T00:00:00"), "EEEE d", { locale: fr }) : "",
     } : null;
 
     // Also count custom sessions for the week
@@ -393,6 +397,12 @@ export default function SportifDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {weeklyInfo.nextSession.overdue && (
+              <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-destructive/10 border border-destructive/30">
+                <span className="text-sm">❓</span>
+                <span className="text-xs font-medium text-destructive">À valider — prévue le {weeklyInfo.nextSession.scheduledLabel}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-semibold text-lg">{weeklyInfo.nextSession.name}</p>
