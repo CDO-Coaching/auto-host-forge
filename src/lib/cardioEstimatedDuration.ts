@@ -13,14 +13,17 @@ export function getCardioEstimatedDuration(
   let totalSeconds = 0;
 
   for (const ex of exercises) {
-    if (!ex.cardio_data) continue;
+    // The DB column is cardio_content (not cardio_data)
+    const rawData = ex.cardio_content || ex.cardio_data;
+    if (!rawData) continue;
 
     let cardioData;
     try {
-      cardioData =
-        typeof ex.cardio_data === "string"
-          ? JSON.parse(ex.cardio_data)
-          : ex.cardio_data;
+      cardioData = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
+      // Handle array format
+      if (Array.isArray(cardioData)) {
+        cardioData = { steps: cardioData, blocks: [] };
+      }
     } catch {
       continue;
     }
@@ -44,6 +47,7 @@ export function isCardioSession(session: any): boolean {
     (ex: any) =>
       ex.cardio_sport === "course" ||
       ex.cardio_sport === "velo" ||
-      ex.cardio_sport === "natation"
+      ex.cardio_sport === "natation" ||
+      ex.cardio_content
   );
 }
