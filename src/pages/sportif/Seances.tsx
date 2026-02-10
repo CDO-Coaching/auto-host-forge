@@ -38,6 +38,7 @@ export default function Seances() {
   const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCustomSession, setEditingCustomSession] = useState<any>(null);
+  const [validatingCustomSession, setValidatingCustomSession] = useState<any>(null);
   const [schedulingSession, setSchedulingSession] = useState<any>(null);
 
   const handleDeleteCustomSession = async (sessionId: string) => {
@@ -113,11 +114,10 @@ export default function Seances() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("custom_sessions")
+      const { data, error } = await (supabase.from("custom_sessions") as any)
         .select("*")
         .eq("user_id", user.id)
-        .order("completed_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Erreur lors du chargement des séances perso:", error);
@@ -438,106 +438,134 @@ export default function Seances() {
               <CustomSessionDialog 
                 onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} 
                 editSession={editingCustomSession}
-                onClose={() => setEditingCustomSession(null)}
+                onClose={() => { setEditingCustomSession(null); setValidatingCustomSession(null); }}
+                validateSession={validatingCustomSession}
               />
             </div>
 
             {/* Séances perso de la semaine */}
-            {selectedWeek && customSessions.filter(cs => {
-              const sessionDate = new Date(cs.completed_at);
+            {selectedWeek && (() => {
               const weekRefDate = getDateFromWeekNumber(selectedWeek.week_number, selectedWeek.year);
               const weekStart = getMondayOfWeek(weekRefDate);
               const weekEnd = getSundayOfWeek(weekRefDate);
               weekEnd.setHours(23, 59, 59, 999);
-              return sessionDate >= weekStart && sessionDate <= weekEnd;
-            }).length > 0 && (
-              <div className="mt-4 sm:mt-6">
-                <h3 className="text-base sm:text-lg font-semibold mb-3">Séances perso</h3>
-                <div className="space-y-2 sm:space-y-3">
-                  {customSessions
-                    .filter(cs => {
-                      const sessionDate = new Date(cs.completed_at);
-                      const weekRefDate = getDateFromWeekNumber(selectedWeek.week_number, selectedWeek.year);
-                      const weekStart = getMondayOfWeek(weekRefDate);
-                      const weekEnd = getSundayOfWeek(weekRefDate);
-                      weekEnd.setHours(23, 59, 59, 999);
-                      return sessionDate >= weekStart && sessionDate <= weekEnd;
-                    })
-                    .map((customSession) => (
-                      <Card key={customSession.id} className="border-primary/30 bg-primary/5">
-                        <CardContent className="p-4 sm:p-5">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
-                                <Badge variant="secondary" className="text-xs">Perso</Badge>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-2">
-                                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                <span>{customSession.duration_minutes} min</span>
-                              </div>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(customSession.completed_at).toLocaleDateString('fr-FR', {
-                                  weekday: 'long',
-                                  day: 'numeric',
-                                  month: 'long',
-                                })}
-                              </p>
-                              {customSession.description && (
-                                <p className="text-xs sm:text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
-                                  {customSession.description}
+
+              const weekCustomSessions = customSessions.filter(cs => {
+                const dateStr = cs.scheduled_date || cs.completed_at;
+                if (!dateStr) return false;
+                const sessionDate = new Date(dateStr);
+                return sessionDate >= weekStart && sessionDate <= weekEnd;
+              });
+
+              if (weekCustomSessions.length === 0) return null;
+
+              return (
+                <div className="mt-4 sm:mt-6">
+                  <h3 className="text-base sm:text-lg font-semibold mb-3">Séances perso</h3>
+                  <div className="space-y-2 sm:space-y-3">
+                    {weekCustomSessions.map((customSession) => {
+                      const isPlanned = !customSession.completed_at;
+                      return (
+                        <Card key={customSession.id} className={isPlanned ? "border-orange-500/30 bg-orange-500/5" : "border-primary/30 bg-primary/5"}>
+                          <CardContent className="p-4 sm:p-5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
+                                  <Badge variant="secondary" className="text-xs">Perso</Badge>
+                                  {isPlanned ? (
+                                    <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10">
+                                      📅 Planifiée
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs border-green-500 text-green-600 dark:text-green-400 bg-green-500/10">
+                                      ✅ Validée
+                                    </Badge>
+                                  )}
+                                </div>
+                                {customSession.duration_minutes && (
+                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-2">
+                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                                    <span>{customSession.duration_minutes} min</span>
+                                  </div>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(customSession.scheduled_date || customSession.completed_at).toLocaleDateString('fr-FR', {
+                                    weekday: 'long',
+                                    day: 'numeric',
+                                    month: 'long',
+                                  })}
                                 </p>
-                              )}
-                            </div>
-                            <div className="flex gap-1 flex-shrink-0">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingCustomSession(customSession);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
+                                {customSession.description && (
+                                  <p className="text-xs sm:text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
+                                    {customSession.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex gap-1 flex-shrink-0">
+                                {isPlanned && (
                                   <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive"
-                                    onClick={(e) => e.stopPropagation()}
+                                    variant="default"
+                                    size="sm"
+                                    className="text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setValidatingCustomSession(customSession);
+                                    }}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    Valider ✅
                                   </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Supprimer cette séance ?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Cette action est irréversible. La séance "{customSession.session_name}" sera définitivement supprimée.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                    <AlertDialogAction 
-                                      onClick={() => handleDeleteCustomSession(customSession.id)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                )}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingCustomSession(customSession);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={(e) => e.stopPropagation()}
                                     >
-                                      Supprimer
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Supprimer cette séance ?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Cette action est irréversible. La séance "{customSession.session_name}" sera définitivement supprimée.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                      <AlertDialogAction 
+                                        onClick={() => handleDeleteCustomSession(customSession.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Supprimer
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         )
       )}
