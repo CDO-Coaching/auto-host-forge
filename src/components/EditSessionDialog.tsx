@@ -210,10 +210,17 @@ export function EditSessionDialog({
             <Input
               id="edit-session-duration"
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               min="1"
+              max="600"
+              step="1"
               placeholder="Ex: 45"
               value={durationMinutes}
-              onChange={(e) => setDurationMinutes(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setDurationMinutes(val);
+              }}
             />
           </div>
 

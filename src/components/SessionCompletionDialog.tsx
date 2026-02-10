@@ -205,10 +205,17 @@ export function SessionCompletionDialog({
             <Input
               id="session-duration"
               type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
               min="1"
+              max="600"
+              step="1"
               placeholder="Ex: 45"
               value={durationMinutes}
-              onChange={(e) => setDurationMinutes(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9]/g, '');
+                setDurationMinutes(val);
+              }}
             />
             {needsManualDuration && (
               <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-400">

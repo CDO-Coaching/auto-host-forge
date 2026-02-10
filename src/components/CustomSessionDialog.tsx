@@ -302,11 +302,17 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
               <Input
                 id="duration"
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="Ex: 45"
                 value={duration}
-                onChange={(e) => setDuration(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setDuration(val);
+                }}
                 min="1"
                 max="600"
+                step="1"
                 required
               />
             </div>
