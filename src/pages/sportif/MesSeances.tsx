@@ -27,11 +27,10 @@ export default function MesSeances() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("custom_sessions")
+      const { data, error } = await (supabase.from("custom_sessions") as any)
         .select("*")
         .eq("user_id", user.id)
-        .order("completed_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 

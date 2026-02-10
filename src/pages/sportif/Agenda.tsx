@@ -69,12 +69,10 @@ export default function Agenda() {
 
       if (trainingError) throw trainingError;
 
-      // Fetch custom sessions
-      const { data: customSessions, error: customError } = await supabase
-        .from("custom_sessions")
-        .select("id, session_name, completed_at, duration_minutes")
-        .eq("user_id", session.user.id)
-        .not("completed_at", "is", null);
+      // Fetch custom sessions (both completed and planned)
+      const { data: customSessions, error: customError } = await (supabase.from("custom_sessions") as any)
+        .select("id, session_name, completed_at, duration_minutes, scheduled_date")
+        .eq("user_id", session.user.id);
 
       if (customError) throw customError;
 
@@ -113,17 +111,20 @@ export default function Agenda() {
         }
       });
 
-      // Add custom sessions (always completed)
+      // Add custom sessions (completed or planned)
       (customSessions || []).forEach((s: any) => {
+        const isCompleted = !!s.completed_at;
+        const date = isCompleted ? s.completed_at : s.scheduled_date;
+        if (!date) return;
         allSessions.push({
           id: s.id,
           name: s.session_name,
           week_id: "",
           session_type: "custom",
-          date: s.completed_at,
+          date,
           session_rpe: null,
           isCustom: true,
-          isCompleted: true
+          isCompleted
         });
       });
 
