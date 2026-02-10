@@ -254,12 +254,9 @@ export default function SportifDashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6 pb-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Bonjour {firstName} 👋</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}
-        </p>
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}
+      </p>
 
       {/* Progression hebdomadaire */}
       <Card className="overflow-hidden">
