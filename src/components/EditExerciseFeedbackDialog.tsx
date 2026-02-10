@@ -208,11 +208,17 @@ export function EditExerciseFeedbackDialog({
                 <Input
                   id="edit-duration"
                   type="number"
-                  step="0.5"
-                  min="0"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  step="1"
+                  min="1"
+                  max="600"
                   placeholder="Ex: 45"
                   value={actualDuration}
-                  onChange={(e) => setActualDuration(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setActualDuration(val);
+                  }}
                 />
               </div>
 

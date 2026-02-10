@@ -232,10 +232,16 @@ export function CardioFeedbackDialog({
               <Input
                 id="duration"
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 step="1"
-                min="0"
+                min="1"
+                max="600"
                 value={actualDuration}
-                onChange={(e) => setActualDuration(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^0-9]/g, '');
+                  setActualDuration(val);
+                }}
                 placeholder="Ex: 45"
               />
             </div>
