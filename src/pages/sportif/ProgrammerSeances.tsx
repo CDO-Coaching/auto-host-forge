@@ -44,6 +44,7 @@ export default function ProgrammerSeances() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [sessions, setSessions] = useState<SessionToSchedule[]>([]);
+  const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [dayAssignments, setDayAssignments] = useState<DayAssignments>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -93,6 +94,18 @@ export default function ProgrammerSeances() {
       )
       .eq("week_id", week.id)
       .order("session_number");
+
+    // Fetch planned custom sessions for this week
+    const mondayStr = format(monday, "yyyy-MM-dd");
+    const sundayStr = format(addDays(monday, 6), "yyyy-MM-dd");
+    const { data: customData } = await (supabase.from("custom_sessions") as any)
+      .select("*")
+      .eq("user_id", session.user.id)
+      .is("completed_at", null)
+      .gte("scheduled_date", mondayStr)
+      .lte("scheduled_date", sundayStr);
+
+    setCustomSessions(customData || []);
 
     if (!sessionsData) {
       setLoading(false);
@@ -353,6 +366,7 @@ export default function ProgrammerSeances() {
           const sessionsOnDay = (dayAssignments[dateStr] || [])
             .map(getSession)
             .filter(Boolean) as SessionToSchedule[];
+          const customOnDay = customSessions.filter(cs => cs.scheduled_date === dateStr);
 
           return (
             <Card
@@ -386,9 +400,8 @@ export default function ProgrammerSeances() {
                     </span>
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    {sessionsOnDay.length === 0 ? (
+                    {sessionsOnDay.length === 0 && customOnDay.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">
                         {dayPast ? "Passé" : "Aucune séance"}
                       </p>
@@ -426,6 +439,20 @@ export default function ProgrammerSeances() {
                                 <X className="h-3.5 w-3.5 text-destructive" />
                               </button>
                             )}
+                          </div>
+                        ))}
+                        {/* Custom planned sessions */}
+                        {customOnDay.map((cs: any) => (
+                          <div
+                            key={cs.id}
+                            className="flex items-center gap-2 p-1.5 rounded-lg border-orange-500/50 bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                          >
+                            <span className="text-sm font-medium truncate flex-1">
+                              {cs.session_name}
+                            </span>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-orange-500 text-orange-600 dark:text-orange-400">
+                              Perso
+                            </Badge>
                           </div>
                         ))}
                         {sessionsOnDay.length >= 2 && !dayPast && (
