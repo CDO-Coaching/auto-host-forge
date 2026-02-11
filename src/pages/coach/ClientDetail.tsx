@@ -2242,12 +2242,6 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      {/* Rappel FC max / FC repos */}
-      <CoachFcReminderAlert
-        athleteId={athleteId!}
-        athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
-        onNavigateToMax={() => setActiveTab("max")}
-      />
 
       {/* Tabs avec indicateur de scroll */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
