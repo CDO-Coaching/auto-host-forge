@@ -16,13 +16,14 @@ interface CoachClientSummaryViewProps {
 
 interface FatigueEntry {
   date: string;
-  sleep_quality: number;
-  stress_level: number;
-  fatigue_level: number;
-  soreness_level: number;
+  sommeil: number;
+  stress: number;
+  fatigue: number;
+  courbatures: number;
   has_injury: boolean;
   injury_level: number | null;
   injury_location: string | null;
+  score_total: number;
 }
 
 interface SessionInfo {
@@ -78,7 +79,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
     const todayStr = format(today, "yyyy-MM-dd");
     const { data } = await supabase
       .from("daily_fatigue_log")
-      .select("date, sleep_quality, stress_level, fatigue_level, soreness_level, has_injury, injury_level, injury_location")
+      .select("*")
       .eq("user_id", athleteId)
       .gte("date", thirtyDaysAgo)
       .lte("date", todayStr)
@@ -128,8 +129,8 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
 
   // Chart data: total fatigue score (sum of 4 metrics, sleep inverted)
   const chartData = fatigueData.map(e => {
-    const invertedSleep = 8 - e.sleep_quality;
-    const total = invertedSleep + e.stress_level + e.fatigue_level + e.soreness_level;
+    const invertedSleep = 8 - e.sommeil;
+    const total = invertedSleep + e.stress + e.fatigue + e.courbatures;
     return { date: format(new Date(e.date + "T00:00:00"), "dd/MM", { locale: fr }), score: total };
   });
 
@@ -144,7 +145,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
   // Recovery %
   const last5 = fatigueData.slice(-5);
   const recovery = last5.length > 0 ? (() => {
-    const avg = last5.reduce((s, e) => s + (8 - e.sleep_quality) + e.stress_level + e.fatigue_level + e.soreness_level, 0) / last5.length;
+    const avg = last5.reduce((s, e) => s + (8 - e.sommeil) + e.stress + e.fatigue + e.courbatures, 0) / last5.length;
     return Math.max(0, Math.min(100, Math.round(((28 - avg) / (28 - 4)) * 100)));
   })() : null;
 
