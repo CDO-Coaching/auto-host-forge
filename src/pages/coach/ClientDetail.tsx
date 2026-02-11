@@ -66,6 +66,7 @@ import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPa
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
+import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -157,7 +158,7 @@ export default function ClientDetail() {
   const [showRunningSheet, setShowRunningSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
-  const [activeTab, setActiveTab] = useState("programmation");
+  const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
@@ -2253,6 +2254,7 @@ export default function ClientDetail() {
         <div className="relative">
           <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
+              <TabsTrigger value="resume" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Résumé</TabsTrigger>
               <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
               <TabsTrigger value="efforts" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Efforts</TabsTrigger>
               <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
@@ -2266,6 +2268,13 @@ export default function ClientDetail() {
           {/* Indicateur de scroll */}
           <div className="absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
         </div>
+
+        <TabsContent value="resume" className="space-y-4">
+          <CoachClientSummaryView
+            athleteId={athleteId!}
+            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
+          />
+        </TabsContent>
 
         <TabsContent value="programmation" className="space-y-4">
           {/* Boutons flottants en haut - scrollable sur mobile */}
