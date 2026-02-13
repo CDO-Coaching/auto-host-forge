@@ -172,6 +172,12 @@ export default function ClientDetail() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showRenfoTemplateSelector, setShowRenfoTemplateSelector] = useState<number | null>(null);
   const [autoOpenExercise, setAutoOpenExercise] = useState<{ sessionId: number; exerciseId: number } | null>(null);
+  
+  // Multi-week programming mode
+  const [multiWeekMode, setMultiWeekMode] = useState(false);
+  const [multiWeekTotal, setMultiWeekTotal] = useState(2);
+  const [multiWeekCurrent, setMultiWeekCurrent] = useState(1);
+  const [multiWeekStartWeek, setMultiWeekStartWeek] = useState<{ week: number; year: number } | null>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1386,17 +1392,39 @@ export default function ClientDetail() {
         }
       }
 
-      toast.success("Semaine d'entraînement validée et envoyée au sportif !");
+      toast.success(`Semaine S${selectedWeekToProgram.week} validée et envoyée au sportif !`);
 
-      // Réinitialiser pour permettre de programmer une nouvelle semaine
-      setSelectedWeekToProgram({ week: getWeekNumber(new Date()), year: getWeekYear(new Date()) });
-      setSessions([]);
-      setSessionExercises({});
-      setCopiedWeekFeedback({});
-      setIsValidated(false);
-
-      // Nettoyer les données sauvegardées localement
-      localStorage.removeItem(`coach-programming-${athleteId}`);
+      // Multi-week mode: advance to next week keeping sessions
+      if (multiWeekMode && multiWeekCurrent < multiWeekTotal) {
+        // Calculate next week
+        let nextWeek = selectedWeekToProgram.week + 1;
+        let nextYear = selectedWeekToProgram.year;
+        if (nextWeek > 52) {
+          nextWeek = 1;
+          nextYear += 1;
+        }
+        setSelectedWeekToProgram({ week: nextWeek, year: nextYear });
+        setMultiWeekCurrent(prev => prev + 1);
+        setCopiedWeekFeedback({});
+        setIsValidated(false);
+        // Keep sessions & exercises for the next week (coach can modify)
+      } else {
+        // Normal reset
+        setSelectedWeekToProgram({ week: getWeekNumber(new Date()), year: getWeekYear(new Date()) });
+        setSessions([]);
+        setSessionExercises({});
+        setCopiedWeekFeedback({});
+        setIsValidated(false);
+        // Reset multi-week state
+        if (multiWeekMode) {
+          setMultiWeekMode(false);
+          setMultiWeekCurrent(1);
+          setMultiWeekStartWeek(null);
+          toast.success("Toutes les semaines ont été programmées !");
+        }
+        // Nettoyer les données sauvegardées localement
+        localStorage.removeItem(`coach-programming-${athleteId}`);
+      }
 
       // Recharger l'historique et les retours
       await loadHistoricalWeeks();
@@ -2749,14 +2777,65 @@ export default function ClientDetail() {
                 <Card className="border-primary/30 bg-primary/5">
                   <CardContent className="p-2 sm:p-3">
                     <div className="space-y-1.5 sm:space-y-2">
-                      <p className="text-[10px] sm:text-xs text-muted-foreground">Semaine à programmer (jusqu'à 12 sem.)</p>
+                      {/* Multi-week toggle */}
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="multi-week-mode"
+                          checked={multiWeekMode}
+                          onCheckedChange={(checked) => {
+                            const isEnabled = checked === true;
+                            setMultiWeekMode(isEnabled);
+                            if (isEnabled) {
+                              setMultiWeekStartWeek(selectedWeekToProgram);
+                              setMultiWeekCurrent(1);
+                            } else {
+                              setMultiWeekStartWeek(null);
+                              setMultiWeekCurrent(1);
+                            }
+                          }}
+                          disabled={multiWeekMode && multiWeekCurrent > 1}
+                        />
+                        <label htmlFor="multi-week-mode" className="text-[10px] sm:text-xs text-muted-foreground cursor-pointer">
+                          Programmer plusieurs semaines d'affilée
+                        </label>
+                      </div>
+
+                      {multiWeekMode && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-primary/10 border border-primary/20">
+                          <span className="text-[10px] sm:text-xs text-muted-foreground">Nombre de semaines :</span>
+                          <select
+                            className="p-1 border rounded bg-background text-foreground text-xs focus:ring-2 focus:ring-primary focus:outline-none w-16"
+                            value={multiWeekTotal}
+                            onChange={(e) => setMultiWeekTotal(Number(e.target.value))}
+                            disabled={multiWeekCurrent > 1}
+                          >
+                            {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                              <option key={n} value={n}>{n}</option>
+                            ))}
+                          </select>
+                          <Badge variant="outline" className="text-[10px] ml-auto">
+                            {multiWeekCurrent}/{multiWeekTotal}
+                          </Badge>
+                        </div>
+                      )}
+
+                      <p className="text-[10px] sm:text-xs text-muted-foreground">
+                        {multiWeekMode 
+                          ? `Semaine ${multiWeekCurrent}/${multiWeekTotal}`
+                          : "Semaine à programmer (jusqu'à 12 sem.)"
+                        }
+                      </p>
                       <select
                         className="w-full p-1.5 sm:p-2 border rounded-md bg-background text-foreground text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                         value={`${selectedWeekToProgram.week}-${selectedWeekToProgram.year}`}
                         onChange={(e) => {
                           const [week, year] = e.target.value.split("-").map(Number);
                           setSelectedWeekToProgram({ week, year });
+                          if (multiWeekMode && multiWeekCurrent === 1) {
+                            setMultiWeekStartWeek({ week, year });
+                          }
                         }}
+                        disabled={multiWeekMode && multiWeekCurrent > 1}
                       >
                         {availableWeeks.map((w) => (
                           <option key={`${w.week}-${w.year}`} value={`${w.week}-${w.year}`}>
@@ -2809,16 +2888,55 @@ export default function ClientDetail() {
 
               {/* Bouton de validation compact */}
               {!isValidated && sessions.length > 0 && (
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={handleValidate} 
-                    size="sm" 
-                    disabled={!selectedWeekToProgram} 
-                    className="w-full sm:w-auto h-9 sm:h-8 text-xs sm:text-sm"
-                  >
-                    <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
-                    Valider
-                  </Button>
+                <div className="flex flex-col gap-2">
+                  {multiWeekMode && (
+                    <div className="flex items-center justify-between p-2 rounded-md bg-accent/50 border text-xs">
+                      <span className="text-muted-foreground">
+                        Semaine <strong>{multiWeekCurrent}</strong> sur <strong>{multiWeekTotal}</strong> — S{selectedWeekToProgram.week}
+                      </span>
+                      {multiWeekCurrent < multiWeekTotal && (
+                        <span className="text-primary font-medium">
+                          → S{selectedWeekToProgram.week >= 52 ? 1 : selectedWeekToProgram.week + 1} suivante
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    {multiWeekMode && multiWeekCurrent > 1 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setMultiWeekMode(false);
+                          setMultiWeekCurrent(1);
+                          setMultiWeekStartWeek(null);
+                          setSessions([]);
+                          setSessionExercises({});
+                          setCopiedWeekFeedback({});
+                          localStorage.removeItem(`coach-programming-${athleteId}`);
+                          toast.info("Mode multi-semaines annulé");
+                        }}
+                        className="h-9 sm:h-8 text-xs"
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />
+                        Arrêter
+                      </Button>
+                    )}
+                    <Button 
+                      onClick={handleValidate} 
+                      size="sm" 
+                      disabled={!selectedWeekToProgram} 
+                      className="w-full sm:w-auto h-9 sm:h-8 text-xs sm:text-sm"
+                    >
+                      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                      {multiWeekMode 
+                        ? multiWeekCurrent < multiWeekTotal 
+                          ? `Valider S${selectedWeekToProgram.week} → Suivante`
+                          : `Valider S${selectedWeekToProgram.week} (dernière)`
+                        : "Valider"
+                      }
+                    </Button>
+                  </div>
                 </div>
               )}
 
