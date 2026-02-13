@@ -50,6 +50,9 @@ export default function SportifDashboard() {
   const [loading, setLoading] = useState(true);
 
   const isSessionCompleted = useCallback((session: any) => {
+    // A session is completed when the athlete has validated it (completed_at is set)
+    if (session.completed_at) return true;
+    // Fallback: check exercise-level completion for legacy data
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
     if (session.session_type === "recup") {
       return session.duration_minutes !== null && session.duration_minutes !== undefined;
@@ -144,17 +147,21 @@ export default function SportifDashboard() {
     } : null;
 
     // Also count custom sessions for the week
-    const { count: customCount } = await supabase
+    const mondayISO = getMondayISO(weekNumber, year);
+    const sundayISO = getSundayISO(weekNumber, year);
+
+    const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("id", { count: "exact", head: true })
+      .select("id, completed_at")
       .eq("user_id", user!.id)
-      .not("completed_at", "is", null)
-      .gte("completed_at", getMondayISO(weekNumber, year))
-      .lte("completed_at", getSundayISO(weekNumber, year));
+      .or(`and(completed_at.gte.${mondayISO},completed_at.lte.${sundayISO}T23:59:59),and(scheduled_date.gte.${mondayISO},scheduled_date.lte.${sundayISO})`);
+
+    const customTotal = customData?.length || 0;
+    const customCompleted = customData?.filter(c => c.completed_at != null).length || 0;
 
     setWeeklyInfo({
-      total: sessions.length,
-      completed: completed + (customCount || 0),
+      total: sessions.length + customTotal,
+      completed: completed + customCompleted,
       nextSession,
     });
   };
