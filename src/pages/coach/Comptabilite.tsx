@@ -795,7 +795,7 @@ export default function Comptabilite() {
                       </TableHeader>
                       <TableBody>
                         {filteredEntries.map(entry => (
-                          <TableRow key={entry.id}>
+                          <TableRow key={entry.id} id={`entry-${entry.id}`} className="transition-all">
                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
                             <TableCell>
                               <Input
@@ -906,7 +906,7 @@ export default function Comptabilite() {
                 {isMobile && (
                   <div className="space-y-3 max-h-[600px] overflow-y-auto">
                     {filteredEntries.map(entry => (
-                      <Card key={entry.id} className="border shadow-sm">
+                      <Card key={entry.id} id={`entry-${entry.id}`} className="border shadow-sm transition-all">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between">
                             <h3 className="font-semibold text-base">{entry.client_name}</h3>
@@ -1124,7 +1124,22 @@ export default function Comptabilite() {
             ) : (
               <div className="space-y-3">
                 {debtorsList.map(debtor => (
-                  <Card key={debtor.id} className="border-orange-200 dark:border-orange-900">
+                  <Card
+                    key={debtor.id}
+                    className="border-orange-200 dark:border-orange-900 cursor-pointer hover:border-orange-400 transition-colors"
+                    onClick={() => {
+                      setShowDebtorsDialog(false);
+                      setSearchQuery(debtor.client_name);
+                      setTimeout(() => {
+                        const el = document.getElementById(`entry-${debtor.id}`);
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth", block: "center" });
+                          el.classList.add("ring-2", "ring-orange-500");
+                          setTimeout(() => el.classList.remove("ring-2", "ring-orange-500"), 2000);
+                        }
+                      }, 300);
+                    }}
+                  >
                     <CardContent className="pt-6">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2">
