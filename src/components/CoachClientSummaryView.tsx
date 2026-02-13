@@ -306,7 +306,7 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
               key={s.id}
               className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}
             >
-              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                 {s.completed_at ? (
                   <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
                 ) : (
@@ -314,8 +314,8 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
                 )}
                 <span className="truncate">{s.name}</span>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {s.duration_minutes && <span className="text-[9px] text-muted-foreground">{s.duration_minutes}min</span>}
+              <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                {s.duration_minutes && <span className="text-[9px] text-muted-foreground whitespace-nowrap">{s.duration_minutes}min</span>}
                 {getTypeBadge(s)}
               </div>
             </div>
@@ -326,19 +326,19 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
       {/* LEFT COLUMN: Fatigue chart + Injury + Objectives */}
       <div className="space-y-3">
         {/* Fatigue score chart */}
         <Card className="overflow-hidden">
           <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Heart className="h-3.5 w-3.5 text-red-500" />
-                Évolution du score de fatigue
+            <CardTitle className="text-xs flex items-center justify-between gap-1">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Heart className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
+                <span className="truncate">Évolution du score de fatigue</span>
               </span>
               {recovery !== null && (
-                <span className={`text-sm font-bold ${recovery >= 70 ? "text-green-500" : recovery >= 40 ? "text-orange-500" : "text-destructive"}`}>
+                <span className={`text-sm font-bold flex-shrink-0 ${recovery >= 70 ? "text-green-500" : recovery >= 40 ? "text-orange-500" : "text-destructive"}`}>
                   {recovery}%
                 </span>
               )}
