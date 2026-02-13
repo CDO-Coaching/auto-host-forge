@@ -304,7 +304,7 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
           {sessions.map((s) => (
             <div
               key={s.id}
-              className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}
+              className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}
             >
               <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                 {s.completed_at ? (
@@ -312,10 +312,9 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
                 ) : (
                   <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                 )}
-                <span className="truncate">{s.name}</span>
+                <span className="truncate text-[11px]">{s.name}</span>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                {s.duration_minutes && <span className="text-[9px] text-muted-foreground whitespace-nowrap">{s.duration_minutes}min</span>}
                 {getTypeBadge(s)}
               </div>
             </div>
