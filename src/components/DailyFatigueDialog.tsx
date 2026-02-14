@@ -763,7 +763,6 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   if (isMobile) {
     return (
       <>
-        <ConfettiEffect show={open} />
         <Drawer open={open} onOpenChange={(isOpen) => !isOpen && handleSkip()}>
           <DrawerContent className="max-h-[90vh]">
             <DrawerHeader className="pb-2">
@@ -837,7 +836,6 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   // Version desktop avec Dialog animé
   return (
     <>
-      <ConfettiEffect show={open} />
       <Dialog open={open} onOpenChange={handleSkip}>
         <AnimatePresence>
           {open && (
