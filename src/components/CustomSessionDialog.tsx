@@ -11,7 +11,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, CalendarIcon } from "lucide-react";
+import { Plus, CalendarIcon, Footprints, Bike, Waves } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -43,6 +44,8 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [cardioType, setCardioType] = useState<string>("");
+  const [distanceKm, setDistanceKm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // "plan" = planning only, "validate" = completing now
   const [mode, setMode] = useState<"plan" | "validate">("plan");
@@ -88,6 +91,8 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
     setDescription("");
     setDuration("");
     setSelectedDate(new Date());
+    setCardioType("");
+    setDistanceKm("");
     setMode("plan");
     setShowValidatePrompt(false);
   };
@@ -167,6 +172,8 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           session_name: sessionName.trim(),
           description: description.trim() || null,
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+          cardio_type: cardioType || null,
+          distance_km: distanceKm ? parseFloat(distanceKm) : null,
         };
 
         if (isCompleting) {
@@ -268,6 +275,46 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                   />
                 </PopoverContent>
               </Popover>
+            </div>
+          )}
+
+          {!isValidating && (
+            <div className="space-y-2">
+              <Label>Type de séance</Label>
+              <Select value={cardioType} onValueChange={(v) => setCardioType(v === "none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Séance libre (aucun type)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Séance libre</SelectItem>
+                  <SelectItem value="course">
+                    <span className="flex items-center gap-2"><Footprints className="h-4 w-4" /> Course à pied</span>
+                  </SelectItem>
+                  <SelectItem value="velo">
+                    <span className="flex items-center gap-2"><Bike className="h-4 w-4" /> Vélo</span>
+                  </SelectItem>
+                  <SelectItem value="natation">
+                    <span className="flex items-center gap-2"><Waves className="h-4 w-4" /> Natation</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {cardioType && cardioType !== "none" && (
+            <div className="space-y-2">
+              <Label htmlFor="distance">Distance (km)</Label>
+              <Input
+                id="distance"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                placeholder="Ex: 10"
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                min="0"
+                max="500"
+              />
             </div>
           )}
 
