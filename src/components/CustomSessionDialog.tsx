@@ -75,6 +75,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setDescription(validateSession.description || "");
       setDuration("");
       setSelectedDate(new Date());
+      setCardioType((validateSession as any).cardio_type || "");
       setMode("validate");
       setShowValidatePrompt(false);
     }
@@ -180,14 +181,14 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           description: description.trim() || null,
           scheduled_date: format(selectedDate, "yyyy-MM-dd"),
           cardio_type: cardioType || null,
-          distance_km: distanceKm ? parseFloat(distanceKm) : null,
-          avg_pace: avgPace.trim() || null,
-          avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
         };
 
         if (isCompleting) {
           insertData.duration_minutes = parseInt(duration);
           insertData.completed_at = new Date().toISOString();
+          insertData.distance_km = distanceKm ? parseFloat(distanceKm) : null;
+          insertData.avg_pace = avgPace.trim() || null;
+          insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
         }
 
         const { error } = await (supabase.from("custom_sessions") as any)
@@ -310,76 +311,6 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
             </div>
           )}
 
-          {cardioType && cardioType !== "none" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="distance">Distance (km)</Label>
-                  <Input
-                    id="distance"
-                    type="number"
-                    inputMode="decimal"
-                    step="0.1"
-                    placeholder="Ex: 10"
-                    value={distanceKm}
-                    onChange={(e) => setDistanceKm(e.target.value)}
-                    min="0"
-                    max="500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="custom-duration-cardio">Durée (min)</Label>
-                  <Input
-                    id="custom-duration-cardio"
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="Ex: 45"
-                    value={duration}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setDuration(val);
-                    }}
-                    min="1"
-                    max="600"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="avg-pace">Allure moy. (min:sec/km)</Label>
-                  <Input
-                    id="avg-pace"
-                    type="text"
-                    placeholder="Ex: 5:30"
-                    value={avgPace}
-                    onChange={(e) => {
-                      // Allow only digits and colon
-                      const val = e.target.value.replace(/[^0-9:]/g, '');
-                      setAvgPace(val);
-                    }}
-                    maxLength={6}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="avg-hr">FC moyenne (bpm)</Label>
-                  <Input
-                    id="avg-hr"
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="Ex: 155"
-                    value={avgHeartRate}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setAvgHeartRate(val);
-                    }}
-                    min="30"
-                    max="250"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Prompt when date is today or past */}
           {showValidatePrompt && (
             <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
@@ -404,26 +335,77 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
             </div>
           )}
 
-          {/* Duration field: only show when completing */}
-          {isCompleting && (
-            <div className="space-y-2">
-              <Label htmlFor="duration">Durée (minutes) *</Label>
-              <Input
-                id="duration"
-                type="number"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                placeholder="Ex: 45"
-                value={duration}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
-                  setDuration(val);
-                }}
-                min="1"
-                max="600"
-                step="1"
-                required
-              />
+          {/* Cardio metrics: only show when completing/validating */}
+          {(isCompleting || isValidating) && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration">Durée (minutes) *</Label>
+                <Input
+                  id="duration"
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="Ex: 45"
+                  value={duration}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9]/g, '');
+                    setDuration(val);
+                  }}
+                  min="1"
+                  max="600"
+                  step="1"
+                  required
+                />
+              </div>
+
+              {cardioType && cardioType !== "none" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="distance">Distance (km)</Label>
+                    <Input
+                      id="distance"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      placeholder="Ex: 10"
+                      value={distanceKm}
+                      onChange={(e) => setDistanceKm(e.target.value)}
+                      min="0"
+                      max="500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="avg-pace">Allure moy. (min:sec/km)</Label>
+                    <Input
+                      id="avg-pace"
+                      type="text"
+                      placeholder="Ex: 5:30"
+                      value={avgPace}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9:]/g, '');
+                        setAvgPace(val);
+                      }}
+                      maxLength={6}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="avg-hr">FC moyenne (bpm)</Label>
+                    <Input
+                      id="avg-hr"
+                      type="number"
+                      inputMode="numeric"
+                      placeholder="Ex: 155"
+                      value={avgHeartRate}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setAvgHeartRate(val);
+                      }}
+                      min="30"
+                      max="250"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
