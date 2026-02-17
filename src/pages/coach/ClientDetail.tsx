@@ -2520,6 +2520,35 @@ export default function ClientDetail() {
                         </div>
                       );
                     })()}
+
+                    {/* Prochain objectif (milestone) */}
+                    {(() => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const upcomingMilestones = athleteMilestones
+                        .filter((m: any) => !m.completed && new Date(m.target_date) >= today)
+                        .sort((a: any, b: any) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
+                      const next = upcomingMilestones[0];
+                      if (!next) return null;
+                      const daysLeft = Math.ceil((new Date(next.target_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                      const label = daysLeft === 0 ? "Aujourd'hui" : daysLeft === 1 ? "Demain" : `J-${daysLeft}`;
+                      return (
+                        <div className="mt-4 p-3 rounded-lg border border-primary/30 bg-primary/5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Target className="h-4 w-4 text-primary" />
+                              <span className="text-sm font-medium">{next.label}</span>
+                            </div>
+                            <Badge variant="outline" className="text-xs border-primary/50 text-primary font-bold">
+                              {label}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(next.target_date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </SheetContent>
               </Sheet>
@@ -2878,6 +2907,28 @@ export default function ClientDetail() {
                                 - {activeMesocycle.description}
                               </span>
                             )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Prochain objectif (milestone) dans la programmation */}
+                      {(() => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const upcomingMilestones = athleteMilestones
+                          .filter((m: any) => !m.completed && new Date(m.target_date) >= today)
+                          .sort((a: any, b: any) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime());
+                        const next = upcomingMilestones[0];
+                        if (!next) return null;
+                        const daysLeft = Math.ceil((new Date(next.target_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        const label = daysLeft === 0 ? "Aujourd'hui" : daysLeft === 1 ? "Demain" : `J-${daysLeft}`;
+                        return (
+                          <div className="mt-2 flex items-center gap-2 p-2 rounded-md border border-primary/30 bg-primary/5">
+                            <Target className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-xs font-medium">{next.label}</span>
+                            <Badge variant="outline" className="text-[10px] ml-auto border-primary/50 text-primary font-bold">
+                              {label}
+                            </Badge>
                           </div>
                         );
                       })()}
