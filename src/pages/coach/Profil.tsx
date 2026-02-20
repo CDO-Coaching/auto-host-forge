@@ -115,6 +115,7 @@ export default function Profil() {
   };
 
   const handleLogout = async () => {
+    sessionStorage.setItem('explicit_logout', 'true');
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Erreur lors de la déconnexion");

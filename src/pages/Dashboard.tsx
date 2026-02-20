@@ -53,6 +53,7 @@ const Dashboard = () => {
   }, [navigate]);
 
   const handleLogout = async () => {
+    sessionStorage.setItem('explicit_logout', 'true');
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({ variant: "destructive", title: "Erreur lors de la déconnexion" });
