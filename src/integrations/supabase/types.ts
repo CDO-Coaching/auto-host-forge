@@ -65,6 +65,36 @@ export type Database = {
         }
         Relationships: []
       }
+      coach_notes: {
+        Row: {
+          athlete_id: string | null
+          coach_id: string
+          content: string
+          created_at: string | null
+          external_client_id: string | null
+          id: string
+          target_date: string | null
+        }
+        Insert: {
+          athlete_id?: string | null
+          coach_id: string
+          content: string
+          created_at?: string | null
+          external_client_id?: string | null
+          id?: string
+          target_date?: string | null
+        }
+        Update: {
+          athlete_id?: string | null
+          coach_id?: string
+          content?: string
+          created_at?: string | null
+          external_client_id?: string | null
+          id?: string
+          target_date?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
