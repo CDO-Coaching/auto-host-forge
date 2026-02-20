@@ -92,9 +92,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             if (data.session) {
               setSession(data.session);
               setUser(data.session.user);
+            } else {
+              // Le refresh a répondu mais sans session valide
+              // Ne PAS déconnecter si on est hors ligne
+              if (!navigator.onLine) {
+                console.log('Offline + no session refresh, keeping backup state');
+              } else {
+                // Vraiment plus de session valide, nettoyer
+                localStorage.removeItem('sb-session-backup');
+              }
             }
             setLoading(false);
-          }).catch(() => setLoading(false));
+          }).catch(() => {
+            // Erreur réseau sur le refresh - garder l'état "connecté" en attente
+            console.log('Network error on refreshSession, keeping loading until online');
+            // Ne pas setLoading(false) si hors ligne - on attend le retour réseau
+            if (navigator.onLine) {
+              setLoading(false);
+            }
+          });
         } else {
           setLoading(false);
         }
@@ -104,9 +120,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const backup = localStorage.getItem('sb-session-backup');
       if (backup) {
         console.log('Network error on getSession, keeping session from backup');
+        // Ne pas setLoading(false) si hors ligne - attendre la reconnexion
+        if (navigator.onLine) {
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    // Timeout de sécurité : si loading est toujours true après 5s, débloquer
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
 
     // Quand on revient en ligne, tenter de rafraîchir la session silencieusement
     const handleOnline = () => {
@@ -115,7 +141,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(data.session);
           setUser(data.session.user);
         }
-      }).catch(() => {});
+        setLoading(false);
+      }).catch(() => {
+        setLoading(false);
+      });
     };
     window.addEventListener('online', handleOnline);
 
@@ -134,6 +163,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(loadingTimeout);
       window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
