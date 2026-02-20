@@ -31,41 +31,111 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        // Si on perd le réseau et que Supabase tente un refresh qui échoue,
-        // il envoie SIGNED_OUT. On ignore cette déconnexion si on est hors ligne
-        // pour éviter de perdre la session de l'utilisateur.
-        if (event === 'SIGNED_OUT' && !navigator.onLine) {
-          console.log('Ignoring SIGNED_OUT event while offline');
-          return;
+        // Ignorer les déconnexions non intentionnelles
+        // (hors ligne, token refresh échoué, visibilité changée)
+        if (event === 'SIGNED_OUT') {
+          // Si on est hors ligne, on ignore totalement
+          if (!navigator.onLine) {
+            console.log('Ignoring SIGNED_OUT event while offline');
+            return;
+          }
+          // Si c'est un sign-out explicite (pas de session backup), on accepte
+          const wasExplicitLogout = sessionStorage.getItem('explicit_logout');
+          if (!wasExplicitLogout) {
+            // Vérifier si on a une session sauvegardée - c'est probablement
+            // un token refresh qui a échoué, pas un vrai logout
+            const backupKey = `sb-session-backup`;
+            const backup = localStorage.getItem(backupKey);
+            if (backup) {
+              console.log('Ignoring unexpected SIGNED_OUT, will retry refresh');
+              // Tenter un refresh silencieux
+              supabase.auth.refreshSession().then(({ data }) => {
+                if (data.session) {
+                  setSession(data.session);
+                  setUser(data.session.user);
+                }
+              }).catch(() => {});
+              return;
+            }
+          }
+          sessionStorage.removeItem('explicit_logout');
         }
 
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setLoading(false);
+
+        // Sauvegarder la session en backup pour résister aux déconnexions
+        if (newSession) {
+          localStorage.setItem('sb-session-backup', JSON.stringify({
+            userId: newSession.user.id,
+            email: newSession.user.email,
+            timestamp: Date.now(),
+          }));
+        } else if (event === 'SIGNED_OUT') {
+          localStorage.removeItem('sb-session-backup');
+        }
       }
     );
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
-      setSession(existingSession);
-      setUser(existingSession?.user ?? null);
+      if (existingSession) {
+        setSession(existingSession);
+        setUser(existingSession.user);
+        setLoading(false);
+      } else {
+        // Si pas de session mais qu'on a un backup, tenter un refresh
+        const backup = localStorage.getItem('sb-session-backup');
+        if (backup) {
+          supabase.auth.refreshSession().then(({ data }) => {
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+            setLoading(false);
+          }).catch(() => setLoading(false));
+        } else {
+          setLoading(false);
+        }
+      }
+    }).catch(() => {
+      // En cas d'erreur réseau, ne pas déconnecter
+      const backup = localStorage.getItem('sb-session-backup');
+      if (backup) {
+        console.log('Network error on getSession, keeping session from backup');
+      }
       setLoading(false);
     });
 
     // Quand on revient en ligne, tenter de rafraîchir la session silencieusement
     const handleOnline = () => {
-      supabase.auth.getSession().then(({ data: { session: refreshedSession } }) => {
-        if (refreshedSession) {
-          setSession(refreshedSession);
-          setUser(refreshedSession.user);
+      supabase.auth.refreshSession().then(({ data }) => {
+        if (data.session) {
+          setSession(data.session);
+          setUser(data.session.user);
         }
-      });
+      }).catch(() => {});
     };
     window.addEventListener('online', handleOnline);
+
+    // Quand l'app revient au premier plan (mobile), refresh la session
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        supabase.auth.refreshSession().then(({ data }) => {
+          if (data.session) {
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        }).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       subscription.unsubscribe();
       window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
 

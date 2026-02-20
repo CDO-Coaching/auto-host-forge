@@ -246,6 +246,7 @@ export default function Profil() {
 
   /* Déconnexion */
   const handleLogout = async () => {
+    sessionStorage.setItem('explicit_logout', 'true');
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Erreur lors de la déconnexion");
@@ -398,6 +399,7 @@ export default function Profil() {
           <AlertDialogAction
             onClick={async () => {
               try {
+                sessionStorage.setItem('explicit_logout', 'true');
                 const { error } = await supabase.auth.signOut({ scope: "global" });
                 if (error) throw error;
                 toast.success("Tous tes appareils ont été déconnectés avec succès.");
