@@ -74,6 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }));
         } else if (event === 'SIGNED_OUT') {
           localStorage.removeItem('sb-session-backup');
+          localStorage.removeItem('last_route');
         }
       }
     );

@@ -42,8 +42,12 @@ const Index = () => {
             return;
           }
 
-          // Sinon, rediriger vers le dashboard approprié
-          if (profile.role === 'coach') {
+          // Restaurer la dernière page visitée si elle existe
+          const lastRoute = localStorage.getItem('last_route');
+          if (lastRoute && (lastRoute.startsWith('/coach') || lastRoute.startsWith('/sportif'))) {
+            localStorage.removeItem('last_route');
+            navigate(lastRoute);
+          } else if (profile.role === 'coach') {
             navigate("/coach/programmation");
           } else {
             navigate("/sportif/dashboard");
