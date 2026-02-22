@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,45 +26,73 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const sessionRef = useRef<Session | null>(null); // garde la dernière session connue
 
   useEffect(() => {
-    // 1. Écouter les changements d'auth en premier
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, newSession) => {
-      // On ignore les SIGNED_OUT non explicites (token refresh échoué, réseau, etc.)
+      
       if (event === "SIGNED_OUT") {
+        // Ne déconnecter que si c'est explicitement demandé par l'utilisateur
         const isExplicit = localStorage.getItem("explicit_logout");
-        if (!isExplicit) return; // Pas de logout explicite → on ignore
+        if (!isExplicit) {
+          // Refresh silencieux au lieu de déconnecter
+          supabase.auth.refreshSession().then(({ data }) => {
+            if (data.session) {
+              sessionRef.current = data.session;
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+            // Si pas de session après refresh, on garde la dernière session connue
+            // pour éviter la boucle — l'utilisateur devra se reconnecter manuellement
+            // seulement si le refresh échoue plusieurs fois
+          }).catch(() => {});
+          return; // Ne pas mettre à jour l'état avec null
+        }
         localStorage.removeItem("explicit_logout");
+        sessionRef.current = null;
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        return;
       }
 
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+        sessionRef.current = newSession;
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        setLoading(false);
+        return;
+      }
+
+      // Pour les autres events, mettre à jour normalement
+      if (newSession) {
+        sessionRef.current = newSession;
+        setSession(newSession);
+        setUser(newSession.user);
+      }
       setLoading(false);
     });
 
-    // 2. Récupérer la session existante
+    // Récupérer la session existante au démarrage
     supabase.auth.getSession().then(({ data: { session: existing } }) => {
       if (existing) {
+        sessionRef.current = existing;
         setSession(existing);
         setUser(existing.user);
         setLoading(false);
       } else {
-        // Tenter un refresh au cas où le token est expiré mais récupérable
-        supabase.auth
-          .refreshSession()
-          .then(({ data }) => {
-            if (data.session) {
-              setSession(data.session);
-              setUser(data.session.user);
-            }
-          })
-          .finally(() => setLoading(false));
+        supabase.auth.refreshSession().then(({ data }) => {
+          if (data.session) {
+            sessionRef.current = data.session;
+            setSession(data.session);
+            setUser(data.session.user);
+          }
+        }).finally(() => setLoading(false));
       }
     });
 
-    // Timeout de sécurité si tout échoue
     const timeout = setTimeout(() => setLoading(false), 5000);
 
     return () => {
@@ -73,5 +101,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  return <AuthContext.Provider value={{ session, user, loading }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ session, user, loading }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
