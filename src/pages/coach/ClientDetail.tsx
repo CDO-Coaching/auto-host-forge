@@ -3017,7 +3017,11 @@ export default function ClientDetail() {
                     {sessions.map((session) => (
                       <div 
                         key={session.id} 
-                        className="border rounded-lg"
+                        className={`rounded-lg transition-all duration-200 ${
+                          expandedSessionId === session.id
+                            ? 'border border-primary/40 bg-card shadow-md'
+                            : 'border border-border/50 bg-card/40 opacity-75 hover:opacity-100'
+                        }`}
                         draggable={!isValidated}
                         onDragStart={() => handleSessionDragStart(session.id)}
                         onDragOver={(e) => handleSessionDragOver(e, session.id)}
