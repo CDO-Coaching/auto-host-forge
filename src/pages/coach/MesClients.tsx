@@ -481,23 +481,28 @@ export default function MesClients() {
     setApprovedAthletes([...newNonValidated, ...validated]);
   };
 
-  // Trier les athlètes approuvés : non validés en haut, validés en bas
+  // Trier les athlètes approuvés :
+  // 1. Non validés en haut (ordre alphabétique)
+  // 2. Validés en bas, triés par weeksAheadCount croissant (Validé en haut, +1, +2... en bas), puis alphabétique
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    // D'abord séparer validés et non-validés
     const aValidated = a.weeksAheadCount !== undefined;
     const bValidated = b.weeksAheadCount !== undefined;
+    
+    // Séparer non-validés (en haut) et validés (en bas)
     if (aValidated !== bValidated) {
       return aValidated ? 1 : -1;
     }
-    // Si ordre manuel existe pour les non-validés, l'utiliser
-    if (!aValidated && manualOrder.length > 0) {
-      const indexA = manualOrder.indexOf(a.athlete_id);
-      const indexB = manualOrder.indexOf(b.athlete_id);
-      if (indexA !== -1 && indexB !== -1) {
-        return indexA - indexB;
-      }
+    
+    // Dans le groupe validé : trier par weeksAheadCount croissant (0 = "Validé" en haut, +1, +2 en bas)
+    if (aValidated && bValidated) {
+      const diff = (a.weeksAheadCount || 0) - (b.weeksAheadCount || 0);
+      if (diff !== 0) return diff;
     }
-    return 0;
+    
+    // Dans chaque sous-groupe : ordre alphabétique
+    const nameA = `${a.athlete.first_name || ''} ${a.athlete.last_name || ''}`.toLowerCase().trim();
+    const nameB = `${b.athlete.first_name || ''} ${b.athlete.last_name || ''}`.toLowerCase().trim();
+    return nameA.localeCompare(nameB, 'fr');
   });
 
   const filteredPending = filterAthletes(pendingRequests);
