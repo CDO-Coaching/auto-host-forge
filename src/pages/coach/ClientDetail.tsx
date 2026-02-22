@@ -66,6 +66,7 @@ import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPa
 import { CoachObjectivesView } from "@/components/CoachObjectivesView";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
+import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 
 import { calculate1RM } from "@/lib/maxCalculations";
@@ -5750,6 +5751,7 @@ export default function ClientDetail() {
             paymentEnabled={athlete?.payment_enabled || false}
             onPaymentEnabledChange={handleTogglePaymentEnabled}
           />
+          <CoachAthleteSubscriptionOverview athleteId={athleteId!} />
         </TabsContent>
       </Tabs>
 
