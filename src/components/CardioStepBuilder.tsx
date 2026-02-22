@@ -247,6 +247,8 @@ export function CardioStepBuilder({
     onChange({ steps: updatedSteps, blocks: newBlocks });
   };
 
+  const [blockRepInputs, setBlockRepInputs] = useState<Record<number, string>>({});
+
   const updateBlockRepetitions = (blockId: number, repetitions: number) => {
     const newBlocks = blocks.map(b => 
       b.id === blockId ? { ...b, repetitions } : b
@@ -361,11 +363,19 @@ export function CardioStepBuilder({
                     <div className="flex items-center gap-1 sm:gap-2">
                       <span className="text-xs sm:text-sm">Rép:</span>
                       <Input
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={stepBlock.repetitions}
-                        onChange={(e) => updateBlockRepetitions(stepBlock.id, parseInt(e.target.value) || 1)}
+                        type="text"
+                        inputMode="numeric"
+                        value={blockRepInputs[stepBlock.id] !== undefined ? blockRepInputs[stepBlock.id] : String(stepBlock.repetitions)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9]/g, '');
+                          setBlockRepInputs(prev => ({ ...prev, [stepBlock.id]: val }));
+                        }}
+                        onBlur={() => {
+                          const val = parseInt(blockRepInputs[stepBlock.id] || '');
+                          const reps = isNaN(val) || val < 1 ? 1 : Math.min(val, 20);
+                          updateBlockRepetitions(stepBlock.id, reps);
+                          setBlockRepInputs(prev => { const n = { ...prev }; delete n[stepBlock.id]; return n; });
+                        }}
                         className="w-12 sm:w-16 h-7 sm:h-8 text-sm"
                         disabled={disabled}
                       />
