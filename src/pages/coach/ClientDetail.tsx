@@ -1740,73 +1740,64 @@ export default function ClientDetail() {
     }, 200);
   };
 
-  const handleExerciseChange = async (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
-    const currentExercises = sessionExercises[sessionId] || [];
-    const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
-
-    // Si on modifie les séries d'un exercice dans un super-set, synchroniser avec tous les exercices du groupe
-    if (field === "series" && currentExercise?.super_set_group && typeof value === "string") {
-      const updatedExercises = currentExercises.map((ex) => {
-        if (ex.super_set_group === currentExercise.super_set_group) {
-          return { ...ex, series: value };
-        }
-        return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
-      });
-
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
-    } else {
-      // Créer l'exercice mis à jour avec la nouvelle valeur
-      const updatedExercise = currentExercise ? { ...currentExercise, [field]: value } : null;
-      
-      // Si on change l'exercice, vérifier si c'est un exercice unilatéral
-      if (field === "exercice" && typeof value === "string" && updatedExercise) {
-        const selectedExercise = libraryExercises.find((ex) => ex.name === value);
-        if (selectedExercise) {
-          (updatedExercise as any).is_unilateral = selectedExercise.unilateral || false;
-          // Réinitialiser per_side si ce n'est plus un exercice unilatéral
-          if (!selectedExercise.unilateral) {
-            (updatedExercise as any).per_side = false;
-          }
+  const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
+    // Determine extra updates synchronously (unilateral check)
+    let extraUpdates: Partial<Exercise> = {};
+    if (field === "exercice" && typeof value === "string") {
+      const selectedExercise = libraryExercises.find((ex) => ex.name === value);
+      if (selectedExercise) {
+        extraUpdates.is_unilateral = selectedExercise.unilateral || false;
+        if (!selectedExercise.unilateral) {
+          extraUpdates.per_side = false;
         }
       }
+    }
+
+    // Update state immediately using functional updater to avoid stale closures
+    setSessionExercises(prev => {
+      const currentExercises = prev[sessionId] || [];
       
-      // Si on modifie l'exercice, le RPE ou les reps, calculer la charge suggérée
-      if ((field === "rpe" || field === "reps" || field === "exercice") && updatedExercise && typeof value === "string") {
-        const suggestedLoad = await calculateSuggestedLoad(updatedExercise);
-        if (suggestedLoad !== null) {
-          // Stocker la suggestion pour l'afficher comme placeholder
-          setChargeSuggestions(prev => ({
-            ...prev,
-            [sessionId]: {
-              ...(prev[sessionId] || {}),
-              [exerciseId]: suggestedLoad
+      if (field === "series") {
+        const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
+        if (currentExercise?.super_set_group && typeof value === "string") {
+          const updatedExercises = currentExercises.map((ex) => {
+            if (ex.super_set_group === currentExercise.super_set_group) {
+              return { ...ex, series: value };
             }
-          }));
+            return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
+          });
+          return { ...prev, [sessionId]: updatedExercises };
         }
       }
-      
+
       const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId) {
-          const updates: Partial<Exercise> = { [field]: value };
-          // Si on change l'exercice, ajouter is_unilateral
-          if (field === "exercice" && typeof value === "string" && updatedExercise) {
-            updates.is_unilateral = (updatedExercise as any).is_unilateral;
-            if (!(updatedExercise as any).is_unilateral) {
-              updates.per_side = false;
-            }
-          }
-          return { ...ex, ...updates };
+          return { ...ex, [field]: value, ...extraUpdates };
         }
         return ex;
       });
+      return { ...prev, [sessionId]: updatedExercises };
+    });
 
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
+    // Defer async suggested load calculation so it doesn't block input
+    if ((field === "rpe" || field === "reps" || field === "exercice") && typeof value === "string") {
+      // Build a temporary exercise for calculation
+      const currentExercises = sessionExercises[sessionId] || [];
+      const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
+      if (currentExercise) {
+        const updatedExercise = { ...currentExercise, [field]: value, ...extraUpdates };
+        calculateSuggestedLoad(updatedExercise).then(suggestedLoad => {
+          if (suggestedLoad !== null) {
+            setChargeSuggestions(prev => ({
+              ...prev,
+              [sessionId]: {
+                ...(prev[sessionId] || {}),
+                [exerciseId]: suggestedLoad
+              }
+            }));
+          }
+        });
+      }
     }
   };
 
