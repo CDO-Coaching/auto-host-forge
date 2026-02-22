@@ -39,24 +39,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('Ignoring SIGNED_OUT event while offline');
             return;
           }
-          // Si c'est un sign-out explicite (pas de session backup), on accepte
+          // Si c'est un sign-out explicite (marqué par l'utilisateur), on accepte
           const wasExplicitLogout = sessionStorage.getItem('explicit_logout');
           if (!wasExplicitLogout) {
-            // Vérifier si on a une session sauvegardée - c'est probablement
-            // un token refresh qui a échoué, pas un vrai logout
-            const backupKey = `sb-session-backup`;
-            const backup = localStorage.getItem(backupKey);
-            if (backup) {
-              console.log('Ignoring unexpected SIGNED_OUT, will retry refresh');
-              // Tenter un refresh silencieux
-              supabase.auth.refreshSession().then(({ data }) => {
-                if (data.session) {
-                  setSession(data.session);
-                  setUser(data.session.user);
-                }
-              }).catch(() => {});
-              return;
-            }
+            // Pas de logout explicite → probablement un token refresh échoué
+            // On tente un refresh silencieux au lieu de déconnecter
+            console.log('Ignoring unexpected SIGNED_OUT, attempting silent refresh');
+            supabase.auth.refreshSession().then(({ data }) => {
+              if (data.session) {
+                setSession(data.session);
+                setUser(data.session.user);
+              }
+              // Si pas de session après refresh, on ne fait RIEN
+              // L'utilisateur devra se reconnecter manuellement
+            }).catch(() => {});
+            return;
           }
           sessionStorage.removeItem('explicit_logout');
         }
@@ -150,14 +147,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     window.addEventListener('online', handleOnline);
 
     // Quand l'app revient au premier plan (mobile), refresh la session
+    // avec retry et protection contre les déconnexions intempestives
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        supabase.auth.refreshSession().then(({ data }) => {
-          if (data.session) {
-            setSession(data.session);
-            setUser(data.session.user);
+        // Marquer qu'on est en train de rafraîchir pour ignorer les SIGNED_OUT pendant ce temps
+        const refreshWithRetry = async (attempt = 0) => {
+          try {
+            const { data, error } = await supabase.auth.refreshSession();
+            if (data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            } else if (error && attempt < 2) {
+              // Retry après un court délai
+              await new Promise(r => setTimeout(r, 1000));
+              return refreshWithRetry(attempt + 1);
+            }
+            // Si pas de session et pas d'erreur, on ne fait RIEN
+            // (ne pas déconnecter, le SIGNED_OUT handler s'en charge si c'est explicite)
+          } catch {
+            // Erreur réseau : on ne touche à rien, on garde la session actuelle
+            if (attempt < 2) {
+              await new Promise(r => setTimeout(r, 1500));
+              return refreshWithRetry(attempt + 1);
+            }
           }
-        }).catch(() => {});
+        };
+        refreshWithRetry();
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
