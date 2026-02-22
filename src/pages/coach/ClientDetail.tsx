@@ -3019,7 +3019,7 @@ export default function ClientDetail() {
                         key={session.id} 
                         className={`rounded-lg transition-all duration-200 ${
                           expandedSessionId === session.id
-                            ? 'border border-primary/40 bg-card shadow-md'
+                            ? 'border border-primary/40 bg-muted/60 shadow-md'
                             : 'border border-border/50 bg-card/40 opacity-75 hover:opacity-100'
                         }`}
                         draggable={!isValidated}
