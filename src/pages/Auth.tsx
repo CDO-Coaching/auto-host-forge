@@ -39,6 +39,7 @@ const Auth = () => {
       return;
     }
 
+    // Si session active → rediriger
     if (session) {
       if (safeRedirectTo) {
         navigate(safeRedirectTo, { replace: true });
@@ -65,7 +66,9 @@ const Auth = () => {
 
       redirectUser();
     }
-  }, [loading, navigate, safeRedirectTo]); // ← session RETIRÉ des dépendances intentionnellement
+    // Si pas de session → on reste sur /auth, rien à faire
+
+  }, [session, loading, navigate, safeRedirectTo]); // session remis
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
