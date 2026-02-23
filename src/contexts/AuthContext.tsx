@@ -26,77 +26,112 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const sessionRef = useRef<Session | null>(null); // garde la dernière session connue
+  const isMounted = useRef(true);
+  const refreshingRef = useRef(false);
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, newSession) => {
-      
-      if (event === "SIGNED_OUT") {
-        // Ne déconnecter que si c'est explicitement demandé par l'utilisateur
-        const isExplicit = localStorage.getItem("explicit_logout");
-        if (!isExplicit) {
-          // Refresh silencieux au lieu de déconnecter
-          supabase.auth.refreshSession().then(({ data }) => {
-            if (data.session) {
-              sessionRef.current = data.session;
+    isMounted.current = true;
+
+    // 1. Listener for ONGOING auth changes — does NOT control loading
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        if (!isMounted.current) return;
+
+        if (event === "SIGNED_OUT") {
+          const isExplicit = localStorage.getItem("explicit_logout");
+          if (isExplicit) {
+            localStorage.removeItem("explicit_logout");
+            setSession(null);
+            setUser(null);
+            return;
+          }
+          // Unexpected sign-out: attempt silent refresh outside callback to avoid deadlock
+          if (!refreshingRef.current) {
+            refreshingRef.current = true;
+            setTimeout(async () => {
+              try {
+                const { data } = await supabase.auth.refreshSession();
+                if (isMounted.current && data.session) {
+                  setSession(data.session);
+                  setUser(data.session.user);
+                }
+              } catch {
+                // Refresh failed — keep current state, user will re-login manually
+              } finally {
+                refreshingRef.current = false;
+              }
+            }, 0);
+          }
+          return;
+        }
+
+        if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+          return;
+        }
+
+        if (newSession) {
+          setSession(newSession);
+          setUser(newSession.user);
+        }
+      }
+    );
+
+    // 2. INITIAL load — controls loading
+    const initializeAuth = async () => {
+      try {
+        const { data: { session: existing } } = await supabase.auth.getSession();
+        if (!isMounted.current) return;
+
+        if (existing) {
+          setSession(existing);
+          setUser(existing.user);
+        } else {
+          // No stored session — try a refresh in case the token is still valid
+          try {
+            const { data } = await supabase.auth.refreshSession();
+            if (isMounted.current && data.session) {
               setSession(data.session);
               setUser(data.session.user);
             }
-            // Si pas de session après refresh, on garde la dernière session connue
-            // pour éviter la boucle — l'utilisateur devra se reconnecter manuellement
-            // seulement si le refresh échoue plusieurs fois
-          }).catch(() => {});
-          return; // Ne pas mettre à jour l'état avec null
+          } catch {
+            // No valid session at all
+          }
         }
-        localStorage.removeItem("explicit_logout");
-        sessionRef.current = null;
-        setSession(null);
-        setUser(null);
-        setLoading(false);
-        return;
+      } finally {
+        if (isMounted.current) setLoading(false);
       }
+    };
 
-      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-        sessionRef.current = newSession;
-        setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setLoading(false);
-        return;
-      }
+    initializeAuth();
 
-      // Pour les autres events, mettre à jour normalement
-      if (newSession) {
-        sessionRef.current = newSession;
-        setSession(newSession);
-        setUser(newSession.user);
-      }
-      setLoading(false);
-    });
-
-    // Récupérer la session existante au démarrage
-    supabase.auth.getSession().then(({ data: { session: existing } }) => {
-      if (existing) {
-        sessionRef.current = existing;
-        setSession(existing);
-        setUser(existing.user);
-        setLoading(false);
-      } else {
+    // 3. Re-acquire session when app comes back to foreground
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && !refreshingRef.current) {
+        refreshingRef.current = true;
         supabase.auth.refreshSession().then(({ data }) => {
-          if (data.session) {
-            sessionRef.current = data.session;
+          if (isMounted.current && data.session) {
             setSession(data.session);
             setUser(data.session.user);
           }
-        }).finally(() => setLoading(false));
+        }).catch(() => {}).finally(() => {
+          refreshingRef.current = false;
+        });
       }
-    });
+    };
 
-    const timeout = setTimeout(() => setLoading(false), 5000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Safety timeout
+    const timeout = setTimeout(() => {
+      if (isMounted.current) setLoading(false);
+    }, 5000);
 
     return () => {
+      isMounted.current = false;
       subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(timeout);
     };
   }, []);

@@ -19,6 +19,7 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [healthDataConsent, setHealthDataConsent] = useState(false);
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -28,7 +29,7 @@ const Auth = () => {
   const safeRedirectTo = redirectToParam && redirectToParam.startsWith("/") ? redirectToParam : null;
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || hasRedirected) return;
 
     const fromCallback = sessionStorage.getItem('from_callback');
     const justConfirmed = sessionStorage.getItem('just_confirmed_email');
@@ -39,8 +40,9 @@ const Auth = () => {
       return;
     }
 
-    // Si session active → rediriger
     if (session) {
+      setHasRedirected(true);
+
       if (safeRedirectTo) {
         navigate(safeRedirectTo, { replace: true });
         return;
@@ -66,9 +68,7 @@ const Auth = () => {
 
       redirectUser();
     }
-    // Si pas de session → on reste sur /auth, rien à faire
-
-  }, [session, loading, navigate, safeRedirectTo]); // session remis
+  }, [session, loading, navigate, safeRedirectTo, hasRedirected]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
