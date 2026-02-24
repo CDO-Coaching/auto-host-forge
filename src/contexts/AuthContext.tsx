@@ -38,30 +38,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!isMounted.current) return;
 
         if (event === "SIGNED_OUT") {
-          const isExplicit = localStorage.getItem("explicit_logout");
+          const isExplicit =
+            sessionStorage.getItem("explicit_logout") ||
+            localStorage.getItem("explicit_logout");
+
           if (isExplicit) {
+            sessionStorage.removeItem("explicit_logout");
             localStorage.removeItem("explicit_logout");
-            setSession(null);
-            setUser(null);
-            return;
           }
-          // Unexpected sign-out: attempt silent refresh outside callback to avoid deadlock
-          if (!refreshingRef.current) {
-            refreshingRef.current = true;
-            setTimeout(async () => {
-              try {
-                const { data } = await supabase.auth.refreshSession();
-                if (isMounted.current && data.session) {
-                  setSession(data.session);
-                  setUser(data.session.user);
-                }
-              } catch {
-                // Refresh failed — keep current state, user will re-login manually
-              } finally {
-                refreshingRef.current = false;
-              }
-            }, 0);
-          }
+
+          // Toujours vider l'état local pour éviter les boucles Auth <-> Chargement
+          setSession(null);
+          setUser(null);
           return;
         }
 

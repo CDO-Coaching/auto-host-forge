@@ -56,10 +56,17 @@ export default function DashboardSportif() {
         .from("user_profiles")
         .select("approved, role")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
-      // Si le profil n'existe pas (compte supprimé), déconnecter proprement
-      if (error || !profileData) {
+      // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
+      if (error) {
+        console.error("Erreur vérification accès sportif:", error);
+        return;
+      }
+
+      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
+      if (!profileData) {
+        sessionStorage.setItem("explicit_logout", "true");
         await supabase.auth.signOut();
         navigate("/auth", { replace: true });
         return;
