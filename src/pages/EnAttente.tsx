@@ -27,10 +27,17 @@ export default function EnAttente() {
         .from("user_profiles")
         .select("approved, role, first_name, last_name")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
-      // Si le profil n'existe pas (compte supprimé), déconnecter proprement
-      if (error || !profile) {
+      // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
+      if (error) {
+        console.error("Erreur vérification profil en attente:", error);
+        return;
+      }
+
+      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
+      if (!profile) {
+        sessionStorage.setItem("explicit_logout", "true");
         await supabase.auth.signOut();
         navigate("/auth", { replace: true });
         return;
