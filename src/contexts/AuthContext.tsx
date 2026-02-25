@@ -17,6 +17,13 @@ const AuthContext = createContext<AuthContextType>({
 const EXPLICIT_LOGOUT_KEY = "explicit_logout";
 const SESSION_BACKUP_KEY = "sb-session-backup";
 
+/** Returns true when the JWT expires in less than `marginMs` milliseconds. */
+const isTokenExpiringSoon = (session: Session | null, marginMs = 5 * 60 * 1000): boolean => {
+  if (!session?.expires_at) return true;
+  const expiresAtMs = session.expires_at * 1000;
+  return Date.now() > expiresAtMs - marginMs;
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -79,29 +86,47 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return false;
   }, [setAuthState]);
 
-  const tryRecoverSession = useCallback(async (forceRefresh = false) => {
+  const tryRecoverSession = useCallback(async (_forceRefresh = false) => {
     if (refreshingRef.current) return false;
 
     refreshingRef.current = true;
     try {
-      let recoveredSession: Session | null = null;
+      // 1. ALWAYS try getSession() first – reads from local storage, no network call
+      const { data: localData } = await supabase.auth.getSession();
+      const localSession = localData.session;
 
-      if (!forceRefresh) {
-        const { data } = await supabase.auth.getSession();
-        recoveredSession = data.session;
-      }
-
-      if (!recoveredSession) {
-        const { data } = await supabase.auth.refreshSession();
-        recoveredSession = data.session;
-      }
-
-      if (recoveredSession) {
+      if (localSession && !isTokenExpiringSoon(localSession)) {
+        // Token still valid – use it, do NOT call refreshSession()
         recoveryFailureCountRef.current = 0;
-        setAuthState(recoveredSession);
+        setAuthState(localSession);
         return true;
       }
 
+      // 2. We have a session but token is expiring soon – try to refresh
+      //    Save reference BEFORE refreshing so we can fall back
+      const fallbackSession = localSession || currentSessionRef.current;
+
+      if (localSession) {
+        try {
+          const { data: refreshData } = await supabase.auth.refreshSession();
+          if (refreshData.session) {
+            recoveryFailureCountRef.current = 0;
+            setAuthState(refreshData.session);
+            return true;
+          }
+        } catch (e) {
+          console.warn("refreshSession() failed (server error), keeping existing session:", e);
+        }
+
+        // refreshSession() failed – keep using the existing session if still usable
+        if (fallbackSession?.access_token && fallbackSession?.user) {
+          // Re-set it to make sure it stays in state
+          setAuthState(fallbackSession);
+          return true;
+        }
+      }
+
+      // 3. No local session at all – try restoring from our backup
       return restoreBackupSession();
     } catch {
       return restoreBackupSession();
@@ -123,24 +148,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           return;
         }
 
+        // If offline, ignore completely
         if (!navigator.onLine) {
           return;
         }
 
-        if (recoveryTimeoutRef.current) {
-          window.clearTimeout(recoveryTimeoutRef.current);
+        // If we have a known session, the SIGNED_OUT was likely spurious (failed refresh)
+        // → restore from backup instead of clearing
+        const hasKnownSession = !!currentSessionRef.current || !!localStorage.getItem(SESSION_BACKUP_KEY);
+        if (hasKnownSession) {
+          if (recoveryTimeoutRef.current) {
+            window.clearTimeout(recoveryTimeoutRef.current);
+          }
+          recoveryTimeoutRef.current = window.setTimeout(() => {
+            void tryRecoverSession();
+          }, 500);
+          return;
         }
 
-        recoveryTimeoutRef.current = window.setTimeout(async () => {
-          const recovered = await tryRecoverSession(true);
-          if (!recovered && navigator.onLine && isMounted.current) {
-            recoveryFailureCountRef.current += 1;
-            const hasKnownSession = !!currentSessionRef.current || !!localStorage.getItem(SESSION_BACKUP_KEY);
-            if (recoveryFailureCountRef.current >= 5 && !hasKnownSession) {
-              setAuthState(null);
-            }
-          }
-        }, 400);
+        // Genuinely no session – clear state
+        recoveryFailureCountRef.current += 1;
+        if (recoveryFailureCountRef.current >= 5) {
+          setAuthState(null);
+        }
 
         return;
       }
@@ -160,16 +190,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (existing) {
           setAuthState(existing);
+          // Only refresh if token is expiring soon
+          if (isTokenExpiringSoon(existing)) {
+            void tryRecoverSession();
+          }
           return;
         }
 
         if (navigator.onLine) {
-          const recovered = await tryRecoverSession(true);
+          const recovered = await tryRecoverSession();
           if (recovered) return;
         }
 
         if (restoreBackupSession()) {
-          void tryRecoverSession(true);
           return;
         }
       } finally {
@@ -179,12 +212,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const recoverOnVisibility = () => {
       if (document.visibilityState === "visible" && navigator.onLine) {
-        void tryRecoverSession(true);
+        // Only refresh if token is expiring soon, otherwise just validate from cache
+        void tryRecoverSession();
       }
     };
 
     const recoverOnOnline = () => {
-      void tryRecoverSession(true);
+      void tryRecoverSession();
     };
 
     initializeAuth();
