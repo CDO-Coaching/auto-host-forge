@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UserProfile {
@@ -17,75 +17,49 @@ export const useUserProfile = () => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = useCallback(async () => {
-    try {
+  useEffect(() => {
+    const loadProfile = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-
+      
       if (!session) {
         setLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Erreur récupération profil utilisateur:", error);
-        setLoading(false);
-        return;
-      }
+        .single();
 
       if (data) {
         setProfile(data);
       }
-    } finally {
       setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadProfile();
-
-    const recoverOnVisibility = () => {
-      if (document.visibilityState === "visible" && navigator.onLine) {
-        void loadProfile();
-      }
     };
 
-    const recoverOnOnline = () => {
-      void loadProfile();
-    };
+    loadProfile();
 
+    // Écouter les changements de profil
     const channel = supabase
-      .channel("profile-changes")
+      .channel('profile-changes')
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "UPDATE",
-          schema: "public",
-          table: "user_profiles",
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'user_profiles'
         },
         (payload) => {
-          const next = payload.new as UserProfile;
-          if (next?.id) {
-            setProfile(next);
-          }
+          setProfile(payload.new as UserProfile);
         }
       )
       .subscribe();
 
-    document.addEventListener("visibilitychange", recoverOnVisibility);
-    window.addEventListener("online", recoverOnOnline);
-
     return () => {
-      document.removeEventListener("visibilitychange", recoverOnVisibility);
-      window.removeEventListener("online", recoverOnOnline);
       supabase.removeChannel(channel);
     };
-  }, [loadProfile]);
+  }, []);
 
   return { profile, loading };
 };

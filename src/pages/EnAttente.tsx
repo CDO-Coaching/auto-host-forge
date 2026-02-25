@@ -6,17 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
-import { useAuth } from "@/contexts/AuthContext";
 
 export default function EnAttente() {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
   const [email, setEmail] = useState<string>("");
 
   useEffect(() => {
-    if (authLoading) return;
-
     const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
         navigate("/auth", { replace: true });
         return;
@@ -37,9 +35,11 @@ export default function EnAttente() {
         return;
       }
 
-      // Si le profil semble absent, ne pas forcer de déconnexion pendant une instabilité réseau
+      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
       if (!profile) {
-        console.warn("Profil en attente temporairement introuvable, conservation de session.");
+        sessionStorage.setItem("explicit_logout", "true");
+        await supabase.auth.signOut();
+        navigate("/auth", { replace: true });
         return;
       }
 
@@ -59,8 +59,8 @@ export default function EnAttente() {
       }
     };
 
-    void checkUser();
-  }, [navigate, session, authLoading]);
+    checkUser();
+  }, [navigate]);
 
   const handleLogout = async () => {
     sessionStorage.setItem('explicit_logout', 'true');

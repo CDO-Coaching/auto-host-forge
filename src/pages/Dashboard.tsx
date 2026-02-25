@@ -1,56 +1,56 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { session, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
-
     const checkUserApproval = async () => {
+      let { data: { session } } = await supabase.auth.getSession();
+      
       if (!session) {
-        navigate("/auth", { replace: true });
+        const { data } = await supabase.auth.refreshSession();
+        session = data.session;
+      }
+
+      if (!session) {
+        navigate("/auth");
         return;
       }
 
       const { data: profile, error } = await supabase
-        .from("user_profiles")
-        .select("approved, role")
-        .eq("id", session.user.id)
-        .maybeSingle();
+        .from('user_profiles')
+        .select('approved, role')
+        .eq('id', session.user.id)
+        .single();
 
       if (error) {
-        console.error("Erreur vérification accès dashboard:", error);
-        setLoading(false);
+        console.error('Error fetching profile:', error);
+        navigate("/auth");
         return;
       }
 
-      if (!profile) {
-        console.warn("Profil dashboard temporairement introuvable, conservation de session.");
-        setLoading(false);
+      if (!profile?.approved) {
+        navigate("/en-attente");
         return;
       }
 
-      if (!profile.approved) {
-        navigate("/en-attente", { replace: true });
-        return;
-      }
-
-      if (profile.role === "coach") {
+      if (profile.role === 'coach') {
         navigate("/coach/dashboard", { replace: true });
       } else {
         navigate("/sportif/dashboard", { replace: true });
       }
+
+      setLoading(false);
     };
 
-    void checkUserApproval().finally(() => setLoading(false));
-  }, [authLoading, navigate, session]);
+    checkUserApproval();
+  }, [navigate]);
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>
@@ -60,4 +60,3 @@ export default function Dashboard() {
 
   return null;
 }
-

@@ -64,9 +64,11 @@ export default function DashboardSportif() {
         return;
       }
 
-      // Si le profil semble absent, ne pas forcer de déconnexion pendant une instabilité réseau
+      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
       if (!profileData) {
-        console.warn("Profil sportif temporairement introuvable, conservation de session.");
+        sessionStorage.setItem("explicit_logout", "true");
+        await supabase.auth.signOut();
+        navigate("/auth", { replace: true });
         return;
       }
 
