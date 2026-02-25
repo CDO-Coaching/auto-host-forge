@@ -34,6 +34,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const refreshingRef = useRef(false);
   const recoveryTimeoutRef = useRef<number | null>(null);
   const recoveryFailureCountRef = useRef(0);
+  const currentSessionRef = useRef<Session | null>(null);
 
   const clearExplicitLogoutFlag = useCallback(() => {
     sessionStorage.removeItem(EXPLICIT_LOGOUT_KEY);
@@ -50,6 +51,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setAuthState = useCallback((nextSession: Session | null) => {
     if (!isMounted.current) return;
 
+    currentSessionRef.current = nextSession;
     setSession(nextSession);
     setUser(nextSession?.user ?? null);
 
@@ -133,7 +135,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const recovered = await tryRecoverSession(true);
           if (!recovered && navigator.onLine && isMounted.current) {
             recoveryFailureCountRef.current += 1;
-            if (recoveryFailureCountRef.current >= 3 && !session) {
+            const hasKnownSession = !!currentSessionRef.current || !!localStorage.getItem(SESSION_BACKUP_KEY);
+            if (recoveryFailureCountRef.current >= 5 && !hasKnownSession) {
               setAuthState(null);
             }
           }
@@ -166,6 +169,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         if (restoreBackupSession()) {
+          void tryRecoverSession(true);
           return;
         }
       } finally {
@@ -201,7 +205,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       window.clearTimeout(timeout);
     };
-  }, [clearExplicitLogoutFlag, isExplicitLogout, restoreBackupSession, session, setAuthState, tryRecoverSession]);
+  }, [clearExplicitLogoutFlag, isExplicitLogout, restoreBackupSession, setAuthState, tryRecoverSession]);
 
   return (
     <AuthContext.Provider value={{ session, user, loading }}>
