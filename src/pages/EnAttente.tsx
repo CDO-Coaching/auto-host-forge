@@ -13,8 +13,13 @@ export default function EnAttente() {
 
   useEffect(() => {
     const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      let session = (await supabase.auth.getSession()).data.session;
       
+      if (!session) {
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        session = data.session;
+      }
+
       if (!session) {
         navigate("/auth", { replace: true });
         return;

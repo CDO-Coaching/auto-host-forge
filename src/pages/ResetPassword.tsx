@@ -75,7 +75,8 @@ const ResetPassword = () => {
         description: "Vous pouvez maintenant vous connecter avec votre nouveau mot de passe"
       });
 
-      // Déconnexion et redirection vers la page de connexion
+      // Déconnexion explicite et redirection vers la page de connexion
+      sessionStorage.setItem('explicit_logout', 'true');
       await supabase.auth.signOut();
       navigate("/auth");
     } catch (error: any) {
