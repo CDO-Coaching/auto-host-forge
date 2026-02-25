@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,6 +14,9 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
 });
 
+const EXPLICIT_LOGOUT_KEY = "explicit_logout";
+const SESSION_BACKUP_KEY = "sb-session-backup";
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -26,65 +29,128 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
   const isMounted = useRef(true);
   const refreshingRef = useRef(false);
+  const recoveryTimeoutRef = useRef<number | null>(null);
+
+  const clearExplicitLogoutFlag = useCallback(() => {
+    sessionStorage.removeItem(EXPLICIT_LOGOUT_KEY);
+    localStorage.removeItem(EXPLICIT_LOGOUT_KEY);
+  }, []);
+
+  const isExplicitLogout = useCallback(() => {
+    return !!(
+      sessionStorage.getItem(EXPLICIT_LOGOUT_KEY) ||
+      localStorage.getItem(EXPLICIT_LOGOUT_KEY)
+    );
+  }, []);
+
+  const setAuthState = useCallback((nextSession: Session | null) => {
+    if (!isMounted.current) return;
+
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+
+    if (nextSession) {
+      localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify(nextSession));
+    } else {
+      localStorage.removeItem(SESSION_BACKUP_KEY);
+    }
+  }, []);
+
+  const tryRecoverSession = useCallback(async (forceRefresh = false) => {
+    if (refreshingRef.current) return false;
+
+    refreshingRef.current = true;
+    try {
+      let recoveredSession: Session | null = null;
+
+      if (!forceRefresh) {
+        const { data } = await supabase.auth.getSession();
+        recoveredSession = data.session;
+      }
+
+      if (!recoveredSession) {
+        const { data } = await supabase.auth.refreshSession();
+        recoveredSession = data.session;
+      }
+
+      if (recoveredSession) {
+        setAuthState(recoveredSession);
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshingRef.current = false;
+    }
+  }, [setAuthState]);
 
   useEffect(() => {
     isMounted.current = true;
 
-    // 1. Listener for ONGOING auth changes — does NOT control loading
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, newSession) => {
-        if (!isMounted.current) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!isMounted.current) return;
 
-        if (event === "SIGNED_OUT") {
-          const isExplicit =
-            sessionStorage.getItem("explicit_logout") ||
-            localStorage.getItem("explicit_logout");
+      if (event === "SIGNED_OUT") {
+        if (isExplicitLogout()) {
+          clearExplicitLogoutFlag();
+          setAuthState(null);
+          return;
+        }
 
-          if (isExplicit) {
-            sessionStorage.removeItem("explicit_logout");
-            localStorage.removeItem("explicit_logout");
+        if (!navigator.onLine) {
+          return;
+        }
+
+        if (recoveryTimeoutRef.current) {
+          window.clearTimeout(recoveryTimeoutRef.current);
+        }
+
+        recoveryTimeoutRef.current = window.setTimeout(async () => {
+          const recovered = await tryRecoverSession(true);
+          if (!recovered && navigator.onLine && isMounted.current) {
+            setAuthState(null);
           }
+        }, 400);
 
-          // Toujours vider l'état local pour éviter les boucles Auth <-> Chargement
-          setSession(null);
-          setUser(null);
-          return;
-        }
+        return;
+      }
 
-        if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
-          return;
-        }
-
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
         if (newSession) {
-          setSession(newSession);
-          setUser(newSession.user);
+          setAuthState(newSession);
         }
       }
-    );
+    });
 
-    // 2. INITIAL load — controls loading
     const initializeAuth = async () => {
       try {
         const { data: { session: existing } } = await supabase.auth.getSession();
         if (!isMounted.current) return;
 
         if (existing) {
-          setSession(existing);
-          setUser(existing.user);
-        } else {
-          // No stored session — try a refresh in case the token is still valid
+          setAuthState(existing);
+          return;
+        }
+
+        if (navigator.onLine) {
+          const recovered = await tryRecoverSession(true);
+          if (recovered) return;
+        }
+
+        const backup = localStorage.getItem(SESSION_BACKUP_KEY);
+        if (backup) {
           try {
-            const { data } = await supabase.auth.refreshSession();
-            if (isMounted.current && data.session) {
-              setSession(data.session);
-              setUser(data.session.user);
+            const parsed = JSON.parse(backup) as Session;
+            if (parsed?.access_token && parsed?.user) {
+              setAuthState(parsed);
             }
           } catch {
-            // No valid session at all
+            localStorage.removeItem(SESSION_BACKUP_KEY);
           }
         }
       } finally {
@@ -92,37 +158,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    initializeAuth();
-
-    // 3. Re-acquire session when app comes back to foreground
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && !refreshingRef.current) {
-        refreshingRef.current = true;
-        supabase.auth.refreshSession().then(({ data }) => {
-          if (isMounted.current && data.session) {
-            setSession(data.session);
-            setUser(data.session.user);
-          }
-        }).catch(() => {}).finally(() => {
-          refreshingRef.current = false;
-        });
+    const recoverOnVisibility = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        void tryRecoverSession(true);
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const recoverOnOnline = () => {
+      void tryRecoverSession(true);
+    };
 
-    // Safety timeout
-    const timeout = setTimeout(() => {
+    initializeAuth();
+    document.addEventListener("visibilitychange", recoverOnVisibility);
+    window.addEventListener("online", recoverOnOnline);
+
+    const timeout = window.setTimeout(() => {
       if (isMounted.current) setLoading(false);
     }, 5000);
 
     return () => {
       isMounted.current = false;
       subscription.unsubscribe();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", recoverOnVisibility);
+      window.removeEventListener("online", recoverOnOnline);
+      if (recoveryTimeoutRef.current) {
+        window.clearTimeout(recoveryTimeoutRef.current);
+      }
+      window.clearTimeout(timeout);
     };
-  }, []);
+  }, [clearExplicitLogoutFlag, isExplicitLogout, setAuthState, tryRecoverSession]);
 
   return (
     <AuthContext.Provider value={{ session, user, loading }}>
