@@ -51,21 +51,24 @@ export default function Profil() {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let activeSession = (await supabase.auth.getSession()).data.session;
 
-      if (!session) {
-        navigate("/auth");
+      if (!activeSession) {
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        activeSession = data.session;
+      }
+
+      if (!activeSession) {
+        navigate("/auth", { replace: true });
         return;
       }
 
-      setUserId(session.user.id);
+      setUserId(activeSession.user.id);
 
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone")
-        .eq("id", session.user.id)
+        .eq("id", activeSession.user.id)
         .single();
 
       if (profile) {
