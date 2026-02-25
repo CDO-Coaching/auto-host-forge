@@ -35,11 +35,10 @@ export default function EnAttente() {
         return;
       }
 
-      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
+      // Ne jamais forcer une déconnexion automatique ici
       if (!profile) {
-        sessionStorage.setItem("explicit_logout", "true");
-        await supabase.auth.signOut();
-        navigate("/auth", { replace: true });
+        console.warn("Profil en attente introuvable temporairement, session conservée");
+        toast.warning("Vérification du profil en cours, merci de patienter.");
         return;
       }
 

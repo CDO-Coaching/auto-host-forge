@@ -51,7 +51,15 @@ export default function DashboardCoach() {
     if (authLoading) return;
 
     const checkAccess = async () => {
-      if (!session) {
+      let activeSession = session;
+
+      // Évite les redirections intempestives si la session est en cours de refresh
+      if (!activeSession) {
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        activeSession = data.session;
+      }
+
+      if (!activeSession) {
         navigate("/auth", { replace: true });
         return;
       }
@@ -60,7 +68,7 @@ export default function DashboardCoach() {
       const { data: profileData, error } = await supabase
         .from("user_profiles")
         .select("approved, role")
-        .eq("id", session.user.id)
+        .eq("id", activeSession.user.id)
         .maybeSingle();
 
       // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
@@ -69,11 +77,10 @@ export default function DashboardCoach() {
         return;
       }
 
-      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
+      // Ne jamais forcer une déconnexion ici : on garde la session active
       if (!profileData) {
-        sessionStorage.setItem("explicit_logout", "true");
-        await supabase.auth.signOut();
-        navigate("/auth", { replace: true });
+        console.warn("Profil coach introuvable temporairement, session conservée");
+        toast.warning("Vérification du profil en cours, merci de patienter.");
         return;
       }
 
