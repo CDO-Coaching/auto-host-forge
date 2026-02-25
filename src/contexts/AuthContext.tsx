@@ -50,8 +50,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
-          // Non-explicit SIGNED_OUT: try silent refresh before clearing state
-          // This handles spurious logouts from token expiry during batch requests
+          // Non-explicit SIGNED_OUT: try silent refresh but NEVER clear state
+          // The user must never be kicked out unless they explicitly log out
           if (!refreshingRef.current) {
             refreshingRef.current = true;
             setTimeout(async () => {
@@ -60,16 +60,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (isMounted.current && data.session) {
                   setSession(data.session);
                   setUser(data.session.user);
-                } else if (isMounted.current) {
-                  // Refresh truly failed — clear state
-                  setSession(null);
-                  setUser(null);
                 }
+                // If refresh fails → keep existing session, don't clear
               } catch {
-                if (isMounted.current) {
-                  setSession(null);
-                  setUser(null);
-                }
+                console.warn("[Auth] Silent refresh failed, keeping current session");
               } finally {
                 refreshingRef.current = false;
               }
@@ -136,6 +130,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
+    // 4. Proactive token refresh every 10 minutes to prevent expiry
+    const refreshInterval = setInterval(() => {
+      if (!refreshingRef.current && isMounted.current) {
+        refreshingRef.current = true;
+        supabase.auth.refreshSession()
+          .then(({ data }) => {
+            if (isMounted.current && data.session) {
+              setSession(data.session);
+              setUser(data.session.user);
+            }
+          })
+          .catch(() => {})
+          .finally(() => { refreshingRef.current = false; });
+      }
+    }, 10 * 60 * 1000);
+
     // Safety timeout
     const timeout = setTimeout(() => {
       if (isMounted.current) setLoading(false);
@@ -145,6 +155,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isMounted.current = false;
       subscription.unsubscribe();
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      clearInterval(refreshInterval);
       clearTimeout(timeout);
     };
   }, []);
