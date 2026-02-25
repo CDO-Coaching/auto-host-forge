@@ -12,7 +12,7 @@ export default function Dashboard() {
       let { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        const { data } = await supabase.auth.refreshSession();
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
         session = data.session;
       }
 
@@ -29,7 +29,7 @@ export default function Dashboard() {
 
       if (error) {
         console.error('Error fetching profile:', error);
-        navigate("/auth");
+        toast.error("Vérification du profil en cours, merci de patienter.");
         return;
       }
 

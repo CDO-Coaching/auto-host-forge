@@ -170,21 +170,24 @@ export default function Profil() {
         sessionStorage.removeItem('just_confirmed_email');
       }, 100);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      let activeSession = (await supabase.auth.getSession()).data.session;
 
-      if (!session) {
+      if (!activeSession) {
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        activeSession = data.session;
+      }
+
+      if (!activeSession) {
         navigate("/auth", { replace: true });
         return;
       }
 
-      setUserId(session.user.id);
+      setUserId(activeSession.user.id);
 
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("email, first_name, last_name, date_of_birth, gender, health_data_consent, health_data_consent_at")
-        .eq("id", session.user.id)
+        .eq("id", activeSession.user.id)
         .single();
 
       if (profile) {
