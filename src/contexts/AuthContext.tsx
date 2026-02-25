@@ -45,11 +45,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (isExplicit) {
             sessionStorage.removeItem("explicit_logout");
             localStorage.removeItem("explicit_logout");
+            setSession(null);
+            setUser(null);
+            return;
           }
 
-          // Toujours vider l'état local pour éviter les boucles Auth <-> Chargement
-          setSession(null);
-          setUser(null);
+          // Non-explicit SIGNED_OUT: try silent refresh before clearing state
+          // This handles spurious logouts from token expiry during batch requests
+          if (!refreshingRef.current) {
+            refreshingRef.current = true;
+            setTimeout(async () => {
+              try {
+                const { data } = await supabase.auth.refreshSession();
+                if (isMounted.current && data.session) {
+                  setSession(data.session);
+                  setUser(data.session.user);
+                } else if (isMounted.current) {
+                  // Refresh truly failed — clear state
+                  setSession(null);
+                  setUser(null);
+                }
+              } catch {
+                if (isMounted.current) {
+                  setSession(null);
+                  setUser(null);
+                }
+              } finally {
+                refreshingRef.current = false;
+              }
+            }, 0);
+          }
           return;
         }
 
