@@ -69,11 +69,13 @@ export default function DashboardCoach() {
         return;
       }
 
-      // Si le profil n'existe vraiment pas (compte supprimé), déconnecter proprement
+      // Si le profil semble absent, ne pas forcer de déconnexion pendant une instabilité réseau
       if (!profileData) {
-        sessionStorage.setItem("explicit_logout", "true");
-        await supabase.auth.signOut();
-        navigate("/auth", { replace: true });
+        console.warn("Profil coach temporairement introuvable, nouvelle tentative de session...");
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (!refreshed.session) {
+          navigate("/auth", { replace: true });
+        }
         return;
       }
 

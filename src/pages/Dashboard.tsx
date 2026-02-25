@@ -1,56 +1,56 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUserApproval = async () => {
-      let { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        const { data } = await supabase.auth.refreshSession();
-        session = data.session;
-      }
+    if (authLoading) return;
 
+    const checkUserApproval = async () => {
       if (!session) {
-        navigate("/auth");
+        navigate("/auth", { replace: true });
         return;
       }
 
       const { data: profile, error } = await supabase
-        .from('user_profiles')
-        .select('approved, role')
-        .eq('id', session.user.id)
-        .single();
+        .from("user_profiles")
+        .select("approved, role")
+        .eq("id", session.user.id)
+        .maybeSingle();
 
       if (error) {
-        console.error('Error fetching profile:', error);
-        navigate("/auth");
+        console.error("Erreur vérification accès dashboard:", error);
+        setLoading(false);
         return;
       }
 
-      if (!profile?.approved) {
-        navigate("/en-attente");
+      if (!profile) {
+        console.warn("Profil dashboard temporairement introuvable, conservation de session.");
+        setLoading(false);
         return;
       }
 
-      if (profile.role === 'coach') {
+      if (!profile.approved) {
+        navigate("/en-attente", { replace: true });
+        return;
+      }
+
+      if (profile.role === "coach") {
         navigate("/coach/dashboard", { replace: true });
       } else {
         navigate("/sportif/dashboard", { replace: true });
       }
-
-      setLoading(false);
     };
 
-    checkUserApproval();
-  }, [navigate]);
+    void checkUserApproval().finally(() => setLoading(false));
+  }, [authLoading, navigate, session]);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>
@@ -60,3 +60,4 @@ export default function Dashboard() {
 
   return null;
 }
+
