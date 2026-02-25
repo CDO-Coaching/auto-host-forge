@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isMounted = useRef(true);
   const refreshingRef = useRef(false);
   const recoveryTimeoutRef = useRef<number | null>(null);
+  const recoveryFailureCountRef = useRef(0);
 
   const clearExplicitLogoutFlag = useCallback(() => {
     sessionStorage.removeItem(EXPLICIT_LOGOUT_KEY);
@@ -59,6 +60,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
+  const restoreBackupSession = useCallback(() => {
+    const backup = localStorage.getItem(SESSION_BACKUP_KEY);
+    if (!backup) return false;
+
+    try {
+      const parsed = JSON.parse(backup) as Session;
+      if (parsed?.access_token && parsed?.user) {
+        setAuthState(parsed);
+        return true;
+      }
+    } catch {
+      localStorage.removeItem(SESSION_BACKUP_KEY);
+    }
+
+    return false;
+  }, [setAuthState]);
+
   const tryRecoverSession = useCallback(async (forceRefresh = false) => {
     if (refreshingRef.current) return false;
 
@@ -77,17 +95,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (recoveredSession) {
+        recoveryFailureCountRef.current = 0;
         setAuthState(recoveredSession);
         return true;
       }
 
-      return false;
+      return restoreBackupSession();
     } catch {
-      return false;
+      return restoreBackupSession();
     } finally {
       refreshingRef.current = false;
     }
-  }, [setAuthState]);
+  }, [restoreBackupSession, setAuthState]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -113,7 +132,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         recoveryTimeoutRef.current = window.setTimeout(async () => {
           const recovered = await tryRecoverSession(true);
           if (!recovered && navigator.onLine && isMounted.current) {
-            setAuthState(null);
+            recoveryFailureCountRef.current += 1;
+            if (recoveryFailureCountRef.current >= 3 && !session) {
+              setAuthState(null);
+            }
           }
         }, 400);
 
@@ -121,6 +143,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+        recoveryFailureCountRef.current = 0;
         if (newSession) {
           setAuthState(newSession);
         }
@@ -142,16 +165,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (recovered) return;
         }
 
-        const backup = localStorage.getItem(SESSION_BACKUP_KEY);
-        if (backup) {
-          try {
-            const parsed = JSON.parse(backup) as Session;
-            if (parsed?.access_token && parsed?.user) {
-              setAuthState(parsed);
-            }
-          } catch {
-            localStorage.removeItem(SESSION_BACKUP_KEY);
-          }
+        if (restoreBackupSession()) {
+          return;
         }
       } finally {
         if (isMounted.current) setLoading(false);
@@ -186,7 +201,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       window.clearTimeout(timeout);
     };
-  }, [clearExplicitLogoutFlag, isExplicitLogout, setAuthState, tryRecoverSession]);
+  }, [clearExplicitLogoutFlag, isExplicitLogout, restoreBackupSession, session, setAuthState, tryRecoverSession]);
 
   return (
     <AuthContext.Provider value={{ session, user, loading }}>
