@@ -59,8 +59,24 @@ export default function Seances() {
   };
 
   useEffect(() => {
-    loadWeeks();
-    loadCustomSessions();
+    const init = async () => {
+      // Attendre d'avoir un utilisateur authentifié avant de charger les données
+      // Sinon RLS renvoie 0 résultats si le token est en cours de refresh
+      let user = (await supabase.auth.getUser()).data.user;
+      if (!user) {
+        // Tenter un refresh si getUser échoue (token expiré transitoirement)
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        user = data.session?.user ?? null;
+      }
+      if (!user) {
+        // Toujours pas d'utilisateur, on charge quand même (le guard parent redirigera)
+        setLoading(false);
+        return;
+      }
+      loadWeeks();
+      loadCustomSessions();
+    };
+    init();
   }, []);
 
   const loadWeeks = async () => {
@@ -74,6 +90,9 @@ export default function Seances() {
 
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
+      // Ne pas écraser weeks existant en cas d'erreur transitoire (token refresh)
+      setLoading(false);
+      return;
     } else {
       const now = new Date();
       const currentYear = getWeekYear(now);
