@@ -19,8 +19,14 @@ export const useUserProfile = () => {
 
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      let session = (await supabase.auth.getSession()).data.session;
       
+      if (!session) {
+        // Tenter un refresh si le token est expiré transitoirement
+        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
+        session = data.session;
+      }
+
       if (!session) {
         setLoading(false);
         return;
