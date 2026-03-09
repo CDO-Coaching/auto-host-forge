@@ -90,6 +90,9 @@ export default function Seances() {
 
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
+      // Ne pas écraser weeks existant en cas d'erreur transitoire (token refresh)
+      setLoading(false);
+      return;
     } else {
       const now = new Date();
       const currentYear = getWeekYear(now);
