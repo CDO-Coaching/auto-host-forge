@@ -31,7 +31,7 @@ export default function ExerciceDetail() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [timerStartTimestamp, setTimerStartTimestamp] = useState<number | null>(null);
   const [targetDuration, setTargetDuration] = useState(0);
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);

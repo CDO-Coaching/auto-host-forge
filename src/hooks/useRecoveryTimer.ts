@@ -13,7 +13,7 @@ export function useRecoveryTimer() {
   const [timers, setTimers] = useState<{ [key: string]: number }>({});
   const [isRunning, setIsRunning] = useState<{ [key: string]: boolean }>({});
   const stateRef = useRef<TimerState>({});
-  const intervalsRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+  const intervalsRef = useRef<{ [key: string]: ReturnType<typeof setInterval> }>({});
 
   // Gérer la visibilité de la page
   useEffect(() => {

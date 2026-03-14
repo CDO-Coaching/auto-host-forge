@@ -52,7 +52,7 @@ export default function SeanceDetail() {
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [cardioFeedbackDialogOpen, setCardioFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
