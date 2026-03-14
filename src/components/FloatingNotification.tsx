@@ -83,7 +83,7 @@ export function FloatingNotification({
               <button
                 type="button"
                 className={cn(
-                  "flex-shrink-0 p-1 rounded-full transition-colors",
+                  "flex-shrink-0 p-2 -m-1 rounded-full transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center",
                   closeStyles[variant]
                 )}
                 onClick={(e) => {
@@ -92,7 +92,7 @@ export function FloatingNotification({
                 }}
                 aria-label="Fermer"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             </div>
             {description && (

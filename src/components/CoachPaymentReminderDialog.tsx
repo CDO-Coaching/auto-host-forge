@@ -28,9 +28,14 @@ export function CoachPaymentReminderDialog({
       description="Avez-vous des règlements à enregistrer aujourd'hui ?"
       variant="primary"
       actions={
-        <Button size="sm" onClick={handleYes} className="text-xs h-7">
-          Aller à la comptabilité
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={onDismiss} className="text-xs h-7">
+            Plus tard
+          </Button>
+          <Button size="sm" onClick={handleYes} className="text-xs h-7">
+            Aller à la comptabilité
+          </Button>
+        </div>
       }
     />
   );
