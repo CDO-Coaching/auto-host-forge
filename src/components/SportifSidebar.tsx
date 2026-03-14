@@ -81,7 +81,7 @@ export function SportifSidebar() {
 
   return (
     <Sidebar collapsible="offcanvas" className="border-r">
-      <SidebarContent>
+      <SidebarContent style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs sm:text-sm">Menu Sportif</SidebarGroupLabel>
           <SidebarGroupContent>
