@@ -35,7 +35,7 @@ export function SendVideoDialog({
   const [isSending, setIsSending] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { toast } = useToast();
   const { sendMessage } = useMessages();
 

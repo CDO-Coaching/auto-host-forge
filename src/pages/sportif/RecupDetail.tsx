@@ -44,7 +44,7 @@ export default function RecupDetail() {
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
+  const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [feedback, setFeedback] = useState<string>("");
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);

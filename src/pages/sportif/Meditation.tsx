@@ -95,7 +95,7 @@ export default function Meditation() {
   const [sessionOpen, setSessionOpen] = useState(true);
   
   const audioContextRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   useWakeLock(isRunning);
 
