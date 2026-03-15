@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, Routes, Route, Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { ChatBubble } from "@/components/ChatBubble";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDailyFatigueCheck } from "@/hooks/useDailyFatigueCheck";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
@@ -35,63 +33,35 @@ import ProgrammerSeances from "./sportif/ProgrammerSeances";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
-  const { profile } = useUserProfile();
+  const { profile, loading: profileLoading } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
   const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
   const { shouldShowReminder: shouldShowWeightReminder, isChecking: isCheckingWeight, handleDismiss: handleWeightDismiss } = useWeeklyWeightReminder();
 
-
   useEffect(() => {
-    // Attendre que l'authentification soit chargée
     if (authLoading) return;
 
-    const checkAccess = async () => {
-      let activeSession = session;
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
 
-      // Évite les redirections intempestives si la session est en cours de refresh
-      if (!activeSession) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        activeSession = data.session;
-      }
+    if (profileLoading) return;
 
-      if (!activeSession) {
-        navigate("/auth", { replace: true });
-        return;
-      }
+    if (!profile) {
+      toast.warning("Vérification du profil en cours, merci de patienter.");
+      return;
+    }
 
-      // Vérifier que l'utilisateur est bien un sportif approuvé
-      const { data: profileData, error } = await supabase
-        .from("user_profiles")
-        .select("approved, role")
-        .eq("id", activeSession.user.id)
-        .maybeSingle();
+    if (!profile.approved) {
+      navigate("/en-attente");
+      return;
+    }
 
-      // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
-      if (error) {
-        console.error("Erreur vérification accès sportif:", error);
-        return;
-      }
-
-      // Ne jamais forcer une déconnexion ici : on garde la session active
-      if (!profileData) {
-        console.warn("Profil sportif introuvable temporairement, session conservée");
-        toast.warning("Vérification du profil en cours, merci de patienter.");
-        return;
-      }
-
-      if (!profileData.approved) {
-        navigate("/en-attente");
-        return;
-      }
-
-      if (profileData.role === "coach") {
-        navigate("/coach/dashboard");
-        return;
-      }
-    };
-
-    checkAccess();
-  }, [session, authLoading, navigate]);
+    if (profile.role === "coach") {
+      navigate("/coach/dashboard");
+    }
+  }, [session, authLoading, profileLoading, profile, navigate]);
 
 
   if (authLoading || !session) {

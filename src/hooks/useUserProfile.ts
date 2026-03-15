@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface UserProfile {
   id: string;
@@ -11,61 +12,66 @@ interface UserProfile {
   address: string | null;
   siret: string | null;
   phone: string | null;
+  approved: boolean | null;
+  role: string | null;
 }
 
 export const useUserProfile = () => {
+  const { session, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      let session = (await supabase.auth.getSession()).data.session;
-      
-      if (!session) {
-        // Tenter un refresh si le token est expiré transitoirement
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        session = data.session;
-      }
+    if (authLoading) return;
 
-      if (!session) {
-        setLoading(false);
-        return;
-      }
+    if (!session) {
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const loadProfile = async () => {
+      setLoading(true);
 
       const { data } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("id", session.user.id)
-        .single();
+        .maybeSingle();
 
-      if (data) {
-        setProfile(data);
+      if (!isCancelled) {
+        setProfile((data as UserProfile) ?? null);
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     loadProfile();
 
-    // Écouter les changements de profil
     const channel = supabase
-      .channel('profile-changes')
+      .channel(`profile-changes-${session.user.id}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'user_profiles'
+          event: "UPDATE",
+          schema: "public",
+          table: "user_profiles",
+          filter: `id=eq.${session.user.id}`,
         },
         (payload) => {
-          setProfile(payload.new as UserProfile);
+          if (!isCancelled) {
+            setProfile(payload.new as UserProfile);
+          }
         }
       )
       .subscribe();
 
     return () => {
+      isCancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [session?.user.id, authLoading]);
 
-  return { profile, loading };
+  return { profile, loading: loading || authLoading };
 };

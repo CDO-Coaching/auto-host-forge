@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,55 +6,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import Navigation from "@/components/Navigation";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function EnAttente() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState<string>("");
+  const { session, loading: authLoading } = useAuth();
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
+
     const checkUser = async () => {
-      let session = (await supabase.auth.getSession()).data.session;
-      
-      if (!session) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        session = data.session;
-      }
-
-      if (!session) {
-        navigate("/auth", { replace: true });
-        return;
-      }
-
-      setEmail(session.user.email || "");
-
-      // Vérifier le statut d'approbation
       const { data: profile, error } = await supabase
         .from("user_profiles")
         .select("approved, role, first_name, last_name")
         .eq("id", session.user.id)
         .maybeSingle();
 
-      // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
       if (error) {
         console.error("Erreur vérification profil en attente:", error);
         return;
       }
 
-      // Ne jamais forcer une déconnexion automatique ici
       if (!profile) {
-        console.warn("Profil en attente introuvable temporairement, session conservée");
         toast.warning("Vérification du profil en cours, merci de patienter.");
         return;
       }
 
-      // Vérifier si le profil est complet
       if (!profile.first_name || !profile.last_name) {
         navigate("/sportif/profil", { replace: true });
         return;
       }
 
       if (profile.approved) {
-        // Si approuvé, rediriger vers le bon dashboard
         if (profile.role === "coach") {
           navigate("/coach/dashboard", { replace: true });
         } else {
@@ -64,10 +52,10 @@ export default function EnAttente() {
     };
 
     checkUser();
-  }, [navigate]);
+  }, [session, authLoading, navigate]);
 
   const handleLogout = async () => {
-    sessionStorage.setItem('explicit_logout', 'true');
+    sessionStorage.setItem("explicit_logout", "true");
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error("Erreur lors de la déconnexion");
@@ -91,7 +79,7 @@ export default function EnAttente() {
           <CardContent className="space-y-4">
             <div className="text-center space-y-2">
               <p className="text-sm text-muted-foreground">
-                Email: <span className="font-medium text-foreground">{email}</span>
+                Email: <span className="font-medium text-foreground">{session?.user.email || ""}</span>
               </p>
               <p className="text-sm text-muted-foreground">
                 Tu recevras un email dès que ton compte sera validé.
