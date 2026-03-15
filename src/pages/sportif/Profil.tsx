@@ -196,7 +196,7 @@ export default function Profil() {
     };
 
     loadProfile();
-  }, [navigate, form]);
+  }, [session, authLoading, navigate, form]);
 
   /* Sauvegarde du profil */
   const onSubmit = async (data: ProfileFormValues) => {

@@ -87,7 +87,7 @@ export default function DashboardCoach() {
     loadPendingRequests();
   }, [profile]);
 
-  if (authLoading || !session) {
+  if (authLoading || profileLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>

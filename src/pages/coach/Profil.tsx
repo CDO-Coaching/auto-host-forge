@@ -84,7 +84,7 @@ export default function Profil() {
     };
 
     loadProfile();
-  }, [navigate, form]);
+  }, [session, authLoading, navigate, form]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     setSaving(true);

@@ -63,7 +63,7 @@ export default function DashboardSportif() {
   }, [session, authLoading, profileLoading, profile, navigate]);
 
 
-  if (authLoading || !session) {
+  if (authLoading || profileLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>
