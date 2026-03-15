@@ -1,16 +1,21 @@
 // Service Worker pour PWA
 // Objectif: cache uniquement l'app shell / assets statiques, jamais les appels API.
 
-const CACHE_NAME = 'cdo-coaching-v2';
+const CACHE_NAME = 'cdo-coaching-v3';
 const urlsToCache = [
   '/',
-  '/sportif/seances',
   '/manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache)));
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(urlsToCache))
+      .catch(() => {
+        // Installation failure — continue without cache
+      })
+  );
 });
 
 self.addEventListener('activate', (event) => {
@@ -32,17 +37,14 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Ne jamais mettre en cache les requêtes non-GET (PATCH/POST/etc.)
-  if (req.method !== 'GET') {
-    event.respondWith(fetch(req));
-    return;
-  }
+  // Ne jamais mettre en cache les requêtes non-GET
+  if (req.method !== 'GET') return;
 
-  // Ne jamais mettre en cache les requêtes cross-origin (ex: Supabase REST/Auth)
-  if (url.origin !== self.location.origin) {
-    event.respondWith(fetch(req));
-    return;
-  }
+  // Ne jamais intercepter les requêtes Supabase (auth, rest, realtime, storage)
+  if (url.hostname.includes('supabase') || url.hostname.includes('supabasekong')) return;
+
+  // Ne jamais mettre en cache les requêtes cross-origin
+  if (url.origin !== self.location.origin) return;
 
   // Pour les navigations (index.html / routes), on préfère le réseau puis fallback cache.
   if (req.mode === 'navigate') {
@@ -70,4 +72,3 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
-

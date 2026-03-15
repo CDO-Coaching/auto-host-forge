@@ -27,6 +27,41 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
+  const refreshRetryCount = useRef(0);
+  const maxRetries = 3;
+
+  // Retry refresh with exponential backoff when server returns 500
+  const retryRefresh = async () => {
+    if (refreshRetryCount.current >= maxRetries) {
+      console.warn("[Auth] Max refresh retries reached, giving up");
+      refreshRetryCount.current = 0;
+      return;
+    }
+
+    const delay = Math.min(2000 * Math.pow(2, refreshRetryCount.current), 30000);
+    refreshRetryCount.current++;
+    console.log(`[Auth] Retry refresh #${refreshRetryCount.current} in ${delay}ms`);
+
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    if (!isMounted.current) return;
+
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      if (isMounted.current && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        refreshRetryCount.current = 0;
+        console.log("[Auth] Refresh retry succeeded");
+      } else {
+        // Retry again
+        retryRefresh();
+      }
+    } catch {
+      // Retry again
+      retryRefresh();
+    }
+  };
 
   useEffect(() => {
     isMounted.current = true;
@@ -49,13 +84,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
-          // Non-explicit SIGNED_OUT: do NOT clear state, do NOT try refreshSession.
-          // autoRefreshToken handles background refreshes. Keep existing session in memory.
-          console.warn("[Auth] Non-explicit SIGNED_OUT ignored — keeping current session");
+          // Non-explicit SIGNED_OUT (e.g. refresh_token 500):
+          // Keep current session in memory and trigger retry
+          console.warn("[Auth] Non-explicit SIGNED_OUT ignored — keeping current session, scheduling retry");
+          retryRefresh();
           return;
         }
 
         if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
+          refreshRetryCount.current = 0; // Reset on success
           setSession(newSession);
           setUser(newSession?.user ?? null);
           return;
@@ -78,7 +115,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setSession(existing);
           setUser(existing.user);
         }
-        // If no session, user is simply not logged in. No need to force refresh.
       } finally {
         if (isMounted.current) setLoading(false);
       }
@@ -92,11 +128,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         supabase.auth.refreshSession()
           .then(({ data }) => {
             if (isMounted.current && data.session) {
+              refreshRetryCount.current = 0;
               setSession(data.session);
               setUser(data.session.user);
             }
           })
-          .catch(() => {});
+          .catch(() => {
+            // Server error (500) — schedule retry
+            if (isMounted.current) retryRefresh();
+          });
       }
     }, 10 * 60 * 1000);
 
