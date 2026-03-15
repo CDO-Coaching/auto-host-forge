@@ -16,26 +16,40 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
       const registration = await navigator.serviceWorker.register("/service-worker.js");
       console.log("Service Worker enregistré:", registration);
 
-      // Vérifie périodiquement s'il y a une nouvelle version
-      setInterval(() => {
-        registration.update();
-      }, 60000); // Vérifie toutes les minutes
-
-      // Gestion des mises à jour du SW
+      // Gestion des mises à jour du SW — avec protection contre InvalidStateError
       registration.addEventListener("updatefound", () => {
         const newWorker = registration.installing;
         if (!newWorker) return;
 
         newWorker.addEventListener("statechange", () => {
           if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            // Nouvelle version disponible - informer l'utilisateur au lieu de recharger automatiquement
             console.log("Nouvelle version disponible");
-            // Vous pouvez afficher une notification à l'utilisateur ici
           }
         });
       });
+
+      // Vérifie les mises à jour toutes les 5 minutes (pas chaque minute)
+      // avec try/catch pour éviter InvalidStateError
+      setInterval(() => {
+        try {
+          registration.update().catch(() => {
+            // SW update failed silently — will retry next interval
+          });
+        } catch {
+          // InvalidStateError — SW is in a bad state, ignore
+        }
+      }, 5 * 60 * 1000);
     } catch (error) {
       console.error("Erreur Service Worker:", error);
+      // Si le SW est dans un état invalide, le désenregistrer pour repartir propre
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      } catch {
+        // ignore
+      }
     }
   });
 } else if ("serviceWorker" in navigator && !import.meta.env.PROD) {
