@@ -22,6 +22,30 @@ export const useAuth = () => {
   return context;
 };
 
+// Backup key for persisting session tokens independently of Supabase JS internal storage
+const SESSION_BACKUP_KEY = "cdo-session-backup";
+
+const saveSessionBackup = (s: Session) => {
+  try {
+    localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
+      access_token: s.access_token,
+      refresh_token: s.refresh_token,
+    }));
+  } catch { /* quota exceeded — ignore */ }
+};
+
+const getSessionBackup = (): { access_token: string; refresh_token: string } | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_BACKUP_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+};
+
+const clearSessionBackup = () => {
+  try { localStorage.removeItem(SESSION_BACKUP_KEY); } catch { /* ignore */ }
+};
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -29,42 +53,62 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isMounted = useRef(true);
   const refreshRetryCount = useRef(0);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isRetrying = useRef(false);
 
-  // Persistent retry: exponential backoff from 2s up to 5 minutes, NO max retries limit.
-  // The session stays in memory and we keep trying until the server comes back.
+  // Persistent retry: exponential backoff from 2s up to 5 minutes, NO limit.
+  // Key difference: we restore the session from our backup before each retry,
+  // because Supabase JS clears its internal storage on SIGNED_OUT.
   const retryRefresh = () => {
     if (!isMounted.current) return;
+    if (isRetrying.current) return; // avoid duplicate retry chains
+    isRetrying.current = true;
 
-    // Clear any existing retry timer to avoid duplicates
-    if (retryTimerRef.current) {
-      clearTimeout(retryTimerRef.current);
-      retryTimerRef.current = null;
-    }
-
-    // Backoff: 2s, 4s, 8s, 16s, 32s, 60s, 120s, 300s (5min max)
-    const delay = Math.min(2000 * Math.pow(2, refreshRetryCount.current), 5 * 60 * 1000);
-    refreshRetryCount.current++;
-    console.log(`[Auth] Retry refresh #${refreshRetryCount.current} in ${Math.round(delay / 1000)}s`);
-
-    retryTimerRef.current = setTimeout(async () => {
+    const scheduleNext = () => {
       if (!isMounted.current) return;
 
-      try {
-        const { data } = await supabase.auth.refreshSession();
-        if (isMounted.current && data.session) {
-          setSession(data.session);
-          setUser(data.session.user);
-          refreshRetryCount.current = 0;
-          console.log("[Auth] Refresh retry succeeded ✓");
-        } else {
-          // No session returned — keep retrying
-          retryRefresh();
-        }
-      } catch {
-        // Server still down — keep retrying
-        retryRefresh();
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
       }
-    }, delay);
+
+      // Backoff: 2s, 4s, 8s, 16s, 32s, 60s, 120s, 300s (5min max)
+      const delay = Math.min(2000 * Math.pow(2, refreshRetryCount.current), 5 * 60 * 1000);
+      refreshRetryCount.current++;
+      console.log(`[Auth] Retry refresh #${refreshRetryCount.current} in ${Math.round(delay / 1000)}s`);
+
+      retryTimerRef.current = setTimeout(async () => {
+        if (!isMounted.current) { isRetrying.current = false; return; }
+
+        try {
+          // Restore tokens from our independent backup so Supabase JS has something to refresh
+          const backup = getSessionBackup();
+          if (backup) {
+            await supabase.auth.setSession({
+              access_token: backup.access_token,
+              refresh_token: backup.refresh_token,
+            });
+          }
+
+          const { data } = await supabase.auth.refreshSession();
+          if (isMounted.current && data.session) {
+            setSession(data.session);
+            setUser(data.session.user);
+            saveSessionBackup(data.session);
+            refreshRetryCount.current = 0;
+            isRetrying.current = false;
+            console.log("[Auth] Refresh retry succeeded ✓");
+            return;
+          }
+          // No session returned — keep retrying
+          scheduleNext();
+        } catch {
+          // Server still down — keep retrying
+          scheduleNext();
+        }
+      }, delay);
+    };
+
+    scheduleNext();
   };
 
   useEffect(() => {
@@ -83,6 +127,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (isExplicit) {
             sessionStorage.removeItem("explicit_logout");
             localStorage.removeItem("explicit_logout");
+            clearSessionBackup();
             setSession(null);
             setUser(null);
             return;
@@ -97,18 +142,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
           refreshRetryCount.current = 0;
+          isRetrying.current = false;
           if (retryTimerRef.current) {
             clearTimeout(retryTimerRef.current);
             retryTimerRef.current = null;
           }
-          setSession(newSession);
-          setUser(newSession?.user ?? null);
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+            saveSessionBackup(newSession);
+          }
           return;
         }
 
         if (newSession) {
           setSession(newSession);
           setUser(newSession.user);
+          saveSessionBackup(newSession);
         }
       }
     );
@@ -122,6 +172,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (existing) {
           setSession(existing);
           setUser(existing.user);
+          saveSessionBackup(existing);
+        } else {
+          // No session from Supabase JS — try our backup
+          const backup = getSessionBackup();
+          if (backup) {
+            console.log("[Auth] No active session, restoring from backup...");
+            try {
+              const { data } = await supabase.auth.setSession({
+                access_token: backup.access_token,
+                refresh_token: backup.refresh_token,
+              });
+              if (isMounted.current && data.session) {
+                setSession(data.session);
+                setUser(data.session.user);
+                saveSessionBackup(data.session);
+                console.log("[Auth] Session restored from backup ✓");
+              }
+            } catch {
+              console.warn("[Auth] Backup restore failed, starting fresh");
+              clearSessionBackup();
+            }
+          }
         }
       } finally {
         if (isMounted.current) setLoading(false);
@@ -131,25 +203,53 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initializeAuth();
 
     // 3. Proactive token refresh every 10 minutes as safety net
-    const refreshInterval = setInterval(() => {
-      if (isMounted.current) {
-        supabase.auth.refreshSession()
-          .then(({ data }) => {
-            if (isMounted.current && data.session) {
-              refreshRetryCount.current = 0;
-              if (retryTimerRef.current) {
-                clearTimeout(retryTimerRef.current);
-                retryTimerRef.current = null;
-              }
-              setSession(data.session);
-              setUser(data.session.user);
-            }
-          })
-          .catch(() => {
-            if (isMounted.current) retryRefresh();
-          });
+    const refreshInterval = setInterval(async () => {
+      if (!isMounted.current || isRetrying.current) return;
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        if (isMounted.current && data.session) {
+          refreshRetryCount.current = 0;
+          isRetrying.current = false;
+          if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+          }
+          setSession(data.session);
+          setUser(data.session.user);
+          saveSessionBackup(data.session);
+        }
+      } catch {
+        if (isMounted.current) retryRefresh();
       }
     }, 10 * 60 * 1000);
+
+    // 4. On visibility change (user comes back to app), try a refresh
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== "visible" || !isMounted.current) return;
+      if (isRetrying.current) return; // don't interfere with retry loop
+
+      try {
+        // First restore backup in case Supabase JS lost internal state
+        const backup = getSessionBackup();
+        if (backup) {
+          await supabase.auth.setSession({
+            access_token: backup.access_token,
+            refresh_token: backup.refresh_token,
+          });
+        }
+        const { data } = await supabase.auth.refreshSession();
+        if (isMounted.current && data.session) {
+          setSession(data.session);
+          setUser(data.session.user);
+          saveSessionBackup(data.session);
+          refreshRetryCount.current = 0;
+        }
+      } catch {
+        // Will be handled by the regular retry mechanism
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // Safety timeout for initial loading
     const timeout = setTimeout(() => {
@@ -161,6 +261,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
       clearInterval(refreshInterval);
       clearTimeout(timeout);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       if (retryTimerRef.current) {
         clearTimeout(retryTimerRef.current);
       }
