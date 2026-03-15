@@ -47,14 +47,12 @@ export default function DashboardCoach() {
   const { pendingCancellations, dismissCancellation } = useCoachCancellationNotifications(profile?.id);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || profileLoading) return;
 
     if (!session) {
       navigate("/auth", { replace: true });
       return;
     }
-
-    if (profileLoading) return;
 
     if (!profile) {
       toast.warning("Vérification du profil en cours, merci de patienter.");
@@ -89,7 +87,7 @@ export default function DashboardCoach() {
     loadPendingRequests();
   }, [profile]);
 
-  if (authLoading || !session) {
+  if (authLoading || profileLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>

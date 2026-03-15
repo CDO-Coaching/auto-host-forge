@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -144,6 +145,7 @@ function CoachSelector({ userId }: { userId: string }) {
 /* ---------------------- Page Profil ---------------------- */
 export default function Profil() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
@@ -163,31 +165,20 @@ export default function Profil() {
 
   /* Charger les infos du profil */
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
+
     const loadProfile = async () => {
-      // Nettoyer les flags de callback après un court délai
-      setTimeout(() => {
-        sessionStorage.removeItem('from_callback');
-        sessionStorage.removeItem('just_confirmed_email');
-      }, 100);
-
-      let activeSession = (await supabase.auth.getSession()).data.session;
-
-      if (!activeSession) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        activeSession = data.session;
-      }
-
-      if (!activeSession) {
-        navigate("/auth", { replace: true });
-        return;
-      }
-
-      setUserId(activeSession.user.id);
+      setUserId(session.user.id);
 
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("email, first_name, last_name, date_of_birth, gender, health_data_consent, health_data_consent_at")
-        .eq("id", activeSession.user.id)
+        .eq("id", session.user.id)
         .single();
 
       if (profile) {
@@ -205,7 +196,7 @@ export default function Profil() {
     };
 
     loadProfile();
-  }, [navigate, form]);
+  }, [session, authLoading, navigate, form]);
 
   /* Sauvegarde du profil */
   const onSubmit = async (data: ProfileFormValues) => {

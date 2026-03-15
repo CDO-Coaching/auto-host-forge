@@ -39,14 +39,13 @@ export default function DashboardSportif() {
   const { shouldShowReminder: shouldShowWeightReminder, isChecking: isCheckingWeight, handleDismiss: handleWeightDismiss } = useWeeklyWeightReminder();
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || profileLoading) return;
 
     if (!session) {
+      // Grace period: only redirect after both auth and profile loading are done
       navigate("/auth", { replace: true });
       return;
     }
-
-    if (profileLoading) return;
 
     if (!profile) {
       toast.warning("Vérification du profil en cours, merci de patienter.");
@@ -64,7 +63,7 @@ export default function DashboardSportif() {
   }, [session, authLoading, profileLoading, profile, navigate]);
 
 
-  if (authLoading || !session) {
+  if (authLoading || profileLoading || !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-foreground">Chargement...</p>

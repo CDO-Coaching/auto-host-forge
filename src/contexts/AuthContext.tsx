@@ -27,12 +27,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
-  const refreshingRef = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
 
-    // 1. Listener for ONGOING auth changes — does NOT control loading
+    // 1. Listener for ONGOING auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
         if (!isMounted.current) return;
@@ -50,25 +49,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return;
           }
 
-          // Non-explicit SIGNED_OUT: try silent refresh but NEVER clear state
-          // The user must never be kicked out unless they explicitly log out
-          if (!refreshingRef.current) {
-            refreshingRef.current = true;
-            setTimeout(async () => {
-              try {
-                const { data } = await supabase.auth.refreshSession();
-                if (isMounted.current && data.session) {
-                  setSession(data.session);
-                  setUser(data.session.user);
-                }
-                // If refresh fails → keep existing session, don't clear
-              } catch {
-                console.warn("[Auth] Silent refresh failed, keeping current session");
-              } finally {
-                refreshingRef.current = false;
-              }
-            }, 0);
-          }
+          // Non-explicit SIGNED_OUT: do NOT clear state, do NOT try refreshSession.
+          // autoRefreshToken handles background refreshes. Keep existing session in memory.
+          console.warn("[Auth] Non-explicit SIGNED_OUT ignored — keeping current session");
           return;
         }
 
@@ -85,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
-    // 2. INITIAL load — controls loading
+    // 2. INITIAL load
     const initializeAuth = async () => {
       try {
         const { data: { session: existing } } = await supabase.auth.getSession();
@@ -94,18 +77,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (existing) {
           setSession(existing);
           setUser(existing.user);
-        } else {
-          // No stored session — try a refresh in case the token is still valid
-          try {
-            const { data } = await supabase.auth.refreshSession();
-            if (isMounted.current && data.session) {
-              setSession(data.session);
-              setUser(data.session.user);
-            }
-          } catch {
-            // No valid session at all
-          }
         }
+        // If no session, user is simply not logged in. No need to force refresh.
       } finally {
         if (isMounted.current) setLoading(false);
       }
@@ -113,27 +86,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     initializeAuth();
 
-    // 3. Re-acquire session when app comes back to foreground
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && !refreshingRef.current) {
-        refreshingRef.current = true;
-        supabase.auth.refreshSession().then(({ data }) => {
-          if (isMounted.current && data.session) {
-            setSession(data.session);
-            setUser(data.session.user);
-          }
-        }).catch(() => {}).finally(() => {
-          refreshingRef.current = false;
-        });
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // 4. Proactive token refresh every 10 minutes to prevent expiry
+    // 3. Proactive token refresh every 10 minutes as safety net
     const refreshInterval = setInterval(() => {
-      if (!refreshingRef.current && isMounted.current) {
-        refreshingRef.current = true;
+      if (isMounted.current) {
         supabase.auth.refreshSession()
           .then(({ data }) => {
             if (isMounted.current && data.session) {
@@ -141,8 +96,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               setUser(data.session.user);
             }
           })
-          .catch(() => {})
-          .finally(() => { refreshingRef.current = false; });
+          .catch(() => {});
       }
     }, 10 * 60 * 1000);
 
@@ -154,7 +108,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       isMounted.current = false;
       subscription.unsubscribe();
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearInterval(refreshInterval);
       clearTimeout(timeout);
     };

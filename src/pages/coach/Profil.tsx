@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function Profil() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
@@ -50,25 +52,20 @@ export default function Profil() {
   });
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
+
     const loadProfile = async () => {
-      let activeSession = (await supabase.auth.getSession()).data.session;
-
-      if (!activeSession) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        activeSession = data.session;
-      }
-
-      if (!activeSession) {
-        navigate("/auth", { replace: true });
-        return;
-      }
-
-      setUserId(activeSession.user.id);
+      setUserId(session.user.id);
 
       const { data: profile } = await supabase
         .from("user_profiles")
         .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone")
-        .eq("id", activeSession.user.id)
+        .eq("id", session.user.id)
         .single();
 
       if (profile) {
@@ -87,7 +84,7 @@ export default function Profil() {
     };
 
     loadProfile();
-  }, [navigate, form]);
+  }, [session, authLoading, navigate, form]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     setSaving(true);
