@@ -47,14 +47,12 @@ export default function DashboardCoach() {
   const { pendingCancellations, dismissCancellation } = useCoachCancellationNotifications(profile?.id);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || profileLoading) return;
 
     if (!session) {
       navigate("/auth", { replace: true });
       return;
     }
-
-    if (profileLoading) return;
 
     if (!profile) {
       toast.warning("Vérification du profil en cours, merci de patienter.");
