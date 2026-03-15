@@ -165,26 +165,15 @@ export default function Profil() {
 
   /* Charger les infos du profil */
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
+
     const loadProfile = async () => {
-      // Nettoyer les flags de callback après un court délai
-      setTimeout(() => {
-        sessionStorage.removeItem('from_callback');
-        sessionStorage.removeItem('just_confirmed_email');
-      }, 100);
-
-      let activeSession = (await supabase.auth.getSession()).data.session;
-
-      if (!activeSession) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        activeSession = data.session;
-      }
-
-      if (!activeSession) {
-        navigate("/auth", { replace: true });
-        return;
-      }
-
-      setUserId(activeSession.user.id);
+      setUserId(session.user.id);
 
       const { data: profile } = await supabase
         .from("user_profiles")
