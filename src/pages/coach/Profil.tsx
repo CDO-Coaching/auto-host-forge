@@ -32,6 +32,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export default function Profil() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState("");
   const [userId, setUserId] = useState("");
