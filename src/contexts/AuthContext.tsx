@@ -28,39 +28,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const isMounted = useRef(true);
   const refreshRetryCount = useRef(0);
-  const maxRetries = 3;
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Retry refresh with exponential backoff when server returns 500
-  const retryRefresh = async () => {
-    if (refreshRetryCount.current >= maxRetries) {
-      console.warn("[Auth] Max refresh retries reached, giving up");
-      refreshRetryCount.current = 0;
-      return;
-    }
-
-    const delay = Math.min(2000 * Math.pow(2, refreshRetryCount.current), 30000);
-    refreshRetryCount.current++;
-    console.log(`[Auth] Retry refresh #${refreshRetryCount.current} in ${delay}ms`);
-
-    await new Promise(resolve => setTimeout(resolve, delay));
-
+  // Persistent retry: exponential backoff from 2s up to 5 minutes, NO max retries limit.
+  // The session stays in memory and we keep trying until the server comes back.
+  const retryRefresh = () => {
     if (!isMounted.current) return;
 
-    try {
-      const { data } = await supabase.auth.refreshSession();
-      if (isMounted.current && data.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-        refreshRetryCount.current = 0;
-        console.log("[Auth] Refresh retry succeeded");
-      } else {
-        // Retry again
+    // Clear any existing retry timer to avoid duplicates
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    // Backoff: 2s, 4s, 8s, 16s, 32s, 60s, 120s, 300s (5min max)
+    const delay = Math.min(2000 * Math.pow(2, refreshRetryCount.current), 5 * 60 * 1000);
+    refreshRetryCount.current++;
+    console.log(`[Auth] Retry refresh #${refreshRetryCount.current} in ${Math.round(delay / 1000)}s`);
+
+    retryTimerRef.current = setTimeout(async () => {
+      if (!isMounted.current) return;
+
+      try {
+        const { data } = await supabase.auth.refreshSession();
+        if (isMounted.current && data.session) {
+          setSession(data.session);
+          setUser(data.session.user);
+          refreshRetryCount.current = 0;
+          console.log("[Auth] Refresh retry succeeded ✓");
+        } else {
+          // No session returned — keep retrying
+          retryRefresh();
+        }
+      } catch {
+        // Server still down — keep retrying
         retryRefresh();
       }
-    } catch {
-      // Retry again
-      retryRefresh();
-    }
+    }, delay);
   };
 
   useEffect(() => {
@@ -85,14 +89,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           }
 
           // Non-explicit SIGNED_OUT (e.g. refresh_token 500):
-          // Keep current session in memory and trigger retry
-          console.warn("[Auth] Non-explicit SIGNED_OUT ignored — keeping current session, scheduling retry");
+          // Keep current session in memory and retry indefinitely
+          console.warn("[Auth] Non-explicit SIGNED_OUT ignored — keeping session, retrying indefinitely");
           retryRefresh();
           return;
         }
 
         if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") {
-          refreshRetryCount.current = 0; // Reset on success
+          refreshRetryCount.current = 0;
+          if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+          }
           setSession(newSession);
           setUser(newSession?.user ?? null);
           return;
@@ -129,18 +137,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .then(({ data }) => {
             if (isMounted.current && data.session) {
               refreshRetryCount.current = 0;
+              if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+                retryTimerRef.current = null;
+              }
               setSession(data.session);
               setUser(data.session.user);
             }
           })
           .catch(() => {
-            // Server error (500) — schedule retry
             if (isMounted.current) retryRefresh();
           });
       }
     }, 10 * 60 * 1000);
 
-    // Safety timeout
+    // Safety timeout for initial loading
     const timeout = setTimeout(() => {
       if (isMounted.current) setLoading(false);
     }, 5000);
@@ -150,6 +161,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
       clearInterval(refreshInterval);
       clearTimeout(timeout);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
     };
   }, []);
 
