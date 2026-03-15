@@ -37,7 +37,7 @@ import CoachDashboard from "./coach/Dashboard";
 export default function DashboardCoach() {
   const navigate = useNavigate();
   const [pendingCount, setPendingCount] = useState(0);
-  const { profile } = useUserProfile();
+  const { profile, loading: profileLoading } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
   const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
   const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
@@ -47,56 +47,29 @@ export default function DashboardCoach() {
   const { pendingCancellations, dismissCancellation } = useCoachCancellationNotifications(profile?.id);
 
   useEffect(() => {
-    // Attendre que l'authentification soit chargée
     if (authLoading) return;
 
-    const checkAccess = async () => {
-      let activeSession = session;
+    if (!session) {
+      navigate("/auth", { replace: true });
+      return;
+    }
 
-      // Évite les redirections intempestives si la session est en cours de refresh
-      if (!activeSession) {
-        const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
-        activeSession = data.session;
-      }
+    if (profileLoading) return;
 
-      if (!activeSession) {
-        navigate("/auth", { replace: true });
-        return;
-      }
+    if (!profile) {
+      toast.warning("Vérification du profil en cours, merci de patienter.");
+      return;
+    }
 
-      // Vérifier que l'utilisateur est bien un coach approuvé
-      const { data: profileData, error } = await supabase
-        .from("user_profiles")
-        .select("approved, role")
-        .eq("id", activeSession.user.id)
-        .maybeSingle();
+    if (!profile.approved) {
+      navigate("/en-attente");
+      return;
+    }
 
-      // Ne pas déconnecter sur erreur transitoire (réseau/token en refresh)
-      if (error) {
-        console.error("Erreur vérification accès coach:", error);
-        return;
-      }
-
-      // Ne jamais forcer une déconnexion ici : on garde la session active
-      if (!profileData) {
-        console.warn("Profil coach introuvable temporairement, session conservée");
-        toast.warning("Vérification du profil en cours, merci de patienter.");
-        return;
-      }
-
-      if (!profileData.approved) {
-        navigate("/en-attente");
-        return;
-      }
-
-      if (profileData.role !== "coach") {
-        navigate("/sportif/dashboard");
-        return;
-      }
-    };
-
-    checkAccess();
-  }, [session, authLoading, navigate]);
+    if (profile.role !== "coach") {
+      navigate("/sportif/dashboard");
+    }
+  }, [session, authLoading, profileLoading, profile, navigate]);
 
   useEffect(() => {
     const loadPendingRequests = async () => {
