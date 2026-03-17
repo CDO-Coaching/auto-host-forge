@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,48 @@ export function FloatingNotification({
   variant = "default",
   stackIndex = 0,
 }: FloatingNotificationProps) {
+  const [swipeX, setSwipeX] = useState(0);
+  const [isDismissing, setIsDismissing] = useState(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isSwipingRef = useRef(false);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    isSwipingRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+
+    // Only swipe horizontally if horizontal movement > vertical
+    if (!isSwipingRef.current && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      isSwipingRef.current = true;
+    }
+
+    if (isSwipingRef.current) {
+      e.preventDefault();
+      setSwipeX(Math.max(0, deltaX));
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (swipeX > 100) {
+      setIsDismissing(true);
+      setSwipeX(400);
+      setTimeout(() => {
+        onDismiss();
+        setSwipeX(0);
+        setIsDismissing(false);
+      }, 200);
+    } else {
+      setSwipeX(0);
+    }
+    isSwipingRef.current = false;
+  }, [swipeX, onDismiss]);
+
   if (!open) return null;
 
   const variantStyles = {
@@ -55,17 +97,28 @@ export function FloatingNotification({
     orange: "text-white/70 hover:text-white",
   };
 
-  // Calculer la position verticale en fonction de l'index dans la stack
-  const topOffset = 16 + stackIndex * 90; // 16px de base + 90px par notification
+  // Position below the header (h-14 = 56px) + safe area + spacing
+  const topOffset = 72 + stackIndex * 90;
 
   const node = (
     <div
       className={cn(
-        "fixed right-4 z-[100] w-80 max-w-[calc(100vw-2rem)] rounded-lg border-2 shadow-xl cursor-pointer animate-in slide-in-from-right duration-300",
+        "fixed right-4 z-[100] w-80 max-w-[calc(100vw-2rem)] rounded-lg border-2 shadow-xl cursor-pointer",
+        !isDismissing && swipeX === 0 && "animate-in slide-in-from-right duration-300",
         variantStyles[variant]
       )}
-      style={{ top: `${topOffset}px` }}
-      onClick={onDismiss}
+      style={{
+        top: `${topOffset}px`,
+        transform: `translateX(${swipeX}px)`,
+        opacity: isDismissing ? 0 : swipeX > 0 ? Math.max(0, 1 - swipeX / 200) : 1,
+        transition: isSwipingRef.current ? "none" : "transform 0.2s ease-out, opacity 0.2s ease-out",
+      }}
+      onClick={() => {
+        if (!isSwipingRef.current && swipeX === 0) onDismiss();
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -114,8 +167,6 @@ export function FloatingNotification({
     </div>
   );
 
-  // Render in a portal to avoid being clipped by any transformed/overflow ancestors.
   if (typeof document === "undefined") return node;
   return createPortal(node, document.body);
 }
-
