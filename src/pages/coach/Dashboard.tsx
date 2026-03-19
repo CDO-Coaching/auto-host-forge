@@ -173,6 +173,8 @@ export default function CoachDashboard() {
               label: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
               detail: ts.name,
               date: ts.completed_at,
+              athleteId,
+              sessionType: ts.session_type || "renfo",
             });
           }
         });
