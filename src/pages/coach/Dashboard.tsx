@@ -571,6 +571,16 @@ export default function CoachDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Session detail dialog */}
+      <CoachSessionDetailDialog
+        open={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
+        sessionId={selectedSession?.id || null}
+        sessionType={selectedSession?.sessionType || "renfo"}
+        athleteId={selectedSession?.athleteId || ""}
+        athleteName={selectedSession?.athleteName || ""}
+      />
     </div>
   );
 }
