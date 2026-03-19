@@ -530,7 +530,24 @@ export default function CoachDashboard() {
             </p>
           ) : (
             data.recentActivities.map(a => (
-              <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
+              <div
+                key={a.id}
+                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                  a.type === "session_completed"
+                    ? "cursor-pointer hover:bg-secondary/50"
+                    : "hover:bg-secondary/30"
+                }`}
+                onClick={() => {
+                  if (a.type === "session_completed" && a.athleteId) {
+                    setSelectedSession({
+                      id: a.id,
+                      athleteId: a.athleteId,
+                      athleteName: a.label,
+                      sessionType: a.sessionType || "renfo",
+                    });
+                  }
+                }}
+              >
                 <div className={`h-2 w-2 rounded-full shrink-0 ${
                   a.type === "session_completed" ? "bg-green-500" :
                   a.type === "payment" ? "bg-primary" : "bg-blue-500"
@@ -541,9 +558,14 @@ export default function CoachDashboard() {
                     <span className="text-muted-foreground"> — {a.detail}</span>
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-muted-foreground">
+                    {format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}
+                  </span>
+                  {a.type === "session_completed" && (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
               </div>
             ))
           )}
