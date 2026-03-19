@@ -70,6 +70,12 @@ export default function CoachDashboard() {
     fatigueAlerts: [],
   });
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<{
+    id: string;
+    athleteId: string;
+    athleteName: string;
+    sessionType: string;
+  } | null>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
