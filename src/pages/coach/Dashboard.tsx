@@ -44,6 +44,8 @@ interface RecentActivity {
   label: string;
   detail: string;
   date: string;
+  athleteId?: string;
+  sessionType?: string;
 }
 
 interface FatigueAlert {
