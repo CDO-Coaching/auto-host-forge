@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer } from "lucide-react";
+import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours, addHours } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -43,6 +44,8 @@ interface RecentActivity {
   label: string;
   detail: string;
   date: string;
+  athleteId?: string;
+  sessionType?: string;
 }
 
 interface FatigueAlert {
@@ -67,6 +70,12 @@ export default function CoachDashboard() {
     fatigueAlerts: [],
   });
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<{
+    id: string;
+    athleteId: string;
+    athleteName: string;
+    sessionType: string;
+  } | null>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -164,6 +173,8 @@ export default function CoachDashboard() {
               label: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
               detail: ts.name,
               date: ts.completed_at,
+              athleteId,
+              sessionType: ts.session_type || "renfo",
             });
           }
         });
@@ -519,7 +530,24 @@ export default function CoachDashboard() {
             </p>
           ) : (
             data.recentActivities.map(a => (
-              <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/30 transition-colors">
+              <div
+                key={a.id}
+                className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
+                  a.type === "session_completed"
+                    ? "cursor-pointer hover:bg-secondary/50"
+                    : "hover:bg-secondary/30"
+                }`}
+                onClick={() => {
+                  if (a.type === "session_completed" && a.athleteId) {
+                    setSelectedSession({
+                      id: a.id,
+                      athleteId: a.athleteId,
+                      athleteName: a.label,
+                      sessionType: a.sessionType || "renfo",
+                    });
+                  }
+                }}
+              >
                 <div className={`h-2 w-2 rounded-full shrink-0 ${
                   a.type === "session_completed" ? "bg-green-500" :
                   a.type === "payment" ? "bg-primary" : "bg-blue-500"
@@ -530,14 +558,29 @@ export default function CoachDashboard() {
                     <span className="text-muted-foreground"> — {a.detail}</span>
                   </p>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-xs text-muted-foreground">
+                    {format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}
+                  </span>
+                  {a.type === "session_completed" && (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
               </div>
             ))
           )}
         </CardContent>
       </Card>
+
+      {/* Session detail dialog */}
+      <CoachSessionDetailDialog
+        open={!!selectedSession}
+        onOpenChange={(open) => !open && setSelectedSession(null)}
+        sessionId={selectedSession?.id || null}
+        sessionType={selectedSession?.sessionType || "renfo"}
+        athleteId={selectedSession?.athleteId || ""}
+        athleteName={selectedSession?.athleteName || ""}
+      />
     </div>
   );
 }
