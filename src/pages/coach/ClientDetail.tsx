@@ -5689,6 +5689,17 @@ export default function ClientDetail() {
                                               )}
                                             </TableRow>
                                           );
+                                          
+                                          // Add a spacer row after the last exercise in a superset
+                                          if (isLastInSuperset) {
+                                            renfoRows.push(
+                                              <TableRow key={`superset-spacer-${supersetGroup}`} className="h-1 bg-transparent">
+                                                <TableCell colSpan={isEditingHistorical ? 12 : 11} className="p-0" />
+                                              </TableRow>
+                                            );
+                                          }
+                                          
+                                          return renfoRows;
                                         });
                                         })()
                                       ) : (
