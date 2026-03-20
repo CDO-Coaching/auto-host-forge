@@ -5058,9 +5058,29 @@ export default function ClientDetail() {
                                     <TableBody>
                                       {editedHistoricalExercises[session.id] &&
                                       editedHistoricalExercises[session.id].length > 0 ? (
-                                        editedHistoricalExercises[session.id].map((exercise: any) => {
+                                        (() => {
+                                          const exercises = editedHistoricalExercises[session.id];
+                                          const renderedSupersetHeaders = new Set<string>();
+                                          
+                                          return exercises.map((exercise: any, exIndex: number) => {
                                           const isCardioExercise = exercise.cardio_sport || exercise.cardio_content;
                                           const isRecupSession = session.session_type === "recup";
+                                          
+                                          // Superset grouping logic
+                                          const supersetGroup = exercise.super_set_group;
+                                          const isInSuperset = !!supersetGroup;
+                                          const showSupersetHeader = isInSuperset && !renderedSupersetHeaders.has(supersetGroup);
+                                          if (showSupersetHeader) renderedSupersetHeaders.add(supersetGroup);
+                                          
+                                          // Check if this is the last exercise in its superset group
+                                          const isLastInSuperset = isInSuperset && (
+                                            exIndex === exercises.length - 1 || 
+                                            exercises[exIndex + 1]?.super_set_group !== supersetGroup
+                                          );
+                                          
+                                          const supersetExercises = isInSuperset 
+                                            ? exercises.filter((ex: any) => ex.super_set_group === supersetGroup) 
+                                            : [];
                                           
                                           if (isRecupSession) {
                                             // Affichage simplifié pour séances récup/mobilité
@@ -5362,8 +5382,26 @@ export default function ClientDetail() {
                                           }
 
                                           // Affichage standard pour exercices renfo
-                                          return (
-                                            <TableRow key={exercise.id}>
+                                          const renfoRows = [];
+                                          
+                                          // Add superset header row
+                                          if (showSupersetHeader) {
+                                            renfoRows.push(
+                                              <TableRow key={`superset-header-${supersetGroup}`} className="bg-primary/5 border-l-2 border-l-primary">
+                                                <TableCell colSpan={isEditingHistorical ? 12 : 11}>
+                                                  <div className="flex items-center gap-2 py-1">
+                                                    <Badge className="bg-primary text-primary-foreground text-xs">Superset</Badge>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      {supersetExercises.length} exercices · {supersetExercises[0]?.series || "?"} séries
+                                                    </span>
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          }
+                                          
+                                          renfoRows.push(
+                                            <TableRow key={exercise.id} className={isInSuperset ? "border-l-2 border-l-primary bg-primary/[0.02]" : ""}>
                                               <TableCell>
                                                 {isEditingHistorical ? (
                                                   <ExerciseCombobox
@@ -5651,7 +5689,19 @@ export default function ClientDetail() {
                                               )}
                                             </TableRow>
                                           );
-                                        })
+                                          
+                                          // Add a spacer row after the last exercise in a superset
+                                          if (isLastInSuperset) {
+                                            renfoRows.push(
+                                              <TableRow key={`superset-spacer-${supersetGroup}`} className="h-1 bg-transparent">
+                                                <TableCell colSpan={isEditingHistorical ? 12 : 11} className="p-0" />
+                                              </TableRow>
+                                            );
+                                          }
+                                          
+                                          return renfoRows;
+                                        });
+                                        })()
                                       ) : (
                                         <TableRow>
                                           <TableCell

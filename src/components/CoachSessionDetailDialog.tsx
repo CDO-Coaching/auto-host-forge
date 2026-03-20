@@ -23,6 +23,8 @@ interface SessionExercise {
   commentaire: string | null;
   skipped: boolean | null;
   is_duration: boolean | null;
+  super_set_group: string | null;
+  exercise_order: number | null;
 }
 
 interface SessionDetail {
@@ -104,7 +106,9 @@ export function CoachSessionDetailDialog({
             sportif_comment,
             commentaire,
             skipped,
-            is_duration
+            is_duration,
+            super_set_group,
+            exercise_order
           )
         `)
         .eq("id", sessionId)
@@ -223,6 +227,38 @@ export function CoachSessionDetailDialog({
     return "text-red-600";
   };
 
+  const renderExerciseContent = (ex: SessionExercise) => (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
+            {ex.exercice}
+          </p>
+          <div className="text-sm text-muted-foreground mt-1">
+            {!ex.is_duration && (
+              <>
+                {ex.series && <span>{ex.series}x</span>}
+                {ex.reps && <span>{ex.reps}</span>}
+                {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
+              </>
+            )}
+            {ex.is_duration && <span className="italic">Durée</span>}
+          </div>
+        </div>
+        {ex.sportif_rpe && (
+          <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
+            RPE {ex.sportif_rpe}
+          </Badge>
+        )}
+      </div>
+      {(ex.sportif_comment || ex.commentaire) && (
+        <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+          {ex.sportif_comment || ex.commentaire}
+        </div>
+      )}
+    </>
+  );
+
   if (sessionType === "custom") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -313,50 +349,59 @@ export function CoachSessionDetailDialog({
                     <p className="text-sm text-muted-foreground italic">Aucun exercice</p>
                   ) : (
                     <div className="space-y-2">
-                      {session.exercises.map((ex) => (
-                        <div
-                          key={ex.id}
-                          className={`p-3 rounded-lg border ${
-                            ex.skipped ? "bg-muted/30 opacity-60" : "bg-card"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
-                                {ex.exercice}
-                              </p>
-                              
-                              {/* Prescription */}
-                              <div className="text-sm text-muted-foreground mt-1">
-                                {!ex.is_duration && (
-                                  <>
-                                    {ex.series && <span>{ex.series}x</span>}
-                                    {ex.reps && <span>{ex.reps}</span>}
-                                    {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
-                                  </>
-                                )}
-                                {ex.is_duration && (
-                                  <span className="italic">Durée</span>
-                                )}
+                      {(() => {
+                        const processedGroups = new Set<string>();
+                        const items: React.ReactNode[] = [];
+                        
+                        session.exercises
+                          .sort((a, b) => (a.exercise_order || 0) - (b.exercise_order || 0))
+                          .forEach((ex) => {
+                          if (ex.super_set_group) {
+                            if (processedGroups.has(ex.super_set_group)) return;
+                            processedGroups.add(ex.super_set_group);
+                            
+                            const groupExercises = session.exercises
+                              .filter((e) => e.super_set_group === ex.super_set_group)
+                              .sort((a, b) => (a.exercise_order || 0) - (b.exercise_order || 0));
+                            
+                            items.push(
+                              <div key={`superset-${ex.super_set_group}`} className="border-l-2 border-primary rounded-lg overflow-hidden">
+                                <div className="bg-primary/10 px-3 py-1.5 flex items-center gap-2">
+                                  <Badge className="bg-primary text-primary-foreground text-xs">Superset</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {groupExercises.length} exercices · {groupExercises[0]?.series || "?"} séries
+                                  </span>
+                                </div>
+                                <div className="space-y-1 p-1">
+                                  {groupExercises.map((gex) => (
+                                    <div
+                                      key={gex.id}
+                                      className={`p-3 rounded-lg ${
+                                        gex.skipped ? "bg-muted/30 opacity-60" : "bg-card"
+                                      }`}
+                                    >
+                                      {renderExerciseContent(gex)}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-
-                            {/* Exercise RPE */}
-                            {ex.sportif_rpe && (
-                              <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
-                                RPE {ex.sportif_rpe}
-                              </Badge>
-                            )}
-                          </div>
-
-                          {/* Exercise feedback */}
-                          {(ex.sportif_comment || ex.commentaire) && (
-                            <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
-                              {ex.sportif_comment || ex.commentaire}
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            );
+                          } else {
+                            items.push(
+                              <div
+                                key={ex.id}
+                                className={`p-3 rounded-lg border ${
+                                  ex.skipped ? "bg-muted/30 opacity-60" : "bg-card"
+                                }`}
+                              >
+                                {renderExerciseContent(ex)}
+                              </div>
+                            );
+                          }
+                        });
+                        
+                        return items;
+                      })()}
                     </div>
                   )}
                 </div>
