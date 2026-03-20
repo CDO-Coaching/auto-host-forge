@@ -227,6 +227,38 @@ export function CoachSessionDetailDialog({
     return "text-red-600";
   };
 
+  const renderExerciseContent = (ex: SessionExercise) => (
+    <>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
+            {ex.exercice}
+          </p>
+          <div className="text-sm text-muted-foreground mt-1">
+            {!ex.is_duration && (
+              <>
+                {ex.series && <span>{ex.series}x</span>}
+                {ex.reps && <span>{ex.reps}</span>}
+                {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
+              </>
+            )}
+            {ex.is_duration && <span className="italic">Durée</span>}
+          </div>
+        </div>
+        {ex.sportif_rpe && (
+          <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
+            RPE {ex.sportif_rpe}
+          </Badge>
+        )}
+      </div>
+      {(ex.sportif_comment || ex.commentaire) && (
+        <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+          {ex.sportif_comment || ex.commentaire}
+        </div>
+      )}
+    </>
+  );
+
   if (sessionType === "custom") {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
