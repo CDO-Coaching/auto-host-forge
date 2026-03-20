@@ -5671,7 +5671,9 @@ export default function ClientDetail() {
                                               )}
                                             </TableRow>
                                           );
-                                        })
+                                        });
+                                        })()
+                                        )
                                       ) : (
                                         <TableRow>
                                           <TableCell
