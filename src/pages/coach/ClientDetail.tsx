@@ -5382,8 +5382,26 @@ export default function ClientDetail() {
                                           }
 
                                           // Affichage standard pour exercices renfo
-                                          return (
-                                            <TableRow key={exercise.id}>
+                                          const renfoRows = [];
+                                          
+                                          // Add superset header row
+                                          if (showSupersetHeader) {
+                                            renfoRows.push(
+                                              <TableRow key={`superset-header-${supersetGroup}`} className="bg-primary/5 border-l-2 border-l-primary">
+                                                <TableCell colSpan={isEditingHistorical ? 12 : 11}>
+                                                  <div className="flex items-center gap-2 py-1">
+                                                    <Badge className="bg-primary text-primary-foreground text-xs">Superset</Badge>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      {supersetExercises.length} exercices · {supersetExercises[0]?.series || "?"} séries
+                                                    </span>
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          }
+                                          
+                                          renfoRows.push(
+                                            <TableRow key={exercise.id} className={isInSuperset ? "border-l-2 border-l-primary bg-primary/[0.02]" : ""}>
                                               <TableCell>
                                                 {isEditingHistorical ? (
                                                   <ExerciseCombobox
