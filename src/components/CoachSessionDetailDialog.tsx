@@ -106,7 +106,9 @@ export function CoachSessionDetailDialog({
             sportif_comment,
             commentaire,
             skipped,
-            is_duration
+            is_duration,
+            super_set_group,
+            exercise_order
           )
         `)
         .eq("id", sessionId)
