@@ -5673,7 +5673,6 @@ export default function ClientDetail() {
                                           );
                                         });
                                         })()
-                                        )
                                       ) : (
                                         <TableRow>
                                           <TableCell
