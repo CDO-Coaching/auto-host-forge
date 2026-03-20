@@ -23,6 +23,8 @@ interface SessionExercise {
   commentaire: string | null;
   skipped: boolean | null;
   is_duration: boolean | null;
+  super_set_group: string | null;
+  exercise_order: number | null;
 }
 
 interface SessionDetail {
