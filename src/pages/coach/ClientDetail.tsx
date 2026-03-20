@@ -5058,9 +5058,29 @@ export default function ClientDetail() {
                                     <TableBody>
                                       {editedHistoricalExercises[session.id] &&
                                       editedHistoricalExercises[session.id].length > 0 ? (
-                                        editedHistoricalExercises[session.id].map((exercise: any) => {
+                                        (() => {
+                                          const exercises = editedHistoricalExercises[session.id];
+                                          const renderedSupersetHeaders = new Set<string>();
+                                          
+                                          return exercises.map((exercise: any, exIndex: number) => {
                                           const isCardioExercise = exercise.cardio_sport || exercise.cardio_content;
                                           const isRecupSession = session.session_type === "recup";
+                                          
+                                          // Superset grouping logic
+                                          const supersetGroup = exercise.super_set_group;
+                                          const isInSuperset = !!supersetGroup;
+                                          const showSupersetHeader = isInSuperset && !renderedSupersetHeaders.has(supersetGroup);
+                                          if (showSupersetHeader) renderedSupersetHeaders.add(supersetGroup);
+                                          
+                                          // Check if this is the last exercise in its superset group
+                                          const isLastInSuperset = isInSuperset && (
+                                            exIndex === exercises.length - 1 || 
+                                            exercises[exIndex + 1]?.super_set_group !== supersetGroup
+                                          );
+                                          
+                                          const supersetExercises = isInSuperset 
+                                            ? exercises.filter((ex: any) => ex.super_set_group === supersetGroup) 
+                                            : [];
                                           
                                           if (isRecupSession) {
                                             // Affichage simplifié pour séances récup/mobilité
