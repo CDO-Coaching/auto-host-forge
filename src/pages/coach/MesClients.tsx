@@ -489,36 +489,13 @@ export default function MesClients() {
   };
 
   // Trier les athlètes approuvés :
-  // 1. Non validés en haut (ordre alphabétique)
-  // 2. Validés en bas, triés par weeksAheadCount croissant (Validé en haut, +1, +2... en bas), puis alphabétique
-  const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    const aValidated = a.weeksAheadCount !== undefined;
-    const bValidated = b.weeksAheadCount !== undefined;
-    
-    // Séparer non-validés (en haut) et validés (en bas)
-    if (aValidated !== bValidated) {
-      return aValidated ? 1 : -1;
-    }
-    
-    // Dans le groupe validé : trier par weeksAheadCount croissant (0 = "Validé" en haut, +1, +2 en bas)
-    if (aValidated && bValidated) {
-      const diff = (a.weeksAheadCount || 0) - (b.weeksAheadCount || 0);
-      if (diff !== 0) return diff;
-    }
-    
-    // Dans chaque sous-groupe : ordre alphabétique
-    const nameA = `${a.athlete.first_name || ''} ${a.athlete.last_name || ''}`.toLowerCase().trim();
-    const nameB = `${b.athlete.first_name || ''} ${b.athlete.last_name || ''}`.toLowerCase().trim();
-    return nameA.localeCompare(nameB, 'fr');
-  });
+  // Les athlètes sont déjà triés par display_order depuis la requête DB
+  const sortedApprovedAthletes = approvedAthletes;
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
   const filteredPaused = filterAthletes(pausedAthletes);
   const filteredExternalClients = filterExternalClients(externalClients);
-  
-  // Calculer les index pour savoir si on peut monter/descendre
-  const nonValidatedAthletes = filteredApproved.filter(a => a.weeksAheadCount === undefined);
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
