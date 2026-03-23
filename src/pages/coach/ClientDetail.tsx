@@ -3067,18 +3067,22 @@ export default function ClientDetail() {
                               {session.session_type === "cardio" && sessionExercises[session.id]?.length > 0 && (() => {
                                 const exercises = sessionExercises[session.id] || [];
                                 let totalSec = 0;
+                                let totalDistKm = 0;
                                 for (const ex of exercises) {
                                   if (!ex.cardio_content) continue;
                                   try {
                                     const parsed = typeof ex.cardio_content === "string" ? JSON.parse(ex.cardio_content) : ex.cardio_content;
                                     const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
-                                    totalSec += calculateCardioSessionDuration(data, athleteVma);
+                                    const metrics = calculateCardioMetrics(data, athleteVma);
+                                    totalSec += metrics.totalDurationMinutes * 60;
+                                    totalDistKm += metrics.totalDistanceKm;
                                   } catch {}
                                 }
-                                if (totalSec <= 0) return null;
+                                if (totalSec <= 0 && totalDistKm <= 0) return null;
                                 return (
                                   <span className="text-[10px] sm:text-xs text-muted-foreground">
-                                    ⏱ {formatCardioSessionDuration(totalSec)}
+                                    {totalSec > 0 && <>⏱ {formatCardioSessionDuration(Math.round(totalSec))}</>}
+                                    {totalDistKm > 0 && <>{totalSec > 0 ? " · " : ""}{totalDistKm % 1 === 0 ? totalDistKm : totalDistKm.toFixed(1)}km</>}
                                   </span>
                                 );
                               })()}
