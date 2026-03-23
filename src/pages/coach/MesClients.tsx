@@ -85,9 +85,10 @@ export default function MesClients() {
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
-        .select("id, athlete_id, status, requested_at")
+        .select("id, athlete_id, status, requested_at, display_order")
         .eq("coach_id", profile.id)
         .eq("status", "approved")
+        .order("display_order", { ascending: true })
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
