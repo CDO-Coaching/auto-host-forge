@@ -61,7 +61,7 @@ export default function MesClients() {
   const [newExternalAddress, setNewExternalAddress] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
-  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const { statuses: subscriptionStatuses } = useAthleteSubscriptionStatus(profile?.id);
 
   useEffect(() => {
@@ -85,9 +85,10 @@ export default function MesClients() {
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
-        .select("id, athlete_id, status, requested_at")
+        .select("id, athlete_id, status, requested_at, display_order")
         .eq("coach_id", profile.id)
         .eq("status", "approved")
+        .order("display_order", { ascending: true })
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
@@ -453,65 +454,48 @@ export default function MesClients() {
     });
   };
 
-  // Fonction pour déplacer un athlète en début ou fin de liste
-  const moveAthlete = (athleteId: string, direction: 'top' | 'bottom') => {
-    // Séparer les non-validés et validés
-    const nonValidated = approvedAthletes.filter(a => a.weeksAheadCount === undefined);
-    const validated = approvedAthletes.filter(a => a.weeksAheadCount !== undefined);
+  // Fonction pour déplacer un athlète vers le haut ou le bas dans la liste
+  const moveAthlete = async (athleteId: string, direction: 'up' | 'down') => {
+    const currentList = [...approvedAthletes];
+    const currentIndex = currentList.findIndex(a => a.athlete_id === athleteId);
+    if (currentIndex === -1) return;
     
-    // Trouver l'athlète à déplacer
-    const athleteIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
-    if (athleteIndex === -1) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
     
-    // Retirer l'athlète de sa position actuelle
-    const newNonValidated = [...nonValidated];
-    const [movedItem] = newNonValidated.splice(athleteIndex, 1);
+    // Swap
+    [currentList[currentIndex], currentList[targetIndex]] = [currentList[targetIndex], currentList[currentIndex]];
     
-    // Ajouter en début ou fin selon la direction
-    if (direction === 'top') {
-      newNonValidated.unshift(movedItem);
-    } else {
-      newNonValidated.push(movedItem);
+    // Update display_order for all
+    const updatedList = currentList.map((a, i) => ({ ...a, display_order: i }));
+    setApprovedAthletes(updatedList);
+    
+    // Persist to DB
+    setIsSavingOrder(true);
+    try {
+      const updates = updatedList.map((a, i) =>
+        supabase
+          .from("coach_athlete_relationships")
+          .update({ display_order: i } as any)
+          .eq("id", a.id)
+      );
+      await Promise.all(updates);
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast.error("Erreur lors de la sauvegarde de l'ordre");
+    } finally {
+      setIsSavingOrder(false);
     }
-    
-    // Mettre à jour l'ordre manuel
-    setManualOrder(newNonValidated.map(a => a.athlete_id));
-    
-    // Reconstruire la liste complète
-    setApprovedAthletes([...newNonValidated, ...validated]);
   };
 
   // Trier les athlètes approuvés :
-  // 1. Non validés en haut (ordre alphabétique)
-  // 2. Validés en bas, triés par weeksAheadCount croissant (Validé en haut, +1, +2... en bas), puis alphabétique
-  const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    const aValidated = a.weeksAheadCount !== undefined;
-    const bValidated = b.weeksAheadCount !== undefined;
-    
-    // Séparer non-validés (en haut) et validés (en bas)
-    if (aValidated !== bValidated) {
-      return aValidated ? 1 : -1;
-    }
-    
-    // Dans le groupe validé : trier par weeksAheadCount croissant (0 = "Validé" en haut, +1, +2 en bas)
-    if (aValidated && bValidated) {
-      const diff = (a.weeksAheadCount || 0) - (b.weeksAheadCount || 0);
-      if (diff !== 0) return diff;
-    }
-    
-    // Dans chaque sous-groupe : ordre alphabétique
-    const nameA = `${a.athlete.first_name || ''} ${a.athlete.last_name || ''}`.toLowerCase().trim();
-    const nameB = `${b.athlete.first_name || ''} ${b.athlete.last_name || ''}`.toLowerCase().trim();
-    return nameA.localeCompare(nameB, 'fr');
-  });
+  // Les athlètes sont déjà triés par display_order depuis la requête DB
+  const sortedApprovedAthletes = approvedAthletes;
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
   const filteredPaused = filterAthletes(pausedAthletes);
   const filteredExternalClients = filterExternalClients(externalClients);
-  
-  // Calculer les index pour savoir si on peut monter/descendre
-  const nonValidatedAthletes = filteredApproved.filter(a => a.weeksAheadCount === undefined);
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
@@ -713,37 +697,35 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-                        {/* Boutons de réordonnancement pour les non-validés */}
-                        {relationship.weeksAheadCount === undefined && (
-                          <div className="flex gap-0.5">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'top');
-                              }}
-                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
-                              className="h-6 w-6 p-0 hover:bg-primary/10"
-                              title="Mettre en haut de liste"
-                            >
-                              <ArrowUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'bottom');
-                              }}
-                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === nonValidatedAthletes.length - 1}
-                              className="h-6 w-6 p-0 hover:bg-primary/10"
-                              title="Mettre en bas de liste"
-                            >
-                              <ArrowDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        {/* Boutons de réordonnancement */}
+                        <div className="flex gap-0.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAthlete(relationship.athlete_id, 'up');
+                            }}
+                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
+                            className="h-6 w-6 p-0 hover:bg-primary/10"
+                            title="Monter"
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAthlete(relationship.athlete_id, 'down');
+                            }}
+                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === filteredApproved.length - 1}
+                            className="h-6 w-6 p-0 hover:bg-primary/10"
+                            title="Descendre"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
