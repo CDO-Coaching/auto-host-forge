@@ -697,37 +697,35 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-                        {/* Boutons de réordonnancement pour les non-validés */}
-                        {relationship.weeksAheadCount === undefined && (
-                          <div className="flex gap-0.5">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'top');
-                              }}
-                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
-                              className="h-6 w-6 p-0 hover:bg-primary/10"
-                              title="Mettre en haut de liste"
-                            >
-                              <ArrowUp className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                moveAthlete(relationship.athlete_id, 'bottom');
-                              }}
-                              disabled={nonValidatedAthletes.findIndex(a => a.athlete_id === relationship.athlete_id) === nonValidatedAthletes.length - 1}
-                              className="h-6 w-6 p-0 hover:bg-primary/10"
-                              title="Mettre en bas de liste"
-                            >
-                              <ArrowDown className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        )}
+                        {/* Boutons de réordonnancement */}
+                        <div className="flex gap-0.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAthlete(relationship.athlete_id, 'up');
+                            }}
+                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
+                            className="h-6 w-6 p-0 hover:bg-primary/10"
+                            title="Monter"
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              moveAthlete(relationship.athlete_id, 'down');
+                            }}
+                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === filteredApproved.length - 1}
+                            className="h-6 w-6 p-0 hover:bg-primary/10"
+                            title="Descendre"
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
                           variant="outline"
