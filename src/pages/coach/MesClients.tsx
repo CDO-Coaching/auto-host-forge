@@ -61,7 +61,7 @@ export default function MesClients() {
   const [newExternalAddress, setNewExternalAddress] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
-  const [manualOrder, setManualOrder] = useState<string[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const { statuses: subscriptionStatuses } = useAthleteSubscriptionStatus(profile?.id);
 
   useEffect(() => {
