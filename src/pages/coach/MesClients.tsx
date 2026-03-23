@@ -454,32 +454,38 @@ export default function MesClients() {
     });
   };
 
-  // Fonction pour déplacer un athlète en début ou fin de liste
-  const moveAthlete = (athleteId: string, direction: 'top' | 'bottom') => {
-    // Séparer les non-validés et validés
-    const nonValidated = approvedAthletes.filter(a => a.weeksAheadCount === undefined);
-    const validated = approvedAthletes.filter(a => a.weeksAheadCount !== undefined);
+  // Fonction pour déplacer un athlète vers le haut ou le bas dans la liste
+  const moveAthlete = async (athleteId: string, direction: 'up' | 'down') => {
+    const currentList = [...approvedAthletes];
+    const currentIndex = currentList.findIndex(a => a.athlete_id === athleteId);
+    if (currentIndex === -1) return;
     
-    // Trouver l'athlète à déplacer
-    const athleteIndex = nonValidated.findIndex(a => a.athlete_id === athleteId);
-    if (athleteIndex === -1) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= currentList.length) return;
     
-    // Retirer l'athlète de sa position actuelle
-    const newNonValidated = [...nonValidated];
-    const [movedItem] = newNonValidated.splice(athleteIndex, 1);
+    // Swap
+    [currentList[currentIndex], currentList[targetIndex]] = [currentList[targetIndex], currentList[currentIndex]];
     
-    // Ajouter en début ou fin selon la direction
-    if (direction === 'top') {
-      newNonValidated.unshift(movedItem);
-    } else {
-      newNonValidated.push(movedItem);
+    // Update display_order for all
+    const updatedList = currentList.map((a, i) => ({ ...a, display_order: i }));
+    setApprovedAthletes(updatedList);
+    
+    // Persist to DB
+    setIsSavingOrder(true);
+    try {
+      const updates = updatedList.map((a, i) =>
+        supabase
+          .from("coach_athlete_relationships")
+          .update({ display_order: i } as any)
+          .eq("id", a.id)
+      );
+      await Promise.all(updates);
+    } catch (error) {
+      console.error("Error saving order:", error);
+      toast.error("Erreur lors de la sauvegarde de l'ordre");
+    } finally {
+      setIsSavingOrder(false);
     }
-    
-    // Mettre à jour l'ordre manuel
-    setManualOrder(newNonValidated.map(a => a.athlete_id));
-    
-    // Reconstruire la liste complète
-    setApprovedAthletes([...newNonValidated, ...validated]);
   };
 
   // Trier les athlètes approuvés :
