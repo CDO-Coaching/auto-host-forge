@@ -3064,6 +3064,24 @@ export default function ClientDetail() {
                                   ({formatSessionDuration(calculateSessionDuration(sessionExercises[session.id]))})
                                 </span>
                               )}
+                              {session.session_type === "cardio" && sessionExercises[session.id]?.length > 0 && (() => {
+                                const exercises = sessionExercises[session.id] || [];
+                                let totalSec = 0;
+                                for (const ex of exercises) {
+                                  if (!ex.cardio_content) continue;
+                                  try {
+                                    const parsed = typeof ex.cardio_content === "string" ? JSON.parse(ex.cardio_content) : ex.cardio_content;
+                                    const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+                                    totalSec += calculateCardioSessionDuration(data, athleteVma);
+                                  } catch {}
+                                }
+                                if (totalSec <= 0) return null;
+                                return (
+                                  <span className="text-[10px] sm:text-xs text-muted-foreground">
+                                    ⏱ {formatCardioSessionDuration(totalSec)}
+                                  </span>
+                                );
+                              })()}
                             </div>
                             <Badge variant={session.session_type === "cardio" ? "secondary" : "outline"} className="text-[10px] sm:text-xs flex-shrink-0">
                               {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
