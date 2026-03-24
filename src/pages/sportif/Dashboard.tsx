@@ -431,7 +431,7 @@ export default function SportifDashboard() {
               return (
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {React.cloneElement(getRecoveryIcon(percent), { className: "h-5 w-5" })}
+                    {getRecoveryIcon(percent, true)}
                     <p className={`text-lg font-bold ${getRecoveryColor(percent)}`}>
                       {percent}%
                     </p>
