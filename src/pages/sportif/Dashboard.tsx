@@ -52,6 +52,7 @@ export default function SportifDashboard() {
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
   const [unreadCount, setUnreadCount] = useState(0);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ totalDurationMinutes: 0, totalDistanceKm: 0 });
   const [loading, setLoading] = useState(true);
 
   const isSessionCompleted = useCallback((session: any) => {
