@@ -379,6 +379,51 @@ export default function SportifDashboard() {
         </CardContent>
       </Card>
 
+      {/* Stats hebdo : durée + distance */}
+      {(weeklyStats.totalDurationMinutes > 0 || weeklyStats.totalDistanceKm > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Clock className="h-5 w-5 text-primary" />
+              Bilan de la semaine
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6 flex-wrap">
+              {weeklyStats.totalDurationMinutes > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground">
+                      {Math.floor(weeklyStats.totalDurationMinutes / 60) > 0 
+                        ? `${Math.floor(weeklyStats.totalDurationMinutes / 60)}h${(weeklyStats.totalDurationMinutes % 60).toString().padStart(2, '0')}`
+                        : `${weeklyStats.totalDurationMinutes} min`
+                      }
+                    </p>
+                    <p className="text-xs text-muted-foreground">Temps d'entraînement</p>
+                  </div>
+                </div>
+              )}
+              {weeklyStats.totalDistanceKm > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground">
+                      {weeklyStats.totalDistanceKm} km
+                    </p>
+                    <p className="text-xs text-muted-foreground">Distance parcourue</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Score de fatigue */}
         <Card
