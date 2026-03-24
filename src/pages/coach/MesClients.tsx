@@ -489,8 +489,14 @@ export default function MesClients() {
   };
 
   // Trier les athlètes approuvés :
-  // Les athlètes sont déjà triés par display_order depuis la requête DB
-  const sortedApprovedAthletes = approvedAthletes;
+  // Non validés (weeksAheadCount undefined ou 0) en haut, validés en bas
+  // Au sein de chaque groupe, tri par display_order
+  const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
+    const aValidated = (a.weeksAheadCount ?? -1) >= 0 ? 1 : 0;
+    const bValidated = (b.weeksAheadCount ?? -1) >= 0 ? 1 : 0;
+    if (aValidated !== bValidated) return aValidated - bValidated;
+    return (a.display_order ?? 0) - (b.display_order ?? 0);
+  });
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
