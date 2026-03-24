@@ -75,7 +75,7 @@ export default function SportifDashboard() {
 
   const loadAll = async () => {
     setLoading(true);
-    await Promise.all([loadWeeklySessions(), loadFatigue(), loadUnreadMessages()]);
+    await Promise.all([loadWeeklySessions(), loadFatigue(), loadUnreadMessages(), loadWeeklyStats()]);
     setLoading(false);
   };
 
