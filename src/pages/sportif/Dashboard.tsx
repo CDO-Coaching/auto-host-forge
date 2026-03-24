@@ -309,10 +309,11 @@ export default function SportifDashboard() {
     return "text-red-500";
   };
 
-  const getRecoveryIcon = (percent: number) => {
-    if (percent >= 50) return <Smile className="h-8 w-8 text-green-500" />;
-    if (percent >= 36) return <Meh className="h-8 w-8 text-yellow-500" />;
-    return <Frown className="h-8 w-8 text-red-500" />;
+  const getRecoveryIcon = (percent: number, small = false) => {
+    const cls = small ? "h-5 w-5" : "h-8 w-8";
+    if (percent >= 50) return <Smile className={`${cls} text-green-500`} />;
+    if (percent >= 36) return <Meh className={`${cls} text-yellow-500`} />;
+    return <Frown className={`${cls} text-red-500`} />;
   };
 
   const getRecoveryLabel = (percent: number) => {
@@ -336,183 +337,148 @@ export default function SportifDashboard() {
   const currentYear = getWeekYear(now);
 
   return (
-    <div className="space-y-4 sm:space-y-6 pb-6">
-      <p className="text-sm text-muted-foreground">
+    <div className="space-y-2 sm:space-y-4 pb-4">
+      <p className="text-xs sm:text-sm text-muted-foreground">
         Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}
       </p>
 
-      {/* Progression hebdomadaire */}
+      {/* Progression hebdomadaire — compact */}
       <Card className="overflow-hidden">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Dumbbell className="h-5 w-5 text-primary" />
-            Progression de la semaine
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {weeklyInfo.total > 0 ? (
-            <>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {weeklyInfo.completed}/{weeklyInfo.total} séances complétées
-                </span>
-                <span className="font-bold text-primary">{progressPercent}%</span>
-              </div>
-              <Progress value={progressPercent} className="h-3" />
-              {progressPercent === 100 && (
-                <p className="text-sm text-green-500 font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Semaine complétée, bravo ! 🎉
-                </p>
-              )}
-            </>
-          ) : (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>Pas encore de programme cette semaine</span>
+        <CardContent className="p-3 sm:p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-sm">Progression</span>
             </div>
+            {weeklyInfo.total > 0 ? (
+              <span className="text-xs text-muted-foreground">
+                {weeklyInfo.completed}/{weeklyInfo.total} séances • <span className="font-bold text-primary">{progressPercent}%</span>
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground">Pas de programme</span>
+            )}
+          </div>
+          {weeklyInfo.total > 0 && (
+            <Progress value={progressPercent} className="h-2" />
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => navigate("/sportif/seances")}
-          >
-            Voir mes séances
-            <ChevronRight className="h-4 w-4 ml-1" />
-          </Button>
+          {progressPercent === 100 && weeklyInfo.total > 0 && (
+            <p className="text-xs text-green-500 font-medium flex items-center gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              Bravo, semaine complétée ! 🎉
+            </p>
+          )}
         </CardContent>
       </Card>
 
-      {/* Stats hebdo : durée + distance */}
+      {/* Bilan hebdo inline — durée + distance */}
       {(weeklyStats.totalDurationMinutes > 0 || weeklyStats.totalDistanceKm > 0) && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Clock className="h-5 w-5 text-primary" />
-              Bilan de la semaine
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-6 flex-wrap">
-              {weeklyStats.totalDurationMinutes > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Clock className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted-foreground">Bilan</span>
+              </div>
+              <div className="flex items-center gap-4 flex-1">
+                {weeklyStats.totalDurationMinutes > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Clock className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground leading-tight">
+                        {Math.floor(weeklyStats.totalDurationMinutes / 60) > 0 
+                          ? `${Math.floor(weeklyStats.totalDurationMinutes / 60)}h${(weeklyStats.totalDurationMinutes % 60).toString().padStart(2, '0')}`
+                          : `${weeklyStats.totalDurationMinutes} min`
+                        }
+                      </p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Entraînement</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xl font-bold text-foreground">
-                      {Math.floor(weeklyStats.totalDurationMinutes / 60) > 0 
-                        ? `${Math.floor(weeklyStats.totalDurationMinutes / 60)}h${(weeklyStats.totalDurationMinutes % 60).toString().padStart(2, '0')}`
-                        : `${weeklyStats.totalDurationMinutes} min`
-                      }
-                    </p>
-                    <p className="text-xs text-muted-foreground">Temps d'entraînement</p>
+                )}
+                {weeklyStats.totalDistanceKm > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Activity className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-foreground leading-tight">
+                        {weeklyStats.totalDistanceKm} km
+                      </p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Distance</p>
+                    </div>
                   </div>
-                </div>
-              )}
-              {weeklyStats.totalDistanceKm > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Activity className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-xl font-bold text-foreground">
-                      {weeklyStats.totalDistanceKm} km
-                    </p>
-                    <p className="text-xs text-muted-foreground">Distance parcourue</p>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Score de fatigue */}
+      {/* Récupération + Messagerie — side by side */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-4">
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate("/sportif/fatigue")}
         >
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-5 w-5 text-primary" />
-              Récupération
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-xs sm:text-sm">Récupération</span>
+            </div>
             {fatigue.avgScore !== null ? (() => {
               const percent = getRecoveryPercent(fatigue.avgScore);
               return (
-                <div className="flex items-center gap-3">
-                  {getRecoveryIcon(percent)}
-                  <div className="flex-1">
-                    <div className="flex items-baseline gap-1">
-                      <p className={`text-2xl font-bold ${getRecoveryColor(percent)}`}>
-                        {percent}%
-                      </p>
-                      <span className="text-xs text-muted-foreground">de forme</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{getRecoveryLabel(percent)}</p>
-                    <Progress value={percent} className="h-2 mt-1.5" />
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Moyenne sur {fatigue.entryCount} jour{fatigue.entryCount > 1 ? "s" : ""} (5 derniers jours)
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    {getRecoveryIcon(percent, true)}
+                    <p className={`text-lg font-bold ${getRecoveryColor(percent)}`}>
+                      {percent}%
                     </p>
                   </div>
+                  <Progress value={percent} className="h-1.5" />
+                  <p className="text-[10px] text-muted-foreground">{getRecoveryLabel(percent)} • {fatigue.entryCount}j</p>
                 </div>
               );
             })() : (
-              <p className="text-sm text-muted-foreground">Aucune donnée récente</p>
+              <p className="text-xs text-muted-foreground">Aucune donnée</p>
             )}
             {!fatigue.hasToday && (
-              <Badge variant="outline" className="mt-2 border-orange-500 text-orange-500 text-xs">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Non rempli aujourd'hui
+              <Badge variant="outline" className="mt-1.5 border-orange-500 text-orange-500 text-[10px] px-1.5 py-0">
+                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                Non rempli
               </Badge>
             )}
           </CardContent>
         </Card>
 
-        {/* Messages non lus */}
         <Card
           className="cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => navigate("/sportif/messagerie")}
         >
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <MessageSquare className="h-5 w-5 text-primary" />
-              Messagerie
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-2">
+              <MessageSquare className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-xs sm:text-sm">Messages</span>
+            </div>
             {unreadCount > 0 ? (
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-lg font-bold text-primary">{unreadCount}</span>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-bold text-primary">{unreadCount}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {unreadCount === 1 ? "message non lu" : "messages non lus"}
+                <p className="text-xs text-muted-foreground">
+                  non lu{unreadCount > 1 ? "s" : ""}
                 </p>
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Aucun nouveau message</p>
+              <p className="text-xs text-muted-foreground">Aucun nouveau</p>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* Bouton programmer + Prochaine séance */}
+      {/* Prochaine séance + Programmer */}
       {weeklyInfo.nextSession && (
-        <>
-        <Button
-          variant="outline"
-          className="w-full border-primary/30 text-primary hover:bg-primary/10"
-          onClick={() => navigate("/sportif/programmer")}
-        >
-          <CalendarDays className="h-4 w-4 mr-2" />
-          Programmer mes séances
-        </Button>
         <Card
           className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent cursor-pointer hover:shadow-md transition-shadow"
           onClick={() => {
@@ -524,43 +490,64 @@ export default function SportifDashboard() {
             }
           }}
         >
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <CalendarCheck className="h-5 w-5 text-primary" />
-              Prochaine séance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <CalendarCheck className="h-4 w-4 text-primary" />
+              <span className="font-semibold text-xs sm:text-sm">Prochaine séance</span>
+            </div>
             {weeklyInfo.nextSession.overdue && (
-              <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-destructive/10 border border-destructive/30">
-                <span className="text-sm">❓</span>
-                <span className="text-xs font-medium text-destructive">À valider — prévue le {weeklyInfo.nextSession.scheduledLabel}</span>
+              <div className="flex items-center gap-1.5 mb-1.5 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30">
+                <span className="text-xs">❓</span>
+                <span className="text-[10px] font-medium text-destructive">À valider — {weeklyInfo.nextSession.scheduledLabel}</span>
               </div>
             )}
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-semibold text-lg">{weeklyInfo.nextSession.name}</p>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <Badge variant="outline" className="text-xs capitalize">
+                <p className="font-semibold text-sm sm:text-base">{weeklyInfo.nextSession.name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
                     {weeklyInfo.nextSession.type === "recup"
-                      ? "Récup/Mobilité"
+                      ? "Récup"
                       : weeklyInfo.nextSession.type === "cardio"
                       ? "Cardio"
-                      : "Renforcement"}
+                      : "Renfo"}
                   </Badge>
                   {weeklyInfo.nextSession.estimatedDuration && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                       ⏱ {weeklyInfo.nextSession.estimatedDuration}
                     </Badge>
                   )}
                 </div>
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
-        </>
       )}
+
+      {/* Boutons d'action */}
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 text-xs h-8"
+          onClick={() => navigate("/sportif/seances")}
+        >
+          Mes séances
+          <ChevronRight className="h-3 w-3 ml-1" />
+        </Button>
+        {weeklyInfo.nextSession && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-xs h-8 border-primary/30 text-primary hover:bg-primary/10"
+            onClick={() => navigate("/sportif/programmer")}
+          >
+            <CalendarDays className="h-3 w-3 mr-1" />
+            Programmer
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
