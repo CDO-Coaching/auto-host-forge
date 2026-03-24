@@ -10,9 +10,11 @@ export const RouteTracker = () => {
   const location = useLocation();
 
   useEffect(() => {
-    const path = location.pathname + location.search + location.hash;
+    const path = location.pathname;
     if (path.startsWith("/coach") || path.startsWith("/sportif")) {
-      localStorage.setItem("last_route", path);
+      // Toujours sauvegarder le dashboard comme route de retour
+      const dashboardRoute = path.startsWith("/coach") ? "/coach/dashboard" : "/sportif/dashboard";
+      localStorage.setItem("last_route", dashboardRoute);
     }
   }, [location]);
 
