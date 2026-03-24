@@ -201,6 +201,71 @@ export default function SportifDashboard() {
     });
   };
 
+  const loadWeeklyStats = async () => {
+    const now = new Date();
+    const weekNumber = getWeekNumber(now);
+    const year = getWeekYear(now);
+    const mondayISO = getMondayISO(weekNumber, year);
+    const sundayISO = getSundayISO(weekNumber, year);
+
+    let totalDuration = 0;
+    let totalDistance = 0;
+
+    // 1. Training sessions (coach-programmed) — only completed ones
+    const { data: week } = await supabase
+      .from("training_weeks")
+      .select("id")
+      .eq("week_number", weekNumber)
+      .eq("year", year)
+      .eq("validated", true)
+      .maybeSingle();
+
+    if (week) {
+      const { data: sessions } = await supabase
+        .from("training_sessions")
+        .select("id, duration_minutes, session_type, completed_at, cardio_total_distance_km, cardio_total_duration_minutes, session_exercises(actual_distance_km, actual_duration_minutes)")
+        .eq("week_id", week.id)
+        .not("completed_at", "is", null);
+
+      if (sessions) {
+        for (const s of sessions) {
+          // Duration
+          if (s.duration_minutes) {
+            totalDuration += s.duration_minutes;
+          }
+
+          // Distance for cardio sessions
+          if (s.session_type === "cardio") {
+            const ex = s.session_exercises?.[0];
+            if (ex?.actual_distance_km) {
+              totalDistance += ex.actual_distance_km;
+            } else if (s.cardio_total_distance_km) {
+              totalDistance += s.cardio_total_distance_km;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Custom sessions completed this week
+    const { data: customData } = await supabase
+      .from("custom_sessions")
+      .select("duration_minutes, distance_km, completed_at")
+      .eq("user_id", user!.id)
+      .not("completed_at", "is", null)
+      .gte("completed_at", `${mondayISO}T00:00:00`)
+      .lte("completed_at", `${sundayISO}T23:59:59`);
+
+    if (customData) {
+      for (const c of customData) {
+        if (c.duration_minutes) totalDuration += c.duration_minutes;
+        if (c.distance_km) totalDistance += c.distance_km;
+      }
+    }
+
+    setWeeklyStats({ totalDurationMinutes: totalDuration, totalDistanceKm: Math.round(totalDistance * 100) / 100 });
+  };
+
   const loadUnreadMessages = async () => {
     const { count } = await supabase
       .from("messages")
