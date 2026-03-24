@@ -309,10 +309,11 @@ export default function SportifDashboard() {
     return "text-red-500";
   };
 
-  const getRecoveryIcon = (percent: number) => {
-    if (percent >= 50) return <Smile className="h-8 w-8 text-green-500" />;
-    if (percent >= 36) return <Meh className="h-8 w-8 text-yellow-500" />;
-    return <Frown className="h-8 w-8 text-red-500" />;
+  const getRecoveryIcon = (percent: number, small = false) => {
+    const cls = small ? "h-5 w-5" : "h-8 w-8";
+    if (percent >= 50) return <Smile className={`${cls} text-green-500`} />;
+    if (percent >= 36) return <Meh className={`${cls} text-yellow-500`} />;
+    return <Frown className={`${cls} text-red-500`} />;
   };
 
   const getRecoveryLabel = (percent: number) => {
