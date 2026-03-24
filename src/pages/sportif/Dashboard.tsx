@@ -229,14 +229,19 @@ export default function SportifDashboard() {
 
       if (sessions) {
         for (const s of sessions) {
-          // Duration
-          if (s.duration_minutes) {
+          const ex = s.session_exercises?.[0];
+
+          // Duration: prioritize actual, then duration_minutes, then cardio_total_duration_minutes
+          if (ex?.actual_duration_minutes) {
+            totalDuration += ex.actual_duration_minutes;
+          } else if (s.duration_minutes) {
             totalDuration += s.duration_minutes;
+          } else if (s.cardio_total_duration_minutes) {
+            totalDuration += s.cardio_total_duration_minutes;
           }
 
           // Distance for cardio sessions
           if (s.session_type === "cardio") {
-            const ex = s.session_exercises?.[0];
             if (ex?.actual_distance_km) {
               totalDistance += ex.actual_distance_km;
             } else if (s.cardio_total_distance_km) {
