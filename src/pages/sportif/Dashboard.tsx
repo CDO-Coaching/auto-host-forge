@@ -38,6 +38,11 @@ interface FatigueInfo {
   hasToday: boolean;
 }
 
+interface WeeklyStats {
+  totalDurationMinutes: number;
+  totalDistanceKm: number;
+}
+
 export default function SportifDashboard() {
   const { user } = useAuth();
   const { profile } = useUserProfile();
@@ -47,6 +52,7 @@ export default function SportifDashboard() {
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
   const [unreadCount, setUnreadCount] = useState(0);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ totalDurationMinutes: 0, totalDistanceKm: 0 });
   const [loading, setLoading] = useState(true);
 
   const isSessionCompleted = useCallback((session: any) => {
@@ -69,7 +75,7 @@ export default function SportifDashboard() {
 
   const loadAll = async () => {
     setLoading(true);
-    await Promise.all([loadWeeklySessions(), loadFatigue(), loadUnreadMessages()]);
+    await Promise.all([loadWeeklySessions(), loadFatigue(), loadUnreadMessages(), loadWeeklyStats()]);
     setLoading(false);
   };
 
@@ -195,6 +201,71 @@ export default function SportifDashboard() {
     });
   };
 
+  const loadWeeklyStats = async () => {
+    const now = new Date();
+    const weekNumber = getWeekNumber(now);
+    const year = getWeekYear(now);
+    const mondayISO = getMondayISO(weekNumber, year);
+    const sundayISO = getSundayISO(weekNumber, year);
+
+    let totalDuration = 0;
+    let totalDistance = 0;
+
+    // 1. Training sessions (coach-programmed) — only completed ones
+    const { data: week } = await supabase
+      .from("training_weeks")
+      .select("id")
+      .eq("week_number", weekNumber)
+      .eq("year", year)
+      .eq("validated", true)
+      .maybeSingle();
+
+    if (week) {
+      const { data: sessions } = await supabase
+        .from("training_sessions")
+        .select("id, duration_minutes, session_type, completed_at, cardio_total_distance_km, cardio_total_duration_minutes, session_exercises(actual_distance_km, actual_duration_minutes)")
+        .eq("week_id", week.id)
+        .not("completed_at", "is", null);
+
+      if (sessions) {
+        for (const s of sessions) {
+          // Duration
+          if (s.duration_minutes) {
+            totalDuration += s.duration_minutes;
+          }
+
+          // Distance for cardio sessions
+          if (s.session_type === "cardio") {
+            const ex = s.session_exercises?.[0];
+            if (ex?.actual_distance_km) {
+              totalDistance += ex.actual_distance_km;
+            } else if (s.cardio_total_distance_km) {
+              totalDistance += s.cardio_total_distance_km;
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Custom sessions completed this week
+    const { data: customData } = await supabase
+      .from("custom_sessions")
+      .select("duration_minutes, distance_km, completed_at")
+      .eq("user_id", user!.id)
+      .not("completed_at", "is", null)
+      .gte("completed_at", `${mondayISO}T00:00:00`)
+      .lte("completed_at", `${sundayISO}T23:59:59`);
+
+    if (customData) {
+      for (const c of customData) {
+        if (c.duration_minutes) totalDuration += c.duration_minutes;
+        if (c.distance_km) totalDistance += c.distance_km;
+      }
+    }
+
+    setWeeklyStats({ totalDurationMinutes: totalDuration, totalDistanceKm: Math.round(totalDistance * 100) / 100 });
+  };
+
   const loadUnreadMessages = async () => {
     const { count } = await supabase
       .from("messages")
@@ -307,6 +378,51 @@ export default function SportifDashboard() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Stats hebdo : durée + distance */}
+      {(weeklyStats.totalDurationMinutes > 0 || weeklyStats.totalDistanceKm > 0) && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Clock className="h-5 w-5 text-primary" />
+              Bilan de la semaine
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6 flex-wrap">
+              {weeklyStats.totalDurationMinutes > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Clock className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground">
+                      {Math.floor(weeklyStats.totalDurationMinutes / 60) > 0 
+                        ? `${Math.floor(weeklyStats.totalDurationMinutes / 60)}h${(weeklyStats.totalDurationMinutes % 60).toString().padStart(2, '0')}`
+                        : `${weeklyStats.totalDurationMinutes} min`
+                      }
+                    </p>
+                    <p className="text-xs text-muted-foreground">Temps d'entraînement</p>
+                  </div>
+                </div>
+              )}
+              {weeklyStats.totalDistanceKm > 0 && (
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Activity className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-bold text-foreground">
+                      {weeklyStats.totalDistanceKm} km
+                    </p>
+                    <p className="text-xs text-muted-foreground">Distance parcourue</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Score de fatigue */}
