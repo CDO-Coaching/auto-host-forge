@@ -38,6 +38,11 @@ interface FatigueInfo {
   hasToday: boolean;
 }
 
+interface WeeklyStats {
+  totalDurationMinutes: number;
+  totalDistanceKm: number;
+}
+
 export default function SportifDashboard() {
   const { user } = useAuth();
   const { profile } = useUserProfile();
