@@ -548,6 +548,133 @@ export default function SportifDashboard() {
           </Button>
         )}
       </div>
+
+      {/* Citation motivante de la semaine */}
+      <WeeklyQuote />
+    </div>
+  );
+}
+
+const MOTIVATIONAL_QUOTES = [
+  { text: "La discipline est le pont entre les objectifs et leur accomplissement.", author: "Jim Rohn" },
+  { text: "Nous sommes ce que nous faisons de façon répétée.", author: "Aristote" },
+  { text: "Le succès dépend de la discipline quotidienne.", author: "John C. Maxwell" },
+  { text: "La motivation vous fait démarrer, la discipline vous fait continuer.", author: "Jim Ryun" },
+  { text: "La douleur est temporaire, abandonner dure pour toujours.", author: "Lance Armstrong" },
+  { text: "Travaille en silence, laisse ton succès faire du bruit.", author: "Frank Ocean" },
+  { text: "Sans discipline, il n'y a pas de vie.", author: "Katharine Hepburn" },
+  { text: "Le travail bat le talent quand le talent ne travaille pas.", author: "Tim Notke" },
+  { text: "Ce que tu fais aujourd'hui améliore tous tes lendemains.", author: "Ralph Marston" },
+  { text: "Rêve grand, travaille dur.", author: "Dwayne Johnson" },
+  { text: "N'abandonne jamais.", author: "Winston Churchill" },
+  { text: "La persévérance est la clé du succès.", author: "Charles Chaplin" },
+  { text: "Ce n'est pas la force mais la persévérance qui fait les grandes œuvres.", author: "Samuel Johnson" },
+  { text: "Le succès, c'est tomber sept fois et se relever huit.", author: "Proverbe japonais" },
+  { text: "Continue. Tout le monde abandonne trop tôt.", author: "Sam Altman" },
+  { text: "L'échec est le fondement de la réussite.", author: "Lao Tseu" },
+  { text: "Les obstacles sont ces choses effrayantes que tu vois quand tu détournes les yeux de ton objectif.", author: "Henry Ford" },
+  { text: "Tombe sept fois, relève-toi huit.", author: "Proverbe japonais" },
+  { text: "La difficulté forge le caractère.", author: "Albert Einstein" },
+  { text: "Ce qui ne te tue pas te rend plus fort.", author: "Friedrich Nietzsche" },
+  { text: "Un objectif sans plan reste un vœu.", author: "Antoine de Saint-Exupéry" },
+  { text: "Fixe-toi des objectifs élevés.", author: "Michael Jordan" },
+  { text: "Le succès n'est pas final, l'échec n'est pas fatal.", author: "Winston Churchill" },
+  { text: "Fais aujourd'hui ce que les autres ne veulent pas faire.", author: "Jerry Rice" },
+  { text: "Si tu veux être le meilleur, tu dois faire des choses que les autres ne veulent pas faire.", author: "Michael Phelps" },
+  { text: "Ne rêve pas ta vie, vis tes rêves.", author: "Anonyme" },
+  { text: "Le secret d'aller de l'avant est de commencer.", author: "Mark Twain" },
+  { text: "Agis comme si c'était impossible d'échouer.", author: "Winston Churchill" },
+  { text: "Les grandes choses ne viennent jamais de la zone de confort.", author: "Neil Strauss" },
+  { text: "Le succès, c'est la somme de petits efforts répétés.", author: "Robert Collier" },
+  { text: "Que tu penses pouvoir ou non, tu as raison.", author: "Henry Ford" },
+  { text: "Sois plus fort que tes excuses.", author: "Muhammad Ali" },
+  { text: "Tout commence dans la tête.", author: "Tony Robbins" },
+  { text: "La différence entre l'impossible et le possible réside dans la détermination.", author: "Tommy Lasorda" },
+  { text: "Le courage commence là où finit la zone de confort.", author: "Osho" },
+  { text: "Ton seul rival, c'est toi-même.", author: "Inconnu" },
+  { text: "Le mental est tout.", author: "Buddha" },
+  { text: "Tu es ce que tu fais, pas ce que tu dis.", author: "Carl Jung" },
+  { text: "L'attitude détermine ton altitude.", author: "Zig Ziglar" },
+  { text: "Gagne dans ta tête avant de gagner dans la réalité.", author: "Inconnu" },
+  { text: "Je déteste chaque minute de l'entraînement, mais je dis : n'abandonne pas.", author: "Muhammad Ali" },
+  { text: "Le succès en sport demande du sacrifice.", author: "Cristiano Ronaldo" },
+  { text: "Tu dois t'attendre à de grandes choses de toi-même.", author: "Michael Jordan" },
+  { text: "Plus tu transpires à l'entraînement, moins tu saignes en combat.", author: "Navy SEALs" },
+  { text: "Rien n'est donné, tout se mérite.", author: "Zlatan Ibrahimović" },
+  { text: "L'excellence n'est pas un acte, c'est une habitude.", author: "Aristote" },
+  { text: "Les champions continuent quand les autres abandonnent.", author: "Billie Jean King" },
+  { text: "Travaille jusqu'à ce que tes idoles deviennent tes rivales.", author: "Inconnu" },
+  { text: "Sois obsédé ou sois moyen.", author: "Grant Cardone" },
+  { text: "L'effort aujourd'hui, la victoire demain.", author: "Inconnu" },
+  { text: "Passe à l'action.", author: "Tony Robbins" },
+  { text: "Fais-le maintenant.", author: "Nike" },
+  { text: "Un petit progrès chaque jour.", author: "Inconnu" },
+  { text: "La constance bat l'intensité.", author: "Inconnu" },
+  { text: "Agis comme si.", author: "William James" },
+  { text: "Chaque jour compte.", author: "Inconnu" },
+  { text: "Ne remets pas à demain.", author: "Benjamin Franklin" },
+  { text: "Les actions parlent plus que les mots.", author: "Abraham Lincoln" },
+  { text: "Sois régulier.", author: "Inconnu" },
+  { text: "L'effort constant crée le succès.", author: "Inconnu" },
+  { text: "Fais-le pour toi.", author: "Inconnu" },
+  { text: "Tu peux le faire.", author: "Barack Obama" },
+  { text: "Ne t'arrête pas.", author: "Usain Bolt" },
+  { text: "Tout est possible.", author: "Kevin Garnett" },
+  { text: "Crois en toi.", author: "Serena Williams" },
+  { text: "Rien n'est impossible.", author: "Audrey Hepburn" },
+  { text: "Va au bout.", author: "Inconnu" },
+  { text: "Donne tout.", author: "Inconnu" },
+  { text: "Plus fort chaque jour.", author: "Inconnu" },
+  { text: "Ne lâche rien.", author: "Inconnu" },
+  { text: "Ce qui compte, ce n'est pas tomber, c'est se relever.", author: "Vince Lombardi" },
+  { text: "Le succès est fait de 1% de talent et 99% de travail.", author: "Thomas Edison" },
+  { text: "Apprends de tes erreurs.", author: "Bill Gates" },
+  { text: "La vie commence à la fin de ta zone de confort.", author: "Neale Donald Walsch" },
+  { text: "Sois dur avec toi-même.", author: "David Goggins" },
+  { text: "Rien ne remplace le travail.", author: "Thomas Edison" },
+  { text: "Le succès appartient aux persévérants.", author: "Napoléon Bonaparte" },
+  { text: "La douleur forge les champions.", author: "Inconnu" },
+  { text: "Continue malgré tout.", author: "Inconnu" },
+  { text: "Ne t'arrête jamais d'essayer.", author: "Albert Einstein" },
+  { text: "Le succès est un marathon, pas un sprint.", author: "Inconnu" },
+  { text: "Construis chaque jour.", author: "Inconnu" },
+  { text: "Les grandes choses prennent du temps.", author: "Steve Jobs" },
+  { text: "Reste patient et travaille dur.", author: "Elon Musk" },
+  { text: "La vision sans action est un rêve.", author: "Joel A. Barker" },
+  { text: "Avance même lentement.", author: "Confucius" },
+  { text: "Chaque étape compte.", author: "Inconnu" },
+  { text: "Sois constant.", author: "Inconnu" },
+  { text: "Ne brûle pas les étapes.", author: "Inconnu" },
+  { text: "La patience paie.", author: "Warren Buffett" },
+  { text: "Fais ce que tu dois, même quand tu n'en as pas envie.", author: "Inconnu" },
+  { text: "Discipline > motivation.", author: "Inconnu" },
+  { text: "Sois la personne que tu respectes.", author: "Inconnu" },
+  { text: "L'inconfort crée la progression.", author: "Inconnu" },
+  { text: "Pas d'excuses.", author: "Inconnu" },
+  { text: "Travaille pendant que les autres dorment.", author: "Dwayne Johnson" },
+  { text: "Tu récoltes ce que tu sèmes.", author: "Proverbe" },
+  { text: "Chaque jour est une opportunité.", author: "Inconnu" },
+  { text: "Deviens imparable.", author: "Inconnu" },
+  { text: "Fais-le encore une fois.", author: "Inconnu" },
+];
+
+function getWeeklyQuoteIndex(): number {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const diff = now.getTime() - start.getTime();
+  const oneWeek = 7 * 24 * 60 * 60 * 1000;
+  const weekNum = Math.floor(diff / oneWeek);
+  return weekNum % MOTIVATIONAL_QUOTES.length;
+}
+
+function WeeklyQuote() {
+  const quote = MOTIVATIONAL_QUOTES[getWeeklyQuoteIndex()];
+  return (
+    <div className="px-3 py-2 rounded-lg bg-muted/50 border border-border/50">
+      <p className="text-xs italic text-muted-foreground leading-relaxed">
+        « {quote.text} »
+      </p>
+      <p className="text-[10px] text-muted-foreground/70 mt-0.5 text-right">— {quote.author}</p>
     </div>
   );
 }
