@@ -4498,16 +4498,29 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                       <TableCell>
                                                         {!isValidated && (
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                              handleDeleteExercise(session.id, exercise.id)
-                                                            }
-                                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                          >
-                                                            <X className="h-4 w-4" />
-                                                          </Button>
+                                                          <div className="flex items-center gap-0.5">
+                                                            {exercise.exercice && (
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDuplicateExerciseLine(session.id, exercise.id)}
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                                title="Ajouter une ligne de variation"
+                                                              >
+                                                                <Plus className="h-4 w-4" />
+                                                              </Button>
+                                                            )}
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={() =>
+                                                                handleDeleteExercise(session.id, exercise.id)
+                                                              }
+                                                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                            >
+                                                              <X className="h-4 w-4" />
+                                                            </Button>
+                                                          </div>
                                                         )}
                                                       </TableCell>
                                                     </TableRow>
