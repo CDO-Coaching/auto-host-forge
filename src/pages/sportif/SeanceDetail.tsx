@@ -644,6 +644,9 @@ export default function SeanceDetail() {
       if (item.isSuperset) {
         return item.exercises.map((ex: any) => ex.id);
       }
+      if (item.isMultiLine) {
+        return item.lines.map((line: any) => line.id);
+      }
       return [item.id];
     });
 
