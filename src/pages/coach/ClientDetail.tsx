@@ -3751,6 +3751,17 @@ export default function ClientDetail() {
                                                       <Video className="h-2.5 w-2.5" /> vidéo
                                                     </label>
                                                   </div>
+                                                  {!isValidated && exercise.exercice && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleDuplicateExerciseLine(session.id, exercise.id)}
+                                                      className="h-5 text-[9px] px-1.5 text-muted-foreground"
+                                                    >
+                                                      <Plus className="h-2.5 w-2.5 mr-0.5" />
+                                                      Ligne de variation
+                                                    </Button>
+                                                  )}
                                                 </div>
                                                 {/* Bouton super-set mobile */}
                                                 {i < exercises.length - 1 && !isValidated && (
