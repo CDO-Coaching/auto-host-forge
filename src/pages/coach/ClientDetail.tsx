@@ -1889,6 +1889,35 @@ export default function ClientDetail() {
     toast.success("Ligne supprimée");
   };
 
+  const handleDuplicateExerciseLine = (sessionId: number, exerciseId: number) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const exerciseIndex = currentExercises.findIndex((ex) => ex.id === exerciseId);
+    if (exerciseIndex === -1) return;
+
+    const source = currentExercises[exerciseIndex];
+    const newId = Math.max(...currentExercises.map((e) => e.id)) + 1;
+    const newExercise: Exercise = {
+      id: newId,
+      exercice: source.exercice,
+      recuperation: source.recuperation,
+      reps: "",
+      series: "",
+      charge: "",
+      rpe: "",
+      tempo: source.tempo,
+      commentaire: "",
+      per_side: source.per_side,
+      is_unilateral: source.is_unilateral,
+      is_duration: source.is_duration,
+      request_video: false,
+    };
+
+    const updated = [...currentExercises];
+    updated.splice(exerciseIndex + 1, 0, newExercise);
+    setSessionExercises({ ...sessionExercises, [sessionId]: updated });
+    toast.success("Ligne de variation ajoutée");
+  };
+
   const handleToggleSuperSet = (sessionId: number, exerciseId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const exerciseIndex = currentExercises.findIndex((ex) => ex.id === exerciseId);
