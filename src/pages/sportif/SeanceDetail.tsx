@@ -238,21 +238,25 @@ export default function SeanceDetail() {
     if (item.isSuperset) {
       return item.exercises.every((ex: any) => ex.sportif_rpe !== null);
     }
+    if (item.isMultiLine) {
+      return item.lines.every((line: any) => line.sportif_rpe !== null);
+    }
     return item.sportif_rpe !== null;
   };
 
   // Fonction pour trier les exercices
   const getSortedExercises = (exercisesList: any[]) => {
+    const getOrder = (a: any) => 
+      a.isSuperset ? a.exercises[0].exercise_order : 
+      a.isMultiLine ? a.lines[0].exercise_order : 
+      a.exercise_order;
+
     // Vérifier si tous les exercices sont complétés
     const allCompleted = exercisesList.every(isExerciseCompleted);
 
     // Si tous complétés, retourner l'ordre d'origine
     if (allCompleted) {
-      return [...exercisesList].sort((a: any, b: any) => {
-        const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-        const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
-        return orderA - orderB;
-      });
+      return [...exercisesList].sort((a: any, b: any) => getOrder(a) - getOrder(b));
     }
 
     // Sinon, mettre les non complétés en premier
@@ -260,15 +264,11 @@ export default function SeanceDetail() {
       const aCompleted = isExerciseCompleted(a);
       const bCompleted = isExerciseCompleted(b);
 
-      // Si l'un est complété et l'autre non, le non complété passe en premier
       if (aCompleted !== bCompleted) {
         return aCompleted ? 1 : -1;
       }
 
-      // Sinon, garder l'ordre d'origine
-      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
-      return orderA - orderB;
+      return getOrder(a) - getOrder(b);
     });
   };
 
