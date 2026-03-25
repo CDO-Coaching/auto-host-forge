@@ -238,25 +238,21 @@ export default function SeanceDetail() {
     if (item.isSuperset) {
       return item.exercises.every((ex: any) => ex.sportif_rpe !== null);
     }
-    if (item.isMultiLine) {
-      return item.lines.every((line: any) => line.sportif_rpe !== null);
-    }
     return item.sportif_rpe !== null;
   };
 
   // Fonction pour trier les exercices
   const getSortedExercises = (exercisesList: any[]) => {
-    const getOrder = (a: any) => 
-      a.isSuperset ? a.exercises[0].exercise_order : 
-      a.isMultiLine ? a.lines[0].exercise_order : 
-      a.exercise_order;
-
     // Vérifier si tous les exercices sont complétés
     const allCompleted = exercisesList.every(isExerciseCompleted);
 
     // Si tous complétés, retourner l'ordre d'origine
     if (allCompleted) {
-      return [...exercisesList].sort((a: any, b: any) => getOrder(a) - getOrder(b));
+      return [...exercisesList].sort((a: any, b: any) => {
+        const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+        const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+        return orderA - orderB;
+      });
     }
 
     // Sinon, mettre les non complétés en premier
@@ -264,11 +260,15 @@ export default function SeanceDetail() {
       const aCompleted = isExerciseCompleted(a);
       const bCompleted = isExerciseCompleted(b);
 
+      // Si l'un est complété et l'autre non, le non complété passe en premier
       if (aCompleted !== bCompleted) {
         return aCompleted ? 1 : -1;
       }
 
-      return getOrder(a) - getOrder(b);
+      // Sinon, garder l'ordre d'origine
+      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+      return orderA - orderB;
     });
   };
 
@@ -294,15 +294,12 @@ export default function SeanceDetail() {
 
     setSession(sessionData);
 
-    // Regrouper les exercices par superset et par lignes de variation (même nom consécutif)
-    const exData = (sessionData.session_exercises || []).sort((a: any, b: any) => a.exercise_order - b.exercise_order);
+    // Regrouper les exercices par superset
+    const exData = sessionData.session_exercises || [];
     const grouped: any[] = [];
     const processedGroups = new Set<string>();
 
-    let i = 0;
-    while (i < exData.length) {
-      const exercise = exData[i];
-      
+    exData.forEach((exercise: any) => {
       if (exercise.super_set_group && !processedGroups.has(exercise.super_set_group)) {
         // C'est un superset
         processedGroups.add(exercise.super_set_group);
@@ -312,32 +309,11 @@ export default function SeanceDetail() {
           super_set_group: exercise.super_set_group,
           exercises: supersetExercises.sort((a: any, b: any) => a.exercise_order - b.exercise_order),
         });
-        i++;
       } else if (!exercise.super_set_group) {
-        // Vérifier si les exercices suivants ont le même nom (lignes de variation)
-        const variationLines: any[] = [exercise];
-        let j = i + 1;
-        while (j < exData.length && !exData[j].super_set_group && exData[j].exercice === exercise.exercice) {
-          variationLines.push(exData[j]);
-          j++;
-        }
-        
-        if (variationLines.length > 1) {
-          // Grouper comme "multi-ligne"
-          grouped.push({
-            isMultiLine: true,
-            exercice: exercise.exercice,
-            exercise_order: exercise.exercise_order,
-            lines: variationLines,
-          });
-        } else {
-          grouped.push(exercise);
-        }
-        i = j;
-      } else {
-        i++;
+        // Exercice classique
+        grouped.push(exercise);
       }
-    }
+    });
 
     const sorted = grouped.sort((a: any, b: any) => {
       const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
@@ -418,12 +394,6 @@ export default function SeanceDetail() {
           item.exercises.forEach((ex: any) => {
             if (ex.sportif_rpe === null) {
               incompleteExerciseIds.push(ex.id);
-            }
-          });
-        } else if (item.isMultiLine) {
-          item.lines.forEach((line: any) => {
-            if (line.sportif_rpe === null) {
-              incompleteExerciseIds.push(line.id);
             }
           });
         } else {
@@ -643,9 +613,6 @@ export default function SeanceDetail() {
     const exerciseIds = exercises.flatMap((item: any) => {
       if (item.isSuperset) {
         return item.exercises.map((ex: any) => ex.id);
-      }
-      if (item.isMultiLine) {
-        return item.lines.map((line: any) => line.id);
       }
       return [item.id];
     });
@@ -967,109 +934,6 @@ export default function SeanceDetail() {
                             )}
                           </div>
                         ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              } else if (item.isMultiLine) {
-                // Multi-line exercise (same exercise name, multiple configurations)
-                const isCompleted = isExerciseCompleted(item);
-                
-                return (
-                  <Card
-                    key={`multi-${item.lines[0].id}`}
-                    className={`transition-colors border-2 ${
-                      isCompleted ? "border-green-500/50 bg-green-500/5" : ""
-                    }`}
-                  >
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                          {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
-                          <p className="font-semibold text-base sm:text-lg truncate">{item.exercice}</p>
-                          <Badge variant="secondary" className="text-[10px]">{item.lines.length} lignes</Badge>
-                        </div>
-
-                        <div className="space-y-2">
-                          {item.lines.map((line: any, lineIndex: number) => {
-                            const lineCompleted = line.sportif_rpe !== null;
-                            return (
-                              <div
-                                key={line.id}
-                                className={`rounded-lg p-2.5 border ${
-                                  lineCompleted ? "bg-green-500/5 border-green-500/30" : "bg-muted/30 border-border"
-                                } ${allCompleted ? "" : "cursor-pointer hover:border-primary"}`}
-                                onClick={allCompleted ? undefined : () => navigate(`/sportif/exercice/${line.id}`)}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex gap-2 flex-wrap flex-1">
-                                    <span className="text-xs font-medium text-muted-foreground">Ligne {lineIndex + 1}</span>
-                                    {line.series && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {line.series} séries
-                                      </Badge>
-                                    )}
-                                    {line.reps && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {line.reps} {line.is_duration ? "sec" : "reps"}{line.per_side ? " (par côté)" : ""}
-                                      </Badge>
-                                    )}
-                                    {line.charge && (
-                                      <Badge variant="outline" className="text-xs">
-                                        {line.charge}
-                                      </Badge>
-                                    )}
-                                    {line.rpe && (
-                                      <Badge variant="outline" className="text-xs">
-                                        RPE: {line.rpe}
-                                      </Badge>
-                                    )}
-                                    {line.tempo && (
-                                      <Badge variant="outline" className="text-xs">
-                                        Tempo: {line.tempo}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    {lineCompleted && <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />}
-                                    {!allCompleted && <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
-                                  </div>
-                                </div>
-                                {line.commentaire && (
-                                  <p className="text-xs text-muted-foreground mt-1 italic">📝 {line.commentaire}</p>
-                                )}
-                                {lineCompleted && allCompleted && (
-                                  <div className="mt-2 border-t pt-2">
-                                    <div className="flex items-center justify-between gap-2">
-                                      <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
-                                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                          RPE ressenti: {line.sportif_rpe || "-"}
-                                        </Badge>
-                                      </div>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6 flex-shrink-0"
-                                        onClick={(e) => handleOpenEditFeedback(line, e)}
-                                      >
-                                        <Pencil className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                    {line.sportif_comment && (
-                                      <p className="text-xs text-muted-foreground italic">💬 {line.sportif_comment}</p>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        {item.lines[0].recuperation && item.lines[0].recuperation !== "0s" && (
-                          <Badge variant="outline" className="text-xs">
-                            Récup: {item.lines[0].recuperation}
-                          </Badge>
-                        )}
                       </div>
                     </CardContent>
                   </Card>
