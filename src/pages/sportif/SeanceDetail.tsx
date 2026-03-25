@@ -420,6 +420,12 @@ export default function SeanceDetail() {
               incompleteExerciseIds.push(ex.id);
             }
           });
+        } else if (item.isMultiLine) {
+          item.lines.forEach((line: any) => {
+            if (line.sportif_rpe === null) {
+              incompleteExerciseIds.push(line.id);
+            }
+          });
         } else {
           if (item.sportif_rpe === null) {
             incompleteExerciseIds.push(item.id);
