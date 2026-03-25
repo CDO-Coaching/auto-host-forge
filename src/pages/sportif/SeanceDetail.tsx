@@ -962,6 +962,109 @@ export default function SeanceDetail() {
                     </CardContent>
                   </Card>
                 );
+              } else if (item.isMultiLine) {
+                // Multi-line exercise (same exercise name, multiple configurations)
+                const isCompleted = isExerciseCompleted(item);
+                
+                return (
+                  <Card
+                    key={`multi-${item.lines[0].id}`}
+                    className={`transition-colors border-2 ${
+                      isCompleted ? "border-green-500/50 bg-green-500/5" : ""
+                    }`}
+                  >
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                          {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
+                          <p className="font-semibold text-base sm:text-lg truncate">{item.exercice}</p>
+                          <Badge variant="secondary" className="text-[10px]">{item.lines.length} lignes</Badge>
+                        </div>
+
+                        <div className="space-y-2">
+                          {item.lines.map((line: any, lineIndex: number) => {
+                            const lineCompleted = line.sportif_rpe !== null;
+                            return (
+                              <div
+                                key={line.id}
+                                className={`rounded-lg p-2.5 border ${
+                                  lineCompleted ? "bg-green-500/5 border-green-500/30" : "bg-muted/30 border-border"
+                                } ${allCompleted ? "" : "cursor-pointer hover:border-primary"}`}
+                                onClick={allCompleted ? undefined : () => navigate(`/sportif/exercice/${line.id}`)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex gap-2 flex-wrap flex-1">
+                                    <span className="text-xs font-medium text-muted-foreground">Ligne {lineIndex + 1}</span>
+                                    {line.series && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {line.series} séries
+                                      </Badge>
+                                    )}
+                                    {line.reps && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {line.reps} {line.is_duration ? "sec" : "reps"}{line.per_side ? " (par côté)" : ""}
+                                      </Badge>
+                                    )}
+                                    {line.charge && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {line.charge}
+                                      </Badge>
+                                    )}
+                                    {line.rpe && (
+                                      <Badge variant="outline" className="text-xs">
+                                        RPE: {line.rpe}
+                                      </Badge>
+                                    )}
+                                    {line.tempo && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Tempo: {line.tempo}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    {lineCompleted && <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />}
+                                    {!allCompleted && <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+                                  </div>
+                                </div>
+                                {line.commentaire && (
+                                  <p className="text-xs text-muted-foreground mt-1 italic">📝 {line.commentaire}</p>
+                                )}
+                                {lineCompleted && allCompleted && (
+                                  <div className="mt-2 border-t pt-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
+                                        <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
+                                          RPE ressenti: {line.sportif_rpe || "-"}
+                                        </Badge>
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 flex-shrink-0"
+                                        onClick={(e) => handleOpenEditFeedback(line, e)}
+                                      >
+                                        <Pencil className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                    {line.sportif_comment && (
+                                      <p className="text-xs text-muted-foreground italic">💬 {line.sportif_comment}</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        {item.lines[0].recuperation && item.lines[0].recuperation !== "0s" && (
+                          <Badge variant="outline" className="text-xs">
+                            Récup: {item.lines[0].recuperation}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
               } else {
                 const isCompleted = isExerciseCompleted(item);
                 const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
