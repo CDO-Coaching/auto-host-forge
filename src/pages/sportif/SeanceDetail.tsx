@@ -294,12 +294,15 @@ export default function SeanceDetail() {
 
     setSession(sessionData);
 
-    // Regrouper les exercices par superset
-    const exData = sessionData.session_exercises || [];
+    // Regrouper les exercices par superset et par lignes de variation (même nom consécutif)
+    const exData = (sessionData.session_exercises || []).sort((a: any, b: any) => a.exercise_order - b.exercise_order);
     const grouped: any[] = [];
     const processedGroups = new Set<string>();
 
-    exData.forEach((exercise: any) => {
+    let i = 0;
+    while (i < exData.length) {
+      const exercise = exData[i];
+      
       if (exercise.super_set_group && !processedGroups.has(exercise.super_set_group)) {
         // C'est un superset
         processedGroups.add(exercise.super_set_group);
@@ -309,11 +312,32 @@ export default function SeanceDetail() {
           super_set_group: exercise.super_set_group,
           exercises: supersetExercises.sort((a: any, b: any) => a.exercise_order - b.exercise_order),
         });
+        i++;
       } else if (!exercise.super_set_group) {
-        // Exercice classique
-        grouped.push(exercise);
+        // Vérifier si les exercices suivants ont le même nom (lignes de variation)
+        const variationLines: any[] = [exercise];
+        let j = i + 1;
+        while (j < exData.length && !exData[j].super_set_group && exData[j].exercice === exercise.exercice) {
+          variationLines.push(exData[j]);
+          j++;
+        }
+        
+        if (variationLines.length > 1) {
+          // Grouper comme "multi-ligne"
+          grouped.push({
+            isMultiLine: true,
+            exercice: exercise.exercice,
+            exercise_order: exercise.exercise_order,
+            lines: variationLines,
+          });
+        } else {
+          grouped.push(exercise);
+        }
+        i = j;
+      } else {
+        i++;
       }
-    });
+    }
 
     const sorted = grouped.sort((a: any, b: any) => {
       const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
