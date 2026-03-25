@@ -1889,6 +1889,35 @@ export default function ClientDetail() {
     toast.success("Ligne supprimée");
   };
 
+  const handleDuplicateExerciseLine = (sessionId: number, exerciseId: number) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const exerciseIndex = currentExercises.findIndex((ex) => ex.id === exerciseId);
+    if (exerciseIndex === -1) return;
+
+    const source = currentExercises[exerciseIndex];
+    const newId = Math.max(...currentExercises.map((e) => e.id)) + 1;
+    const newExercise: Exercise = {
+      id: newId,
+      exercice: source.exercice,
+      recuperation: source.recuperation,
+      reps: "",
+      series: "",
+      charge: "",
+      rpe: "",
+      tempo: source.tempo,
+      commentaire: "",
+      per_side: source.per_side,
+      is_unilateral: source.is_unilateral,
+      is_duration: source.is_duration,
+      request_video: false,
+    };
+
+    const updated = [...currentExercises];
+    updated.splice(exerciseIndex + 1, 0, newExercise);
+    setSessionExercises({ ...sessionExercises, [sessionId]: updated });
+    toast.success("Ligne de variation ajoutée");
+  };
+
   const handleToggleSuperSet = (sessionId: number, exerciseId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const exerciseIndex = currentExercises.findIndex((ex) => ex.id === exerciseId);
@@ -3722,6 +3751,17 @@ export default function ClientDetail() {
                                                       <Video className="h-2.5 w-2.5" /> vidéo
                                                     </label>
                                                   </div>
+                                                  {!isValidated && exercise.exercice && (
+                                                    <Button
+                                                      variant="ghost"
+                                                      size="sm"
+                                                      onClick={() => handleDuplicateExerciseLine(session.id, exercise.id)}
+                                                      className="h-5 text-[9px] px-1.5 text-muted-foreground"
+                                                    >
+                                                      <Plus className="h-2.5 w-2.5 mr-0.5" />
+                                                      Ligne de variation
+                                                    </Button>
+                                                  )}
                                                 </div>
                                                 {/* Bouton super-set mobile */}
                                                 {i < exercises.length - 1 && !isValidated && (
@@ -4458,16 +4498,29 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                       <TableCell>
                                                         {!isValidated && (
-                                                          <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                              handleDeleteExercise(session.id, exercise.id)
-                                                            }
-                                                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                          >
-                                                            <X className="h-4 w-4" />
-                                                          </Button>
+                                                          <div className="flex items-center gap-0.5">
+                                                            {exercise.exercice && (
+                                                              <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDuplicateExerciseLine(session.id, exercise.id)}
+                                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                                title="Ajouter une ligne de variation"
+                                                              >
+                                                                <Plus className="h-4 w-4" />
+                                                              </Button>
+                                                            )}
+                                                            <Button
+                                                              variant="ghost"
+                                                              size="sm"
+                                                              onClick={() =>
+                                                                handleDeleteExercise(session.id, exercise.id)
+                                                              }
+                                                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                            >
+                                                              <X className="h-4 w-4" />
+                                                            </Button>
+                                                          </div>
                                                         )}
                                                       </TableCell>
                                                     </TableRow>
