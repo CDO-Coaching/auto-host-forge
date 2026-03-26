@@ -7,6 +7,7 @@ interface QuickRatingInputProps {
   min?: number;
   max?: number;
   labels?: string[];
+  emojis?: string[];
   activeLabel?: string;
   variant?: "primary" | "destructive";
 }
