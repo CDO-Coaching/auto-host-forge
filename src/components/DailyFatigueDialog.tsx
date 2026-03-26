@@ -36,25 +36,30 @@ const questions = [
     id: "fatigue",
     label: "Niveau de fatigue",
     labels: ["Très frais", "Frais", "Légèrement fatigué", "Fatigué", "Très fatigué", "Épuisé", "Exténué"],
+    emojis: ["💪", "😊", "😐", "😓", "😩", "🥵", "💀"],
   },
   {
     id: "courbatures",
     label: "Niveau de courbatures",
     labels: ["Aucune", "Très légères", "Légères", "Modérées", "Importantes", "Très importantes", "Sévères"],
+    emojis: ["✨", "👌", "🤏", "😬", "😣", "😖", "🤕"],
   },
   {
     id: "sommeil",
     label: "Qualité du sommeil",
     labels: ["Catastrophique", "Très mauvais", "Mauvais", "Moyen", "Bon", "Très bon", "Excellent"],
+    emojis: ["😵", "😫", "😴", "🥱", "😌", "😴", "🌟"],
   },
   {
     id: "stress",
     label: "Niveau de stress",
     labels: ["Très calme", "Calme", "Légèrement tendu", "Modéré", "Élevé", "Très élevé", "Extrême"],
+    emojis: ["🧘", "😌", "😐", "😟", "😰", "🤯", "💥"],
   },
 ];
 
 const injuryLevelLabels = ["Gêne", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
+const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑"];
 
 type AdaptationLevel = "legere" | "moyenne" | "grosse" | null;
 type InjuryEvolution = "same" | "better" | "worse" | "gone" | null;
