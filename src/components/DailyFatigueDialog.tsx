@@ -426,6 +426,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
             min={1}
             max={7}
             labels={question.labels}
+            emojis={question.emojis}
           />
         </div>
       ))}
