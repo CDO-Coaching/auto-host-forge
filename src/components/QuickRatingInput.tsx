@@ -18,6 +18,7 @@ export function QuickRatingInput({
   min = 1,
   max = 7,
   labels,
+  emojis,
   activeLabel,
   variant = "primary",
 }: QuickRatingInputProps) {
