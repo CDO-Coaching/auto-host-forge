@@ -1,4 +1,3 @@
-import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
 interface QuickRatingInputProps {
@@ -7,6 +6,7 @@ interface QuickRatingInputProps {
   min?: number;
   max?: number;
   labels?: string[];
+  emojis?: string[];
   activeLabel?: string;
   variant?: "primary" | "destructive";
 }
@@ -17,6 +17,7 @@ export function QuickRatingInput({
   min = 1,
   max = 7,
   labels,
+  emojis,
   activeLabel,
   variant = "primary",
 }: QuickRatingInputProps) {
@@ -27,37 +28,32 @@ export function QuickRatingInput({
 
   const isPrimary = variant === "primary";
 
+  const emoji = emojis ? emojis[value - min] : undefined;
+
   return (
     <div className="space-y-1.5">
-      <Slider
-        value={[value]}
-        onValueChange={(v) => onChange(v[0])}
-        min={min}
-        max={max}
-        step={1}
-        className="w-full"
-      />
-
-      {/* Clickable rating buttons */}
+      {/* Clickable rating buttons with emojis */}
       <div className="flex gap-1">
         {values.map((v) => {
           const isActive = v === value;
+          const emojiForValue = emojis ? emojis[v - min] : undefined;
           return (
             <button
               key={v}
               type="button"
               onClick={() => onChange(v)}
               className={cn(
-                "flex-1 rounded-md text-xs sm:text-sm font-medium transition-all min-h-[32px] sm:min-h-[36px]",
+                "flex-1 rounded-md font-medium transition-all min-h-[40px] sm:min-h-[44px] flex flex-col items-center justify-center gap-0.5",
                 "border focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 isActive
                   ? isPrimary
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-destructive text-destructive-foreground border-destructive shadow-sm"
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm scale-105"
+                    : "bg-destructive text-destructive-foreground border-destructive shadow-sm scale-105"
                   : "bg-muted/50 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
               )}
             >
-              {v}
+              {emojiForValue && <span className="text-base sm:text-lg leading-none">{emojiForValue}</span>}
+              <span className="text-[10px] sm:text-xs leading-none">{v}</span>
             </button>
           );
         })}
