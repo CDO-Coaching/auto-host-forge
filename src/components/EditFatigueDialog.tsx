@@ -227,30 +227,13 @@ export function EditFatigueDialog({ open, onClose, logs, initialLog }: EditFatig
                 <div key={question.id} className="space-y-1 sm:space-y-2">
                   <Label className="text-xs sm:text-base font-medium block">{question.label}</Label>
                   
-                  <Slider
-                    value={[answers[question.id]]}
-                    onValueChange={(value) => handleSliderChange(question.id, value)}
+                  <QuickRatingInput
+                    value={answers[question.id]}
+                    onChange={(v) => handleSliderChange(question.id, [v])}
                     min={1}
                     max={7}
-                    step={1}
-                    className="w-full"
+                    labels={question.labels}
                   />
-                  
-                  <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
-                    <span>1</span>
-                    <span>2</span>
-                    <span>3</span>
-                    <span>4</span>
-                    <span>5</span>
-                    <span>6</span>
-                    <span>7</span>
-                  </div>
-                  
-                  <div className="text-center">
-                    <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-primary/10 text-primary rounded text-[10px] sm:text-sm font-medium">
-                      {question.labels[answers[question.id] - 1]}
-                    </span>
-                  </div>
                 </div>
               ))}
 
