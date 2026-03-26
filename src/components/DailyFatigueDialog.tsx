@@ -48,7 +48,7 @@ const questions = [
     id: "sommeil",
     label: "Qualité du sommeil",
     labels: ["Catastrophique", "Très mauvais", "Mauvais", "Moyen", "Bon", "Très bon", "Excellent"],
-    emojis: ["😵", "😫", "😴", "🥱", "😌", "😴", "🌟"],
+    emojis: ["😵", "😫", "😪", "🥱", "😌", "😴", "🌟"],
   },
   {
     id: "stress",
