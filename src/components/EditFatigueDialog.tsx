@@ -266,6 +266,7 @@ export function EditFatigueDialog({ open, onClose, logs, initialLog }: EditFatig
                         min={1}
                         max={7}
                         labels={injuryLevelLabels}
+                        emojis={injuryLevelEmojis}
                         variant="destructive"
                       />
                     </div>
