@@ -238,6 +238,7 @@ export function EditFatigueDialog({ open, onClose, logs, initialLog }: EditFatig
                     min={1}
                     max={7}
                     labels={question.labels}
+                    emojis={question.emojis}
                   />
                 </div>
               ))}
