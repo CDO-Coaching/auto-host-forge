@@ -254,30 +254,14 @@ export function EditFatigueDialog({ open, onClose, logs, initialLog }: EditFatig
                     <div className="space-y-1 sm:space-y-2">
                       <Label className="text-xs sm:text-base font-medium">Niveau de douleur</Label>
                       
-                      <Slider
-                        value={[injuryLevel]}
-                        onValueChange={(value) => setInjuryLevel(value[0])}
+                      <QuickRatingInput
+                        value={injuryLevel}
+                        onChange={setInjuryLevel}
                         min={1}
                         max={7}
-                        step={1}
-                        className="w-full"
+                        labels={injuryLevelLabels}
+                        variant="destructive"
                       />
-                      
-                      <div className="flex justify-between text-[9px] sm:text-xs text-muted-foreground px-0.5">
-                        <span>1</span>
-                        <span>2</span>
-                        <span>3</span>
-                        <span>4</span>
-                        <span>5</span>
-                        <span>6</span>
-                        <span>7</span>
-                      </div>
-                      
-                      <div className="text-center">
-                        <span className="inline-block px-2 py-0.5 sm:px-4 sm:py-1.5 bg-destructive/10 text-destructive rounded text-[10px] sm:text-sm font-medium">
-                          {injuryLevelLabels[injuryLevel - 1]}
-                        </span>
-                      </div>
                     </div>
 
                     <div className="space-y-1">
