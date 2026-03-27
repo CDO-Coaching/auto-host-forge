@@ -43,7 +43,7 @@ export function QuickRatingInput({
               type="button"
               onClick={() => onChange(v)}
               className={cn(
-                "flex-1 rounded-md font-medium transition-all min-h-[40px] sm:min-h-[44px] flex flex-col items-center justify-center gap-0.5",
+                "flex-1 rounded-full font-medium transition-all min-h-[40px] sm:min-h-[44px] aspect-square flex flex-col items-center justify-center gap-0.5",
                 "border focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                 isActive
                   ? isPrimary
