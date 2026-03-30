@@ -2264,7 +2264,7 @@ export default function ClientDetail() {
                       const w = getWeeksInfo(c.start_date, c.end_date);
                       return (
                         <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
-                          {c.name} · {w.remaining}s/{w.total}s
+                          {c.name} · {Math.min(w.total - w.remaining, w.total)}s/{w.total}s
                         </span>
                       );
                     })}
