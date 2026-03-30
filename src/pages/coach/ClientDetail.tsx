@@ -2229,7 +2229,48 @@ export default function ClientDetail() {
                   <AlertTriangle className="h-3 w-3" />
                   {headerInjury.avgPain.toFixed(1)}/7
                 </span>
-              )}
+               )}
+              {/* Cycles actifs inline */}
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const currentMeso = athleteMesocycles.filter(m => {
+                  const s = new Date(m.start_date); const e = new Date(m.end_date);
+                  return today >= s && today <= e;
+                });
+                const currentMicro = athleteMicrocycles.filter(m => {
+                  const s = new Date(m.start_date); const e = new Date(m.end_date);
+                  return today >= s && today <= e;
+                });
+                if (currentMeso.length === 0 && currentMicro.length === 0) return null;
+                const getWeeksInfo = (start: string, end: string) => {
+                  const s = new Date(start); const e = new Date(end);
+                  const totalWeeks = Math.max(1, Math.round((e.getTime() - s.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+                  const elapsedWeeks = Math.max(1, Math.round((today.getTime() - s.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1);
+                  const remaining = Math.max(0, totalWeeks - elapsedWeeks);
+                  return { remaining, total: totalWeeks };
+                };
+                return (
+                  <>
+                    {currentMeso.map(c => {
+                      const w = getWeeksInfo(c.start_date, c.end_date);
+                      return (
+                        <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
+                          {c.name} · {w.remaining}s/{w.total}s
+                        </span>
+                      );
+                    })}
+                    {currentMicro.map(c => {
+                      const w = getWeeksInfo(c.start_date, c.end_date);
+                      return (
+                        <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
+                          {c.name} · {w.remaining}s/{w.total}s
+                        </span>
+                      );
+                    })}
+                  </>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-2">
               <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
@@ -2866,74 +2907,7 @@ export default function ClientDetail() {
                         ))}
                       </select>
 
-                      {/* Affichage du mésocycle actif pour la semaine sélectionnée */}
-                      {selectedWeekToProgram && (() => {
-                        const selectedWeekInfo = availableWeeks.find(
-                          w => w.week === selectedWeekToProgram.week && w.year === selectedWeekToProgram.year
-                        );
-                        if (!selectedWeekInfo) return null;
-                        
-                        const weekMonday = selectedWeekInfo.monday;
-                        const weekSunday = new Date(weekMonday);
-                        weekSunday.setDate(weekSunday.getDate() + 6);
-                        
-                        const activeMesocycles = athleteMesocycles.filter(m => {
-                          const startDate = new Date(m.start_date);
-                          const endDate = new Date(m.end_date);
-                          return weekMonday >= startDate && weekMonday <= endDate;
-                        });
 
-                        const activeMicrocycles = athleteMicrocycles.filter(m => {
-                          const startDate = new Date(m.start_date);
-                          const endDate = new Date(m.end_date);
-                          return weekMonday >= startDate && weekMonday <= endDate;
-                        });
-
-                        if (activeMesocycles.length === 0 && activeMicrocycles.length === 0) return null;
-
-                        return (
-                          <div className="mt-2 space-y-1.5">
-                            {activeMesocycles.map(cycle => (
-                              <div 
-                                key={cycle.id}
-                                className="flex items-center gap-2 p-2 rounded-md border"
-                                style={{ 
-                                  borderColor: cycle.color,
-                                  backgroundColor: `${cycle.color}15`
-                                }}
-                              >
-                                <RefreshCw className="h-3.5 w-3.5" style={{ color: cycle.color }} />
-                                <span className="text-[10px] uppercase font-bold text-muted-foreground">Mésocycle</span>
-                                <span className="text-xs font-medium">{cycle.name}</span>
-                                {cycle.description && (
-                                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                                    - {cycle.description}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                            {activeMicrocycles.map(cycle => (
-                              <div 
-                                key={cycle.id}
-                                className="flex items-center gap-2 p-2 rounded-md border"
-                                style={{ 
-                                  borderColor: cycle.color,
-                                  backgroundColor: `${cycle.color}15`
-                                }}
-                              >
-                                <RefreshCw className="h-3.5 w-3.5" style={{ color: cycle.color }} />
-                                <span className="text-[10px] uppercase font-bold text-muted-foreground">Microcycle</span>
-                                <span className="text-xs font-medium">{cycle.name}</span>
-                                {cycle.description && (
-                                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                                    - {cycle.description}
-                                  </span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
 
                       {/* Prochain objectif (milestone) dans la programmation */}
                       {(() => {
