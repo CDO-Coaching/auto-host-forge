@@ -2877,29 +2877,60 @@ export default function ClientDetail() {
                         const weekSunday = new Date(weekMonday);
                         weekSunday.setDate(weekSunday.getDate() + 6);
                         
-                        const activeMesocycle = athleteMesocycles.find(m => {
+                        const activeMesocycles = athleteMesocycles.filter(m => {
                           const startDate = new Date(m.start_date);
                           const endDate = new Date(m.end_date);
                           return weekMonday >= startDate && weekMonday <= endDate;
                         });
 
-                        if (!activeMesocycle) return null;
+                        const activeMicrocycles = athleteMicrocycles.filter(m => {
+                          const startDate = new Date(m.start_date);
+                          const endDate = new Date(m.end_date);
+                          return weekMonday >= startDate && weekMonday <= endDate;
+                        });
+
+                        if (activeMesocycles.length === 0 && activeMicrocycles.length === 0) return null;
 
                         return (
-                          <div 
-                            className="mt-2 flex items-center gap-2 p-2 rounded-md border"
-                            style={{ 
-                              borderColor: activeMesocycle.color,
-                              backgroundColor: `${activeMesocycle.color}15`
-                            }}
-                          >
-                            <RefreshCw className="h-3.5 w-3.5" style={{ color: activeMesocycle.color }} />
-                            <span className="text-xs font-medium">{activeMesocycle.name}</span>
-                            {activeMesocycle.description && (
-                              <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                                - {activeMesocycle.description}
-                              </span>
-                            )}
+                          <div className="mt-2 space-y-1.5">
+                            {activeMesocycles.map(cycle => (
+                              <div 
+                                key={cycle.id}
+                                className="flex items-center gap-2 p-2 rounded-md border"
+                                style={{ 
+                                  borderColor: cycle.color,
+                                  backgroundColor: `${cycle.color}15`
+                                }}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" style={{ color: cycle.color }} />
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground">Mésocycle</span>
+                                <span className="text-xs font-medium">{cycle.name}</span>
+                                {cycle.description && (
+                                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                                    - {cycle.description}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {activeMicrocycles.map(cycle => (
+                              <div 
+                                key={cycle.id}
+                                className="flex items-center gap-2 p-2 rounded-md border"
+                                style={{ 
+                                  borderColor: cycle.color,
+                                  backgroundColor: `${cycle.color}15`
+                                }}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5" style={{ color: cycle.color }} />
+                                <span className="text-[10px] uppercase font-bold text-muted-foreground">Microcycle</span>
+                                <span className="text-xs font-medium">{cycle.name}</span>
+                                {cycle.description && (
+                                  <span className="text-[10px] text-muted-foreground hidden sm:inline">
+                                    - {cycle.description}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         );
                       })()}
