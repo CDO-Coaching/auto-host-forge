@@ -1699,7 +1699,8 @@ export default function ClientDetail() {
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
 
-    const newExerciseId = currentExercises.length + 1;
+    const maxId = currentExercises.reduce((max, ex) => Math.max(max, ex.id), 0);
+    const newExerciseId = maxId + 1;
     const newExercise: Exercise = {
       id: newExerciseId,
       exercice: isCardio ? "Séance Cardio" : "",
