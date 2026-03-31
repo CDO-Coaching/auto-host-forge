@@ -908,7 +908,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   {formContent}
                 </div>
 
-                <FooterButtons />
+                {footerButtons}
               </motion.div>
             </>
           )}
