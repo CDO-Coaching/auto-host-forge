@@ -28,6 +28,7 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  Undo2,
   Search,
   Video,
   CreditCard,
