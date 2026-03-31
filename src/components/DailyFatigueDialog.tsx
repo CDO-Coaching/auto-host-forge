@@ -905,7 +905,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
                 {/* Scrollable content */}
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1 py-3">
-                  <FormContent />
+                  {formContent}
                 </div>
 
                 <FooterButtons />
