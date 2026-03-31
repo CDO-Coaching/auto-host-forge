@@ -414,7 +414,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   };
 
   // Contenu du formulaire partagé entre Dialog et Drawer
-  const FormContent = () => (
+  const formContent = (
     <div className="space-y-3 sm:space-y-5">
       {questions.map((question) => (
         <div key={question.id} className="space-y-1 sm:space-y-2">
@@ -696,7 +696,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   );
 
   // Footer avec boutons
-  const FooterButtons = () => (
+  const footerButtons = (
     <div className="flex justify-between items-center pt-3 border-t">
       <Button
         variant="ghost"
@@ -780,11 +780,11 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                 )}
               </div>
 
-              <FormContent />
+              {formContent}
             </div>
             
             <div className="px-4 pb-6">
-              <FooterButtons />
+              {footerButtons}
             </div>
           </DrawerContent>
         </Drawer>
@@ -905,10 +905,10 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
                 {/* Scrollable content */}
                 <div className="flex-1 min-h-0 overflow-y-auto pr-1 py-3">
-                  <FormContent />
+                  {formContent}
                 </div>
 
-                <FooterButtons />
+                {footerButtons}
               </motion.div>
             </>
           )}
