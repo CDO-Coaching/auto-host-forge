@@ -780,7 +780,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                 )}
               </div>
 
-              <FormContent />
+              {formContent}
             </div>
             
             <div className="px-4 pb-6">
