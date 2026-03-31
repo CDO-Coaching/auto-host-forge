@@ -2241,15 +2241,14 @@ export default function ClientDetail() {
               {(() => {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const currentMeso = athleteMesocycles.filter(m => {
+                const filterActive = (arr: typeof athleteMacrocycles) => arr.filter(m => {
                   const s = new Date(m.start_date); const e = new Date(m.end_date);
                   return today >= s && today <= e;
                 });
-                const currentMicro = athleteMicrocycles.filter(m => {
-                  const s = new Date(m.start_date); const e = new Date(m.end_date);
-                  return today >= s && today <= e;
-                });
-                if (currentMeso.length === 0 && currentMicro.length === 0) return null;
+                const currentMacro = filterActive(athleteMacrocycles);
+                const currentMeso = filterActive(athleteMesocycles);
+                const currentMicro = filterActive(athleteMicrocycles);
+                if (currentMacro.length === 0 && currentMeso.length === 0 && currentMicro.length === 0) return null;
                 const getWeeksInfo = (start: string, end: string) => {
                   const s = new Date(start); const e = new Date(end);
                   const totalWeeks = Math.max(1, Math.round((e.getTime() - s.getTime()) / (7 * 24 * 60 * 60 * 1000)));
@@ -2257,24 +2256,19 @@ export default function ClientDetail() {
                   const remaining = Math.max(0, totalWeeks - elapsedWeeks);
                   return { remaining, total: totalWeeks };
                 };
+                const renderCycleBadge = (c: typeof currentMacro[0], label: string) => {
+                  const w = getWeeksInfo(c.start_date, c.end_date);
+                  return (
+                    <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
+                      <span className="opacity-70 uppercase mr-0.5">{label}</span> {c.name} · {Math.min(w.total - w.remaining, w.total)}s/{w.total}s
+                    </span>
+                  );
+                };
                 return (
                   <>
-                    {currentMeso.map(c => {
-                      const w = getWeeksInfo(c.start_date, c.end_date);
-                      return (
-                        <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
-                          {c.name} · {Math.min(w.total - w.remaining, w.total)}s/{w.total}s
-                        </span>
-                      );
-                    })}
-                    {currentMicro.map(c => {
-                      const w = getWeeksInfo(c.start_date, c.end_date);
-                      return (
-                        <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
-                          {c.name} · {Math.min(w.total - w.remaining, w.total)}s/{w.total}s
-                        </span>
-                      );
-                    })}
+                    {currentMacro.map(c => renderCycleBadge(c, "Macro"))}
+                    {currentMeso.map(c => renderCycleBadge(c, "Méso"))}
+                    {currentMicro.map(c => renderCycleBadge(c, "Micro"))}
                   </>
                 );
               })()}
