@@ -696,7 +696,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   );
 
   // Footer avec boutons
-  const FooterButtons = () => (
+  const footerButtons = (
     <div className="flex justify-between items-center pt-3 border-t">
       <Button
         variant="ghost"
