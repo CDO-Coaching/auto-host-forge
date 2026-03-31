@@ -28,6 +28,7 @@ import {
   TrendingUp,
   AlertTriangle,
   RefreshCw,
+  Undo2,
   Search,
   Video,
   CreditCard,
@@ -124,6 +125,7 @@ export default function ClientDetail() {
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
+  const [undoStack, setUndoStack] = useState<Array<{ sessions: Session[]; sessionExercises: Record<number, Exercise[]> }>>([]);
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean; category?: string }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
@@ -1220,6 +1222,9 @@ export default function ClientDetail() {
   const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Sauvegarder l'état avant suppression pour undo
+    setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
     // Créer un mapping des anciens IDs vers les nouveaux IDs
     const idMapping: { [key: number]: number } = {};
     const updatedSessions = sessions
@@ -1230,7 +1235,6 @@ export default function ClientDetail() {
         return {
           ...s,
           id: newId,
-          // Garder le nom original s'il a été personnalisé, sinon mettre un nom par défaut
           name: s.name.match(/^(Séance|Cardio) \d+$/) 
             ? (s.session_type === "cardio" ? `Cardio ${newId}` : `Séance ${newId}`)
             : s.name,
@@ -1853,6 +1857,9 @@ export default function ClientDetail() {
   };
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
+    // Sauvegarder l'état avant suppression pour undo
+    setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
     const currentExercises = sessionExercises[sessionId] || [];
     const exerciseToDelete = currentExercises.find((ex) => ex.id === exerciseId);
 
@@ -3020,6 +3027,25 @@ export default function ClientDetail() {
                 </div>
               ) : (
                 <>
+                  {undoStack.length > 0 && !isValidated && (
+                    <div className="flex justify-start mb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => {
+                          const last = undoStack[undoStack.length - 1];
+                          setSessions(last.sessions);
+                          setSessionExercises(last.sessionExercises);
+                          setUndoStack((prev) => prev.slice(0, -1));
+                          toast.success("Annulé !");
+                        }}
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        Annuler
+                      </Button>
+                    </div>
+                  )}
                   <div className="space-y-2 sm:space-y-3">
                     {sessions.map((session) => (
                       <div 
