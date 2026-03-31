@@ -1222,6 +1222,9 @@ export default function ClientDetail() {
   const handleDeleteSession = (sessionId: number, e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Sauvegarder l'état avant suppression pour undo
+    setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
     // Créer un mapping des anciens IDs vers les nouveaux IDs
     const idMapping: { [key: number]: number } = {};
     const updatedSessions = sessions
@@ -1232,7 +1235,6 @@ export default function ClientDetail() {
         return {
           ...s,
           id: newId,
-          // Garder le nom original s'il a été personnalisé, sinon mettre un nom par défaut
           name: s.name.match(/^(Séance|Cardio) \d+$/) 
             ? (s.session_type === "cardio" ? `Cardio ${newId}` : `Séance ${newId}`)
             : s.name,
