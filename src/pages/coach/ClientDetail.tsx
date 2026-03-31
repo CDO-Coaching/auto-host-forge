@@ -1857,6 +1857,9 @@ export default function ClientDetail() {
   };
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
+    // Sauvegarder l'état avant suppression pour undo
+    setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
     const currentExercises = sessionExercises[sessionId] || [];
     const exerciseToDelete = currentExercises.find((ex) => ex.id === exerciseId);
 
