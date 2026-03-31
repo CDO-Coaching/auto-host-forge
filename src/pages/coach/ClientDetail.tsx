@@ -125,6 +125,7 @@ export default function ClientDetail() {
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
+  const [undoStack, setUndoStack] = useState<Array<{ sessions: Session[]; sessionExercises: Record<number, Exercise[]> }>>([]);
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean; category?: string }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
