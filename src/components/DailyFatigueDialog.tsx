@@ -784,7 +784,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
             </div>
             
             <div className="px-4 pb-6">
-              <FooterButtons />
+              {footerButtons}
             </div>
           </DrawerContent>
         </Drawer>
