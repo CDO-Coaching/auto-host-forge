@@ -414,7 +414,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   };
 
   // Contenu du formulaire partagé entre Dialog et Drawer
-  const FormContent = () => (
+  const formContent = (
     <div className="space-y-3 sm:space-y-5">
       {questions.map((question) => (
         <div key={question.id} className="space-y-1 sm:space-y-2">
