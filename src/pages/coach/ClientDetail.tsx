@@ -3027,6 +3027,25 @@ export default function ClientDetail() {
                 </div>
               ) : (
                 <>
+                  {undoStack.length > 0 && !isValidated && (
+                    <div className="flex justify-start mb-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 gap-1.5 text-xs"
+                        onClick={() => {
+                          const last = undoStack[undoStack.length - 1];
+                          setSessions(last.sessions);
+                          setSessionExercises(last.sessionExercises);
+                          setUndoStack((prev) => prev.slice(0, -1));
+                          toast.success("Annulé !");
+                        }}
+                      >
+                        <Undo2 className="h-3.5 w-3.5" />
+                        Annuler
+                      </Button>
+                    </div>
+                  )}
                   <div className="space-y-2 sm:space-y-3">
                     {sessions.map((session) => (
                       <div 
