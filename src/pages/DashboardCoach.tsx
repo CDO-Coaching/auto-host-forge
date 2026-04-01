@@ -39,7 +39,7 @@ export default function DashboardCoach() {
   const { session, loading: authLoading } = useAuth();
   const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
   const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
-  const { pendingReminder, acknowledgeReminder } = useCoachNoteReminder();
+  
   const { birthdayAthletes, dismissBirthday } = useCoachBirthdayReminder(profile?.id);
   const { pendingNotifications: paymentNotifications, dismissNotification: dismissPaymentNotification, dismissAll: dismissAllPayments } = useCoachPaymentNotifications(profile?.id);
   const { pendingCancellations, dismissCancellation } = useCoachCancellationNotifications(profile?.id);
