@@ -13,8 +13,6 @@ import { useCoachDailyPaymentReminder } from "@/hooks/useCoachDailyPaymentRemind
 import { CoachPaymentReminderDialog } from "@/components/CoachPaymentReminderDialog";
 import { useCoachPauseReminders } from "@/hooks/useCoachPauseReminders";
 import { CoachPauseReminderAlert } from "@/components/CoachPauseReminderAlert";
-import { useCoachNoteReminder } from "@/hooks/useCoachNoteReminder";
-import { CoachNoteReminderDialog } from "@/components/CoachNoteReminderDialog";
 import { useCoachBirthdayReminder } from "@/hooks/useCoachBirthdayReminder";
 import { CoachBirthdayAlert } from "@/components/CoachBirthdayAlert";
 import { useCoachPaymentNotifications } from "@/hooks/useCoachPaymentNotifications";
