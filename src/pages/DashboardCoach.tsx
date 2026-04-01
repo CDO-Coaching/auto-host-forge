@@ -101,12 +101,6 @@ export default function DashboardCoach() {
         open={shouldShowReminder && !isChecking}
         onDismiss={handleDismiss}
       />
-      <CoachNoteReminderDialog
-        open={!!pendingReminder}
-        clientEmail={pendingReminder?.clientEmail || ''}
-        eventTitle={pendingReminder?.eventTitle || ''}
-        onAcknowledge={acknowledgeReminder}
-      />
       {/* Notifications flottantes empilées */}
       {(() => {
         let stackIndex = 0;
