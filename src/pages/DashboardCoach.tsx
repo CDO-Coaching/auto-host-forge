@@ -30,6 +30,7 @@ import SuiviSalaire from "./coach/SuiviSalaire";
 import Notes from "./coach/Notes";
 import Agenda from "./coach/Agenda";
 import SeancesProgrammees from "./coach/SeancesProgrammees";
+import Methodologies from "./coach/Methodologies";
 import CoachDashboard from "./coach/Dashboard";
 
 export default function DashboardCoach() {
