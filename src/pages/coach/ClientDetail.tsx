@@ -4811,6 +4811,13 @@ export default function ClientDetail() {
           />
         </TabsContent>
 
+        <TabsContent value="methodologies" className="space-y-4">
+          <CoachAthleteMethodologies
+            athleteId={athleteId!}
+            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
+          />
+        </TabsContent>
+
         <TabsContent value="historique" className="space-y-4">
           <Card>
             <CardHeader>
