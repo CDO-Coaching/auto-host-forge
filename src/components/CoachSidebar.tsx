@@ -23,6 +23,7 @@ const menuItems = [
   { title: "Messagerie", url: "/coach/messagerie", icon: MessageCircle, showBadge: true },
   { title: "Questions", url: "/coach/questions", icon: HelpCircle },
   { title: "Bibliothèque d'exercices", url: "/coach/bibliotheque-exercices", icon: BookOpen },
+  { title: "Méthodologies", url: "/coach/methodologies", icon: FlaskConical },
   { title: "Comptabilité", url: "/coach/comptabilite", icon: Euro },
   { title: "Suivi du salaire", url: "/coach/suivi-salaire", icon: TrendingUp },
   { title: "Mon profil", url: "/coach/profil", icon: User },
