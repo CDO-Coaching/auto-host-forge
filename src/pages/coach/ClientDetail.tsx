@@ -69,6 +69,7 @@ import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
+import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
