@@ -95,6 +95,59 @@ export type Database = {
         }
         Relationships: []
       }
+      coaching_methodologies: {
+        Row: {
+          coach_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      methodology_themes: {
+        Row: {
+          id: string
+          methodology_id: string
+          theme: Database["public"]["Enums"]["methodology_theme"]
+        }
+        Insert: {
+          id?: string
+          methodology_id: string
+          theme: Database["public"]["Enums"]["methodology_theme"]
+        }
+        Update: {
+          id?: string
+          methodology_id?: string
+          theme?: Database["public"]["Enums"]["methodology_theme"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "methodology_themes_methodology_id_fkey"
+            columns: ["methodology_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_methodologies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -103,7 +156,13 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      methodology_theme:
+        | "endurance"
+        | "force"
+        | "hypertrophie"
+        | "rehabilitation"
+        | "mobilite"
+        | "explosivite"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -230,6 +289,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      methodology_theme: [
+        "endurance",
+        "force",
+        "hypertrophie",
+        "rehabilitation",
+        "mobilite",
+        "explosivite",
+      ],
+    },
   },
 } as const
