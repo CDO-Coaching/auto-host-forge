@@ -30,6 +30,7 @@ import SuiviSalaire from "./coach/SuiviSalaire";
 import Notes from "./coach/Notes";
 import Agenda from "./coach/Agenda";
 import SeancesProgrammees from "./coach/SeancesProgrammees";
+import Methodologies from "./coach/Methodologies";
 import CoachDashboard from "./coach/Dashboard";
 
 export default function DashboardCoach() {
@@ -183,6 +184,7 @@ export default function DashboardCoach() {
               <Route path="/messagerie" element={<Messagerie />} />
               <Route path="/questions" element={<Questions />} />
               <Route path="/bibliotheque-exercices" element={<BibliothequeExercices />} />
+              <Route path="/methodologies" element={<Methodologies />} />
               <Route path="/comptabilite" element={<Comptabilite />} />
               <Route path="/suivi-salaire" element={<SuiviSalaire />} />
               <Route path="/profil" element={<Profil />} />
