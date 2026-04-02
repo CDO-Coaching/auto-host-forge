@@ -14,6 +14,94 @@ export type Database = {
   }
   public: {
     Tables: {
+      athlete_methodology_assignments: {
+        Row: {
+          athlete_id: string
+          coach_id: string
+          created_at: string
+          id: string
+          methodology_id: string
+          notes: string | null
+          start_date: string
+          status: string
+          total_weeks: number
+          updated_at: string
+        }
+        Insert: {
+          athlete_id: string
+          coach_id: string
+          created_at?: string
+          id?: string
+          methodology_id: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          total_weeks?: number
+          updated_at?: string
+        }
+        Update: {
+          athlete_id?: string
+          coach_id?: string
+          created_at?: string
+          id?: string
+          methodology_id?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          total_weeks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athlete_methodology_assignments_methodology_id_fkey"
+            columns: ["methodology_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_methodologies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      athlete_methodology_weeks: {
+        Row: {
+          assignment_id: string
+          coach_notes: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          id: string
+          observed_rpe: number | null
+          week_number: number
+        }
+        Insert: {
+          assignment_id: string
+          coach_notes?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          observed_rpe?: number | null
+          week_number: number
+        }
+        Update: {
+          assignment_id?: string
+          coach_notes?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          observed_rpe?: number | null
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athlete_methodology_weeks_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "athlete_methodology_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       athlete_subscriptions: {
         Row: {
           athlete_id: string
@@ -100,24 +188,42 @@ export type Database = {
           coach_id: string
           created_at: string
           description: string | null
+          duration_weeks_max: number | null
+          duration_weeks_min: number | null
+          full_description: string | null
           id: string
           name: string
+          progression_summary: string | null
+          rpe_target_max: number | null
+          rpe_target_min: number | null
           updated_at: string
         }
         Insert: {
           coach_id: string
           created_at?: string
           description?: string | null
+          duration_weeks_max?: number | null
+          duration_weeks_min?: number | null
+          full_description?: string | null
           id?: string
           name: string
+          progression_summary?: string | null
+          rpe_target_max?: number | null
+          rpe_target_min?: number | null
           updated_at?: string
         }
         Update: {
           coach_id?: string
           created_at?: string
           description?: string | null
+          duration_weeks_max?: number | null
+          duration_weeks_min?: number | null
+          full_description?: string | null
           id?: string
           name?: string
+          progression_summary?: string | null
+          rpe_target_max?: number | null
+          rpe_target_min?: number | null
           updated_at?: string
         }
         Relationships: []

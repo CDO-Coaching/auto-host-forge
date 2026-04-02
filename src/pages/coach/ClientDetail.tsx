@@ -69,6 +69,7 @@ import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
+import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -2318,6 +2319,7 @@ export default function ClientDetail() {
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
+              <TabsTrigger value="methodologies" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Méthodo</TabsTrigger>
               <TabsTrigger value="historique" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Historique</TabsTrigger>
               <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
             </TabsList>
@@ -4807,6 +4809,13 @@ export default function ClientDetail() {
           <CoachObjectivesView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
+          />
+        </TabsContent>
+
+        <TabsContent value="methodologies" className="space-y-4">
+          <CoachAthleteMethodologies
+            athleteId={athleteId!}
+            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
           />
         </TabsContent>
 
