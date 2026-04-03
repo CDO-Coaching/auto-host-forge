@@ -189,6 +189,7 @@ export default function Methodologies() {
     setSelectedExercises([]);
     setExerciseSearch("");
     setExerciseMuscleFilter("all");
+    setSessionExerciseMap({});
   };
 
   const openCreate = () => {
