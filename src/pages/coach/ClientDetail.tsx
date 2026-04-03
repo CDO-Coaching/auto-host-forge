@@ -1773,17 +1773,40 @@ export default function ClientDetail() {
     setSessionExercises(prev => {
       const currentExercises = prev[sessionId] || [];
       
-      if (field === "series") {
+      if (field === "series" && typeof value === "string") {
+        const seriesCount = parseInt(value) || 0;
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
-        if (currentExercise?.super_set_group && typeof value === "string") {
+        
+        // Auto-generate serie_details
+        const generateSerieDetails = (ex: Exercise, count: number): SerieDetail[] => {
+          if (count <= 0) return [];
+          const existing = ex.serie_details || [];
+          return Array.from({ length: count }, (_, i) => ({
+            reps: existing[i]?.reps ?? ex.reps ?? "",
+            charge: existing[i]?.charge ?? ex.charge ?? "",
+            rpe: existing[i]?.rpe ?? ex.rpe ?? "",
+            tempo: existing[i]?.tempo ?? ex.tempo ?? "",
+            commentaire: existing[i]?.commentaire ?? "",
+          }));
+        };
+
+        if (currentExercise?.super_set_group) {
           const updatedExercises = currentExercises.map((ex) => {
             if (ex.super_set_group === currentExercise.super_set_group) {
-              return { ...ex, series: value };
+              return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
             }
-            return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
+            return ex.id === exerciseId ? { ...ex, [field]: value, serie_details: generateSerieDetails(ex, seriesCount) } : ex;
           });
           return { ...prev, [sessionId]: updatedExercises };
         }
+
+        const updatedExercises = currentExercises.map((ex) => {
+          if (ex.id === exerciseId) {
+            return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
+          }
+          return ex;
+        });
+        return { ...prev, [sessionId]: updatedExercises };
       }
 
       const updatedExercises = currentExercises.map((ex) => {
