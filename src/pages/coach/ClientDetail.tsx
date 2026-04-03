@@ -1797,9 +1797,15 @@ export default function ClientDetail() {
           }));
         };
 
+        // Auto-collapse series details when generated
+        if (seriesCount > 1) {
+          setCollapsedSeriesExercises(prev => ({ ...prev, [exerciseId]: true }));
+        }
+
         if (currentExercise?.super_set_group) {
           const updatedExercises = currentExercises.map((ex) => {
             if (ex.super_set_group === currentExercise.super_set_group) {
+              if (seriesCount > 1) setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: true }));
               return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
             }
             return ex.id === exerciseId ? { ...ex, [field]: value, serie_details: generateSerieDetails(ex, seriesCount) } : ex;
