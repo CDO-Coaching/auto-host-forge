@@ -76,12 +76,17 @@ export default function Methodologies() {
   const [saving, setSaving] = useState(false);
 
   const fetchExercises = async () => {
-    if (!session?.user?.id) return;
-    const { data } = await supabase
-      .from("exercises")
+    const { data, error } = await supabase
+      .from("exercise_library")
       .select("id, name, category, muscle_principal")
-      .eq("coach_id", session.user.id)
       .order("name");
+
+    if (error) {
+      toast.error("Erreur lors du chargement des exercices");
+      setAllExercises([]);
+      return;
+    }
+
     setAllExercises(data || []);
   };
 
@@ -127,7 +132,7 @@ export default function Methodologies() {
     let exerciseDetailsMap: Record<string, Exercise> = {};
     if (allExIds.length > 0) {
       const { data: exData } = await supabase
-        .from("exercises")
+        .from("exercise_library")
         .select("id, name, category, muscle_principal")
         .in("id", allExIds);
       (exData || []).forEach((e: any) => {
