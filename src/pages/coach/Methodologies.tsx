@@ -702,46 +702,48 @@ export default function Methodologies() {
                       ))}
                     </div>
 
-                    <div className="rounded-md border border-border divide-y divide-border bg-background">
-                      {filteredExerciseResults.length > 0 ? (
-                        filteredExerciseResults.map((ex) => (
-                          <button
-                            key={ex.id}
-                            type="button"
-                            className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50"
-                            onClick={() => addExercise(ex)}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-foreground">{ex.name}</p>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {ex.muscle_principal && (
-                                    <Badge variant="outline" className="text-[10px]">
-                                      {ex.muscle_principal}
-                                    </Badge>
-                                  )}
-                                  {ex.category && (
-                                    <Badge variant="secondary" className="text-[10px] capitalize">
-                                      {ex.category}
-                                    </Badge>
-                                  )}
-                                  {ex.muscles_second?.slice(0, 2).map((muscle) => (
-                                    <Badge key={muscle} variant="secondary" className="text-[10px]">
-                                      {muscle}
-                                    </Badge>
-                                  ))}
+                    {(exerciseSearch.trim() || exerciseMuscleFilter !== "all") && (
+                      <div className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border bg-background">
+                        {filteredExerciseResults.length > 0 ? (
+                          filteredExerciseResults.map((ex) => (
+                            <button
+                              key={ex.id}
+                              type="button"
+                              className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50"
+                              onClick={() => addExercise(ex)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-foreground">{ex.name}</p>
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {ex.muscle_principal && (
+                                      <Badge variant="outline" className="text-[10px]">
+                                        {ex.muscle_principal}
+                                      </Badge>
+                                    )}
+                                    {ex.category && (
+                                      <Badge variant="secondary" className="text-[10px] capitalize">
+                                        {ex.category}
+                                      </Badge>
+                                    )}
+                                    {ex.muscles_second?.slice(0, 2).map((muscle) => (
+                                      <Badge key={muscle} variant="secondary" className="text-[10px]">
+                                        {muscle}
+                                      </Badge>
+                                    ))}
+                                  </div>
                                 </div>
+                                <span className="shrink-0 text-xs text-muted-foreground">Ajouter</span>
                               </div>
-                              <span className="shrink-0 text-xs text-muted-foreground">Ajouter</span>
-                            </div>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                          Aucun exercice trouvé.
-                        </div>
-                      )}
-                    </div>
+                            </button>
+                          ))
+                        ) : (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            Aucun exercice trouvé.
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {selectedExercises.length > 0 && (
