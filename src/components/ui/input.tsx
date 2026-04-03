@@ -9,7 +9,9 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
         const input = e.currentTarget;
         // Place cursor at end of value on focus (helps mobile)
         requestAnimationFrame(() => {
-          if (input.value && input.type !== "email" && input.type !== "password") {
+          const selectableTypes = ["text", "search", "tel", "url", "password", "email"];
+
+          if (input.value && selectableTypes.includes(input.type)) {
             const len = input.value.length;
             input.setSelectionRange(len, len);
           }

@@ -28,6 +28,7 @@ interface Exercise {
   name: string;
   category: string | null;
   muscle_principal: string | null;
+  muscles_second?: string[] | null;
 }
 
 interface Methodology {
@@ -71,6 +72,7 @@ export default function Methodologies() {
   const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState("");
+  const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
   const [saving, setSaving] = useState(false);
@@ -78,7 +80,7 @@ export default function Methodologies() {
   const fetchExercises = async () => {
     const { data, error } = await supabase
       .from("exercise_library")
-      .select("id, name, category, muscle_principal")
+      .select("id, name, category, muscle_principal, muscles_second")
       .order("name");
 
     if (error) {
@@ -133,7 +135,7 @@ export default function Methodologies() {
     if (allExIds.length > 0) {
       const { data: exData } = await supabase
         .from("exercise_library")
-        .select("id, name, category, muscle_principal")
+        .select("id, name, category, muscle_principal, muscles_second")
         .in("id", allExIds);
       (exData || []).forEach((e: any) => {
         exerciseDetailsMap[e.id] = e;
@@ -183,6 +185,7 @@ export default function Methodologies() {
     setSessionsInput("");
     setSelectedExercises([]);
     setExerciseSearch("");
+    setExerciseMuscleFilter("all");
   };
 
   const openCreate = () => {
@@ -207,6 +210,7 @@ export default function Methodologies() {
     setSessionsInput("");
     setSelectedExercises(m.exercises || []);
     setExerciseSearch("");
+    setExerciseMuscleFilter("all");
     setDialogOpen(true);
   };
 
@@ -329,12 +333,25 @@ export default function Methodologies() {
     items: filtered.filter((m) => m.themes.includes(theme.value)),
   })).filter((g) => g.items.length > 0);
 
-  const filteredExerciseResults = allExercises.filter(
-    (ex) =>
-      exerciseSearch.length >= 2 &&
-      ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) &&
-      !selectedExercises.some((s) => s.id === ex.id)
-  ).slice(0, 8);
+  const exerciseMuscles = Array.from(
+    new Set(allExercises.map((ex) => ex.muscle_principal).filter(Boolean))
+  ).sort() as string[];
+
+  const filteredExerciseResults = allExercises
+    .filter((ex) => {
+      const matchesSearch =
+        !exerciseSearch ||
+        ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
+        ex.muscle_principal?.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
+        ex.category?.toLowerCase().includes(exerciseSearch.toLowerCase()) ||
+        ex.muscles_second?.some((muscle) => muscle.toLowerCase().includes(exerciseSearch.toLowerCase()));
+
+      const matchesMuscle = exerciseMuscleFilter === "all" || ex.muscle_principal === exerciseMuscleFilter;
+      const notSelected = !selectedExercises.some((s) => s.id === ex.id);
+
+      return matchesSearch && matchesMuscle && notSelected;
+    })
+    .slice(0, 30);
 
   return (
     <div className="space-y-6">
@@ -616,29 +633,74 @@ export default function Methodologies() {
             {/* Exercise search & selection */}
             <div>
               <Label>Exercices associés</Label>
-              <p className="text-xs text-muted-foreground mb-1">Recherche et ajoute les exercices de ta bibliothèque</p>
-              <div className="relative">
+              <p className="text-xs text-muted-foreground mb-2">Recherche et ajoute les exercices de ta bibliothèque</p>
+              <div className="space-y-3 rounded-lg border border-border p-3 bg-card">
                 <Input
                   value={exerciseSearch}
                   onChange={(e) => setExerciseSearch(e.target.value)}
                   placeholder="Rechercher un exercice..."
+                  type="search"
                 />
-                {filteredExerciseResults.length > 0 && (
-                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {filteredExerciseResults.map((ex) => (
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge
+                    variant={exerciseMuscleFilter === "all" ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => setExerciseMuscleFilter("all")}
+                  >
+                    Tous
+                  </Badge>
+                  {exerciseMuscles.map((muscle) => (
+                    <Badge
+                      key={muscle}
+                      variant={exerciseMuscleFilter === muscle ? "default" : "outline"}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setExerciseMuscleFilter(muscle)}
+                    >
+                      {muscle}
+                    </Badge>
+                  ))}
+                </div>
+
+                <div className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border bg-background">
+                  {filteredExerciseResults.length > 0 ? (
+                    filteredExerciseResults.map((ex) => (
                       <button
                         key={ex.id}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex justify-between items-center"
+                        type="button"
+                        className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50"
                         onClick={() => addExercise(ex)}
                       >
-                        <span>{ex.name}</span>
-                        {ex.muscle_principal && (
-                          <span className="text-[10px] text-muted-foreground">{ex.muscle_principal}</span>
-                        )}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground">{ex.name}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {ex.muscle_principal && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {ex.muscle_principal}
+                                </Badge>
+                              )}
+                              {ex.category && (
+                                <Badge variant="secondary" className="text-[10px] capitalize">
+                                  {ex.category}
+                                </Badge>
+                              )}
+                              {ex.muscles_second?.slice(0, 2).map((muscle) => (
+                                <Badge key={muscle} variant="secondary" className="text-[10px]">
+                                  {muscle}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-xs text-muted-foreground shrink-0">Ajouter</span>
+                        </div>
                       </button>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  ) : (
+                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                      Aucun exercice trouvé.
+                    </div>
+                  )}
+                </div>
               </div>
               {selectedExercises.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
