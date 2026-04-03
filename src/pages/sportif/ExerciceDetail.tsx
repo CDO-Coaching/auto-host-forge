@@ -727,6 +727,37 @@ export default function ExerciceDetail() {
           )
         )}
 
+        {/* Détail par série (si le coach a défini des paramètres différents par série) */}
+        {exercise.serie_details && (() => {
+          try {
+            const details = typeof exercise.serie_details === 'string' 
+              ? JSON.parse(exercise.serie_details) 
+              : exercise.serie_details;
+            if (Array.isArray(details) && details.length > 0) {
+              return (
+                <Card className="border border-border">
+                  <CardContent className="p-3 sm:p-4">
+                    <p className="text-xs sm:text-sm font-semibold mb-3">Détail par série</p>
+                    <div className="space-y-2">
+                      {details.map((serie: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2 flex-wrap text-sm border-l-2 border-primary/40 pl-3 py-1">
+                          <Badge variant="outline" className="text-xs font-bold">S{idx + 1}</Badge>
+                          {serie.reps && <span>{serie.reps} reps</span>}
+                          {serie.charge && <span className="text-red-500 font-medium">{serie.charge}</span>}
+                          {serie.rpe && <span className="text-yellow-500">RPE {serie.rpe}</span>}
+                          {serie.tempo && <span className="text-purple-500">Tempo {serie.tempo}</span>}
+                          {serie.commentaire && <span className="text-muted-foreground italic text-xs">"{serie.commentaire}"</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+          } catch (e) {}
+          return null;
+        })()}
+
         {/* Détails de l'exercice - Compact et lisible */}
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {exercise.charge && (
