@@ -74,6 +74,8 @@ export default function Methodologies() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState<string>("all");
+  // Map: "cycleIndex-sessionIndex" → exercise IDs (applies to all weeks of that cycle)
+  const [sessionExerciseMap, setSessionExerciseMap] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
   const [saving, setSaving] = useState(false);
