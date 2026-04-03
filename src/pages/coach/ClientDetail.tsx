@@ -1860,6 +1860,56 @@ export default function ClientDetail() {
       });
       return { ...prev, [sessionId]: updated };
     });
+
+    // Calculate charge suggestion for this serie if reps or rpe changed
+    if (field === "reps" || field === "rpe") {
+      const exercises = sessionExercises[sessionId] || [];
+      const exercise = exercises.find(ex => ex.id === exerciseId);
+      if (exercise) {
+        const details = exercise.serie_details || [];
+        const serie = details[serieIndex];
+        if (serie) {
+          const repsVal = field === "reps" ? value : serie.reps;
+          const rpeVal = field === "rpe" ? value : serie.rpe;
+          const reps = parseInt(repsVal || exercise.reps);
+          const rpe = parseInt(rpeVal || exercise.rpe);
+          if (reps && rpe && !isNaN(reps) && !isNaN(rpe)) {
+            calculateSuggestedLoadForSerie(exercise.exercice, reps, rpe).then(load => {
+              if (load) {
+                setSerieChargeSuggestions(prev => ({ ...prev, [`${exerciseId}-${serieIndex}`]: load }));
+              }
+            });
+          }
+        }
+      }
+    }
+  };
+
+  // Calculate suggested load for a specific serie
+  const calculateSuggestedLoadForSerie = async (exerciseName: string, reps: number, rpe: number): Promise<string | null> => {
+    if (!exerciseName || !reps || !rpe || isNaN(rpe) || isNaN(reps)) return null;
+    try {
+      const { data: libraryData } = await supabase
+        .from("exercise_library")
+        .select("id")
+        .eq("name", exerciseName)
+        .maybeSingle();
+      if (!libraryData?.id) return null;
+      const { data: maxData } = await supabase
+        .from("exercise_maxes")
+        .select("weight_kg")
+        .eq("athlete_id", athleteId)
+        .eq("exercise_id", libraryData.id)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!maxData?.weight_kg) return null;
+      const rir = 10 - rpe;
+      const effectiveReps = reps + rir;
+      const suggestedLoad = maxData.weight_kg * (37 - effectiveReps) / 36;
+      const roundedLoad = Math.round(suggestedLoad * 2) / 2;
+      return roundedLoad.toString();
+    } catch { return null; }
   };
 
   // Calculer la charge suggérée basée sur le max de l'athlète (retourne null si impossible)
