@@ -966,44 +966,6 @@ export default function SeanceDetail() {
                             </div>
                             {!isCardio && (
                               <div className="space-y-2">
-                                <div className="flex gap-2 flex-wrap">
-                                  {item.series && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {item.series} séries
-                                    </Badge>
-                                  )}
-                                  {item.reps && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {item.reps} reps{item.per_side ? " (par côté)" : ""}
-                                    </Badge>
-                                  )}
-                                  {item.charge && (
-                                    <Badge variant="outline" className="text-xs">
-                                      {item.charge}
-                                    </Badge>
-                                  )}
-                                  {item.rpe && (
-                                    <Badge variant="outline" className="text-xs">
-                                      RPE prescrit: {item.rpe}
-                                    </Badge>
-                                  )}
-                                  {item.tempo && (
-                                    <Badge variant="outline" className="text-xs">
-                                      Tempo: {item.tempo}
-                                    </Badge>
-                                  )}
-                                  {item.recuperation && (
-                                    item.recuperation === "0s" ? (
-                                      <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
-                                        ⚡ Enchaîné
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs">
-                                        Récup: {item.recuperation}
-                                      </Badge>
-                                    )
-                                  )}
-                                </div>
                                 {/* Détail par série si défini */}
                                 {item.serie_details && (() => {
                                   try {
@@ -1016,10 +978,14 @@ export default function SeanceDetail() {
                                           {details.map((serie: any, idx: number) => (
                                             <div key={idx} className="flex items-center gap-1.5 flex-wrap text-xs border-l-2 border-primary/30 pl-2 py-0.5">
                                               <span className="font-semibold text-primary">S{idx + 1}</span>
+                                              {(serie.recuperation || item.recuperation) && (
+                                                <span className="text-muted-foreground">{serie.recuperation || item.recuperation}</span>
+                                              )}
                                               {serie.reps && <span>{serie.reps}r</span>}
                                               {serie.charge && <span className="font-medium">{serie.charge}</span>}
                                               {serie.rpe && <span>RPE {serie.rpe}</span>}
                                               {serie.tempo && <span>T:{serie.tempo}</span>}
+                                              {serie.commentaire && <span className="text-muted-foreground italic">· {serie.commentaire}</span>}
                                             </div>
                                           ))}
                                         </div>

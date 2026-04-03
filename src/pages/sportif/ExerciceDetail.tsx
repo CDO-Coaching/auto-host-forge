@@ -763,6 +763,9 @@ export default function ExerciceDetail() {
                         </Badge>
                         
                         <div className="flex-1 flex items-center gap-2 flex-wrap text-sm min-w-0">
+                          {(serie.recuperation || exercise.recuperation) && (
+                            <span className="text-muted-foreground text-xs">{serie.recuperation || exercise.recuperation}</span>
+                          )}
                           {serie.reps && (
                             <span className="font-medium">
                               {serie.reps}{exercise.is_duration ? "s" : " reps"}
