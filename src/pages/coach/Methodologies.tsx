@@ -74,6 +74,8 @@ export default function Methodologies() {
   const [allExercises, setAllExercises] = useState<Exercise[]>([]);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exerciseMuscleFilter, setExerciseMuscleFilter] = useState<string>("all");
+  // Map: "cycleIndex-sessionIndex" → exercise IDs (applies to all weeks of that cycle)
+  const [sessionExerciseMap, setSessionExerciseMap] = useState<Record<string, string[]>>({});
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
   const [saving, setSaving] = useState(false);
@@ -187,6 +189,7 @@ export default function Methodologies() {
     setSelectedExercises([]);
     setExerciseSearch("");
     setExerciseMuscleFilter("all");
+    setSessionExerciseMap({});
   };
 
   const openCreate = () => {
@@ -240,6 +243,41 @@ export default function Methodologies() {
 
   const removeExercise = (id: string) => {
     setSelectedExercises(selectedExercises.filter((e) => e.id !== id));
+    // Also remove from session map
+    setSessionExerciseMap(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        next[key] = next[key].filter(eid => eid !== id);
+        if (next[key].length === 0) delete next[key];
+      }
+      return next;
+    });
+  };
+
+  const addExerciseToSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const existing = prev[key] || [];
+      if (existing.includes(exerciseId)) return prev;
+      return { ...prev, [key]: [...existing, exerciseId] };
+    });
+  };
+
+  const removeExerciseFromSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const filtered = (prev[key] || []).filter(id => id !== exerciseId);
+      const next = { ...prev };
+      if (filtered.length === 0) delete next[key];
+      else next[key] = filtered;
+      return next;
+    });
+  };
+
+  const getSessionExercises = (cycleIndex: number, sessionIndex: number): Exercise[] => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    const ids = sessionExerciseMap[key] || [];
+    return ids.map(id => selectedExercises.find(e => e.id === id)).filter(Boolean) as Exercise[];
   };
 
   const handleSave = async () => {
@@ -763,7 +801,10 @@ export default function Methodologies() {
                 {Number(numCycles) > 0 && Number(weeksPerCycle) > 0 && (
                   <div>
                     <Label>Aperçu de la structure</Label>
-                    <p className="mb-2 text-xs text-muted-foreground">Basé sur {numCycles} cycle(s), {weeksPerCycle} semaine(s)/cycle, {sessionsOptions.length > 0 ? sessionsOptions.join(" ou ") + " séance(s)/semaine" : "séances non définies"}</p>
+                    <p className="mb-2 text-xs text-muted-foreground">
+                      Basé sur {numCycles} cycle(s), {weeksPerCycle} semaine(s)/cycle, {sessionsOptions.length > 0 ? sessionsOptions.join(" ou ") + " séance(s)/semaine" : "séances non définies"}
+                      {selectedExercises.length > 0 && " — clique sur une séance pour y ajouter des exercices"}
+                    </p>
                     <div className="space-y-1 rounded-lg border border-border bg-card p-3">
                       {Array.from({ length: Math.min(Number(numCycles), 12) }, (_, ci) => (
                         <Collapsible key={ci}>
@@ -780,12 +821,51 @@ export default function Methodologies() {
                                 </CollapsibleTrigger>
                                 <CollapsibleContent className="ml-4 border-l border-border/50 pl-2">
                                   {sessionsOptions.length > 0 ? (
-                                    Array.from({ length: Math.max(...sessionsOptions) }, (_, si) => (
-                                      <div key={si} className="flex items-center gap-2 px-2 py-0.5 text-xs text-muted-foreground/70">
-                                        <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
-                                        Séance {si + 1}
-                                      </div>
-                                    ))
+                                    Array.from({ length: Math.max(...sessionsOptions) }, (_, si) => {
+                                      const sessionExs = getSessionExercises(ci, si);
+                                      const availableToAdd = selectedExercises.filter(e => !sessionExs.some(se => se.id === e.id));
+                                      return (
+                                        <Collapsible key={si}>
+                                          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-0.5 text-xs text-muted-foreground/70 hover:bg-accent/30 transition-colors group">
+                                            <ChevronRight className="h-3 w-3 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                                            Séance {si + 1}
+                                            {sessionExs.length > 0 && (
+                                              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{sessionExs.length} exo{sessionExs.length > 1 ? "s" : ""}</Badge>
+                                            )}
+                                          </CollapsibleTrigger>
+                                          <CollapsibleContent className="ml-6 py-1 space-y-1">
+                                            {sessionExs.map(ex => (
+                                              <div key={ex.id} className="flex items-center justify-between gap-2 rounded px-2 py-0.5 text-xs bg-accent/20">
+                                                <span className="text-foreground/80">{ex.name}</span>
+                                                <button type="button" onClick={() => removeExerciseFromSession(ci, si, ex.id)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                  <X className="h-3 w-3" />
+                                                </button>
+                                              </div>
+                                            ))}
+                                            {availableToAdd.length > 0 && (
+                                              <div className="pt-1">
+                                                <select
+                                                  className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
+                                                  value=""
+                                                  onChange={(e) => {
+                                                    if (e.target.value) addExerciseToSession(ci, si, e.target.value);
+                                                  }}
+                                                >
+                                                  <option value="">+ Ajouter un exercice...</option>
+                                                  {availableToAdd.map(ex => (
+                                                    <option key={ex.id} value={ex.id}>{ex.name}</option>
+                                                  ))}
+                                                </select>
+                                              </div>
+                                            )}
+                                            {selectedExercises.length === 0 && (
+                                              <p className="text-[10px] text-muted-foreground/50 italic px-2">Ajoute d'abord des exercices associés ci-dessus</p>
+                                            )}
+                                          </CollapsibleContent>
+                                        </Collapsible>
+                                      );
+                                    })
                                   ) : (
                                     <div className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Aucune séance définie</div>
                                   )}
