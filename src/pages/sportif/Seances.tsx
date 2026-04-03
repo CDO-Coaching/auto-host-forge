@@ -79,8 +79,18 @@ export default function Seances() {
     init();
   }, []);
 
-  const loadWeeks = async (userId: string) => {
+  const loadWeeks = async (userId?: string) => {
     setLoading(true);
+
+    const resolvedUserId = userId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (!resolvedUserId) {
+      setWeeks([]);
+      setSelectedWeek(null);
+      setSessions([]);
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("training_weeks")
       .select("*")
