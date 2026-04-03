@@ -174,6 +174,7 @@ export default function ClientDetail() {
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
+  const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
@@ -1825,7 +1826,7 @@ export default function ClientDetail() {
     });
 
     // Defer async suggested load calculation so it doesn't block input
-    if ((field === "rpe" || field === "reps" || field === "exercice") && typeof value === "string") {
+    if ((field === "rpe" || field === "reps" || field === "exercice" || field === "series") && typeof value === "string") {
       // Build a temporary exercise for calculation
       const currentExercises = sessionExercises[sessionId] || [];
       const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
@@ -1842,6 +1843,25 @@ export default function ClientDetail() {
             }));
           }
         });
+
+        // Also calculate suggestions for each serie detail
+        const seriesCount = field === "series" ? parseInt(value) : parseInt(currentExercise.series);
+        if (seriesCount > 1) {
+          const details = updatedExercise.serie_details || [];
+          for (let i = 0; i < Math.min(seriesCount, details.length); i++) {
+            const serie = details[i];
+            const reps = parseInt(serie.reps || updatedExercise.reps);
+            const rpe = parseInt(serie.rpe || updatedExercise.rpe);
+            if (reps && rpe && !isNaN(reps) && !isNaN(rpe)) {
+              const idx = i;
+              calculateSuggestedLoadForSerie(updatedExercise.exercice, reps, rpe).then(load => {
+                if (load) {
+                  setSerieChargeSuggestions(prev => ({ ...prev, [`${exerciseId}-${idx}`]: load }));
+                }
+              });
+            }
+          }
+        }
       }
     }
   };
@@ -1859,6 +1879,56 @@ export default function ClientDetail() {
       });
       return { ...prev, [sessionId]: updated };
     });
+
+    // Calculate charge suggestion for this serie if reps or rpe changed
+    if (field === "reps" || field === "rpe") {
+      const exercises = sessionExercises[sessionId] || [];
+      const exercise = exercises.find(ex => ex.id === exerciseId);
+      if (exercise) {
+        const details = exercise.serie_details || [];
+        const serie = details[serieIndex];
+        if (serie) {
+          const repsVal = field === "reps" ? value : serie.reps;
+          const rpeVal = field === "rpe" ? value : serie.rpe;
+          const reps = parseInt(repsVal || exercise.reps);
+          const rpe = parseInt(rpeVal || exercise.rpe);
+          if (reps && rpe && !isNaN(reps) && !isNaN(rpe)) {
+            calculateSuggestedLoadForSerie(exercise.exercice, reps, rpe).then(load => {
+              if (load) {
+                setSerieChargeSuggestions(prev => ({ ...prev, [`${exerciseId}-${serieIndex}`]: load }));
+              }
+            });
+          }
+        }
+      }
+    }
+  };
+
+  // Calculate suggested load for a specific serie
+  const calculateSuggestedLoadForSerie = async (exerciseName: string, reps: number, rpe: number): Promise<string | null> => {
+    if (!exerciseName || !reps || !rpe || isNaN(rpe) || isNaN(reps)) return null;
+    try {
+      const { data: libraryData } = await supabase
+        .from("exercise_library")
+        .select("id")
+        .eq("name", exerciseName)
+        .maybeSingle();
+      if (!libraryData?.id) return null;
+      const { data: maxData } = await supabase
+        .from("exercise_maxes")
+        .select("weight_kg")
+        .eq("athlete_id", athleteId)
+        .eq("exercise_id", libraryData.id)
+        .order("recorded_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!maxData?.weight_kg) return null;
+      const rir = 10 - rpe;
+      const effectiveReps = reps + rir;
+      const suggestedLoad = maxData.weight_kg * (37 - effectiveReps) / 36;
+      const roundedLoad = Math.round(suggestedLoad * 2) / 2;
+      return roundedLoad.toString();
+    } catch { return null; }
   };
 
   // Calculer la charge suggérée basée sur le max de l'athlète (retourne null si impossible)
@@ -4599,7 +4669,11 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.charge}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
-                                                                placeholder={exercise.charge || "charge"}
+                                                                placeholder={
+                                                                  !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
+                                                                    ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
+                                                                    : (exercise.charge || "charge")
+                                                                }
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
                                                               />
