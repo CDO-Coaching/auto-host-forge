@@ -32,6 +32,14 @@ interface Exercise {
   muscles_second?: string[] | null;
 }
 
+interface SessionExerciseConfig {
+  exerciseId: string;
+  sets: string;
+  reps: string;
+  rpe: string;
+  percentMax: string;
+}
+
 interface Methodology {
   id: string;
   name: string;
