@@ -559,9 +559,8 @@ export default function Methodologies() {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen} modal={true}>
-        <DialogContent className="max-w-none w-screen h-screen rounded-none border-none p-0 m-0 gap-0 [&>button]:hidden">
-          <div className="flex flex-col h-full">
-            {/* Sticky header */}
+        <DialogContent className="!left-0 !top-0 !translate-x-0 !translate-y-0 h-screen w-screen max-w-none rounded-none border-none p-0 sm:rounded-none [&>button]:hidden">
+          <div className="flex h-full min-h-0 flex-col">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
               <h2 className="text-lg font-semibold">{editingId ? "Modifier la méthodologie" : "Nouvelle méthodologie"}</h2>
               <div className="flex gap-2">
@@ -571,203 +570,202 @@ export default function Methodologies() {
                 </Button>
               </div>
             </div>
-            {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 lg:px-16">
-              <div className="mx-auto max-w-5xl space-y-5">
-            {/* Row 1: Nom + Description */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div>
-                <Label>Nom *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
-              </div>
-              <div>
-                <Label>Description courte</Label>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Résumé en une ou deux phrases..." rows={2} />
-              </div>
-            </div>
 
-            {/* Row 2: Thèmes + Structure */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div>
-                <Label>Thèmes *</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2">
-                  {THEMES.map((t) => (
-                    <label
-                      key={t.value}
-                      className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition-colors"
-                      style={selectedThemes.includes(t.value) ? { borderColor: t.color, backgroundColor: `${t.color}10` } : {}}
-                    >
-                      <Checkbox checked={selectedThemes.includes(t.value)} onCheckedChange={() => toggleTheme(t.value)} />
-                      <span className="text-sm" style={selectedThemes.includes(t.value) ? { color: t.color, fontWeight: 500 } : {}}>
-                        {t.label}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Nombre de cycles</Label>
-                    <Input type="number" min="1" value={numCycles} onChange={(e) => setNumCycles(e.target.value)} placeholder="Ex: 4" />
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 pb-12 sm:px-6 lg:px-8">
+              <div className="w-full space-y-5">
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+                  <div className="xl:col-span-5">
+                    <Label>Nom *</Label>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
                   </div>
-                  <div>
-                    <Label>Semaines par cycle</Label>
-                    <Input type="number" min="1" value={weeksPerCycle} onChange={(e) => setWeeksPerCycle(e.target.value)} placeholder="Ex: 5" />
+                  <div className="xl:col-span-7">
+                    <Label>Description courte</Label>
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Résumé en une ou deux phrases..." rows={3} />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+                  <div className="xl:col-span-6">
+                    <Label>Thèmes *</Label>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {THEMES.map((t) => (
+                        <label
+                          key={t.value}
+                          className="flex items-center gap-2 rounded-lg border p-2 transition-colors cursor-pointer"
+                          style={selectedThemes.includes(t.value) ? { borderColor: t.color, backgroundColor: `${t.color}10` } : {}}
+                        >
+                          <Checkbox checked={selectedThemes.includes(t.value)} onCheckedChange={() => toggleTheme(t.value)} />
+                          <span className="text-sm" style={selectedThemes.includes(t.value) ? { color: t.color, fontWeight: 500 } : {}}>
+                            {t.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 xl:col-span-6">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <Label>Nombre de cycles</Label>
+                        <Input type="number" min="1" value={numCycles} onChange={(e) => setNumCycles(e.target.value)} placeholder="Ex: 4" />
+                      </div>
+                      <div>
+                        <Label>Semaines par cycle</Label>
+                        <Input type="number" min="1" value={weeksPerCycle} onChange={(e) => setWeeksPerCycle(e.target.value)} placeholder="Ex: 5" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Nombre de séances possibles</Label>
+                      <p className="mb-1 text-xs text-muted-foreground">Ajoute les différentes options (ex: 3, 4 ou 5 séances/semaine)</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Input
+                          type="number"
+                          min="1"
+                          value={sessionsInput}
+                          onChange={(e) => setSessionsInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSessionOption(); } }}
+                          placeholder="Ex: 3"
+                          className="w-24"
+                        />
+                        <Button type="button" variant="outline" size="sm" onClick={addSessionOption}>Ajouter</Button>
+                      </div>
+                      {sessionsOptions.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {sessionsOptions.map((s) => (
+                            <Badge key={s} variant="secondary" className="gap-1 text-xs">
+                              {s} séances
+                              <X className="h-3 w-3 cursor-pointer" onClick={() => removeSessionOption(s)} />
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div>
+                    <Label>Durée min (semaines)</Label>
+                    <Input type="number" min="1" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="3" />
+                  </div>
+                  <div>
+                    <Label>Durée max (semaines)</Label>
+                    <Input type="number" min="1" value={durationMax} onChange={(e) => setDurationMax(e.target.value)} placeholder="5" />
+                  </div>
+                  <div>
+                    <Label>RPE cible min</Label>
+                    <Input type="number" min="1" max="10" step="0.5" value={rpeMin} onChange={(e) => setRpeMin(e.target.value)} placeholder="7" />
+                  </div>
+                  <div>
+                    <Label>RPE cible max</Label>
+                    <Input type="number" min="1" max="10" step="0.5" value={rpeMax} onChange={(e) => setRpeMax(e.target.value)} placeholder="9.5" />
+                  </div>
+                </div>
+
                 <div>
-                  <Label>Nombre de séances possibles</Label>
-                  <p className="text-xs text-muted-foreground mb-1">Ajoute les différentes options (ex: 3, 4 ou 5 séances/semaine)</p>
-                  <div className="flex gap-2 items-center">
+                  <Label>Exercices associés</Label>
+                  <p className="mb-2 text-xs text-muted-foreground">Recherche et ajoute les exercices de ta bibliothèque</p>
+                  <div className="space-y-3 rounded-lg border border-border bg-card p-3">
                     <Input
-                      type="number"
-                      min="1"
-                      value={sessionsInput}
-                      onChange={(e) => setSessionsInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSessionOption(); } }}
-                      placeholder="Ex: 3"
-                      className="w-24"
+                      value={exerciseSearch}
+                      onChange={(e) => setExerciseSearch(e.target.value)}
+                      placeholder="Rechercher un exercice..."
+                      type="search"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (filteredExerciseResults.length > 0) {
+                            addExercise(filteredExerciseResults[0]);
+                          }
+                        }
+                      }}
                     />
-                    <Button type="button" variant="outline" size="sm" onClick={addSessionOption}>Ajouter</Button>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge
+                        variant={exerciseMuscleFilter === "all" ? "default" : "outline"}
+                        className="cursor-pointer text-xs"
+                        onClick={() => setExerciseMuscleFilter("all")}
+                      >
+                        Tous
+                      </Badge>
+                      {exerciseMuscles.map((muscle) => (
+                        <Badge
+                          key={muscle}
+                          variant={exerciseMuscleFilter === muscle ? "default" : "outline"}
+                          className="cursor-pointer text-xs"
+                          onClick={() => setExerciseMuscleFilter(muscle)}
+                        >
+                          {muscle}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <div className="rounded-md border border-border divide-y divide-border bg-background">
+                      {filteredExerciseResults.length > 0 ? (
+                        filteredExerciseResults.map((ex) => (
+                          <button
+                            key={ex.id}
+                            type="button"
+                            className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50"
+                            onClick={() => addExercise(ex)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-foreground">{ex.name}</p>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {ex.muscle_principal && (
+                                    <Badge variant="outline" className="text-[10px]">
+                                      {ex.muscle_principal}
+                                    </Badge>
+                                  )}
+                                  {ex.category && (
+                                    <Badge variant="secondary" className="text-[10px] capitalize">
+                                      {ex.category}
+                                    </Badge>
+                                  )}
+                                  {ex.muscles_second?.slice(0, 2).map((muscle) => (
+                                    <Badge key={muscle} variant="secondary" className="text-[10px]">
+                                      {muscle}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              <span className="shrink-0 text-xs text-muted-foreground">Ajouter</span>
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          Aucun exercice trouvé.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {sessionsOptions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      {sessionsOptions.map((s) => (
-                        <Badge key={s} variant="secondary" className="gap-1 text-xs">
-                          {s} séances
-                          <X className="h-3 w-3 cursor-pointer" onClick={() => removeSessionOption(s)} />
+
+                  {selectedExercises.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {selectedExercises.map((ex) => (
+                        <Badge key={ex.id} variant="secondary" className="gap-1 text-xs">
+                          {ex.name}
+                          <X className="h-3 w-3 cursor-pointer" onClick={() => removeExercise(ex.id)} />
                         </Badge>
                       ))}
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
 
-            {/* Row 3: Durée + RPE */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div>
-                <Label>Durée min (semaines)</Label>
-                <Input type="number" min="1" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="3" />
-              </div>
-              <div>
-                <Label>Durée max (semaines)</Label>
-                <Input type="number" min="1" value={durationMax} onChange={(e) => setDurationMax(e.target.value)} placeholder="5" />
-              </div>
-              <div>
-                <Label>RPE cible min</Label>
-                <Input type="number" min="1" max="10" step="0.5" value={rpeMin} onChange={(e) => setRpeMin(e.target.value)} placeholder="7" />
-              </div>
-              <div>
-                <Label>RPE cible max</Label>
-                <Input type="number" min="1" max="10" step="0.5" value={rpeMax} onChange={(e) => setRpeMax(e.target.value)} placeholder="9.5" />
-              </div>
-            </div>
-
-            {/* Row 4: Exercices associés (full width) */}
-            <div>
-              <Label>Exercices associés</Label>
-              <p className="text-xs text-muted-foreground mb-2">Recherche et ajoute les exercices de ta bibliothèque</p>
-              <div className="space-y-3 rounded-lg border border-border p-3 bg-card">
-                <Input
-                  value={exerciseSearch}
-                  onChange={(e) => setExerciseSearch(e.target.value)}
-                  placeholder="Rechercher un exercice..."
-                  type="search"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      if (filteredExerciseResults.length > 0) {
-                        addExercise(filteredExerciseResults[0]);
-                      }
-                    }
-                  }}
-                />
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge
-                    variant={exerciseMuscleFilter === "all" ? "default" : "outline"}
-                    className="cursor-pointer text-xs"
-                    onClick={() => setExerciseMuscleFilter("all")}
-                  >
-                    Tous
-                  </Badge>
-                  {exerciseMuscles.map((muscle) => (
-                    <Badge
-                      key={muscle}
-                      variant={exerciseMuscleFilter === muscle ? "default" : "outline"}
-                      className="cursor-pointer text-xs"
-                      onClick={() => setExerciseMuscleFilter(muscle)}
-                    >
-                      {muscle}
-                    </Badge>
-                  ))}
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                  <div>
+                    <Label>Résumé de progression</Label>
+                    <Textarea value={progressionSummary} onChange={(e) => setProgressionSummary(e.target.value)} placeholder="Ex: Semaine 1 RPE 7-8, Semaine 2 RPE 7.5-8.5..." rows={6} />
+                  </div>
+                  <div>
+                    <Label>Description complète</Label>
+                    <Textarea value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} placeholder="Structure détaillée, séries, repos, intensité, adaptations, contraintes..." rows={6} />
+                  </div>
                 </div>
-
-                <div className="max-h-56 overflow-y-auto rounded-md border border-border divide-y divide-border bg-background">
-                  {filteredExerciseResults.length > 0 ? (
-                    filteredExerciseResults.map((ex) => (
-                      <button
-                        key={ex.id}
-                        type="button"
-                        className="w-full px-3 py-2 text-left transition-colors hover:bg-accent/50"
-                        onClick={() => addExercise(ex)}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground">{ex.name}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {ex.muscle_principal && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {ex.muscle_principal}
-                                </Badge>
-                              )}
-                              {ex.category && (
-                                <Badge variant="secondary" className="text-[10px] capitalize">
-                                  {ex.category}
-                                </Badge>
-                              )}
-                              {ex.muscles_second?.slice(0, 2).map((muscle) => (
-                                <Badge key={muscle} variant="secondary" className="text-[10px]">
-                                  {muscle}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground shrink-0">Ajouter</span>
-                        </div>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                      Aucun exercice trouvé.
-                    </div>
-                  )}
-                </div>
-              </div>
-              {selectedExercises.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {selectedExercises.map((ex) => (
-                    <Badge key={ex.id} variant="secondary" className="gap-1 text-xs">
-                      {ex.name}
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeExercise(ex.id)} />
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Row 5: Textes longs */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div>
-                <Label>Résumé de progression</Label>
-                <Textarea value={progressionSummary} onChange={(e) => setProgressionSummary(e.target.value)} placeholder="Ex: Semaine 1 RPE 7-8, Semaine 2 RPE 7.5-8.5..." rows={5} />
-              </div>
-              <div>
-                <Label>Description complète</Label>
-                <Textarea value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} placeholder="Structure détaillée, séries, repos, intensité, adaptations, contraintes..." rows={5} />
-              </div>
-            </div>
               </div>
             </div>
           </div>
