@@ -94,7 +94,7 @@ export default function Seances() {
     const { data, error } = await supabase
       .from("training_weeks")
       .select("*")
-      .eq("athlete_id", userId)
+      .eq("athlete_id", resolvedUserId)
       .eq("validated", true)
       .order("year", { ascending: false })
       .order("week_number", { ascending: false })
