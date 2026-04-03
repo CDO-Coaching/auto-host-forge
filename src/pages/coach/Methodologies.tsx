@@ -276,13 +276,12 @@ export default function Methodologies() {
       const themeRows = selectedThemes.map((theme) => ({ methodology_id: methId!, theme }));
       const exerciseRows = selectedExercises.map((ex) => ({ methodology_id: methId!, exercise_id: ex.id }));
 
-      const promises: Promise<any>[] = [supabase.from("methodology_themes").insert(themeRows)];
+      const { error: themeError } = await supabase.from("methodology_themes").insert(themeRows);
+      if (themeError) throw themeError;
+
       if (exerciseRows.length > 0) {
-        promises.push(supabase.from("methodology_exercises").insert(exerciseRows));
-      }
-      const results = await Promise.all(promises);
-      for (const r of results) {
-        if (r.error) throw r.error;
+        const { error: exError } = await supabase.from("methodology_exercises").insert(exerciseRows);
+        if (exError) throw exError;
       }
 
       toast.success(editingId ? "Méthodologie modifiée" : "Méthodologie ajoutée");
