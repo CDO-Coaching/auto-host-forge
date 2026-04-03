@@ -372,8 +372,10 @@ export default function ExerciceDetail() {
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
 
-    // Start recovery timer
-    startRecoveryTimer();
+    // Start recovery timer with per-series recuperation if available
+    const serieData = seriesData[rpeDialogSerieIndex];
+    const serieRecup = serieData?.recuperation || undefined;
+    startRecoveryTimer(serieRecup);
   };
 
   const startTimer = () => {
