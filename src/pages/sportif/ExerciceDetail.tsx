@@ -318,7 +318,7 @@ export default function ExerciceDetail() {
       setTimerInterval(null);
     }
 
-    const recuperationTime = parseRecuperationTime(exercise.recuperation);
+    const recuperationTime = parseRecuperationTime(recup);
     const now = Date.now();
 
     setTimeRemaining(recuperationTime);
