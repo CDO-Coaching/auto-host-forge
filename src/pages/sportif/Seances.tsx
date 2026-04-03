@@ -73,63 +73,104 @@ export default function Seances() {
         setLoading(false);
         return;
       }
-      loadWeeks();
+      loadWeeks(user.id);
       loadCustomSessions();
     };
     init();
   }, []);
 
-  const loadWeeks = async () => {
+  const loadWeeks = async (userId: string) => {
     setLoading(true);
     const { data, error } = await supabase
       .from("training_weeks")
       .select("*")
+      .eq("athlete_id", userId)
       .eq("validated", true)
       .order("year", { ascending: false })
-      .order("week_number", { ascending: false });
+      .order("week_number", { ascending: false })
+      .order("created_at", { ascending: false });
 
     console.log("📅 Semaines validées chargées:", { count: data?.length, error, data: data?.map((w: any) => ({ id: w.id, week: w.week_number, year: w.year, athlete_id: w.athlete_id })) });
 
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
-      // Ne pas écraser weeks existant en cas d'erreur transitoire (token refresh)
       setLoading(false);
       return;
-    } else {
-      const now = new Date();
-      const currentYear = getWeekYear(now);
-      const currentWeekNumber = getWeekNumber(now);
-
-      console.log("📅 Filtre semaine actuelle:", { currentYear, currentWeekNumber });
-
-      const filteredWeeks = (data || []).filter((week: any) => {
-        if (week.year < currentYear) return true;
-        if (week.year > currentYear) return false;
-        return week.week_number <= currentWeekNumber;
-      });
-
-      console.log("📅 Semaines après filtrage:", filteredWeeks.length);
-
-      setWeeks(filteredWeeks);
-      
-      // Chercher la semaine actuelle
-      const currentWeek = filteredWeeks.find(
-        (week: any) => week.week_number === currentWeekNumber && week.year === currentYear
-      );
-
-      if (currentWeek) {
-        // La semaine actuelle existe, l'afficher
-        loadWeekSessions(currentWeek.id);
-        setSelectedWeek(currentWeek);
-      } else if (filteredWeeks && filteredWeeks.length > 0) {
-        // La semaine actuelle n'existe pas, afficher la plus récente
-        loadWeekSessions(filteredWeeks[0].id);
-        setSelectedWeek(filteredWeeks[0]);
-      } else {
-        // Aucune semaine disponible
-        setSelectedWeek(null);
-      }
     }
+
+    const now = new Date();
+    const currentYear = getWeekYear(now);
+    const currentWeekNumber = getWeekNumber(now);
+
+    console.log("📅 Filtre semaine actuelle:", { currentYear, currentWeekNumber });
+
+    const filteredWeeks = (data || []).filter((week: any) => {
+      if (week.year < currentYear) return true;
+      if (week.year > currentYear) return false;
+      return week.week_number <= currentWeekNumber;
+    });
+
+    const weekIds = filteredWeeks.map((week: any) => week.id);
+    const { data: sessionLinks, error: sessionLinksError } = weekIds.length
+      ? await supabase
+          .from("training_sessions")
+          .select("week_id")
+          .in("week_id", weekIds)
+      : { data: [], error: null };
+
+    if (sessionLinksError) {
+      console.error("Erreur lors du comptage des séances par semaine:", sessionLinksError);
+    }
+
+    const sessionCountByWeekId = new Map<string, number>();
+    (sessionLinks || []).forEach((session: any) => {
+      sessionCountByWeekId.set(session.week_id, (sessionCountByWeekId.get(session.week_id) || 0) + 1);
+    });
+
+    const uniqueWeeksMap = new Map<string, any>();
+    filteredWeeks.forEach((week: any) => {
+      const key = `${week.year}-${week.week_number}`;
+      const currentBest = uniqueWeeksMap.get(key);
+      const weekWithCount = {
+        ...week,
+        session_count: sessionCountByWeekId.get(week.id) || 0,
+      };
+
+      if (!currentBest) {
+        uniqueWeeksMap.set(key, weekWithCount);
+        return;
+      }
+
+      if (weekWithCount.session_count > currentBest.session_count) {
+        uniqueWeeksMap.set(key, weekWithCount);
+      }
+    });
+
+    const uniqueWeeks = Array.from(uniqueWeeksMap.values()).sort((a: any, b: any) => {
+      if (a.year !== b.year) return b.year - a.year;
+      if (a.week_number !== b.week_number) return b.week_number - a.week_number;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    console.log("📅 Semaines après filtrage:", uniqueWeeks.length);
+
+    setWeeks(uniqueWeeks);
+
+    const currentWeek = uniqueWeeks.find(
+      (week: any) => week.week_number === currentWeekNumber && week.year === currentYear,
+    );
+
+    if (currentWeek) {
+      loadWeekSessions(currentWeek.id);
+      setSelectedWeek(currentWeek);
+    } else if (uniqueWeeks.length > 0) {
+      loadWeekSessions(uniqueWeeks[0].id);
+      setSelectedWeek(uniqueWeeks[0]);
+    } else {
+      setSelectedWeek(null);
+      setSessions([]);
+    }
+
     setLoading(false);
   };
 
