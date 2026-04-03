@@ -153,6 +153,7 @@ export default function ClientDetail() {
     skipped?: boolean;
   }>>({});
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+  const [collapsedSeriesExercises, setCollapsedSeriesExercises] = useState<Record<string, boolean>>({});
   const [lastWeekData, setLastWeekData] = useState<any>(null);
   const [newHistoricalSessionName, setNewHistoricalSessionName] = useState("");
   const [newHistoricalSessionType, setNewHistoricalSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
