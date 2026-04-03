@@ -243,6 +243,41 @@ export default function Methodologies() {
 
   const removeExercise = (id: string) => {
     setSelectedExercises(selectedExercises.filter((e) => e.id !== id));
+    // Also remove from session map
+    setSessionExerciseMap(prev => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        next[key] = next[key].filter(eid => eid !== id);
+        if (next[key].length === 0) delete next[key];
+      }
+      return next;
+    });
+  };
+
+  const addExerciseToSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const existing = prev[key] || [];
+      if (existing.includes(exerciseId)) return prev;
+      return { ...prev, [key]: [...existing, exerciseId] };
+    });
+  };
+
+  const removeExerciseFromSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const filtered = (prev[key] || []).filter(id => id !== exerciseId);
+      const next = { ...prev };
+      if (filtered.length === 0) delete next[key];
+      else next[key] = filtered;
+      return next;
+    });
+  };
+
+  const getSessionExercises = (cycleIndex: number, sessionIndex: number): Exercise[] => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    const ids = sessionExerciseMap[key] || [];
+    return ids.map(id => selectedExercises.find(e => e.id === id)).filter(Boolean) as Exercise[];
   };
 
   const handleSave = async () => {
