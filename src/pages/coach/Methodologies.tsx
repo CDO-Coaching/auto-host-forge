@@ -683,24 +683,6 @@ export default function Methodologies() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <div>
-                    <Label>Durée min (semaines)</Label>
-                    <Input type="number" min="1" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="3" />
-                  </div>
-                  <div>
-                    <Label>Durée max (semaines)</Label>
-                    <Input type="number" min="1" value={durationMax} onChange={(e) => setDurationMax(e.target.value)} placeholder="5" />
-                  </div>
-                  <div>
-                    <Label>RPE cible min</Label>
-                    <Input type="number" min="1" max="10" step="0.5" value={rpeMin} onChange={(e) => setRpeMin(e.target.value)} placeholder="7" />
-                  </div>
-                  <div>
-                    <Label>RPE cible max</Label>
-                    <Input type="number" min="1" max="10" step="0.5" value={rpeMax} onChange={(e) => setRpeMax(e.target.value)} placeholder="9.5" />
-                  </div>
-                </div>
 
                 <div>
                   <Label>Exercices associés</Label>
