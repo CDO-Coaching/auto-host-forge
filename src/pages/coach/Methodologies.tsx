@@ -875,7 +875,7 @@ export default function Methodologies() {
                                                           <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                         </TableCell>
                                                         <TableCell className="py-1">
-                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="80kg" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                         </TableCell>
                                                         <TableCell className="py-1">
                                                           <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
