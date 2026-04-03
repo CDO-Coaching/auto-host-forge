@@ -174,6 +174,7 @@ export default function ClientDetail() {
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
+  const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
