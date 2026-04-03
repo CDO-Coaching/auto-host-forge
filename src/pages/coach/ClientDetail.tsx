@@ -4547,6 +4547,66 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                     </TableRow>
 
+                                                    {/* Sous-lignes par série */}
+                                                    {exercise.serie_details && exercise.serie_details.length > 1 && (
+                                                      exercise.serie_details.map((serie, si) => (
+                                                        <TableRow key={`${exercise.id}-serie-${si}`} className="bg-muted/20">
+                                                          <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
+                                                            Série {si + 1}
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.reps}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "reps", e.target.value)}
+                                                              placeholder={exercise.reps || "reps"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.rpe}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
+                                                              placeholder={exercise.rpe || "RPE"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.charge}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
+                                                              placeholder={exercise.charge || "charge"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.tempo}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "tempo", e.target.value)}
+                                                              placeholder={exercise.tempo || "tempo"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.commentaire}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "commentaire", e.target.value)}
+                                                              placeholder=""
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell></TableCell>
+                                                        </TableRow>
+                                                      ))
+                                                    )}
+
                                                     {/* Bouton pour créer un super-set */}
                                                     {!isLastExercise && !isValidated && (
                                                       <TableRow>
