@@ -9,10 +9,31 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight } from "lucide-react";
+
+const RECUPERATION_OPTIONS = [
+  { value: "0s", label: "Aucune" },
+  { value: "30s", label: "30 sec" },
+  { value: "35s", label: "35 sec" },
+  { value: "40s", label: "40 sec" },
+  { value: "45s", label: "45 sec" },
+  { value: "50s", label: "50 sec" },
+  { value: "55s", label: "55 sec" },
+  { value: "1min", label: "1 min" },
+  { value: "1min30s", label: "1'30" },
+  { value: "2min", label: "2 min" },
+  { value: "2min30s", label: "2'30" },
+  { value: "3min", label: "3 min" },
+  { value: "3min30s", label: "3'30" },
+  { value: "4min", label: "4 min" },
+  { value: "4min30s", label: "4'30" },
+  { value: "5min", label: "5 min" },
+  { value: "emom", label: "EMOM" },
+];
 
 const THEMES = [
   { value: "endurance", label: "Endurance", color: "hsl(200, 70%, 50%)" },
@@ -863,7 +884,16 @@ export default function Methodologies() {
                                                       <TableRow key={cfg.exerciseId} className="h-8">
                                                         <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
                                                         <TableCell className="py-1">
-                                                          <input type="text" value={cfg.recuperation} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", e.target.value)} placeholder="1'30" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                          <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", v)}>
+                                                            <SelectTrigger className="h-6 text-[11px] px-1 min-w-[60px]">
+                                                              <SelectValue placeholder="Récup" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                              {RECUPERATION_OPTIONS.map(opt => (
+                                                                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                                                              ))}
+                                                            </SelectContent>
+                                                          </Select>
                                                         </TableCell>
                                                         <TableCell className="py-1">
                                                           <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
