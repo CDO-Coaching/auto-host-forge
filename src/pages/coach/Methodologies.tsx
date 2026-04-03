@@ -852,7 +852,7 @@ export default function Methodologies() {
                                                       <TableHead className="min-w-[50px] text-[10px]">Reps</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="min-w-[40px] text-[10px]">RPE</TableHead>
-                                                      <TableHead className="min-w-[60px] text-[10px]">Charge</TableHead>
+                                                      <TableHead className="min-w-[60px] text-[10px]">% Max</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Tempo</TableHead>
                                                       <TableHead className="min-w-[80px] text-[10px]">Comm.</TableHead>
                                                       <TableHead className="w-[30px]"></TableHead>
@@ -875,7 +875,7 @@ export default function Methodologies() {
                                                           <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                         </TableCell>
                                                         <TableCell className="py-1">
-                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="80kg" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                         </TableCell>
                                                         <TableCell className="py-1">
                                                           <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
