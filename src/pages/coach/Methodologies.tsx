@@ -759,6 +759,46 @@ export default function Methodologies() {
                   )}
                 </div>
 
+                {/* Structure preview tree */}
+                {Number(numCycles) > 0 && Number(weeksPerCycle) > 0 && (
+                  <div>
+                    <Label>Aperçu de la structure</Label>
+                    <p className="mb-2 text-xs text-muted-foreground">Basé sur {numCycles} cycle(s), {weeksPerCycle} semaine(s)/cycle, {sessionsOptions.length > 0 ? sessionsOptions.join(" ou ") + " séance(s)/semaine" : "séances non définies"}</p>
+                    <div className="space-y-1 rounded-lg border border-border bg-card p-3">
+                      {Array.from({ length: Math.min(Number(numCycles), 12) }, (_, ci) => (
+                        <Collapsible key={ci}>
+                          <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-foreground hover:bg-accent/50 transition-colors group">
+                            <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+                            Cycle {ci + 1}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="ml-4 border-l border-border pl-2">
+                            {Array.from({ length: Math.min(Number(weeksPerCycle), 20) }, (_, wi) => (
+                              <Collapsible key={wi}>
+                                <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-sm text-muted-foreground hover:bg-accent/50 transition-colors group">
+                                  <ChevronRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+                                  Semaine {wi + 1}
+                                </CollapsibleTrigger>
+                                <CollapsibleContent className="ml-4 border-l border-border/50 pl-2">
+                                  {sessionsOptions.length > 0 ? (
+                                    Array.from({ length: Math.max(...sessionsOptions) }, (_, si) => (
+                                      <div key={si} className="flex items-center gap-2 px-2 py-0.5 text-xs text-muted-foreground/70">
+                                        <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
+                                        Séance {si + 1}
+                                      </div>
+                                    ))
+                                  ) : (
+                                    <div className="px-2 py-0.5 text-xs text-muted-foreground/50 italic">Aucune séance définie</div>
+                                  )}
+                                </CollapsibleContent>
+                              </Collapsible>
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                   <div>
                     <Label>Résumé de progression</Label>
