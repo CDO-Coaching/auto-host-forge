@@ -96,6 +96,14 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
 }
 
+interface SerieDetail {
+  reps: string;
+  charge: string;
+  rpe: string;
+  tempo: string;
+  commentaire: string;
+}
+
 interface Exercise {
   id: number;
   exercice: string;
@@ -114,6 +122,7 @@ interface Exercise {
   is_unilateral?: boolean;
   is_duration?: boolean;
   request_video?: boolean;
+  serie_details?: SerieDetail[];
 }
 
 export default function ClientDetail() {
