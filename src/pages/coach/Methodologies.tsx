@@ -884,7 +884,16 @@ export default function Methodologies() {
                                                       <TableRow key={cfg.exerciseId} className="h-8">
                                                         <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
                                                         <TableCell className="py-1">
-                                                          <input type="text" value={cfg.recuperation} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", e.target.value)} placeholder="1'30" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                          <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", v)}>
+                                                            <SelectTrigger className="h-6 text-[11px] px-1 min-w-[60px]">
+                                                              <SelectValue placeholder="Récup" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                              {RECUPERATION_OPTIONS.map(opt => (
+                                                                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                                                              ))}
+                                                            </SelectContent>
+                                                          </Select>
                                                         </TableCell>
                                                         <TableCell className="py-1">
                                                           <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
