@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
@@ -18,6 +19,18 @@ import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { SendVideoDialog } from "@/components/SendVideoDialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface SerieValidation {
+  validated: boolean;
+  rpe: number | null;
+}
 
 export default function ExerciceDetail() {
   // Keep screen on during workout
@@ -44,6 +57,13 @@ export default function ExerciceDetail() {
   const timerRef = useRef<UniversalTimerRef>(null);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
 
+  // Serie-level validation
+  const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
+  const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
+  const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
+  const [rpeInputValue, setRpeInputValue] = useState("");
+  const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
   
@@ -54,7 +74,7 @@ export default function ExerciceDetail() {
     const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
     timerRef.current?.openWithSettings({
       type: 'emom',
-      emomInterval: 60, // 1 minute
+      emomInterval: 60,
       rounds: totalSets,
     });
   };
@@ -71,6 +91,63 @@ export default function ExerciceDetail() {
       rounds: totalSets,
     });
   };
+
+  // Build series data from exercise
+  const getSeriesData = () => {
+    if (!exercise) return [];
+    
+    let details: any[] = [];
+    if (exercise.serie_details) {
+      try {
+        details = typeof exercise.serie_details === 'string' 
+          ? JSON.parse(exercise.serie_details) 
+          : exercise.serie_details;
+      } catch (e) { details = []; }
+    }
+    
+    const totalSets = exercise.series ? parseInt(exercise.series) : 0;
+    if (totalSets === 0) return [];
+    
+    const series = [];
+    for (let i = 0; i < totalSets; i++) {
+      const detail = details[i] || {};
+      series.push({
+        reps: detail.reps || exercise.reps || "",
+        charge: detail.charge || exercise.charge || "",
+        rpe: detail.rpe || exercise.rpe || "",
+        tempo: detail.tempo || exercise.tempo || "",
+        commentaire: detail.commentaire || "",
+      });
+    }
+    return series;
+  };
+
+  // Initialize serie validations when exercise loads
+  useEffect(() => {
+    if (exercise) {
+      const totalSets = exercise.series ? parseInt(exercise.series) : 0;
+      // Restore from localStorage if available
+      const savedValidations = localStorage.getItem(`serie-validations-${exerciceId}`);
+      if (savedValidations) {
+        try {
+          const parsed = JSON.parse(savedValidations);
+          if (Array.isArray(parsed) && parsed.length === totalSets) {
+            setSerieValidations(parsed);
+            setCompletedSets(parsed.filter((s: SerieValidation) => s.validated).length);
+            return;
+          }
+        } catch (e) {}
+      }
+      setSerieValidations(Array.from({ length: totalSets }, () => ({ validated: false, rpe: null })));
+    }
+  }, [exercise?.id]);
+
+  // Save serie validations to localStorage
+  useEffect(() => {
+    if (exerciceId && serieValidations.length > 0) {
+      localStorage.setItem(`serie-validations-${exerciceId}`, JSON.stringify(serieValidations));
+    }
+  }, [serieValidations, exerciceId]);
 
   useEffect(() => {
     loadExerciseDetail();
@@ -95,13 +172,10 @@ export default function ExerciceDetail() {
             setTargetDuration(parsed.targetDuration);
             setIsTimerRunning(true);
 
-            // Relancer le timer
             const interval = setInterval(() => {
               const currentElapsed = Math.floor((Date.now() - parsed.timerStartTimestamp) / 1000);
               const currentRemaining = Math.max(0, parsed.targetDuration - currentElapsed);
-
               setTimeRemaining(currentRemaining);
-
               if (currentRemaining === 0) {
                 clearInterval(interval);
                 setIsTimerRunning(false);
@@ -118,7 +192,6 @@ export default function ExerciceDetail() {
       }
     }
 
-    // Recharger les données quand la page redevient visible (après modification par le coach)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadExerciseDetail();
@@ -190,7 +263,6 @@ export default function ExerciceDetail() {
     } else {
       setExercise(data);
       setSessionId(data.session_id);
-      // Récupérer la semaine de la séance pour un retour fiable
       if (data.session_id) {
         const { data: sessionRow } = await supabase
           .from("training_sessions")
@@ -199,13 +271,11 @@ export default function ExerciceDetail() {
           .maybeSingle();
         if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
       }
-      // Initialiser le timer avec le temps de récupération
       if (data.recuperation && timeRemaining === 0) {
         setTimeRemaining(parseRecuperationTime(data.recuperation));
         setTargetDuration(parseRecuperationTime(data.recuperation));
       }
 
-      // Récupérer la vidéo depuis la bibliothèque d'exercices
       if (data.exercice) {
         const { data: libraryData } = await supabase
           .from("exercise_library")
@@ -223,13 +293,10 @@ export default function ExerciceDetail() {
   };
 
   const parseRecuperationTime = (recup: string): number => {
-    // Parse "1min30s" => 90 secondes, "2min" => 120 secondes, etc.
     const minMatch = recup.match(/(\d+)min/);
     const secMatch = recup.match(/(\d+)s/);
-
     const minutes = minMatch ? parseInt(minMatch[1]) : 0;
     const seconds = secMatch ? parseInt(secMatch[1]) : 0;
-
     return minutes * 60 + seconds;
   };
 
@@ -239,55 +306,72 @@ export default function ExerciceDetail() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const incrementSet = () => {
-    if (exercise?.series) {
-      const totalSets = parseInt(exercise.series);
-      if (completedSets < totalSets) {
-        setCompletedSets((prev) => prev + 1);
+  // Start recovery timer helper
+  const startRecoveryTimer = () => {
+    if (!exercise?.recuperation) return;
+    const isEmom = exercise.recuperation?.toLowerCase() === 'emom';
+    if (isEmom || exercise.recuperation === "0s") return;
 
-        // Ne pas démarrer le timer de récupération si c'est un EMOM
-        const isEmom = exercise.recuperation?.toLowerCase() === 'emom';
-        if (exercise.recuperation && !isEmom) {
-          // Arrêter le timer précédent s'il existe
-          if (timerInterval) {
-            clearInterval(timerInterval);
-            setTimerInterval(null);
-          }
-
-          const recuperationTime = parseRecuperationTime(exercise.recuperation);
-          const now = Date.now();
-
-          setTimeRemaining(recuperationTime);
-          setTargetDuration(recuperationTime);
-          setTimerStartTimestamp(now);
-          setIsTimerRunning(true);
-
-          // Démarrer le timer avec calcul basé sur timestamp
-          const interval = setInterval(() => {
-            const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
-            const remaining = Math.max(0, recuperationTime - elapsedSeconds);
-
-            setTimeRemaining(remaining);
-
-            if (remaining === 0) {
-              setIsTimerRunning(false);
-              setTimerStartTimestamp(null);
-              clearInterval(interval);
-            }
-          }, 100);
-          setTimerInterval(interval);
-
-          // Afficher l'overlay
-          setShowTimerOverlay(true);
-        }
-      }
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
     }
+
+    const recuperationTime = parseRecuperationTime(exercise.recuperation);
+    const now = Date.now();
+
+    setTimeRemaining(recuperationTime);
+    setTargetDuration(recuperationTime);
+    setTimerStartTimestamp(now);
+    setIsTimerRunning(true);
+
+    const interval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
+      const remaining = Math.max(0, recuperationTime - elapsedSeconds);
+      setTimeRemaining(remaining);
+      if (remaining === 0) {
+        setIsTimerRunning(false);
+        setTimerStartTimestamp(null);
+        clearInterval(interval);
+      }
+    }, 100);
+    setTimerInterval(interval);
+
+    setShowTimerOverlay(true);
   };
 
-  const decrementSet = () => {
-    if (completedSets > 0) {
-      setCompletedSets((prev) => prev - 1);
+  // Handle clicking validate on a serie
+  const handleValidateSerie = (serieIndex: number) => {
+    setRpeDialogSerieIndex(serieIndex);
+    setRpeInputValue("");
+    setRpeDialogOpen(true);
+  };
+
+  // Handle RPE submission for a serie
+  const handleRpeSubmit = () => {
+    const rpeValue = rpeInputValue.trim();
+    if (!rpeValue) {
+      toast({ title: "RPE obligatoire", description: "Merci de remplir un RPE pour valider la série", variant: "destructive" });
+      return;
     }
+    const rpeNumber = Number(rpeValue);
+    if (isNaN(rpeNumber) || !Number.isInteger(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
+      toast({ title: "RPE invalide", description: "Le RPE doit être un chiffre entier entre 1 et 10", variant: "destructive" });
+      return;
+    }
+    if (rpeDialogSerieIndex === null) return;
+
+    const newValidations = [...serieValidations];
+    newValidations[rpeDialogSerieIndex] = { validated: true, rpe: rpeNumber };
+    setSerieValidations(newValidations);
+    setCompletedSets(newValidations.filter(s => s.validated).length);
+
+    setRpeDialogOpen(false);
+    setRpeDialogSerieIndex(null);
+    setRpeInputValue("");
+
+    // Start recovery timer
+    startRecoveryTimer();
   };
 
   const startTimer = () => {
@@ -300,9 +384,7 @@ export default function ExerciceDetail() {
       const interval = setInterval(() => {
         const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
         const remaining = Math.max(0, timeRemaining - elapsedSeconds);
-
         setTimeRemaining(remaining);
-
         if (remaining === 0) {
           setIsTimerRunning(false);
           setTimerStartTimestamp(null);
@@ -318,14 +400,11 @@ export default function ExerciceDetail() {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
-
-    // Calculer le temps restant réel avant la pause
     if (timerStartTimestamp && targetDuration) {
       const elapsedSeconds = Math.floor((Date.now() - timerStartTimestamp) / 1000);
       const remaining = Math.max(0, targetDuration - elapsedSeconds);
       setTimeRemaining(remaining);
     }
-
     setIsTimerRunning(false);
     setTimerStartTimestamp(null);
   };
@@ -347,11 +426,17 @@ export default function ExerciceDetail() {
   const handleValidateFeedback = async (rpe: string, comment: string) => {
     const rpeValue = rpe ? parseInt(rpe) : null;
 
+    // If we have per-serie RPEs, compute the average
+    const serieRpes = serieValidations.filter(s => s.rpe !== null).map(s => s.rpe!);
+    const finalRpe = serieRpes.length > 0 
+      ? Math.round(serieRpes.reduce((a, b) => a + b, 0) / serieRpes.length)
+      : rpeValue;
+
     const { error } = await supabase
       .from("session_exercises")
       .update({
         sportif_comment: comment.trim() || null,
-        sportif_rpe: rpeValue,
+        sportif_rpe: finalRpe,
         sportif_feedback_at: new Date().toISOString(),
       })
       .eq("id", exerciceId);
@@ -367,69 +452,37 @@ export default function ExerciceDetail() {
     }
 
     // Calculer et enregistrer le max théorique si les conditions sont remplies
-    if (exercise && rpeValue && shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
-      await recordTheoreticalMax(exercise, rpeValue);
+    if (exercise && finalRpe && shouldRecordMax(exercise.charge, exercise.reps, finalRpe)) {
+      await recordTheoreticalMax(exercise, finalRpe);
     }
 
     // Nettoyer les données sauvegardées
     localStorage.removeItem(`exercise-progress-${exerciceId}`);
+    localStorage.removeItem(`serie-validations-${exerciceId}`);
 
     setDialogOpen(false);
-
-    // Afficher la célébration
     setShowCelebration(true);
   };
 
   const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
     try {
-      console.log("🔍 Début recordTheoreticalMax", { 
-        exercice: exercise.exercice, 
-        charge: exercise.charge, 
-        reps: exercise.reps, 
-        rpe: rpeValue,
-        tempo: exercise.tempo 
-      });
-
-      // Le tempo est maintenant pris en compte dans le calcul du 1RM via coefficient
-
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
+      if (!weight || !repsValue) return;
 
-      console.log("📊 Poids et reps parsés:", { weight, repsValue });
-
-      if (!weight || !repsValue) {
-        console.log("❌ Poids ou reps invalide");
-        return;
-      }
-
-      // Calculer le 1RM théorique (avec prise en compte du tempo)
       const theoretical1RM = calculate1RM(weight, repsValue, rpeValue, exercise.tempo);
-      console.log("💪 1RM théorique calculé:", theoretical1RM, "tempo:", exercise.tempo);
 
-      // Récupérer l'exercise_id depuis la bibliothèque
       const { data: libraryData } = await supabase
         .from("exercise_library")
         .select("id")
         .eq("name", exercise.exercice)
         .maybeSingle();
 
-      console.log("📚 Recherche exercice dans bibliothèque:", libraryData);
+      if (!libraryData?.id) return;
 
-      if (!libraryData?.id) {
-        console.log("❌ Exercice non trouvé dans la bibliothèque:", exercise.exercice);
-        return;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // Récupérer l'athlete_id
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("❌ Utilisateur non connecté");
-        return;
-      }
-
-      // Chercher le max le plus récent pour cet exercice (tous types confondus)
       const { data: latestMax } = await supabase
         .from("exercise_maxes")
         .select("weight_kg, max_type, recorded_at")
@@ -439,55 +492,33 @@ export default function ExerciceDetail() {
         .limit(1)
         .maybeSingle();
 
-      console.log("🏆 Max existant trouvé:", latestMax);
-      console.log("🔄 Comparaison:", { 
-        nouveau: theoretical1RM, 
-        ancien: latestMax?.weight_kg, 
-        estNouveauRecord: !latestMax || theoretical1RM > latestMax.weight_kg 
-      });
-
-      // Enregistrer tous les max théoriques, même s'ils sont en baisse
       const isNewRecord = !latestMax || theoretical1RM > latestMax.weight_kg;
-      console.log("✅ Enregistrement du max...");
       
-      const { data: insertData, error: insertError } = await supabase.from("exercise_maxes").insert({
+      const { error: insertError } = await supabase.from("exercise_maxes").insert({
         athlete_id: user.id,
         exercise_id: libraryData.id,
         max_type: "max_theorique",
         weight_kg: theoretical1RM,
         recorded_at: new Date().toISOString(),
         notes: `Calculé depuis: ${exercise.charge} x ${exercise.reps} reps @ RPE ${rpeValue}`,
-      }).select();
+      });
 
       if (insertError) {
-        console.error("❌ Erreur insert max théorique:", insertError);
-        toast({
-          title: "Max non enregistré",
-          description: "Autorisation refusée. Je peux corriger les permissions si tu veux.",
-          variant: "destructive",
-        });
+        toast({ title: "Max non enregistré", description: "Autorisation refusée.", variant: "destructive" });
       } else {
-        console.log("✅ Max enregistré avec succès:", insertData);
         toast({
           title: isNewRecord ? "Nouveau record !" : "Max enregistré",
           description: `${theoretical1RM} kg sur ${exercise.exercice}${!isNewRecord ? ` (précédent: ${latestMax.weight_kg} kg)` : ""}`,
         });
       }
     } catch (error) {
-      console.error("❌ Erreur lors de l'enregistrement du max théorique:", error);
-      // Ne pas faire échouer la sauvegarde du feedback si l'enregistrement du max échoue
+      console.error("Erreur lors de l'enregistrement du max théorique:", error);
     }
   };
 
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
-
-    toast({
-      title: "Enregistré !",
-      description: "Ton retour a été sauvegardé",
-    });
-
-    // Rediriger vers la page de la séance
+    toast({ title: "Enregistré !", description: "Ton retour a été sauvegardé" });
     setTimeout(() => {
       if (weekId && sessionId) {
         navigate(`/sportif/seance/${weekId}/${sessionId}`);
@@ -527,16 +558,8 @@ export default function ExerciceDetail() {
     );
   }
 
-  const InfoItem = ({ label, value }: { label: string; value: string | null }) => {
-    if (!value) return null;
-
-    return (
-      <div className="py-2">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        <p className="text-base font-medium">{value}</p>
-      </div>
-    );
-  };
+  const seriesData = getSeriesData();
+  const allSeriesValidated = serieValidations.length > 0 && serieValidations.every(s => s.validated);
 
   return (
     <div className="min-h-screen bg-background">
@@ -568,7 +591,7 @@ export default function ExerciceDetail() {
         onCancel={handleCancelFeedback}
         exerciseName={exercise?.exercice}
         exerciseType="renfo"
-        isRpeRequired={true}
+        isRpeRequired={!allSeriesValidated}
       />
 
       <SendVideoDialog
@@ -579,54 +602,242 @@ export default function ExerciceDetail() {
         exerciseName={exercise?.exercice}
       />
 
+      {/* RPE Dialog for serie validation */}
+      <Dialog open={rpeDialogOpen} onOpenChange={setRpeDialogOpen}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>
+              Série {rpeDialogSerieIndex !== null ? rpeDialogSerieIndex + 1 : ""} terminée
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="serie-rpe">RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
+                <RPEExplanationDialog />
+              </div>
+              <Input
+                id="serie-rpe"
+                type="number"
+                min="1"
+                max="10"
+                placeholder="Ex: 7"
+                value={rpeInputValue}
+                onChange={(e) => setRpeInputValue(e.target.value)}
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRpeSubmit(); }}
+              />
+              <p className="text-xs text-muted-foreground">
+                1 = très facile, 10 = effort maximum
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRpeDialogOpen(false)} className="w-full sm:w-auto">
+              Annuler
+            </Button>
+            <Button onClick={handleRpeSubmit} className="w-full sm:w-auto">
+              Valider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {/* En-tête exercice avec bouton retour et vidéo */}
+        {/* En-tête exercice */}
         <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
           <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl sm:text-2xl font-bold flex-1">{exercise.exercice}</h1>
           {videoUrl && (
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-yellow-400 hover:text-yellow-200 text-2xl sm:text-3xl"
-            >
+            <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
               🎥
             </a>
           )}
         </div>
 
-        {/* Compteur de séries - Mis en avant */}
-        {exercise.series && (
+        {/* EMOM / Tabata buttons */}
+        {exercise.recuperation && isEmomRecovery && (
+          <Card className="border-2 border-primary/30 bg-primary/5">
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                  <Label className="text-sm sm:text-base font-semibold">Mode EMOM</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × 1 minute
+                </p>
+                <Button onClick={handleLaunchEmom} className="w-full h-11">
+                  <Timer className="h-4 w-4 mr-2" />
+                  Lancer l'EMOM
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {exercise.recuperation && !isEmomRecovery && isDurationMode && (
+          <Card className="border-2 border-green-500/30 bg-green-500/5">
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                  <Label className="text-sm sm:text-base font-semibold">Mode Tabata</Label>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × {exercise.reps}s travail / {exercise.recuperation} repos
+                </p>
+                <Button onClick={handleLaunchTabata} className="w-full h-11 bg-green-600 hover:bg-green-700">
+                  <Timer className="h-4 w-4 mr-2" />
+                  Lancer le Tabata
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Récupération "0s" = enchaîné */}
+        {exercise.recuperation === "0s" && (
+          <Card className="border-2 border-amber-500/30 bg-amber-500/10">
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">⚡</span>
+                <Label className="text-sm sm:text-base font-semibold text-amber-600">Exercice enchaîné</Label>
+              </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                Pas de récupération — passez directement à la série suivante
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Séries — tableau interactif avec bouton valider */}
+        {seriesData.length > 0 && (
           <Card className="border-2 border-primary/30">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <Label className="text-sm sm:text-base font-semibold">Séries</Label>
-                <div className="flex items-center gap-2 sm:gap-3">
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    onClick={decrementSet}
-                    disabled={completedSets === 0}
-                    className="h-8 w-8 sm:h-10 sm:w-10"
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Repeat className="h-5 w-5 text-primary" />
+                  <p className="text-sm sm:text-base font-semibold">
+                    Séries — {completedSets}/{seriesData.length}
+                  </p>
+                </div>
+                {completedSets > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSeriesCollapsed(!seriesCollapsed)}
+                    className="h-7 px-2"
                   >
-                    <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
+                    {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
                   </Button>
+                )}
+              </div>
 
-                  <div className="text-2xl sm:text-4xl font-bold min-w-[80px] sm:min-w-[100px] text-center">
-                    {completedSets}
-                    <span className="text-lg sm:text-2xl text-muted-foreground">/{exercise.series}</span>
+              {!seriesCollapsed && (
+                <div className="space-y-2">
+                  {seriesData.map((serie, idx) => {
+                    const validation = serieValidations[idx];
+                    const isValidated = validation?.validated;
+                    
+                    return (
+                      <div 
+                        key={idx}
+                        className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border transition-all ${
+                          isValidated 
+                            ? "bg-green-500/10 border-green-500/30" 
+                            : "bg-muted/30 border-border"
+                        }`}
+                      >
+                        <Badge 
+                          variant={isValidated ? "default" : "outline"} 
+                          className={`text-xs font-bold shrink-0 ${isValidated ? "bg-green-600" : ""}`}
+                        >
+                          S{idx + 1}
+                        </Badge>
+                        
+                        <div className="flex-1 flex items-center gap-2 flex-wrap text-sm min-w-0">
+                          {serie.reps && (
+                            <span className="font-medium">
+                              {serie.reps}{exercise.is_duration ? "s" : " reps"}
+                              {exercise.per_side && " /côté"}
+                            </span>
+                          )}
+                          {serie.charge && (
+                            <span className="text-red-500 font-medium">{serie.charge}</span>
+                          )}
+                          {serie.rpe && !isValidated && (
+                            <span className="text-yellow-600 text-xs">RPE {serie.rpe}</span>
+                          )}
+                          {isValidated && validation.rpe !== null && (
+                            <span className="text-green-600 text-xs font-medium">RPE {validation.rpe}</span>
+                          )}
+                          {serie.tempo && (
+                            <span className="text-purple-500 text-xs">T:{serie.tempo}</span>
+                          )}
+                          {serie.commentaire && (
+                            <span className="text-muted-foreground italic text-xs truncate">"{serie.commentaire}"</span>
+                          )}
+                        </div>
+
+                        {isValidated ? (
+                          <Check className="h-5 w-5 text-green-600 shrink-0" />
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleValidateSerie(idx)}
+                            className="h-8 px-3 shrink-0"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1" />
+                            OK
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {seriesCollapsed && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  {completedSets} série{completedSets > 1 ? "s" : ""} validée{completedSets > 1 ? "s" : ""} sur {seriesData.length}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Chrono récupération (visible quand timer tourne ou a tourné) */}
+        {exercise.recuperation && exercise.recuperation !== "0s" && !isEmomRecovery && !isDurationMode && (
+          <Card className="border-2 border-muted-foreground/20 bg-muted/50">
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+                    <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
                   </div>
-
-                  <Button
-                    size="icon"
-                    onClick={incrementSet}
-                    disabled={completedSets >= parseInt(exercise.series)}
-                    className="h-8 w-8 sm:h-10 sm:w-10"
-                  >
-                    <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <div className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}>
+                    {formatTime(timeRemaining)}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {!isTimerRunning ? (
+                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
+                      <Play className="h-4 w-4 mr-1" />
+                      Start
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
+                      <Pause className="h-4 w-4 mr-1" />
+                      Pause
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
+                    <RotateCcw className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -634,197 +845,21 @@ export default function ExerciceDetail() {
           </Card>
         )}
 
-        {/* Chronomètre de récupération, Bouton EMOM ou Bouton Tabata */}
-        {exercise.recuperation && (
-          exercise.recuperation === "0s" ? (
-            <Card className="border-2 border-amber-500/30 bg-amber-500/10">
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">⚡</span>
-                  <Label className="text-sm sm:text-base font-semibold text-amber-600">Exercice enchaîné</Label>
+        {/* Tempo card */}
+        {exercise.tempo && !seriesData.some((s: any) => s.tempo) && (
+          <Card className="border border-purple-500/30 bg-purple-500/5">
+            <CardContent className="p-2 sm:p-3">
+              <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+                  <span className="text-xs sm:text-sm font-semibold text-purple-600 uppercase">Tempo</span>
                 </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Pas de récupération — passez directement à la série suivante
-                </p>
-              </CardContent>
-            </Card>
-          ) : isEmomRecovery ? (
-            <Card className="border-2 border-primary/30 bg-primary/5">
-              <CardContent className="p-3 sm:p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <Label className="text-sm sm:text-base font-semibold">Mode EMOM</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × 1 minute
-                  </p>
-                  <Button 
-                    onClick={handleLaunchEmom} 
-                    className="w-full h-11"
-                  >
-                    <Timer className="h-4 w-4 mr-2" />
-                    Lancer l'EMOM
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : isDurationMode ? (
-            <Card className="border-2 border-green-500/30 bg-green-500/5">
-              <CardContent className="p-3 sm:p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                    <Label className="text-sm sm:text-base font-semibold">Mode Tabata</Label>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × {exercise.reps}s travail / {exercise.recuperation} repos
-                  </p>
-                  <Button 
-                    onClick={handleLaunchTabata} 
-                    className="w-full h-11 bg-green-600 hover:bg-green-700"
-                  >
-                    <Timer className="h-4 w-4 mr-2" />
-                    Lancer le Tabata
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-2 border-muted-foreground/20 bg-muted/50">
-              <CardContent className="p-3 sm:p-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                      <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
-                    </div>
-                    <div
-                      className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}
-                    >
-                      {formatTime(timeRemaining)}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {!isTimerRunning ? (
-                      <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
-                        <Play className="h-4 w-4 mr-1" />
-                        Start
-                      </Button>
-                    ) : (
-                      <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
-                        <Pause className="h-4 w-4 mr-1" />
-                        Pause
-                      </Button>
-                    )}
-                    <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
+                <TempoExplanationDialog />
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold">{exercise.tempo}</p>
+            </CardContent>
+          </Card>
         )}
-
-        {/* Détail par série (si le coach a défini des paramètres différents par série) */}
-        {exercise.serie_details && (() => {
-          try {
-            const details = typeof exercise.serie_details === 'string' 
-              ? JSON.parse(exercise.serie_details) 
-              : exercise.serie_details;
-            if (Array.isArray(details) && details.length > 0) {
-              return (
-                <Card className="border border-border">
-                  <CardContent className="p-3 sm:p-4">
-                    <p className="text-xs sm:text-sm font-semibold mb-3">Détail par série</p>
-                    <div className="space-y-2">
-                      {details.map((serie: any, idx: number) => (
-                        <div key={idx} className="flex items-center gap-2 flex-wrap text-sm border-l-2 border-primary/40 pl-3 py-1">
-                          <Badge variant="outline" className="text-xs font-bold">S{idx + 1}</Badge>
-                          {serie.reps && <span>{serie.reps} reps</span>}
-                          {serie.charge && <span className="text-red-500 font-medium">{serie.charge}</span>}
-                          {serie.rpe && <span className="text-yellow-500">RPE {serie.rpe}</span>}
-                          {serie.tempo && <span className="text-purple-500">Tempo {serie.tempo}</span>}
-                          {serie.commentaire && <span className="text-muted-foreground italic text-xs">"{serie.commentaire}"</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            }
-          } catch (e) {}
-          return null;
-        })()}
-
-        {/* Détails de l'exercice - Compact et lisible */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          {exercise.charge && (
-            <Card className="border border-red-500/30 bg-red-500/5">
-              <CardContent className="p-2 sm:p-3">
-                <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                  <Weight className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
-                  <span className="text-xs sm:text-sm font-semibold text-red-600 uppercase">Charge</span>
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold">{exercise.charge}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {exercise.reps && (
-            <Card className="border border-orange-500/30 bg-orange-500/5">
-              <CardContent className="p-2 sm:p-3">
-                <div className="flex items-center gap-1 sm:gap-2 mb-1">
-                  <Repeat className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-                  <span className="text-xs sm:text-sm font-semibold text-orange-600 uppercase">
-                    {exercise.is_duration ? "Durée" : "Reps"}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-2xl sm:text-3xl font-bold">
-                    {exercise.reps}{exercise.is_duration ? "s" : ""}
-                  </p>
-                  {exercise.per_side && (
-                    <Badge variant="secondary" className="text-xs bg-orange-600/20 text-orange-700 border-orange-600/30">
-                      par côté
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {exercise.rpe && (
-            <Card className="border border-yellow-500/30 bg-yellow-500/5">
-              <CardContent className="p-2 sm:p-3">
-                <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <Zap className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
-                    <span className="text-xs sm:text-sm font-semibold text-yellow-600 uppercase">RPE</span>
-                  </div>
-                  <RPEExplanationDialog />
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold">{exercise.rpe}</p>
-              </CardContent>
-            </Card>
-          )}
-
-          {exercise.tempo && (
-            <Card className="border border-purple-500/30 bg-purple-500/5">
-              <CardContent className="p-2 sm:p-3">
-                <div className="flex items-center justify-between gap-1 sm:gap-2 mb-1">
-                  <div className="flex items-center gap-1 sm:gap-2">
-                    <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-                    <span className="text-xs sm:text-sm font-semibold text-purple-600 uppercase">Tempo</span>
-                  </div>
-                  <TempoExplanationDialog />
-                </div>
-                <p className="text-2xl sm:text-3xl font-bold">{exercise.tempo}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
         {/* Notes du coach */}
         {exercise.commentaire && (
