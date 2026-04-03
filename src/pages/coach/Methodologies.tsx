@@ -640,6 +640,14 @@ export default function Methodologies() {
                   onChange={(e) => setExerciseSearch(e.target.value)}
                   placeholder="Rechercher un exercice..."
                   type="search"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (filteredExerciseResults.length > 0) {
+                        addExercise(filteredExerciseResults[0]);
+                      }
+                    }
+                  }}
                 />
                 <div className="flex flex-wrap gap-1.5">
                   <Badge
