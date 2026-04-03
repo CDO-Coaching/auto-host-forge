@@ -824,29 +824,73 @@ export default function Methodologies() {
                                 <CollapsibleContent className="ml-4 border-l border-border/50 pl-2">
                                   {sessionsOptions.length > 0 ? (
                                     Array.from({ length: Math.max(...sessionsOptions) }, (_, si) => {
-                                      const sessionExs = getSessionExercises(ci, si);
-                                      const availableToAdd = selectedExercises.filter(e => !sessionExs.some(se => se.id === e.id));
+                                      const sessionConfigs = getSessionExerciseConfigs(ci, si);
+                                      const availableToAdd = selectedExercises.filter(e => !sessionConfigs.some(c => c.exerciseId === e.id));
                                       return (
                                         <Collapsible key={si}>
                                           <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-md px-2 py-0.5 text-xs text-muted-foreground/70 hover:bg-accent/30 transition-colors group">
                                             <ChevronRight className="h-3 w-3 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
                                             <div className="h-1.5 w-1.5 rounded-full bg-primary/50" />
                                             Séance {si + 1}
-                                            {sessionExs.length > 0 && (
-                                              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{sessionExs.length} exo{sessionExs.length > 1 ? "s" : ""}</Badge>
+                                            {sessionConfigs.length > 0 && (
+                                              <Badge variant="secondary" className="ml-1 text-[10px] px-1 py-0">{sessionConfigs.length} exo{sessionConfigs.length > 1 ? "s" : ""}</Badge>
                                             )}
                                           </CollapsibleTrigger>
-                                          <CollapsibleContent className="ml-6 py-1 space-y-1">
-                                            {sessionExs.map(ex => (
-                                              <div key={ex.id} className="flex items-center justify-between gap-2 rounded px-2 py-0.5 text-xs bg-accent/20">
-                                                <span className="text-foreground/80">{ex.name}</span>
-                                                <button type="button" onClick={() => removeExerciseFromSession(ci, si, ex.id)} className="text-muted-foreground hover:text-destructive transition-colors">
-                                                  <X className="h-3 w-3" />
-                                                </button>
+                                          <CollapsibleContent className="ml-6 py-1 space-y-1.5">
+                                            {sessionConfigs.map(cfg => (
+                                              <div key={cfg.exerciseId} className="rounded border border-border/50 bg-accent/10 px-2 py-1.5">
+                                                <div className="flex items-center justify-between gap-2 mb-1">
+                                                  <span className="text-xs font-medium text-foreground/80">{cfg.exercise.name}</span>
+                                                  <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                    <X className="h-3 w-3" />
+                                                  </button>
+                                                </div>
+                                                <div className="grid grid-cols-4 gap-1.5">
+                                                  <div>
+                                                    <label className="text-[9px] text-muted-foreground">Séries</label>
+                                                    <input
+                                                      type="text"
+                                                      value={cfg.sets}
+                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "sets", e.target.value)}
+                                                      placeholder="4"
+                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] text-muted-foreground">Reps</label>
+                                                    <input
+                                                      type="text"
+                                                      value={cfg.reps}
+                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)}
+                                                      placeholder="8"
+                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] text-muted-foreground">RPE</label>
+                                                    <input
+                                                      type="text"
+                                                      value={cfg.rpe}
+                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)}
+                                                      placeholder="8"
+                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+                                                    />
+                                                  </div>
+                                                  <div>
+                                                    <label className="text-[9px] text-muted-foreground">% Max</label>
+                                                    <input
+                                                      type="text"
+                                                      value={cfg.percentMax}
+                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "percentMax", e.target.value)}
+                                                      placeholder="75"
+                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
+                                                    />
+                                                  </div>
+                                                </div>
                                               </div>
                                             ))}
                                             {availableToAdd.length > 0 && (
-                                              <div className="pt-1">
+                                              <div className="pt-0.5">
                                                 <select
                                                   className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
                                                   value=""
