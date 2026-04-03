@@ -10,7 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, Search, Eye, X } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight } from "lucide-react";
 
 const THEMES = [
   { value: "endurance", label: "Endurance", color: "hsl(200, 70%, 50%)" },
