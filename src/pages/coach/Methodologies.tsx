@@ -34,10 +34,13 @@ interface Exercise {
 
 interface SessionExerciseConfig {
   exerciseId: string;
-  sets: string;
+  recuperation: string;
   reps: string;
+  series: string;
   rpe: string;
-  percentMax: string;
+  charge: string;
+  tempo: string;
+  commentaire: string;
 }
 
 interface Methodology {
