@@ -102,6 +102,7 @@ interface SerieDetail {
   rpe: string;
   tempo: string;
   commentaire: string;
+  recuperation?: string;
 }
 
 interface Exercise {
