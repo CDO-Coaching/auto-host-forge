@@ -96,6 +96,14 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
 }
 
+interface SerieDetail {
+  reps: string;
+  charge: string;
+  rpe: string;
+  tempo: string;
+  commentaire: string;
+}
+
 interface Exercise {
   id: number;
   exercice: string;
@@ -114,6 +122,7 @@ interface Exercise {
   is_unilateral?: boolean;
   is_duration?: boolean;
   request_video?: boolean;
+  serie_details?: SerieDetail[];
 }
 
 export default function ClientDetail() {
@@ -745,6 +754,7 @@ export default function ClientDetail() {
               per_side: exercise.per_side || false,
               is_duration: exercise.is_duration || false,
               request_video: exercise.request_video || false,
+              serie_details: exercise.serie_details && exercise.serie_details.length > 0 ? JSON.stringify(exercise.serie_details) : null,
             })
             .eq("id", exercise.id);
 
@@ -1200,6 +1210,7 @@ export default function ClientDetail() {
       is_duration: ex.is_duration || false,
       per_side: ex.per_side || false,
       is_unilateral: libraryExercises.find(e => e.name === ex.exercice)?.unilateral || false,
+      serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details) : ex.serie_details) : undefined,
     }));
     
     setSessionExercises({
@@ -1390,6 +1401,7 @@ export default function ClientDetail() {
             per_side: exercise.per_side || false,
             is_duration: exercise.is_duration || false,
             request_video: exercise.request_video || false,
+            serie_details: exercise.serie_details && exercise.serie_details.length > 0 ? JSON.stringify(exercise.serie_details) : null,
           }));
 
           const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
@@ -1530,6 +1542,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
                   request_video: ex.request_video || false,
+                  serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
                 };
               });
             newExercises[sessionIndex + 1] = sortedExercises;
@@ -1656,6 +1669,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
                   request_video: ex.request_video || false,
+                  serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
                 };
               });
             newExercises[sessionIndex + 1] = sortedExercises;
@@ -1764,17 +1778,40 @@ export default function ClientDetail() {
     setSessionExercises(prev => {
       const currentExercises = prev[sessionId] || [];
       
-      if (field === "series") {
+      if (field === "series" && typeof value === "string") {
+        const seriesCount = parseInt(value) || 0;
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
-        if (currentExercise?.super_set_group && typeof value === "string") {
+        
+        // Auto-generate serie_details
+        const generateSerieDetails = (ex: Exercise, count: number): SerieDetail[] => {
+          if (count <= 0) return [];
+          const existing = ex.serie_details || [];
+          return Array.from({ length: count }, (_, i) => ({
+            reps: existing[i]?.reps ?? ex.reps ?? "",
+            charge: existing[i]?.charge ?? ex.charge ?? "",
+            rpe: existing[i]?.rpe ?? ex.rpe ?? "",
+            tempo: existing[i]?.tempo ?? ex.tempo ?? "",
+            commentaire: existing[i]?.commentaire ?? "",
+          }));
+        };
+
+        if (currentExercise?.super_set_group) {
           const updatedExercises = currentExercises.map((ex) => {
             if (ex.super_set_group === currentExercise.super_set_group) {
-              return { ...ex, series: value };
+              return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
             }
-            return ex.id === exerciseId ? { ...ex, [field]: value } : ex;
+            return ex.id === exerciseId ? { ...ex, [field]: value, serie_details: generateSerieDetails(ex, seriesCount) } : ex;
           });
           return { ...prev, [sessionId]: updatedExercises };
         }
+
+        const updatedExercises = currentExercises.map((ex) => {
+          if (ex.id === exerciseId) {
+            return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
+          }
+          return ex;
+        });
+        return { ...prev, [sessionId]: updatedExercises };
       }
 
       const updatedExercises = currentExercises.map((ex) => {
@@ -1806,6 +1843,21 @@ export default function ClientDetail() {
         });
       }
     }
+  };
+
+  const handleSerieDetailChange = (sessionId: number, exerciseId: number, serieIndex: number, field: keyof SerieDetail, value: string) => {
+    setSessionExercises(prev => {
+      const exercises = prev[sessionId] || [];
+      const updated = exercises.map(ex => {
+        if (ex.id !== exerciseId) return ex;
+        const details = [...(ex.serie_details || [])];
+        if (details[serieIndex]) {
+          details[serieIndex] = { ...details[serieIndex], [field]: value };
+        }
+        return { ...ex, serie_details: details };
+      });
+      return { ...prev, [sessionId]: updated };
+    });
   };
 
   // Calculer la charge suggérée basée sur le max de l'athlète (retourne null si impossible)
@@ -4499,6 +4551,66 @@ export default function ClientDetail() {
                                                         )}
                                                       </TableCell>
                                                     </TableRow>
+
+                                                    {/* Sous-lignes par série */}
+                                                    {exercise.serie_details && exercise.serie_details.length > 1 && (
+                                                      exercise.serie_details.map((serie, si) => (
+                                                        <TableRow key={`${exercise.id}-serie-${si}`} className="bg-muted/20">
+                                                          <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
+                                                            Série {si + 1}
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.reps}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "reps", e.target.value)}
+                                                              placeholder={exercise.reps || "reps"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.rpe}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
+                                                              placeholder={exercise.rpe || "RPE"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.charge}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
+                                                              placeholder={exercise.charge || "charge"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.tempo}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "tempo", e.target.value)}
+                                                              placeholder={exercise.tempo || "tempo"}
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell className="py-1">
+                                                            <Input
+                                                              value={serie.commentaire}
+                                                              onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "commentaire", e.target.value)}
+                                                              placeholder=""
+                                                              disabled={isValidated}
+                                                              className="h-7 text-xs"
+                                                            />
+                                                          </TableCell>
+                                                          <TableCell></TableCell>
+                                                          <TableCell></TableCell>
+                                                        </TableRow>
+                                                      ))
+                                                    )}
 
                                                     {/* Bouton pour créer un super-set */}
                                                     {!isLastExercise && !isValidated && (
