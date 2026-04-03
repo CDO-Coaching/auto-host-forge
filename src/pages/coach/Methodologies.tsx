@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Plus, Pencil, Trash2, Search, Eye, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, X } from "lucide-react";
 
 const THEMES = [
   { value: "endurance", label: "Endurance", color: "hsl(200, 70%, 50%)" },
@@ -23,6 +23,13 @@ const THEMES = [
 
 type ThemeValue = typeof THEMES[number]["value"];
 
+interface Exercise {
+  id: string;
+  name: string;
+  category: string | null;
+  muscle_principal: string | null;
+}
+
 interface Methodology {
   id: string;
   name: string;
@@ -34,6 +41,10 @@ interface Methodology {
   rpe_target_max: number | null;
   progression_summary: string | null;
   full_description: string | null;
+  num_cycles: number | null;
+  weeks_per_cycle: number | null;
+  sessions_options: number[];
+  exercises: Exercise[];
 }
 
 export default function Methodologies() {
@@ -53,9 +64,26 @@ export default function Methodologies() {
   const [rpeMax, setRpeMax] = useState("");
   const [progressionSummary, setProgressionSummary] = useState("");
   const [fullDescription, setFullDescription] = useState("");
+  const [numCycles, setNumCycles] = useState("");
+  const [weeksPerCycle, setWeeksPerCycle] = useState("");
+  const [sessionsOptions, setSessionsOptions] = useState<number[]>([]);
+  const [sessionsInput, setSessionsInput] = useState("");
+  const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
+  const [allExercises, setAllExercises] = useState<Exercise[]>([]);
+  const [exerciseSearch, setExerciseSearch] = useState("");
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const fetchExercises = async () => {
+    if (!session?.user?.id) return;
+    const { data } = await supabase
+      .from("exercises")
+      .select("id, name, category, muscle_principal")
+      .eq("coach_id", session.user.id)
+      .order("name");
+    setAllExercises(data || []);
+  };
 
   const fetchMethodologies = async () => {
     if (!session?.user?.id) return;
@@ -75,16 +103,35 @@ export default function Methodologies() {
 
     const ids = (methData || []).map((m: any) => m.id);
     let themesMap: Record<string, ThemeValue[]> = {};
+    let exercisesMap: Record<string, string[]> = {};
 
     if (ids.length > 0) {
-      const { data: themesData } = await supabase
-        .from("methodology_themes")
-        .select("*")
-        .in("methodology_id", ids);
+      const [{ data: themesData }, { data: methExData }] = await Promise.all([
+        supabase.from("methodology_themes").select("*").in("methodology_id", ids),
+        supabase.from("methodology_exercises").select("*").in("methodology_id", ids),
+      ]);
 
       (themesData || []).forEach((t: any) => {
         if (!themesMap[t.methodology_id]) themesMap[t.methodology_id] = [];
         themesMap[t.methodology_id].push(t.theme);
+      });
+
+      (methExData || []).forEach((e: any) => {
+        if (!exercisesMap[e.methodology_id]) exercisesMap[e.methodology_id] = [];
+        exercisesMap[e.methodology_id].push(e.exercise_id);
+      });
+    }
+
+    // Fetch exercise details for all referenced exercise ids
+    const allExIds = [...new Set(Object.values(exercisesMap).flat())];
+    let exerciseDetailsMap: Record<string, Exercise> = {};
+    if (allExIds.length > 0) {
+      const { data: exData } = await supabase
+        .from("exercises")
+        .select("id, name, category, muscle_principal")
+        .in("id", allExIds);
+      (exData || []).forEach((e: any) => {
+        exerciseDetailsMap[e.id] = e;
       });
     }
 
@@ -100,6 +147,10 @@ export default function Methodologies() {
         rpe_target_max: m.rpe_target_max,
         progression_summary: m.progression_summary,
         full_description: m.full_description,
+        num_cycles: m.num_cycles,
+        weeks_per_cycle: m.weeks_per_cycle,
+        sessions_options: m.sessions_options || [],
+        exercises: (exercisesMap[m.id] || []).map((eid: string) => exerciseDetailsMap[eid]).filter(Boolean),
       }))
     );
     setLoading(false);
@@ -107,9 +158,10 @@ export default function Methodologies() {
 
   useEffect(() => {
     fetchMethodologies();
+    fetchExercises();
   }, [session?.user?.id]);
 
-  const openCreate = () => {
+  const resetForm = () => {
     setEditingId(null);
     setName("");
     setDescription("");
@@ -120,6 +172,16 @@ export default function Methodologies() {
     setRpeMax("");
     setProgressionSummary("");
     setFullDescription("");
+    setNumCycles("");
+    setWeeksPerCycle("");
+    setSessionsOptions([]);
+    setSessionsInput("");
+    setSelectedExercises([]);
+    setExerciseSearch("");
+  };
+
+  const openCreate = () => {
+    resetForm();
     setDialogOpen(true);
   };
 
@@ -134,12 +196,40 @@ export default function Methodologies() {
     setRpeMax(m.rpe_target_max?.toString() || "");
     setProgressionSummary(m.progression_summary || "");
     setFullDescription(m.full_description || "");
+    setNumCycles(m.num_cycles?.toString() || "");
+    setWeeksPerCycle(m.weeks_per_cycle?.toString() || "");
+    setSessionsOptions(m.sessions_options || []);
+    setSessionsInput("");
+    setSelectedExercises(m.exercises || []);
+    setExerciseSearch("");
     setDialogOpen(true);
   };
 
   const openView = (m: Methodology) => {
     setViewingMethodology(m);
     setViewDialogOpen(true);
+  };
+
+  const addSessionOption = () => {
+    const val = parseInt(sessionsInput);
+    if (!val || val < 1) return;
+    if (sessionsOptions.includes(val)) { setSessionsInput(""); return; }
+    setSessionsOptions([...sessionsOptions, val].sort((a, b) => a - b));
+    setSessionsInput("");
+  };
+
+  const removeSessionOption = (v: number) => {
+    setSessionsOptions(sessionsOptions.filter((s) => s !== v));
+  };
+
+  const addExercise = (ex: Exercise) => {
+    if (selectedExercises.some((e) => e.id === ex.id)) return;
+    setSelectedExercises([...selectedExercises, ex]);
+    setExerciseSearch("");
+  };
+
+  const removeExercise = (id: string) => {
+    setSelectedExercises(selectedExercises.filter((e) => e.id !== id));
   };
 
   const handleSave = async () => {
@@ -158,6 +248,9 @@ export default function Methodologies() {
         rpe_target_max: rpeMax ? parseFloat(rpeMax) : null,
         progression_summary: progressionSummary.trim() || null,
         full_description: fullDescription.trim() || null,
+        num_cycles: numCycles ? parseInt(numCycles) : null,
+        weeks_per_cycle: weeksPerCycle ? parseInt(weeksPerCycle) : null,
+        sessions_options: sessionsOptions,
         updated_at: new Date().toISOString(),
       };
 
@@ -166,7 +259,10 @@ export default function Methodologies() {
       if (editingId) {
         const { error } = await supabase.from("coaching_methodologies").update(payload).eq("id", editingId);
         if (error) throw error;
-        await supabase.from("methodology_themes").delete().eq("methodology_id", editingId);
+        await Promise.all([
+          supabase.from("methodology_themes").delete().eq("methodology_id", editingId),
+          supabase.from("methodology_exercises").delete().eq("methodology_id", editingId),
+        ]);
       } else {
         const { data, error } = await supabase
           .from("coaching_methodologies")
@@ -178,8 +274,16 @@ export default function Methodologies() {
       }
 
       const themeRows = selectedThemes.map((theme) => ({ methodology_id: methId!, theme }));
-      const { error: themeError } = await supabase.from("methodology_themes").insert(themeRows);
-      if (themeError) throw themeError;
+      const exerciseRows = selectedExercises.map((ex) => ({ methodology_id: methId!, exercise_id: ex.id }));
+
+      const promises: Promise<any>[] = [supabase.from("methodology_themes").insert(themeRows)];
+      if (exerciseRows.length > 0) {
+        promises.push(supabase.from("methodology_exercises").insert(exerciseRows));
+      }
+      const results = await Promise.all(promises);
+      for (const r of results) {
+        if (r.error) throw r.error;
+      }
 
       toast.success(editingId ? "Méthodologie modifiée" : "Méthodologie ajoutée");
       setDialogOpen(false);
@@ -220,6 +324,13 @@ export default function Methodologies() {
     ...theme,
     items: filtered.filter((m) => m.themes.includes(theme.value)),
   })).filter((g) => g.items.length > 0);
+
+  const filteredExerciseResults = allExercises.filter(
+    (ex) =>
+      exerciseSearch.length >= 2 &&
+      ex.name.toLowerCase().includes(exerciseSearch.toLowerCase()) &&
+      !selectedExercises.some((s) => s.id === ex.id)
+  ).slice(0, 8);
 
   return (
     <div className="space-y-6">
@@ -289,9 +400,19 @@ export default function Methodologies() {
                         <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{m.description}</p>
                       )}
                       <div className="flex flex-wrap gap-1.5 mb-2">
-                        {m.duration_weeks_min && (
+                        {m.num_cycles && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-                            {m.duration_weeks_min}{m.duration_weeks_max && m.duration_weeks_max !== m.duration_weeks_min ? `–${m.duration_weeks_max}` : ""} sem.
+                            {m.num_cycles} cycle{m.num_cycles > 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {m.weeks_per_cycle && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            {m.weeks_per_cycle} sem./cycle
+                          </span>
+                        )}
+                        {m.sessions_options.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            {m.sessions_options.join("/")} séances
                           </span>
                         )}
                         {m.rpe_target_min && (
@@ -300,6 +421,11 @@ export default function Methodologies() {
                           </span>
                         )}
                       </div>
+                      {m.exercises.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mb-2 line-clamp-1">
+                          🏋️ {m.exercises.map(e => e.name).join(", ")}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-1">
                         {m.themes.map((th) => {
                           const info = getThemeInfo(th);
@@ -345,9 +471,27 @@ export default function Methodologies() {
                   })}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
+                  {viewingMethodology.num_cycles && (
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground">Cycles</p>
+                      <p className="text-sm font-medium">{viewingMethodology.num_cycles}</p>
+                    </div>
+                  )}
+                  {viewingMethodology.weeks_per_cycle && (
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground">Semaines / cycle</p>
+                      <p className="text-sm font-medium">{viewingMethodology.weeks_per_cycle}</p>
+                    </div>
+                  )}
+                  {viewingMethodology.sessions_options.length > 0 && (
+                    <div className="bg-muted/50 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground">Séances possibles</p>
+                      <p className="text-sm font-medium">{viewingMethodology.sessions_options.join(", ")}</p>
+                    </div>
+                  )}
                   {viewingMethodology.duration_weeks_min && (
                     <div className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Durée</p>
+                      <p className="text-xs text-muted-foreground">Durée totale</p>
                       <p className="text-sm font-medium">
                         {viewingMethodology.duration_weeks_min}{viewingMethodology.duration_weeks_max && viewingMethodology.duration_weeks_max !== viewingMethodology.duration_weeks_min ? `–${viewingMethodology.duration_weeks_max}` : ""} semaines
                       </p>
@@ -362,6 +506,18 @@ export default function Methodologies() {
                     </div>
                   )}
                 </div>
+                {viewingMethodology.exercises.length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Exercices associés</Label>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {viewingMethodology.exercises.map((ex) => (
+                        <Badge key={ex.id} variant="secondary" className="text-xs">
+                          {ex.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {viewingMethodology.progression_summary && (
                   <div>
                     <Label className="text-xs text-muted-foreground">Progression</Label>
@@ -412,6 +568,86 @@ export default function Methodologies() {
                 ))}
               </div>
             </div>
+
+            {/* Cycles & structure */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Nombre de cycles</Label>
+                <Input type="number" min="1" value={numCycles} onChange={(e) => setNumCycles(e.target.value)} placeholder="Ex: 4" />
+              </div>
+              <div>
+                <Label>Semaines par cycle</Label>
+                <Input type="number" min="1" value={weeksPerCycle} onChange={(e) => setWeeksPerCycle(e.target.value)} placeholder="Ex: 5" />
+              </div>
+            </div>
+
+            {/* Sessions options */}
+            <div>
+              <Label>Nombre de séances possibles</Label>
+              <p className="text-xs text-muted-foreground mb-1">Ajoute les différentes options (ex: 3, 4 ou 5 séances/semaine)</p>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="number"
+                  min="1"
+                  value={sessionsInput}
+                  onChange={(e) => setSessionsInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSessionOption(); } }}
+                  placeholder="Ex: 3"
+                  className="w-24"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addSessionOption}>Ajouter</Button>
+              </div>
+              {sessionsOptions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {sessionsOptions.map((s) => (
+                    <Badge key={s} variant="secondary" className="gap-1 text-xs">
+                      {s} séances
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeSessionOption(s)} />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Exercise search & selection */}
+            <div>
+              <Label>Exercices associés</Label>
+              <p className="text-xs text-muted-foreground mb-1">Recherche et ajoute les exercices de ta bibliothèque</p>
+              <div className="relative">
+                <Input
+                  value={exerciseSearch}
+                  onChange={(e) => setExerciseSearch(e.target.value)}
+                  placeholder="Rechercher un exercice..."
+                />
+                {filteredExerciseResults.length > 0 && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {filteredExerciseResults.map((ex) => (
+                      <button
+                        key={ex.id}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors flex justify-between items-center"
+                        onClick={() => addExercise(ex)}
+                      >
+                        <span>{ex.name}</span>
+                        {ex.muscle_principal && (
+                          <span className="text-[10px] text-muted-foreground">{ex.muscle_principal}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {selectedExercises.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {selectedExercises.map((ex) => (
+                    <Badge key={ex.id} variant="secondary" className="gap-1 text-xs">
+                      {ex.name}
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeExercise(ex.id)} />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Durée min (semaines)</Label>
