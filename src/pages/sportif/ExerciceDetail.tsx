@@ -307,10 +307,11 @@ export default function ExerciceDetail() {
   };
 
   // Start recovery timer helper
-  const startRecoveryTimer = () => {
-    if (!exercise?.recuperation) return;
-    const isEmom = exercise.recuperation?.toLowerCase() === 'emom';
-    if (isEmom || exercise.recuperation === "0s") return;
+  const startRecoveryTimer = (serieRecupOverride?: string) => {
+    const recup = serieRecupOverride || exercise?.recuperation;
+    if (!recup) return;
+    const isEmom = recup.toLowerCase() === 'emom';
+    if (isEmom || recup === "0s") return;
 
     if (timerInterval) {
       clearInterval(timerInterval);
