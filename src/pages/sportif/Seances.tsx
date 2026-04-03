@@ -88,6 +88,8 @@ export default function Seances() {
       .order("year", { ascending: false })
       .order("week_number", { ascending: false });
 
+    console.log("📅 Semaines validées chargées:", { count: data?.length, error, data: data?.map((w: any) => ({ id: w.id, week: w.week_number, year: w.year, athlete_id: w.athlete_id })) });
+
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
       // Ne pas écraser weeks existant en cas d'erreur transitoire (token refresh)
@@ -98,11 +100,15 @@ export default function Seances() {
       const currentYear = getWeekYear(now);
       const currentWeekNumber = getWeekNumber(now);
 
+      console.log("📅 Filtre semaine actuelle:", { currentYear, currentWeekNumber });
+
       const filteredWeeks = (data || []).filter((week: any) => {
         if (week.year < currentYear) return true;
         if (week.year > currentYear) return false;
         return week.week_number <= currentWeekNumber;
       });
+
+      console.log("📅 Semaines après filtrage:", filteredWeeks.length);
 
       setWeeks(filteredWeeks);
       
@@ -159,6 +165,8 @@ export default function Seances() {
       )
       .eq("week_id", weekId)
       .order("session_number");
+
+    console.log("📋 Séances chargées pour semaine", weekId, ":", { count: sessionsData?.length, error: sessionsError });
 
     if (sessionsError) {
       console.error("Erreur lors du chargement des séances:", sessionsError);
