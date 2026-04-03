@@ -574,73 +574,98 @@ export default function Methodologies() {
             {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 lg:px-16">
               <div className="mx-auto max-w-5xl space-y-5">
-            <div>
-              <Label>Nom *</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
-            </div>
-            <div>
-              <Label>Description courte</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Résumé en une ou deux phrases..." rows={2} />
-            </div>
-            <div>
-              <Label>Thèmes *</Label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {THEMES.map((t) => (
-                  <label
-                    key={t.value}
-                    className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition-colors"
-                    style={selectedThemes.includes(t.value) ? { borderColor: t.color, backgroundColor: `${t.color}10` } : {}}
-                  >
-                    <Checkbox checked={selectedThemes.includes(t.value)} onCheckedChange={() => toggleTheme(t.value)} />
-                    <span className="text-sm" style={selectedThemes.includes(t.value) ? { color: t.color, fontWeight: 500 } : {}}>
-                      {t.label}
-                    </span>
-                  </label>
-                ))}
+            {/* Row 1: Nom + Description */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div>
+                <Label>Nom *</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
+              </div>
+              <div>
+                <Label>Description courte</Label>
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Résumé en une ou deux phrases..." rows={2} />
               </div>
             </div>
 
-            {/* Cycles & structure */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Row 2: Thèmes + Structure */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div>
-                <Label>Nombre de cycles</Label>
-                <Input type="number" min="1" value={numCycles} onChange={(e) => setNumCycles(e.target.value)} placeholder="Ex: 4" />
-              </div>
-              <div>
-                <Label>Semaines par cycle</Label>
-                <Input type="number" min="1" value={weeksPerCycle} onChange={(e) => setWeeksPerCycle(e.target.value)} placeholder="Ex: 5" />
-              </div>
-            </div>
-
-            {/* Sessions options */}
-            <div>
-              <Label>Nombre de séances possibles</Label>
-              <p className="text-xs text-muted-foreground mb-1">Ajoute les différentes options (ex: 3, 4 ou 5 séances/semaine)</p>
-              <div className="flex gap-2 items-center">
-                <Input
-                  type="number"
-                  min="1"
-                  value={sessionsInput}
-                  onChange={(e) => setSessionsInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSessionOption(); } }}
-                  placeholder="Ex: 3"
-                  className="w-24"
-                />
-                <Button type="button" variant="outline" size="sm" onClick={addSessionOption}>Ajouter</Button>
-              </div>
-              {sessionsOptions.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {sessionsOptions.map((s) => (
-                    <Badge key={s} variant="secondary" className="gap-1 text-xs">
-                      {s} séances
-                      <X className="h-3 w-3 cursor-pointer" onClick={() => removeSessionOption(s)} />
-                    </Badge>
+                <Label>Thèmes *</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {THEMES.map((t) => (
+                    <label
+                      key={t.value}
+                      className="flex items-center gap-2 cursor-pointer rounded-lg border p-2 transition-colors"
+                      style={selectedThemes.includes(t.value) ? { borderColor: t.color, backgroundColor: `${t.color}10` } : {}}
+                    >
+                      <Checkbox checked={selectedThemes.includes(t.value)} onCheckedChange={() => toggleTheme(t.value)} />
+                      <span className="text-sm" style={selectedThemes.includes(t.value) ? { color: t.color, fontWeight: 500 } : {}}>
+                        {t.label}
+                      </span>
+                    </label>
                   ))}
                 </div>
-              )}
+              </div>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Nombre de cycles</Label>
+                    <Input type="number" min="1" value={numCycles} onChange={(e) => setNumCycles(e.target.value)} placeholder="Ex: 4" />
+                  </div>
+                  <div>
+                    <Label>Semaines par cycle</Label>
+                    <Input type="number" min="1" value={weeksPerCycle} onChange={(e) => setWeeksPerCycle(e.target.value)} placeholder="Ex: 5" />
+                  </div>
+                </div>
+                <div>
+                  <Label>Nombre de séances possibles</Label>
+                  <p className="text-xs text-muted-foreground mb-1">Ajoute les différentes options (ex: 3, 4 ou 5 séances/semaine)</p>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={sessionsInput}
+                      onChange={(e) => setSessionsInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSessionOption(); } }}
+                      placeholder="Ex: 3"
+                      className="w-24"
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={addSessionOption}>Ajouter</Button>
+                  </div>
+                  {sessionsOptions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {sessionsOptions.map((s) => (
+                        <Badge key={s} variant="secondary" className="gap-1 text-xs">
+                          {s} séances
+                          <X className="h-3 w-3 cursor-pointer" onClick={() => removeSessionOption(s)} />
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Exercise search & selection */}
+            {/* Row 3: Durée + RPE */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <Label>Durée min (semaines)</Label>
+                <Input type="number" min="1" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="3" />
+              </div>
+              <div>
+                <Label>Durée max (semaines)</Label>
+                <Input type="number" min="1" value={durationMax} onChange={(e) => setDurationMax(e.target.value)} placeholder="5" />
+              </div>
+              <div>
+                <Label>RPE cible min</Label>
+                <Input type="number" min="1" max="10" step="0.5" value={rpeMin} onChange={(e) => setRpeMin(e.target.value)} placeholder="7" />
+              </div>
+              <div>
+                <Label>RPE cible max</Label>
+                <Input type="number" min="1" max="10" step="0.5" value={rpeMax} onChange={(e) => setRpeMax(e.target.value)} placeholder="9.5" />
+              </div>
+            </div>
+
+            {/* Row 4: Exercices associés (full width) */}
             <div>
               <Label>Exercices associés</Label>
               <p className="text-xs text-muted-foreground mb-2">Recherche et ajoute les exercices de ta bibliothèque</p>
@@ -732,33 +757,16 @@ export default function Methodologies() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Row 5: Textes longs */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               <div>
-                <Label>Durée min (semaines)</Label>
-                <Input type="number" min="1" value={durationMin} onChange={(e) => setDurationMin(e.target.value)} placeholder="3" />
+                <Label>Résumé de progression</Label>
+                <Textarea value={progressionSummary} onChange={(e) => setProgressionSummary(e.target.value)} placeholder="Ex: Semaine 1 RPE 7-8, Semaine 2 RPE 7.5-8.5..." rows={5} />
               </div>
               <div>
-                <Label>Durée max (semaines)</Label>
-                <Input type="number" min="1" value={durationMax} onChange={(e) => setDurationMax(e.target.value)} placeholder="5" />
+                <Label>Description complète</Label>
+                <Textarea value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} placeholder="Structure détaillée, séries, repos, intensité, adaptations, contraintes..." rows={5} />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>RPE cible min</Label>
-                <Input type="number" min="1" max="10" step="0.5" value={rpeMin} onChange={(e) => setRpeMin(e.target.value)} placeholder="7" />
-              </div>
-              <div>
-                <Label>RPE cible max</Label>
-                <Input type="number" min="1" max="10" step="0.5" value={rpeMax} onChange={(e) => setRpeMax(e.target.value)} placeholder="9.5" />
-              </div>
-            </div>
-            <div>
-              <Label>Résumé de progression</Label>
-              <Textarea value={progressionSummary} onChange={(e) => setProgressionSummary(e.target.value)} placeholder="Ex: Semaine 1 RPE 7-8, Semaine 2 RPE 7.5-8.5..." rows={3} />
-            </div>
-            <div>
-              <Label>Description complète</Label>
-              <Textarea value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} placeholder="Structure détaillée, séries, repos, intensité, adaptations, contraintes..." rows={8} />
             </div>
               </div>
             </div>
