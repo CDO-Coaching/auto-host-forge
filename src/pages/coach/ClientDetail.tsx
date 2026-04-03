@@ -1797,9 +1797,15 @@ export default function ClientDetail() {
           }));
         };
 
+        // Auto-collapse series details when generated
+        if (seriesCount > 1) {
+          setCollapsedSeriesExercises(prev => ({ ...prev, [exerciseId]: true }));
+        }
+
         if (currentExercise?.super_set_group) {
           const updatedExercises = currentExercises.map((ex) => {
             if (ex.super_set_group === currentExercise.super_set_group) {
+              if (seriesCount > 1) setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: true }));
               return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
             }
             return ex.id === exerciseId ? { ...ex, [field]: value, serie_details: generateSerieDetails(ex, seriesCount) } : ex;
@@ -4650,9 +4656,19 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.reps}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "reps", e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="reps"]`) as HTMLElement;
+                                                                    if (next) next.focus();
+                                                                  }
+                                                                }}
                                                                 placeholder={exercise.reps || "reps"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="reps"
                                                               />
                                                             </TableCell>
                                                             <TableCell></TableCell>
@@ -4660,15 +4676,32 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.rpe}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="rpe"]`) as HTMLElement;
+                                                                    if (next) next.focus();
+                                                                  }
+                                                                }}
                                                                 placeholder={exercise.rpe || "RPE"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="rpe"
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.charge}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="charge"]`) as HTMLElement;
+                                                                    if (next) next.focus();
+                                                                  }
+                                                                }}
                                                                 placeholder={
                                                                   !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
                                                                     ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
@@ -4676,24 +4709,47 @@ export default function ClientDetail() {
                                                                 }
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="charge"
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.tempo}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "tempo", e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="tempo"]`) as HTMLElement;
+                                                                    if (next) next.focus();
+                                                                  }
+                                                                }}
                                                                 placeholder={exercise.tempo || "tempo"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="tempo"
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.commentaire}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "commentaire", e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="commentaire"]`) as HTMLElement;
+                                                                    if (next) next.focus();
+                                                                  }
+                                                                }}
                                                                 placeholder=""
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="commentaire"
                                                               />
                                                             </TableCell>
                                                             <TableCell></TableCell>
