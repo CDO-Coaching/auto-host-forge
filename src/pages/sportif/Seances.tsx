@@ -166,6 +166,8 @@ export default function Seances() {
       .eq("week_id", weekId)
       .order("session_number");
 
+    console.log("📋 Séances chargées pour semaine", weekId, ":", { count: sessionsData?.length, error: sessionsError });
+
     if (sessionsError) {
       console.error("Erreur lors du chargement des séances:", sessionsError);
     } else {
