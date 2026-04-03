@@ -1826,7 +1826,7 @@ export default function ClientDetail() {
     });
 
     // Defer async suggested load calculation so it doesn't block input
-    if ((field === "rpe" || field === "reps" || field === "exercice") && typeof value === "string") {
+    if ((field === "rpe" || field === "reps" || field === "exercice" || field === "series") && typeof value === "string") {
       // Build a temporary exercise for calculation
       const currentExercises = sessionExercises[sessionId] || [];
       const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
@@ -1843,6 +1843,25 @@ export default function ClientDetail() {
             }));
           }
         });
+
+        // Also calculate suggestions for each serie detail
+        const seriesCount = field === "series" ? parseInt(value) : parseInt(currentExercise.series);
+        if (seriesCount > 1) {
+          const details = updatedExercise.serie_details || [];
+          for (let i = 0; i < Math.min(seriesCount, details.length); i++) {
+            const serie = details[i];
+            const reps = parseInt(serie.reps || updatedExercise.reps);
+            const rpe = parseInt(serie.rpe || updatedExercise.rpe);
+            if (reps && rpe && !isNaN(reps) && !isNaN(rpe)) {
+              const idx = i;
+              calculateSuggestedLoadForSerie(updatedExercise.exercice, reps, rpe).then(load => {
+                if (load) {
+                  setSerieChargeSuggestions(prev => ({ ...prev, [`${exerciseId}-${idx}`]: load }));
+                }
+              });
+            }
+          }
+        }
       }
     }
   };
