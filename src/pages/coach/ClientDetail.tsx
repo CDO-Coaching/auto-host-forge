@@ -1840,6 +1840,21 @@ export default function ClientDetail() {
     }
   };
 
+  const handleSerieDetailChange = (sessionId: number, exerciseId: number, serieIndex: number, field: keyof SerieDetail, value: string) => {
+    setSessionExercises(prev => {
+      const exercises = prev[sessionId] || [];
+      const updated = exercises.map(ex => {
+        if (ex.id !== exerciseId) return ex;
+        const details = [...(ex.serie_details || [])];
+        if (details[serieIndex]) {
+          details[serieIndex] = { ...details[serieIndex], [field]: value };
+        }
+        return { ...ex, serie_details: details };
+      });
+      return { ...prev, [sessionId]: updated };
+    });
+  };
+
   // Calculer la charge suggérée basée sur le max de l'athlète (retourne null si impossible)
   const calculateSuggestedLoad = async (exercise: Exercise): Promise<string | null> => {
     const rpeValue = parseInt(exercise.rpe);
