@@ -1795,6 +1795,7 @@ export default function ClientDetail() {
             rpe: existing[i]?.rpe ?? ex.rpe ?? "",
             tempo: existing[i]?.tempo ?? ex.tempo ?? "",
             commentaire: existing[i]?.commentaire ?? "",
+            recuperation: existing[i]?.recuperation ?? ex.recuperation ?? "",
           }));
         };
 
