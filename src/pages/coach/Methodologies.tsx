@@ -572,8 +572,8 @@ export default function Methodologies() {
               </div>
             </div>
             {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-              <div className="mx-auto max-w-2xl space-y-4">
+            <div className="flex-1 overflow-y-auto px-6 py-6 sm:px-10 lg:px-16">
+              <div className="mx-auto max-w-5xl space-y-5">
             <div>
               <Label>Nom *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
