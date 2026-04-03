@@ -117,6 +117,7 @@ export default function ExerciceDetail() {
         rpe: detail.rpe || exercise.rpe || "",
         tempo: detail.tempo || exercise.tempo || "",
         commentaire: detail.commentaire || "",
+        recuperation: detail.recuperation || "",
       });
     }
     return series;
@@ -307,17 +308,18 @@ export default function ExerciceDetail() {
   };
 
   // Start recovery timer helper
-  const startRecoveryTimer = () => {
-    if (!exercise?.recuperation) return;
-    const isEmom = exercise.recuperation?.toLowerCase() === 'emom';
-    if (isEmom || exercise.recuperation === "0s") return;
+  const startRecoveryTimer = (serieRecupOverride?: string) => {
+    const recup = serieRecupOverride || exercise?.recuperation;
+    if (!recup) return;
+    const isEmom = recup.toLowerCase() === 'emom';
+    if (isEmom || recup === "0s") return;
 
     if (timerInterval) {
       clearInterval(timerInterval);
       setTimerInterval(null);
     }
 
-    const recuperationTime = parseRecuperationTime(exercise.recuperation);
+    const recuperationTime = parseRecuperationTime(recup);
     const now = Date.now();
 
     setTimeRemaining(recuperationTime);
@@ -370,8 +372,10 @@ export default function ExerciceDetail() {
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
 
-    // Start recovery timer
-    startRecoveryTimer();
+    // Start recovery timer with per-series recuperation if available
+    const serieData = seriesData[rpeDialogSerieIndex];
+    const serieRecup = serieData?.recuperation || undefined;
+    startRecoveryTimer(serieRecup);
   };
 
   const startTimer = () => {

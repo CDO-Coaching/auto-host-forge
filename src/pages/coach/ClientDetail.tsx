@@ -102,6 +102,7 @@ interface SerieDetail {
   rpe: string;
   tempo: string;
   commentaire: string;
+  recuperation?: string;
 }
 
 interface Exercise {
@@ -1794,6 +1795,7 @@ export default function ClientDetail() {
             rpe: existing[i]?.rpe ?? ex.rpe ?? "",
             tempo: existing[i]?.tempo ?? ex.tempo ?? "",
             commentaire: existing[i]?.commentaire ?? "",
+            recuperation: existing[i]?.recuperation ?? ex.recuperation ?? "",
           }));
         };
 
@@ -4646,7 +4648,29 @@ export default function ClientDetail() {
                                                             </div>
                                                           </TableCell>
                                                         </TableRow>
-                                                        {!collapsedSeriesExercises[exercise.id] && exercise.serie_details.map((serie, si) => (
+                                                        {!collapsedSeriesExercises[exercise.id] && exercise.serie_details.map((serie, si) => {
+                                                          const totalSeries = exercise.serie_details!.length;
+                                                          const serieFields = ["reps", "rpe", "charge", "tempo", "commentaire"] as const;
+                                                          const getNextOnEnter = (currentField: string) => {
+                                                            const fieldIndex = serieFields.indexOf(currentField as any);
+                                                            if (si < totalSeries - 1) {
+                                                              return { index: si + 1, field: currentField };
+                                                            } else if (fieldIndex < serieFields.length - 1) {
+                                                              return { index: 0, field: serieFields[fieldIndex + 1] };
+                                                            }
+                                                            return null;
+                                                          };
+                                                          const handleSerieKeyDown = (e: React.KeyboardEvent, field: string) => {
+                                                            if (e.key === "Enter") {
+                                                              e.preventDefault();
+                                                              const next = getNextOnEnter(field);
+                                                              if (next) {
+                                                                const el = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${next.index}"][data-serie-field="${next.field}"]`) as HTMLElement;
+                                                                if (el) el.focus();
+                                                              }
+                                                            }
+                                                          };
+                                                          return (
                                                           <TableRow key={`${exercise.id}-serie-${si}`} className="bg-muted/20">
                                                             <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                               Série {si + 1}
@@ -4656,13 +4680,7 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.reps}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "reps", e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                  if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="reps"]`) as HTMLElement;
-                                                                    if (next) next.focus();
-                                                                  }
-                                                                }}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "reps")}
                                                                 placeholder={exercise.reps || "reps"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
@@ -4671,18 +4689,29 @@ export default function ClientDetail() {
                                                                 data-serie-field="reps"
                                                               />
                                                             </TableCell>
-                                                            <TableCell></TableCell>
+                                                            <TableCell className="py-1">
+                                                              <Select
+                                                                value={serie.recuperation || exercise.recuperation || ""}
+                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
+                                                                disabled={isValidated}
+                                                              >
+                                                                <SelectTrigger className="h-7 text-xs">
+                                                                  <SelectValue placeholder="Récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {recuperationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                      {option.label}
+                                                                    </SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
+                                                            </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.rpe}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                  if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="rpe"]`) as HTMLElement;
-                                                                    if (next) next.focus();
-                                                                  }
-                                                                }}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "rpe")}
                                                                 placeholder={exercise.rpe || "RPE"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
@@ -4695,13 +4724,7 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.charge}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                  if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="charge"]`) as HTMLElement;
-                                                                    if (next) next.focus();
-                                                                  }
-                                                                }}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
                                                                 placeholder={
                                                                   !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
                                                                     ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
@@ -4718,13 +4741,7 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.tempo}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "tempo", e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                  if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="tempo"]`) as HTMLElement;
-                                                                    if (next) next.focus();
-                                                                  }
-                                                                }}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "tempo")}
                                                                 placeholder={exercise.tempo || "tempo"}
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
@@ -4737,13 +4754,7 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.commentaire}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "commentaire", e.target.value)}
-                                                                onKeyDown={(e) => {
-                                                                  if (e.key === "Enter") {
-                                                                    e.preventDefault();
-                                                                    const next = document.querySelector(`[data-serie-exercise="${exercise.id}"][data-serie-index="${si + 1}"][data-serie-field="commentaire"]`) as HTMLElement;
-                                                                    if (next) next.focus();
-                                                                  }
-                                                                }}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "commentaire")}
                                                                 placeholder=""
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
@@ -4755,7 +4766,8 @@ export default function ClientDetail() {
                                                             <TableCell></TableCell>
                                                             <TableCell></TableCell>
                                                           </TableRow>
-                                                        ))}
+                                                          );
+                                                        })}
                                                       </>
                                                     )}
 
