@@ -4650,7 +4650,11 @@ export default function ClientDetail() {
                                                               <Input
                                                                 value={serie.charge}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
-                                                                placeholder={exercise.charge || "charge"}
+                                                                placeholder={
+                                                                  !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
+                                                                    ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
+                                                                    : (exercise.charge || "charge")
+                                                                }
                                                                 disabled={isValidated}
                                                                 className="h-7 text-xs"
                                                               />
