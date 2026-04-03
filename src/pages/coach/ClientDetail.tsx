@@ -754,6 +754,7 @@ export default function ClientDetail() {
               per_side: exercise.per_side || false,
               is_duration: exercise.is_duration || false,
               request_video: exercise.request_video || false,
+              serie_details: exercise.serie_details && exercise.serie_details.length > 0 ? JSON.stringify(exercise.serie_details) : null,
             })
             .eq("id", exercise.id);
 
