@@ -15,6 +15,26 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight } from "lucide-react";
 
+const RECUPERATION_OPTIONS = [
+  { value: "0s", label: "Aucune" },
+  { value: "30s", label: "30 sec" },
+  { value: "35s", label: "35 sec" },
+  { value: "40s", label: "40 sec" },
+  { value: "45s", label: "45 sec" },
+  { value: "50s", label: "50 sec" },
+  { value: "55s", label: "55 sec" },
+  { value: "1min", label: "1 min" },
+  { value: "1min30s", label: "1'30" },
+  { value: "2min", label: "2 min" },
+  { value: "2min30s", label: "2'30" },
+  { value: "3min", label: "3 min" },
+  { value: "3min30s", label: "3'30" },
+  { value: "4min", label: "4 min" },
+  { value: "4min30s", label: "4'30" },
+  { value: "5min", label: "5 min" },
+  { value: "emom", label: "EMOM" },
+];
+
 const THEMES = [
   { value: "endurance", label: "Endurance", color: "hsl(200, 70%, 50%)" },
   { value: "force", label: "Force", color: "hsl(0, 70%, 50%)" },
