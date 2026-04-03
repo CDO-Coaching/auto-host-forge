@@ -4766,7 +4766,8 @@ export default function ClientDetail() {
                                                             <TableCell></TableCell>
                                                             <TableCell></TableCell>
                                                           </TableRow>
-                                                        ))}
+                                                          );
+                                                        })}
                                                       </>
                                                     )}
 
