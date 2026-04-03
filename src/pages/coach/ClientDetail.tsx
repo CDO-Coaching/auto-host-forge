@@ -1669,6 +1669,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
                   request_video: ex.request_video || false,
+                  serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
                 };
               });
             newExercises[sessionIndex + 1] = sortedExercises;
