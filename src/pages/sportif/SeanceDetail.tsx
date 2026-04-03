@@ -965,43 +965,69 @@ export default function SeanceDetail() {
                               <p className="font-semibold text-base sm:text-lg truncate">{item.exercice}</p>
                             </div>
                             {!isCardio && (
-                              <div className="flex gap-2 flex-wrap">
-                                {item.series && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.series} séries
-                                  </Badge>
-                                )}
-                                {item.reps && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.reps} reps{item.per_side ? " (par côté)" : ""}
-                                  </Badge>
-                                )}
-                                {item.charge && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.charge}
-                                  </Badge>
-                                )}
-                                {item.rpe && (
-                                  <Badge variant="outline" className="text-xs">
-                                    RPE prescrit: {item.rpe}
-                                  </Badge>
-                                )}
-                                {item.tempo && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Tempo: {item.tempo}
-                                  </Badge>
-                                )}
-                                {item.recuperation && (
-                                  item.recuperation === "0s" ? (
-                                    <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
-                                      ⚡ Enchaîné
-                                    </Badge>
-                                  ) : (
+                              <div className="space-y-2">
+                                <div className="flex gap-2 flex-wrap">
+                                  {item.series && (
                                     <Badge variant="outline" className="text-xs">
-                                      Récup: {item.recuperation}
+                                      {item.series} séries
                                     </Badge>
-                                  )
-                                )}
+                                  )}
+                                  {item.reps && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {item.reps} reps{item.per_side ? " (par côté)" : ""}
+                                    </Badge>
+                                  )}
+                                  {item.charge && (
+                                    <Badge variant="outline" className="text-xs">
+                                      {item.charge}
+                                    </Badge>
+                                  )}
+                                  {item.rpe && (
+                                    <Badge variant="outline" className="text-xs">
+                                      RPE prescrit: {item.rpe}
+                                    </Badge>
+                                  )}
+                                  {item.tempo && (
+                                    <Badge variant="outline" className="text-xs">
+                                      Tempo: {item.tempo}
+                                    </Badge>
+                                  )}
+                                  {item.recuperation && (
+                                    item.recuperation === "0s" ? (
+                                      <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
+                                        ⚡ Enchaîné
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs">
+                                        Récup: {item.recuperation}
+                                      </Badge>
+                                    )
+                                  )}
+                                </div>
+                                {/* Détail par série si défini */}
+                                {item.serie_details && (() => {
+                                  try {
+                                    const details = typeof item.serie_details === 'string' 
+                                      ? JSON.parse(item.serie_details) 
+                                      : item.serie_details;
+                                    if (Array.isArray(details) && details.length > 0) {
+                                      return (
+                                        <div className="mt-2 space-y-1">
+                                          {details.map((serie: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-1.5 flex-wrap text-xs border-l-2 border-primary/30 pl-2 py-0.5">
+                                              <span className="font-semibold text-primary">S{idx + 1}</span>
+                                              {serie.reps && <span>{serie.reps}r</span>}
+                                              {serie.charge && <span className="font-medium">{serie.charge}</span>}
+                                              {serie.rpe && <span>RPE {serie.rpe}</span>}
+                                              {serie.tempo && <span>T:{serie.tempo}</span>}
+                                            </div>
+                                          ))}
+                                        </div>
+                                      );
+                                    }
+                                  } catch (e) {}
+                                  return null;
+                                })()}
                               </div>
                             )}
                             {isCardio && (
