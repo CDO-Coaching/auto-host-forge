@@ -193,10 +193,13 @@ export type Database = {
           full_description: string | null
           id: string
           name: string
+          num_cycles: number | null
           progression_summary: string | null
           rpe_target_max: number | null
           rpe_target_min: number | null
+          sessions_options: number[] | null
           updated_at: string
+          weeks_per_cycle: number | null
         }
         Insert: {
           coach_id: string
@@ -207,10 +210,13 @@ export type Database = {
           full_description?: string | null
           id?: string
           name: string
+          num_cycles?: number | null
           progression_summary?: string | null
           rpe_target_max?: number | null
           rpe_target_min?: number | null
+          sessions_options?: number[] | null
           updated_at?: string
+          weeks_per_cycle?: number | null
         }
         Update: {
           coach_id?: string
@@ -221,12 +227,44 @@ export type Database = {
           full_description?: string | null
           id?: string
           name?: string
+          num_cycles?: number | null
           progression_summary?: string | null
           rpe_target_max?: number | null
           rpe_target_min?: number | null
+          sessions_options?: number[] | null
           updated_at?: string
+          weeks_per_cycle?: number | null
         }
         Relationships: []
+      }
+      methodology_exercises: {
+        Row: {
+          created_at: string
+          exercise_id: string
+          id: string
+          methodology_id: string
+        }
+        Insert: {
+          created_at?: string
+          exercise_id: string
+          id?: string
+          methodology_id: string
+        }
+        Update: {
+          created_at?: string
+          exercise_id?: string
+          id?: string
+          methodology_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "methodology_exercises_methodology_id_fkey"
+            columns: ["methodology_id"]
+            isOneToOne: false
+            referencedRelation: "coaching_methodologies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       methodology_themes: {
         Row: {
