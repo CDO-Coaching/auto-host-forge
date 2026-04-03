@@ -1209,6 +1209,7 @@ export default function ClientDetail() {
       is_duration: ex.is_duration || false,
       per_side: ex.per_side || false,
       is_unilateral: libraryExercises.find(e => e.name === ex.exercice)?.unilateral || false,
+      serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details) : ex.serie_details) : undefined,
     }));
     
     setSessionExercises({
