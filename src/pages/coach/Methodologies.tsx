@@ -852,7 +852,7 @@ export default function Methodologies() {
                                                       <TableHead className="min-w-[50px] text-[10px]">Reps</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="min-w-[40px] text-[10px]">RPE</TableHead>
-                                                      <TableHead className="min-w-[60px] text-[10px]">Charge</TableHead>
+                                                      <TableHead className="min-w-[60px] text-[10px]">% Max</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Tempo</TableHead>
                                                       <TableHead className="min-w-[80px] text-[10px]">Comm.</TableHead>
                                                       <TableHead className="w-[30px]"></TableHead>
