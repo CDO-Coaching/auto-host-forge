@@ -558,12 +558,22 @@ export default function Methodologies() {
       </Dialog>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingId ? "Modifier la méthodologie" : "Nouvelle méthodologie"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen} modal={true}>
+        <DialogContent className="max-w-none w-screen h-screen rounded-none border-none p-0 m-0 gap-0 [&>button]:hidden">
+          <div className="flex flex-col h-full">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background px-4 py-3 sm:px-6">
+              <h2 className="text-lg font-semibold">{editingId ? "Modifier la méthodologie" : "Nouvelle méthodologie"}</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>Quitter</Button>
+                <Button size="sm" onClick={handleSave} disabled={saving}>
+                  {saving ? "Enregistrement..." : editingId ? "Modifier" : "Enregistrer"}
+                </Button>
+              </div>
+            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+              <div className="mx-auto max-w-2xl space-y-4">
             <div>
               <Label>Nom *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Méthode 3/7 ondulatoire" />
@@ -750,13 +760,9 @@ export default function Methodologies() {
               <Label>Description complète</Label>
               <Textarea value={fullDescription} onChange={(e) => setFullDescription(e.target.value)} placeholder="Structure détaillée, séries, repos, intensité, adaptations, contraintes..." rows={8} />
             </div>
+              </div>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Enregistrement..." : editingId ? "Modifier" : "Ajouter"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
