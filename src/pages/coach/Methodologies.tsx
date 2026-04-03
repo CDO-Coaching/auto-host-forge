@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -34,10 +35,13 @@ interface Exercise {
 
 interface SessionExerciseConfig {
   exerciseId: string;
-  sets: string;
+  recuperation: string;
   reps: string;
+  series: string;
   rpe: string;
-  percentMax: string;
+  charge: string;
+  tempo: string;
+  commentaire: string;
 }
 
 interface Methodology {
@@ -266,7 +270,8 @@ export default function Methodologies() {
     setSessionExerciseMap(prev => {
       const existing = prev[key] || [];
       if (existing.some(c => c.exerciseId === exerciseId)) return prev;
-      return { ...prev, [key]: [...existing, { exerciseId, sets: "", reps: "", rpe: "", percentMax: "" }] };
+      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "" };
+      return { ...prev, [key]: [...existing, newConfig] };
     });
   };
 
@@ -837,58 +842,58 @@ export default function Methodologies() {
                                             )}
                                           </CollapsibleTrigger>
                                           <CollapsibleContent className="ml-6 py-1 space-y-1.5">
-                                            {sessionConfigs.map(cfg => (
-                                              <div key={cfg.exerciseId} className="rounded border border-border/50 bg-accent/10 px-2 py-1.5">
-                                                <div className="flex items-center justify-between gap-2 mb-1">
-                                                  <span className="text-xs font-medium text-foreground/80">{cfg.exercise.name}</span>
-                                                  <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
-                                                    <X className="h-3 w-3" />
-                                                  </button>
-                                                </div>
-                                                <div className="grid grid-cols-4 gap-1.5">
-                                                  <div>
-                                                    <label className="text-[9px] text-muted-foreground">Séries</label>
-                                                    <input
-                                                      type="text"
-                                                      value={cfg.sets}
-                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "sets", e.target.value)}
-                                                      placeholder="4"
-                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <label className="text-[9px] text-muted-foreground">Reps</label>
-                                                    <input
-                                                      type="text"
-                                                      value={cfg.reps}
-                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)}
-                                                      placeholder="8"
-                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <label className="text-[9px] text-muted-foreground">RPE</label>
-                                                    <input
-                                                      type="text"
-                                                      value={cfg.rpe}
-                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)}
-                                                      placeholder="8"
-                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <label className="text-[9px] text-muted-foreground">% Max</label>
-                                                    <input
-                                                      type="text"
-                                                      value={cfg.percentMax}
-                                                      onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "percentMax", e.target.value)}
-                                                      placeholder="75"
-                                                      className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-foreground"
-                                                    />
-                                                  </div>
-                                                </div>
+                                            {sessionConfigs.length > 0 && (
+                                              <div className="overflow-x-auto rounded border border-border/50">
+                                                <Table className="text-xs">
+                                                  <TableHeader>
+                                                    <TableRow className="h-7">
+                                                      <TableHead className="min-w-[120px] text-[10px]">Exercice</TableHead>
+                                                      <TableHead className="min-w-[60px] text-[10px]">Récup</TableHead>
+                                                      <TableHead className="min-w-[50px] text-[10px]">Reps</TableHead>
+                                                      <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
+                                                      <TableHead className="min-w-[40px] text-[10px]">RPE</TableHead>
+                                                      <TableHead className="min-w-[60px] text-[10px]">Charge</TableHead>
+                                                      <TableHead className="min-w-[50px] text-[10px]">Tempo</TableHead>
+                                                      <TableHead className="min-w-[80px] text-[10px]">Comm.</TableHead>
+                                                      <TableHead className="w-[30px]"></TableHead>
+                                                    </TableRow>
+                                                  </TableHeader>
+                                                  <TableBody>
+                                                    {sessionConfigs.map(cfg => (
+                                                      <TableRow key={cfg.exerciseId} className="h-8">
+                                                        <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.recuperation} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", e.target.value)} placeholder="1'30" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.series} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "series", e.target.value)} placeholder="4" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="80kg" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <input type="text" value={cfg.commentaire} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                        </TableCell>
+                                                        <TableCell className="py-1">
+                                                          <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                            <X className="h-3 w-3" />
+                                                          </button>
+                                                        </TableCell>
+                                                      </TableRow>
+                                                    ))}
+                                                  </TableBody>
+                                                </Table>
                                               </div>
-                                            ))}
+                                            )}
                                             {availableToAdd.length > 0 && (
                                               <div className="pt-0.5">
                                                 <select
