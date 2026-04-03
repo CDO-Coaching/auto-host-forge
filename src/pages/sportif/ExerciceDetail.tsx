@@ -117,6 +117,7 @@ export default function ExerciceDetail() {
         rpe: detail.rpe || exercise.rpe || "",
         tempo: detail.tempo || exercise.tempo || "",
         commentaire: detail.commentaire || "",
+        recuperation: detail.recuperation || "",
       });
     }
     return series;
