@@ -933,7 +933,7 @@ export default function Methodologies() {
                                                           <TableRow className="h-8">
                                                             <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
                                                             <TableCell className="py-1">
-                                                              <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", v)}>
+                                                              <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "recuperation", v)}>
                                                                 <SelectTrigger className="h-6 text-[11px] px-1 min-w-[60px]">
                                                                   <SelectValue placeholder="Récup" />
                                                                 </SelectTrigger>
@@ -945,25 +945,25 @@ export default function Methodologies() {
                                                               </Select>
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.commentaire} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.commentaire} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <input type="text" value={cfg.series} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "series", e.target.value)} placeholder="4" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                              <input type="text" value={cfg.series} onChange={(e) => updateSessionExerciseConfig(ci, wi, si, cfg.exerciseId, "series", e.target.value)} placeholder="4" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                              <button type="button" onClick={() => removeExerciseFromSession(ci, wi, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
                                                                 <X className="h-3 w-3" />
                                                               </button>
                                                             </TableCell>
@@ -986,7 +986,7 @@ export default function Methodologies() {
                                                             <TableRow key={sdIdx} className="h-7 bg-muted/20 border-0">
                                                               <TableCell className="py-0.5 pl-4 text-[10px] text-muted-foreground">S{sdIdx + 1}</TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <Select value={sd.recuperation} onValueChange={(v) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "recuperation", v)}>
+                                                                <Select value={sd.recuperation} onValueChange={(v) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "recuperation", v)}>
                                                                   <SelectTrigger className="h-5 text-[10px] px-1 min-w-[55px]">
                                                                     <SelectValue placeholder="Récup" />
                                                                   </SelectTrigger>
@@ -998,19 +998,19 @@ export default function Methodologies() {
                                                                 </Select>
                                                               </TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <input type="text" value={sd.reps} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "reps", e.target.value)} placeholder={cfg.reps || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                                <input type="text" value={sd.reps} onChange={(e) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "reps", e.target.value)} placeholder={cfg.reps || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
                                                               </TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <input type="text" value={sd.rpe} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "rpe", e.target.value)} placeholder={cfg.rpe || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                                <input type="text" value={sd.rpe} onChange={(e) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "rpe", e.target.value)} placeholder={cfg.rpe || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
                                                               </TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <input type="text" value={sd.charge} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "charge", e.target.value)} placeholder={cfg.charge || "75%"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                                <input type="text" value={sd.charge} onChange={(e) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "charge", e.target.value)} placeholder={cfg.charge || "75%"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
                                                               </TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <input type="text" value={sd.tempo} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "tempo", e.target.value)} placeholder={cfg.tempo || "3010"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                                <input type="text" value={sd.tempo} onChange={(e) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "tempo", e.target.value)} placeholder={cfg.tempo || "3010"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
                                                               </TableCell>
                                                               <TableCell className="py-0.5">
-                                                                <input type="text" value={sd.commentaire} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                                <input type="text" value={sd.commentaire} onChange={(e) => updateSerieDetail(ci, wi, si, cfg.exerciseId, sdIdx, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
                                                               </TableCell>
                                                               <TableCell className="py-0.5"></TableCell>
                                                               <TableCell className="py-0.5"></TableCell>
@@ -1029,7 +1029,7 @@ export default function Methodologies() {
                                                   className="w-full rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
                                                   value=""
                                                   onChange={(e) => {
-                                                    if (e.target.value) addExerciseToSession(ci, si, e.target.value);
+                                                    if (e.target.value) addExerciseToSession(ci, wi, si, e.target.value);
                                                   }}
                                                 >
                                                   <option value="">+ Ajouter un exercice...</option>
