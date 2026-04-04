@@ -606,6 +606,7 @@ export default function ExerciceDetail() {
         exerciseName={exercise?.exercice}
         exerciseType="renfo"
         isRpeRequired={!allSeriesValidated}
+        defaultRpe={computedAvgRpe}
       />
 
       <SendVideoDialog
