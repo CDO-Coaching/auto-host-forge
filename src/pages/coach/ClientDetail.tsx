@@ -2245,11 +2245,11 @@ export default function ClientDetail() {
           "exercice",
           "recuperation",
           "reps",
-          "series",
           "rpe",
           "charge",
           "tempo",
           "commentaire",
+          "series",
         ];
         const currentIndex = fieldOrder.indexOf(field);
         const nextField = fieldOrder[currentIndex + 1];
