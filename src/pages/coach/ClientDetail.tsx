@@ -4150,10 +4150,25 @@ export default function ClientDetail() {
                                                               </div>
                                                             </TableCell>
                                                             <TableCell>
-                                                              {/* Case de série masquée pour les exercices du super-set */}
-                                                              <div className="text-center text-muted-foreground text-xs">
-                                                                (voir en-tête)
-                                                              </div>
+                                                              <Input
+                                                                value={ex.rpe}
+                                                                onChange={(e) =>
+                                                                  handleExerciseChange(
+                                                                    session.id,
+                                                                    ex.id,
+                                                                    "rpe",
+                                                                    e.target.value,
+                                                                  )
+                                                                }
+                                                                onKeyDown={(e) =>
+                                                                  handleKeyDown(e, session.id, ex.id, "rpe")
+                                                                }
+                                                                placeholder="ex: 8"
+                                                                disabled={isValidated}
+                                                                data-session={session.id}
+                                                                data-exercise={ex.id}
+                                                                data-field="rpe"
+                                                              />
                                                             </TableCell>
                                                             <TableCell>
                                                               <Input
