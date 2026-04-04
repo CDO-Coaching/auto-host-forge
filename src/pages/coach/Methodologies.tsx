@@ -894,7 +894,7 @@ export default function Methodologies() {
                                 <CollapsibleContent className="ml-4 border-l border-border/50 pl-2">
                                   {sessionsOptions.length > 0 ? (
                                     Array.from({ length: Math.max(...sessionsOptions) }, (_, si) => {
-                                      const sessionConfigs = getSessionExerciseConfigs(ci, si);
+                                      const sessionConfigs = getSessionExerciseConfigs(ci, wi, si);
                                       const availableToAdd = selectedExercises.filter(e => !sessionConfigs.some(c => c.exerciseId === e.id));
                                       return (
                                         <Collapsible key={si}>
