@@ -121,6 +121,7 @@ export default function Methodologies() {
   const [sessionExerciseMap, setSessionExerciseMap] = useState<Record<string, SessionExerciseConfig[]>>({});
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
+  const [expandedMethodoSeries, setExpandedMethodoSeries] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
   const fetchExercises = async () => {
