@@ -4493,27 +4493,6 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                       <TableCell>
                                                         <Input
-                                                          value={exercise.series}
-                                                          onChange={(e) =>
-                                                            handleExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "series",
-                                                              e.target.value,
-                                                            )
-                                                          }
-                                                          onKeyDown={(e) =>
-                                                            handleKeyDown(e, session.id, exercise.id, "series")
-                                                          }
-                                                          placeholder="ex: 3"
-                                                          disabled={isValidated}
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="series"
-                                                        />
-                                                      </TableCell>
-                                                      <TableCell>
-                                                        <Input
                                                           value={exercise.rpe}
                                                           onChange={(e) =>
                                                             handleExerciseChange(
@@ -4598,6 +4577,27 @@ export default function ClientDetail() {
                                                           data-session={session.id}
                                                           data-exercise={exercise.id}
                                                           data-field="commentaire"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.series}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "series",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "series")
+                                                          }
+                                                          placeholder="ex: 3"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="series"
                                                         />
                                                       </TableCell>
                                                       <TableCell className="text-center">
