@@ -49,6 +49,7 @@ export default function ExerciceDetail() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const [coachName, setCoachName] = useState<string>("ton coach");
@@ -372,10 +373,19 @@ export default function ExerciceDetail() {
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
 
-    // Start recovery timer with per-series recuperation if available
-    const serieData = seriesData[rpeDialogSerieIndex];
-    const serieRecup = serieData?.recuperation || undefined;
-    startRecoveryTimer(serieRecup);
+    // Check if this was the last serie
+    const allNowValidated = newValidations.every(s => s.validated);
+    if (allNowValidated && newValidations.length > 0) {
+      // Compute average RPE and auto-open feedback dialog
+      const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
+      setComputedAvgRpe(avgRpe.toString());
+      setDialogOpen(true);
+    } else {
+      // Start recovery timer with per-series recuperation if available
+      const serieData = seriesData[rpeDialogSerieIndex];
+      const serieRecup = serieData?.recuperation || undefined;
+      startRecoveryTimer(serieRecup);
+    }
   };
 
   const startTimer = () => {
@@ -596,6 +606,7 @@ export default function ExerciceDetail() {
         exerciseName={exercise?.exercice}
         exerciseType="renfo"
         isRpeRequired={!allSeriesValidated}
+        defaultRpe={computedAvgRpe}
       />
 
       <SendVideoDialog
