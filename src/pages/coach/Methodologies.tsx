@@ -301,7 +301,7 @@ export default function Methodologies() {
     setSessionExerciseMap(prev => {
       const existing = prev[key] || [];
       if (existing.some(c => c.exerciseId === exerciseId)) return prev;
-      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "" };
+      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "", serieDetails: [] };
       return { ...prev, [key]: [...existing, newConfig] };
     });
   };
