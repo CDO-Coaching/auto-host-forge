@@ -23,6 +23,7 @@ interface ExerciseFeedbackDialogProps {
   exerciseName?: string;
   exerciseType?: "cardio" | "renfo" | "recup";
   isRpeRequired?: boolean;
+  defaultRpe?: string;
 }
 
 export function ExerciseFeedbackDialog({
@@ -33,11 +34,19 @@ export function ExerciseFeedbackDialog({
   exerciseName,
   exerciseType = "renfo",
   isRpeRequired = false,
+  defaultRpe,
 }: ExerciseFeedbackDialogProps) {
-  const [rpe, setRpe] = useState("");
+  const [rpe, setRpe] = useState(defaultRpe || "");
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+
+  // Update rpe when defaultRpe changes (e.g. when dialog opens with computed average)
+  useEffect(() => {
+    if (defaultRpe !== undefined) {
+      setRpe(defaultRpe);
+    }
+  }, [defaultRpe, open]);
 
   const handleValidate = async () => {
     const rpeValue = rpe.trim();
