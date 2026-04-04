@@ -4170,27 +4170,6 @@ export default function ClientDetail() {
                                                                 data-field="rpe"
                                                               />
                                                             </TableCell>
-                                                            <TableCell>
-                                                              <Input
-                                                                value={ex.rpe}
-                                                                onChange={(e) =>
-                                                                  handleExerciseChange(
-                                                                    session.id,
-                                                                    ex.id,
-                                                                    "rpe",
-                                                                    e.target.value,
-                                                                  )
-                                                                }
-                                                                onKeyDown={(e) =>
-                                                                  handleKeyDown(e, session.id, ex.id, "rpe")
-                                                                }
-                                                                placeholder="ex: 8"
-                                                                disabled={isValidated}
-                                                                data-session={session.id}
-                                                                data-exercise={ex.id}
-                                                                data-field="rpe"
-                                                              />
-                                                            </TableCell>
                                                              <TableCell>
                                                                <Input
                                                                  value={ex.charge}
