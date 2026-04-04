@@ -915,11 +915,11 @@ export default function Methodologies() {
                                                       <TableHead className="min-w-[120px] text-[10px]">Exercice</TableHead>
                                                       <TableHead className="min-w-[60px] text-[10px]">Récup</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Reps</TableHead>
-                                                      <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="min-w-[40px] text-[10px]">RPE</TableHead>
                                                       <TableHead className="min-w-[60px] text-[10px]">% Max</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Tempo</TableHead>
                                                       <TableHead className="min-w-[80px] text-[10px]">Comm.</TableHead>
+                                                      <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="w-[30px]"></TableHead>
                                                     </TableRow>
                                                   </TableHeader>
