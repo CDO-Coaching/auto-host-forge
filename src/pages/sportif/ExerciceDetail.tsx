@@ -49,6 +49,7 @@ export default function ExerciceDetail() {
   const [weekId, setWeekId] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
   const [showCelebration, setShowCelebration] = useState(false);
   const [showTimerOverlay, setShowTimerOverlay] = useState(false);
   const [coachName, setCoachName] = useState<string>("ton coach");
