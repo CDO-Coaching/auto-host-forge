@@ -4744,6 +4744,24 @@ export default function ClientDetail() {
                                                                 data-serie-field="commentaire"
                                                               />
                                                             </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <Select
+                                                                value={serie.recuperation || exercise.recuperation || ""}
+                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
+                                                                disabled={isValidated}
+                                                              >
+                                                                <SelectTrigger className="h-7 text-xs">
+                                                                  <SelectValue placeholder="Récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {recuperationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                      {option.label}
+                                                                    </SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
+                                                            </TableCell>
                                                             <TableCell></TableCell>
                                                             <TableCell></TableCell>
                                                           </TableRow>
