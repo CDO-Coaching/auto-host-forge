@@ -4689,22 +4689,17 @@ export default function ClientDetail() {
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <Select
-                                                                value={serie.recuperation || exercise.recuperation || ""}
-                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
+                                                              <Input
+                                                                value={serie.rpe}
+                                                                onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
+                                                                onKeyDown={(e) => handleSerieKeyDown(e, "rpe")}
+                                                                placeholder={exercise.rpe || "RPE"}
                                                                 disabled={isValidated}
-                                                              >
-                                                                <SelectTrigger className="h-7 text-xs">
-                                                                  <SelectValue placeholder="Récup" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                  {recuperationOptions.map((option) => (
-                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
-                                                                      {option.label}
-                                                                    </SelectItem>
-                                                                  ))}
-                                                                </SelectContent>
-                                                              </Select>
+                                                                className="h-7 text-xs"
+                                                                data-serie-exercise={exercise.id}
+                                                                data-serie-index={si}
+                                                                data-serie-field="rpe"
+                                                              />
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
