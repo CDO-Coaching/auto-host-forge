@@ -321,11 +321,44 @@ export default function Methodologies() {
   const updateSessionExerciseConfig = (cycleIndex: number, sessionIndex: number, exerciseId: string, field: keyof SessionExerciseConfig, value: string) => {
     const key = `${cycleIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
-      const configs = (prev[key] || []).map(c =>
-        c.exerciseId === exerciseId ? { ...c, [field]: value } : c
-      );
+      const configs = (prev[key] || []).map(c => {
+        if (c.exerciseId !== exerciseId) return c;
+        const updated = { ...c, [field]: value };
+        // When series count changes, regenerate serieDetails
+        if (field === "series") {
+          const count = parseInt(value) || 0;
+          const oldDetails = c.serieDetails || [];
+          const newDetails: SerieDetail[] = Array.from({ length: count }, (_, i) => ({
+            reps: oldDetails[i]?.reps || c.reps || "",
+            rpe: oldDetails[i]?.rpe || c.rpe || "",
+            charge: oldDetails[i]?.charge || c.charge || "",
+            tempo: oldDetails[i]?.tempo || c.tempo || "",
+            commentaire: oldDetails[i]?.commentaire || c.commentaire || "",
+            recuperation: oldDetails[i]?.recuperation || c.recuperation || "",
+          }));
+          updated.serieDetails = newDetails;
+        }
+        return updated;
+      });
       return { ...prev, [key]: configs };
     });
+  };
+
+  const updateSerieDetail = (cycleIndex: number, sessionIndex: number, exerciseId: string, serieIdx: number, field: keyof SerieDetail, value: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const configs = (prev[key] || []).map(c => {
+        if (c.exerciseId !== exerciseId) return c;
+        const details = [...c.serieDetails];
+        details[serieIdx] = { ...details[serieIdx], [field]: value };
+        return { ...c, serieDetails: details };
+      });
+      return { ...prev, [key]: configs };
+    });
+  };
+
+  const toggleMethodoSeriesExpanded = (key: string) => {
+    setExpandedMethodoSeries(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const getSessionExerciseConfigs = (cycleIndex: number, sessionIndex: number): (SessionExerciseConfig & { exercise: Exercise })[] => {
