@@ -297,8 +297,8 @@ export default function Methodologies() {
     });
   };
 
-  const addExerciseToSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
-    const key = `${cycleIndex}-${sessionIndex}`;
+  const addExerciseToSession = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
       const existing = prev[key] || [];
       if (existing.some(c => c.exerciseId === exerciseId)) return prev;
@@ -307,8 +307,8 @@ export default function Methodologies() {
     });
   };
 
-  const removeExerciseFromSession = (cycleIndex: number, sessionIndex: number, exerciseId: string) => {
-    const key = `${cycleIndex}-${sessionIndex}`;
+  const removeExerciseFromSession = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string) => {
+    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
       const filtered = (prev[key] || []).filter(c => c.exerciseId !== exerciseId);
       const next = { ...prev };
@@ -318,8 +318,8 @@ export default function Methodologies() {
     });
   };
 
-  const updateSessionExerciseConfig = (cycleIndex: number, sessionIndex: number, exerciseId: string, field: keyof SessionExerciseConfig, value: string) => {
-    const key = `${cycleIndex}-${sessionIndex}`;
+  const updateSessionExerciseConfig = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string, field: keyof SessionExerciseConfig, value: string) => {
+    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
       const configs = (prev[key] || []).map(c => {
         if (c.exerciseId !== exerciseId) return c;
@@ -344,8 +344,8 @@ export default function Methodologies() {
     });
   };
 
-  const updateSerieDetail = (cycleIndex: number, sessionIndex: number, exerciseId: string, serieIdx: number, field: keyof SerieDetail, value: string) => {
-    const key = `${cycleIndex}-${sessionIndex}`;
+  const updateSerieDetail = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string, serieIdx: number, field: keyof SerieDetail, value: string) => {
+    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
       const configs = (prev[key] || []).map(c => {
         if (c.exerciseId !== exerciseId) return c;
@@ -361,8 +361,8 @@ export default function Methodologies() {
     setExpandedMethodoSeries(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const getSessionExerciseConfigs = (cycleIndex: number, sessionIndex: number): (SessionExerciseConfig & { exercise: Exercise })[] => {
-    const key = `${cycleIndex}-${sessionIndex}`;
+  const getSessionExerciseConfigs = (cycleIndex: number, weekIndex: number, sessionIndex: number): (SessionExerciseConfig & { exercise: Exercise })[] => {
+    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
     const configs = sessionExerciseMap[key] || [];
     return configs.map(c => {
       const exercise = selectedExercises.find(e => e.id === c.exerciseId);
