@@ -4237,6 +4237,11 @@ export default function ClientDetail() {
                                                                 data-field="commentaire"
                                                               />
                                                             </TableCell>
+                                                            <TableCell>
+                                                              <div className="text-center text-muted-foreground text-xs">
+                                                                (voir en-tête)
+                                                              </div>
+                                                            </TableCell>
                                                             <TableCell className="text-center">
                                                               <Checkbox
                                                                 checked={ex.request_video || false}
