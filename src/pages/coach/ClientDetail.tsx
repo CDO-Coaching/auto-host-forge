@@ -2245,11 +2245,11 @@ export default function ClientDetail() {
           "exercice",
           "recuperation",
           "reps",
-          "series",
           "rpe",
           "charge",
           "tempo",
           "commentaire",
+          "series",
         ];
         const currentIndex = fieldOrder.indexOf(field);
         const nextField = fieldOrder[currentIndex + 1];
@@ -3912,11 +3912,11 @@ export default function ClientDetail() {
                                           <TableHead className="min-w-[130px]">Exercice</TableHead>
                                           <TableHead className="min-w-[90px]">Récup</TableHead>
                                           <TableHead className="min-w-[70px]">Reps</TableHead>
-                                          <TableHead className="min-w-[60px]">Séries</TableHead>
                                           <TableHead className="min-w-[50px]">RPE</TableHead>
                                           <TableHead className="min-w-[70px]">Charge</TableHead>
                                           <TableHead className="min-w-[70px]">Tempo</TableHead>
                                           <TableHead className="min-w-[120px]">Comm.</TableHead>
+                                          <TableHead className="min-w-[60px]">Séries</TableHead>
                                           <TableHead className="w-[50px] text-center">
                                             <Video className="h-4 w-4 mx-auto" />
                                           </TableHead>
@@ -3965,7 +3965,7 @@ export default function ClientDetail() {
 
                                                     {/* En-tête du super-set avec la case de série commune */}
                                                     <TableRow className="bg-primary/10 border-l-4 border-l-primary">
-                                                      <TableCell colSpan={3} className="font-semibold">
+                                                      <TableCell colSpan={7} className="font-semibold">
                                                         <Badge variant="default" className="mr-2">
                                                           Super-set ({groupExercises.length} exercices)
                                                         </Badge>
@@ -3991,7 +3991,7 @@ export default function ClientDetail() {
                                                           />
                                                         </div>
                                                       </TableCell>
-                                                      <TableCell colSpan={5}></TableCell>
+                                                      <TableCell colSpan={2}></TableCell>
                                                     </TableRow>
 
                                                     {/* Exercices du super-set */}
@@ -4150,12 +4150,6 @@ export default function ClientDetail() {
                                                               </div>
                                                             </TableCell>
                                                             <TableCell>
-                                                              {/* Case de série masquée pour les exercices du super-set */}
-                                                              <div className="text-center text-muted-foreground text-xs">
-                                                                (voir en-tête)
-                                                              </div>
-                                                            </TableCell>
-                                                            <TableCell>
                                                               <Input
                                                                 value={ex.rpe}
                                                                 onChange={(e) =>
@@ -4242,6 +4236,11 @@ export default function ClientDetail() {
                                                                 data-exercise={ex.id}
                                                                 data-field="commentaire"
                                                               />
+                                                            </TableCell>
+                                                            <TableCell>
+                                                              <div className="text-center text-muted-foreground text-xs">
+                                                                (voir en-tête)
+                                                              </div>
                                                             </TableCell>
                                                             <TableCell className="text-center">
                                                               <Checkbox
@@ -4493,27 +4492,6 @@ export default function ClientDetail() {
                                                       </TableCell>
                                                       <TableCell>
                                                         <Input
-                                                          value={exercise.series}
-                                                          onChange={(e) =>
-                                                            handleExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "series",
-                                                              e.target.value,
-                                                            )
-                                                          }
-                                                          onKeyDown={(e) =>
-                                                            handleKeyDown(e, session.id, exercise.id, "series")
-                                                          }
-                                                          placeholder="ex: 3"
-                                                          disabled={isValidated}
-                                                          data-session={session.id}
-                                                          data-exercise={exercise.id}
-                                                          data-field="series"
-                                                        />
-                                                      </TableCell>
-                                                      <TableCell>
-                                                        <Input
                                                           value={exercise.rpe}
                                                           onChange={(e) =>
                                                             handleExerciseChange(
@@ -4598,6 +4576,27 @@ export default function ClientDetail() {
                                                           data-session={session.id}
                                                           data-exercise={exercise.id}
                                                           data-field="commentaire"
+                                                        />
+                                                      </TableCell>
+                                                      <TableCell>
+                                                        <Input
+                                                          value={exercise.series}
+                                                          onChange={(e) =>
+                                                            handleExerciseChange(
+                                                              session.id,
+                                                              exercise.id,
+                                                              "series",
+                                                              e.target.value,
+                                                            )
+                                                          }
+                                                          onKeyDown={(e) =>
+                                                            handleKeyDown(e, session.id, exercise.id, "series")
+                                                          }
+                                                          placeholder="ex: 3"
+                                                          disabled={isValidated}
+                                                          data-session={session.id}
+                                                          data-exercise={exercise.id}
+                                                          data-field="series"
                                                         />
                                                       </TableCell>
                                                       <TableCell className="text-center">
@@ -4690,24 +4689,6 @@ export default function ClientDetail() {
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <Select
-                                                                value={serie.recuperation || exercise.recuperation || ""}
-                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
-                                                                disabled={isValidated}
-                                                              >
-                                                                <SelectTrigger className="h-7 text-xs">
-                                                                  <SelectValue placeholder="Récup" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                  {recuperationOptions.map((option) => (
-                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
-                                                                      {option.label}
-                                                                    </SelectItem>
-                                                                  ))}
-                                                                </SelectContent>
-                                                              </Select>
-                                                            </TableCell>
-                                                            <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.rpe}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
@@ -4762,6 +4743,24 @@ export default function ClientDetail() {
                                                                 data-serie-index={si}
                                                                 data-serie-field="commentaire"
                                                               />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <Select
+                                                                value={serie.recuperation || exercise.recuperation || ""}
+                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
+                                                                disabled={isValidated}
+                                                              >
+                                                                <SelectTrigger className="h-7 text-xs">
+                                                                  <SelectValue placeholder="Récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {recuperationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                      {option.label}
+                                                                    </SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
                                                             </TableCell>
                                                             <TableCell></TableCell>
                                                             <TableCell></TableCell>
