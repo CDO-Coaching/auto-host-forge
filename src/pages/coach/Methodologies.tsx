@@ -54,6 +54,15 @@ interface Exercise {
   muscles_second?: string[] | null;
 }
 
+interface SerieDetail {
+  reps: string;
+  rpe: string;
+  charge: string;
+  tempo: string;
+  commentaire: string;
+  recuperation: string;
+}
+
 interface SessionExerciseConfig {
   exerciseId: string;
   recuperation: string;
@@ -63,6 +72,7 @@ interface SessionExerciseConfig {
   charge: string;
   tempo: string;
   commentaire: string;
+  serieDetails: SerieDetail[];
 }
 
 interface Methodology {
