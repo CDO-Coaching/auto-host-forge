@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 
 const RECUPERATION_OPTIONS = [
   { value: "0s", label: "Aucune" },
