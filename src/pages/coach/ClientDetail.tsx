@@ -3965,7 +3965,7 @@ export default function ClientDetail() {
 
                                                     {/* En-tête du super-set avec la case de série commune */}
                                                     <TableRow className="bg-primary/10 border-l-4 border-l-primary">
-                                                      <TableCell colSpan={3} className="font-semibold">
+                                                      <TableCell colSpan={7} className="font-semibold">
                                                         <Badge variant="default" className="mr-2">
                                                           Super-set ({groupExercises.length} exercices)
                                                         </Badge>
@@ -3991,7 +3991,7 @@ export default function ClientDetail() {
                                                           />
                                                         </div>
                                                       </TableCell>
-                                                      <TableCell colSpan={5}></TableCell>
+                                                      <TableCell colSpan={2}></TableCell>
                                                     </TableRow>
 
                                                     {/* Exercices du super-set */}
