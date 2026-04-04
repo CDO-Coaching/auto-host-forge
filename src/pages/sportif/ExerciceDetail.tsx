@@ -755,13 +755,6 @@ export default function ExerciceDetail() {
                             : "bg-muted/30 border-border"
                         }`}
                       >
-                        <Badge 
-                          variant={isValidated ? "default" : "outline"} 
-                          className={`text-xs font-bold shrink-0 ${isValidated ? "bg-green-600" : ""}`}
-                        >
-                          S{idx + 1}
-                        </Badge>
-                        
                         <div className="flex-1 flex items-center gap-2 flex-wrap text-sm min-w-0">
                           {(serie.recuperation || exercise.recuperation) && (
                             <span className="text-muted-foreground text-xs">{serie.recuperation || exercise.recuperation}</span>
@@ -787,6 +780,12 @@ export default function ExerciceDetail() {
                           {serie.commentaire && (
                             <span className="text-muted-foreground italic text-xs truncate">"{serie.commentaire}"</span>
                           )}
+                          <Badge 
+                            variant={isValidated ? "default" : "outline"} 
+                            className={`text-xs font-bold shrink-0 ${isValidated ? "bg-green-600" : ""}`}
+                          >
+                            S{idx + 1}
+                          </Badge>
                         </div>
 
                         {isValidated ? (
