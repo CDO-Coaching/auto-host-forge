@@ -4703,19 +4703,6 @@ export default function ClientDetail() {
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
-                                                                value={serie.rpe}
-                                                                onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "rpe", e.target.value)}
-                                                                onKeyDown={(e) => handleSerieKeyDown(e, "rpe")}
-                                                                placeholder={exercise.rpe || "RPE"}
-                                                                disabled={isValidated}
-                                                                className="h-7 text-xs"
-                                                                data-serie-exercise={exercise.id}
-                                                                data-serie-index={si}
-                                                                data-serie-field="rpe"
-                                                              />
-                                                            </TableCell>
-                                                            <TableCell className="py-1">
-                                                              <Input
                                                                 value={serie.charge}
                                                                 onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
                                                                 onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
