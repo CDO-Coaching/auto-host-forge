@@ -3912,11 +3912,11 @@ export default function ClientDetail() {
                                           <TableHead className="min-w-[130px]">Exercice</TableHead>
                                           <TableHead className="min-w-[90px]">Récup</TableHead>
                                           <TableHead className="min-w-[70px]">Reps</TableHead>
-                                          <TableHead className="min-w-[60px]">Séries</TableHead>
                                           <TableHead className="min-w-[50px]">RPE</TableHead>
                                           <TableHead className="min-w-[70px]">Charge</TableHead>
                                           <TableHead className="min-w-[70px]">Tempo</TableHead>
                                           <TableHead className="min-w-[120px]">Comm.</TableHead>
+                                          <TableHead className="min-w-[60px]">Séries</TableHead>
                                           <TableHead className="w-[50px] text-center">
                                             <Video className="h-4 w-4 mx-auto" />
                                           </TableHead>
