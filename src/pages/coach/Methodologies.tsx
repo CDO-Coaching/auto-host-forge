@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Eye, X, ChevronRight, ChevronDown, ChevronUp } from "lucide-react";
 
 const RECUPERATION_OPTIONS = [
   { value: "0s", label: "Aucune" },
@@ -54,6 +54,15 @@ interface Exercise {
   muscles_second?: string[] | null;
 }
 
+interface SerieDetail {
+  reps: string;
+  rpe: string;
+  charge: string;
+  tempo: string;
+  commentaire: string;
+  recuperation: string;
+}
+
 interface SessionExerciseConfig {
   exerciseId: string;
   recuperation: string;
@@ -63,6 +72,7 @@ interface SessionExerciseConfig {
   charge: string;
   tempo: string;
   commentaire: string;
+  serieDetails: SerieDetail[];
 }
 
 interface Methodology {
@@ -111,6 +121,7 @@ export default function Methodologies() {
   const [sessionExerciseMap, setSessionExerciseMap] = useState<Record<string, SessionExerciseConfig[]>>({});
   const [search, setSearch] = useState("");
   const [filterTheme, setFilterTheme] = useState<ThemeValue | null>(null);
+  const [expandedMethodoSeries, setExpandedMethodoSeries] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
 
   const fetchExercises = async () => {
@@ -291,7 +302,7 @@ export default function Methodologies() {
     setSessionExerciseMap(prev => {
       const existing = prev[key] || [];
       if (existing.some(c => c.exerciseId === exerciseId)) return prev;
-      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "" };
+      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "", serieDetails: [] };
       return { ...prev, [key]: [...existing, newConfig] };
     });
   };
@@ -310,11 +321,44 @@ export default function Methodologies() {
   const updateSessionExerciseConfig = (cycleIndex: number, sessionIndex: number, exerciseId: string, field: keyof SessionExerciseConfig, value: string) => {
     const key = `${cycleIndex}-${sessionIndex}`;
     setSessionExerciseMap(prev => {
-      const configs = (prev[key] || []).map(c =>
-        c.exerciseId === exerciseId ? { ...c, [field]: value } : c
-      );
+      const configs = (prev[key] || []).map(c => {
+        if (c.exerciseId !== exerciseId) return c;
+        const updated = { ...c, [field]: value };
+        // When series count changes, regenerate serieDetails
+        if (field === "series") {
+          const count = parseInt(value) || 0;
+          const oldDetails = c.serieDetails || [];
+          const newDetails: SerieDetail[] = Array.from({ length: count }, (_, i) => ({
+            reps: oldDetails[i]?.reps || c.reps || "",
+            rpe: oldDetails[i]?.rpe || c.rpe || "",
+            charge: oldDetails[i]?.charge || c.charge || "",
+            tempo: oldDetails[i]?.tempo || c.tempo || "",
+            commentaire: oldDetails[i]?.commentaire || c.commentaire || "",
+            recuperation: oldDetails[i]?.recuperation || c.recuperation || "",
+          }));
+          updated.serieDetails = newDetails;
+        }
+        return updated;
+      });
       return { ...prev, [key]: configs };
     });
+  };
+
+  const updateSerieDetail = (cycleIndex: number, sessionIndex: number, exerciseId: string, serieIdx: number, field: keyof SerieDetail, value: string) => {
+    const key = `${cycleIndex}-${sessionIndex}`;
+    setSessionExerciseMap(prev => {
+      const configs = (prev[key] || []).map(c => {
+        if (c.exerciseId !== exerciseId) return c;
+        const details = [...c.serieDetails];
+        details[serieIdx] = { ...details[serieIdx], [field]: value };
+        return { ...c, serieDetails: details };
+      });
+      return { ...prev, [key]: configs };
+    });
+  };
+
+  const toggleMethodoSeriesExpanded = (key: string) => {
+    setExpandedMethodoSeries(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const getSessionExerciseConfigs = (cycleIndex: number, sessionIndex: number): (SessionExerciseConfig & { exercise: Exercise })[] => {
@@ -871,55 +915,110 @@ export default function Methodologies() {
                                                       <TableHead className="min-w-[120px] text-[10px]">Exercice</TableHead>
                                                       <TableHead className="min-w-[60px] text-[10px]">Récup</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Reps</TableHead>
-                                                      <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="min-w-[40px] text-[10px]">RPE</TableHead>
                                                       <TableHead className="min-w-[60px] text-[10px]">% Max</TableHead>
                                                       <TableHead className="min-w-[50px] text-[10px]">Tempo</TableHead>
                                                       <TableHead className="min-w-[80px] text-[10px]">Comm.</TableHead>
+                                                      <TableHead className="min-w-[50px] text-[10px]">Séries</TableHead>
                                                       <TableHead className="w-[30px]"></TableHead>
                                                     </TableRow>
                                                   </TableHeader>
                                                   <TableBody>
-                                                    {sessionConfigs.map(cfg => (
-                                                      <TableRow key={cfg.exerciseId} className="h-8">
-                                                        <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
-                                                        <TableCell className="py-1">
-                                                          <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", v)}>
-                                                            <SelectTrigger className="h-6 text-[11px] px-1 min-w-[60px]">
-                                                              <SelectValue placeholder="Récup" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                              {RECUPERATION_OPTIONS.map(opt => (
-                                                                <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
-                                                              ))}
-                                                            </SelectContent>
-                                                          </Select>
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.series} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "series", e.target.value)} placeholder="4" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <input type="text" value={cfg.commentaire} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
-                                                        </TableCell>
-                                                        <TableCell className="py-1">
-                                                          <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
-                                                            <X className="h-3 w-3" />
-                                                          </button>
-                                                        </TableCell>
-                                                      </TableRow>
-                                                    ))}
+                                                    {sessionConfigs.map(cfg => {
+                                                      const seriesCount = parseInt(cfg.series) || 0;
+                                                      const seriesKey = `${ci}-${si}-${cfg.exerciseId}`;
+                                                      const isSeriesExpanded = expandedMethodoSeries[seriesKey];
+                                                      return (
+                                                        <React.Fragment key={cfg.exerciseId}>
+                                                          <TableRow className="h-8">
+                                                            <TableCell className="text-xs font-medium py-1">{cfg.exercise.name}</TableCell>
+                                                            <TableCell className="py-1">
+                                                              <Select value={cfg.recuperation} onValueChange={(v) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "recuperation", v)}>
+                                                                <SelectTrigger className="h-6 text-[11px] px-1 min-w-[60px]">
+                                                                  <SelectValue placeholder="Récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {RECUPERATION_OPTIONS.map(opt => (
+                                                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.reps} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "reps", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.rpe} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "rpe", e.target.value)} placeholder="8" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.charge} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "charge", e.target.value)} placeholder="75%" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.tempo} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "tempo", e.target.value)} placeholder="3010" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.commentaire} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <input type="text" value={cfg.series} onChange={(e) => updateSessionExerciseConfig(ci, si, cfg.exerciseId, "series", e.target.value)} placeholder="4" className="w-full rounded border border-border bg-background px-1 py-0.5 text-[11px] text-foreground" />
+                                                            </TableCell>
+                                                            <TableCell className="py-1">
+                                                              <button type="button" onClick={() => removeExerciseFromSession(ci, si, cfg.exerciseId)} className="text-muted-foreground hover:text-destructive transition-colors">
+                                                                <X className="h-3 w-3" />
+                                                              </button>
+                                                            </TableCell>
+                                                          </TableRow>
+                                                          {seriesCount > 1 && (
+                                                            <TableRow className="h-6 border-0">
+                                                              <TableCell colSpan={9} className="py-0 px-1">
+                                                                <button
+                                                                  type="button"
+                                                                  onClick={() => toggleMethodoSeriesExpanded(seriesKey)}
+                                                                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                                                >
+                                                                  {isSeriesExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                                  {isSeriesExpanded ? "Masquer" : "Afficher"} les détails des {seriesCount} séries
+                                                                </button>
+                                                              </TableCell>
+                                                            </TableRow>
+                                                          )}
+                                                          {seriesCount > 1 && isSeriesExpanded && cfg.serieDetails.map((sd, sdIdx) => (
+                                                            <TableRow key={sdIdx} className="h-7 bg-muted/20 border-0">
+                                                              <TableCell className="py-0.5 pl-4 text-[10px] text-muted-foreground">S{sdIdx + 1}</TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <Select value={sd.recuperation} onValueChange={(v) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "recuperation", v)}>
+                                                                  <SelectTrigger className="h-5 text-[10px] px-1 min-w-[55px]">
+                                                                    <SelectValue placeholder="Récup" />
+                                                                  </SelectTrigger>
+                                                                  <SelectContent>
+                                                                    {RECUPERATION_OPTIONS.map(opt => (
+                                                                      <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
+                                                                    ))}
+                                                                  </SelectContent>
+                                                                </Select>
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <input type="text" value={sd.reps} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "reps", e.target.value)} placeholder={cfg.reps || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <input type="text" value={sd.rpe} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "rpe", e.target.value)} placeholder={cfg.rpe || "8"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <input type="text" value={sd.charge} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "charge", e.target.value)} placeholder={cfg.charge || "75%"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <input type="text" value={sd.tempo} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "tempo", e.target.value)} placeholder={cfg.tempo || "3010"} className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5">
+                                                                <input type="text" value={sd.commentaire} onChange={(e) => updateSerieDetail(ci, si, cfg.exerciseId, sdIdx, "commentaire", e.target.value)} placeholder="" className="w-full rounded border border-border bg-background px-1 py-0 text-[10px] text-foreground h-5" />
+                                                              </TableCell>
+                                                              <TableCell className="py-0.5"></TableCell>
+                                                              <TableCell className="py-0.5"></TableCell>
+                                                            </TableRow>
+                                                          ))}
+                                                        </React.Fragment>
+                                                      );
+                                                    })}
                                                   </TableBody>
                                                 </Table>
                                               </div>
