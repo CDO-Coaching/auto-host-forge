@@ -926,7 +926,7 @@ export default function Methodologies() {
                                                   <TableBody>
                                                     {sessionConfigs.map(cfg => {
                                                       const seriesCount = parseInt(cfg.series) || 0;
-                                                      const seriesKey = `${ci}-${si}-${cfg.exerciseId}`;
+                                                      const seriesKey = `${ci}-${wi}-${si}-${cfg.exerciseId}`;
                                                       const isSeriesExpanded = expandedMethodoSeries[seriesKey];
                                                       return (
                                                         <React.Fragment key={cfg.exerciseId}>
