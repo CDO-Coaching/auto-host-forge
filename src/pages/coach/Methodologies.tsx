@@ -298,22 +298,32 @@ export default function Methodologies() {
   };
 
   const addExerciseToSession = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string) => {
-    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
+    // Add the exercise to ALL weeks in this cycle+session so exercises are shared across weeks
+    const totalWeeks = Math.min(Number(weeksPerCycle), 20) || 1;
     setSessionExerciseMap(prev => {
-      const existing = prev[key] || [];
-      if (existing.some(c => c.exerciseId === exerciseId)) return prev;
-      const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "", serieDetails: [] };
-      return { ...prev, [key]: [...existing, newConfig] };
+      const next = { ...prev };
+      for (let wi = 0; wi < totalWeeks; wi++) {
+        const key = `${cycleIndex}-${wi}-${sessionIndex}`;
+        const existing = next[key] || [];
+        if (existing.some(c => c.exerciseId === exerciseId)) continue;
+        const newConfig: SessionExerciseConfig = { exerciseId, recuperation: "", reps: "", series: "", rpe: "", charge: "", tempo: "", commentaire: "", serieDetails: [] };
+        next[key] = [...existing, newConfig];
+      }
+      return next;
     });
   };
 
   const removeExerciseFromSession = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string) => {
-    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
+    // Remove the exercise from ALL weeks in this cycle+session
+    const totalWeeks = Math.min(Number(weeksPerCycle), 20) || 1;
     setSessionExerciseMap(prev => {
-      const filtered = (prev[key] || []).filter(c => c.exerciseId !== exerciseId);
       const next = { ...prev };
-      if (filtered.length === 0) delete next[key];
-      else next[key] = filtered;
+      for (let wi = 0; wi < totalWeeks; wi++) {
+        const key = `${cycleIndex}-${wi}-${sessionIndex}`;
+        const filtered = (next[key] || []).filter(c => c.exerciseId !== exerciseId);
+        if (filtered.length === 0) delete next[key];
+        else next[key] = filtered;
+      }
       return next;
     });
   };
