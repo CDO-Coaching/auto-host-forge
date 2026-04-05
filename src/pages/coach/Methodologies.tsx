@@ -314,12 +314,16 @@ export default function Methodologies() {
   };
 
   const removeExerciseFromSession = (cycleIndex: number, weekIndex: number, sessionIndex: number, exerciseId: string) => {
-    const key = `${cycleIndex}-${weekIndex}-${sessionIndex}`;
+    // Remove the exercise from ALL weeks in this cycle+session
+    const totalWeeks = Math.min(Number(weeksPerCycle), 20) || 1;
     setSessionExerciseMap(prev => {
-      const filtered = (prev[key] || []).filter(c => c.exerciseId !== exerciseId);
       const next = { ...prev };
-      if (filtered.length === 0) delete next[key];
-      else next[key] = filtered;
+      for (let wi = 0; wi < totalWeeks; wi++) {
+        const key = `${cycleIndex}-${wi}-${sessionIndex}`;
+        const filtered = (next[key] || []).filter(c => c.exerciseId !== exerciseId);
+        if (filtered.length === 0) delete next[key];
+        else next[key] = filtered;
+      }
       return next;
     });
   };
