@@ -489,12 +489,19 @@ export default function MesClients() {
   };
 
   // Trier les athlètes approuvés :
-  // Non validés (weeksAheadCount undefined ou 0) en haut, validés en bas
+  // 1. Non validés (weeksAheadCount undefined ou < 0) en haut
+  // 2. Juste validés (weeksAheadCount === 0) au milieu
+  // 3. Validés +1, +2… en bas (tri croissant par weeksAheadCount)
   // Au sein de chaque groupe, tri par display_order
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    const aValidated = (a.weeksAheadCount ?? -1) >= 0 ? 1 : 0;
-    const bValidated = (b.weeksAheadCount ?? -1) >= 0 ? 1 : 0;
-    if (aValidated !== bValidated) return aValidated - bValidated;
+    const aWeeks = a.weeksAheadCount ?? -1;
+    const bWeeks = b.weeksAheadCount ?? -1;
+    // Non validés en haut (weeksAheadCount < 0)
+    const aGroup = aWeeks < 0 ? 0 : 1;
+    const bGroup = bWeeks < 0 ? 0 : 1;
+    if (aGroup !== bGroup) return aGroup - bGroup;
+    // Dans le groupe validé, tri par weeksAheadCount croissant (juste validé avant +1, +2…)
+    if (aGroup === 1 && aWeeks !== bWeeks) return aWeeks - bWeeks;
     return (a.display_order ?? 0) - (b.display_order ?? 0);
   });
 
