@@ -155,6 +155,7 @@ export default function ExerciceDetail() {
   useEffect(() => {
     loadExerciseDetail();
     loadCoachInfo();
+    loadAthleteMaxes();
 
     // Restaurer les données sauvegardées
     const savedData = localStorage.getItem(`exercise-progress-${exerciceId}`);
