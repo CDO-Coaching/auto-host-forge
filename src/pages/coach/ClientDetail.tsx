@@ -5051,50 +5051,52 @@ export default function ClientDetail() {
 
               {/* Boutons de création - optimisés mobile */}
               {!isValidated && (
-                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
-                  {historicalWeeks.length > 0 && (
-                    <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyPreviousWeek}
-                        disabled={!selectedWeekToProgram}
-                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        <span className="sm:hidden">Copier précédente</span>
-                        <span className="hidden sm:inline">Copier semaine précédente</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCopyDialog(true)}
-                        disabled={!selectedWeekToProgram}
-                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        <span className="sm:hidden">Autre semaine</span>
-                        <span className="hidden sm:inline">Copier d'une semaine</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          loadMethodologiesForAssignment();
-                          setShowMethodologyDialog(true);
-                          setSelectedMethodologyId("");
-                          setSelectedMethodologyWeek(1);
-                          setSelectedMethodologyCycle(0);
-                        }}
-                        disabled={!selectedWeekToProgram}
-                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                      >
-                        <BookOpen className="h-3 w-3 mr-1" />
-                        <span className="sm:hidden">Méthodologie</span>
-                        <span className="hidden sm:inline">Appliquer méthodologie</span>
-                      </Button>
-                    </div>
-                  )}
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:justify-between sm:gap-2">
+                  <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
+                    {historicalWeeks.length > 0 && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyPreviousWeek}
+                          disabled={!selectedWeekToProgram}
+                          className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="sm:hidden">Copier précédente</span>
+                          <span className="hidden sm:inline">Copier semaine précédente</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowCopyDialog(true)}
+                          disabled={!selectedWeekToProgram}
+                          className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="sm:hidden">Autre semaine</span>
+                          <span className="hidden sm:inline">Copier d'une semaine</span>
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadMethodologiesForAssignment();
+                        setShowMethodologyDialog(true);
+                        setSelectedMethodologyId("");
+                        setSelectedMethodologyWeek(1);
+                        setSelectedMethodologyCycle(0);
+                      }}
+                      disabled={!selectedWeekToProgram}
+                      className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                    >
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      <span className="sm:hidden">Méthodologie</span>
+                      <span className="hidden sm:inline">Appliquer méthodologie</span>
+                    </Button>
+                  </div>
                   {/* Grille 2x2 sur mobile, inline sur desktop */}
                   <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2 sm:ml-auto">
                     <Button
