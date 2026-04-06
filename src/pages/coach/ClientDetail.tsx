@@ -177,6 +177,7 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
+  const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
@@ -227,10 +228,42 @@ export default function ClientDetail() {
     { value: "emom", label: "EMOM" },
   ];
 
+  // Load all athlete maxes for % suggestions
+  const loadAthleteMaxes = async () => {
+    if (!athleteId) return;
+    const { data } = await supabase
+      .from("exercise_maxes")
+      .select("exercise_id, weight_kg, exercise_library(name)")
+      .eq("athlete_id", athleteId)
+      .order("recorded_at", { ascending: false });
+    if (data) {
+      const maxMap: Record<string, number> = {};
+      data.forEach((m: any) => {
+        const name = m.exercise_library?.name;
+        if (name && !maxMap[name]) maxMap[name] = m.weight_kg;
+      });
+      setAthleteMaxes(maxMap);
+    }
+  };
+
+  // Helper: extract % from charge and compute kg from 1RM
+  const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
+    if (!charge) return null;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return null;
+    const pct = parseFloat(match[1]);
+    if (isNaN(pct) || pct <= 0) return null;
+    const max1RM = athleteMaxes[exerciseName];
+    if (!max1RM) return null;
+    const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
+    return `≈${suggested}kg`;
+  };
+
   useEffect(() => {
     loadAthleteData();
     loadLibraryExercises();
     loadHistoricalWeeks();
+    loadAthleteMaxes();
     loadCustomSessions();
     loadLastWeekFeedback();
     loadAthleteObjectives();
