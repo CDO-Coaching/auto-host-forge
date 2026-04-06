@@ -1048,6 +1048,144 @@ export default function ClientDetail() {
     toast.success(`Séance créée`);
   };
 
+  const loadMethodologiesForAssignment = async () => {
+    setLoadingMethodologies(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("coaching_methodologies")
+        .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
+        .eq("coach_id", user.id)
+        .order("name");
+
+      if (error) throw error;
+
+      // Also load exercise details for each methodology
+      const methIds = (data || []).map(m => m.id);
+      let exercisesMap: Record<string, string[]> = {};
+      if (methIds.length > 0) {
+        const { data: methExData } = await supabase
+          .from("methodology_exercises")
+          .select("methodology_id, exercise_id")
+          .in("methodology_id", methIds);
+        (methExData || []).forEach((e: any) => {
+          if (!exercisesMap[e.methodology_id]) exercisesMap[e.methodology_id] = [];
+          exercisesMap[e.methodology_id].push(e.exercise_id);
+        });
+      }
+
+      // Load exercise names
+      const allExIds = [...new Set(Object.values(exercisesMap).flat())];
+      let exerciseNamesMap: Record<string, string> = {};
+      if (allExIds.length > 0) {
+        const { data: exData } = await supabase
+          .from("exercise_library")
+          .select("id, name, unilateral")
+          .in("id", allExIds);
+        (exData || []).forEach((e: any) => {
+          exerciseNamesMap[e.id] = e.name;
+        });
+      }
+
+      setAvailableMethodologies((data || []).map(m => ({
+        ...m,
+        exerciseNames: exercisesMap[m.id]?.map(eid => exerciseNamesMap[eid]).filter(Boolean) || [],
+        exerciseIds: exercisesMap[m.id] || [],
+      })));
+    } catch (error) {
+      console.error("Erreur chargement méthodologies:", error);
+      toast.error("Erreur lors du chargement des méthodologies");
+    } finally {
+      setLoadingMethodologies(false);
+    }
+  };
+
+  const handleApplyMethodology = () => {
+    const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
+    if (!methodology) {
+      toast.error("Sélectionne une méthodologie");
+      return;
+    }
+
+    const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
+    const cycleIndex = selectedMethodologyCycle;
+    const weekIndex = selectedMethodologyWeek - 1; // 0-based
+
+    // Find all sessions for this cycle+week
+    const sessionsForWeek: { sessionIndex: number; exercises: any[] }[] = [];
+    
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi, si] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        sessionsForWeek.push({ sessionIndex: si, exercises: configs[key] });
+      }
+    }
+
+    if (sessionsForWeek.length === 0) {
+      toast.error("Aucun exercice trouvé pour cette semaine dans la méthodologie");
+      return;
+    }
+
+    // Sort by session index
+    sessionsForWeek.sort((a, b) => a.sessionIndex - b.sessionIndex);
+
+    // Save undo state
+    setUndoStack(prev => [...prev, { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
+    // Create sessions and exercises
+    const newSessions: Session[] = [];
+    const newSessionExercises: Record<number, Exercise[]> = {};
+
+    sessionsForWeek.forEach((sw, idx) => {
+      const sessionId = sessions.length + idx + 1;
+      newSessions.push({
+        id: sessionId,
+        name: `Séance ${sessionId}`,
+        isExpanded: false,
+        session_type: "renfo",
+      });
+
+      const exercises: Exercise[] = sw.exercises.map((config: any, exIdx: number) => {
+        // Find exercise name from library
+        const libEx = libraryExercises.find(e => e.id === config.exerciseId);
+        return {
+          id: exIdx + 1,
+          exercice: libEx?.name || "",
+          recuperation: config.recuperation || "",
+          reps: config.reps || "",
+          series: config.series || "",
+          charge: config.charge || "",
+          rpe: config.rpe || "",
+          tempo: config.tempo || "",
+          commentaire: config.commentaire || "",
+          per_side: false,
+          is_unilateral: libEx?.unilateral || false,
+          is_duration: false,
+          request_video: false,
+          serie_details: config.serieDetails?.map((sd: any) => ({
+            reps: sd.reps || "",
+            charge: sd.charge || "",
+            rpe: sd.rpe || "",
+            tempo: sd.tempo || "",
+            commentaire: sd.commentaire || "",
+            recuperation: sd.recuperation || "",
+          })) || [],
+        };
+      });
+
+      newSessionExercises[sessionId] = exercises;
+    });
+
+    setSessions(prev => [...prev, ...newSessions]);
+    setSessionExercises(prev => ({ ...prev, ...newSessionExercises }));
+    setShowMethodologyDialog(false);
+    toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
+  };
+
   const handleCreateSessionFromTemplate = async (templateId: string) => {
     // Charger les exercices du template
     const { data: templateData } = await supabase
