@@ -92,10 +92,18 @@ export default function ExerciceDetail() {
 
   const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
     if (!charge) return null;
-    const match = charge.match(/(\d+\.?\d*)\s*%/);
-    if (!match) return null;
-    const pct = parseFloat(match[1]);
-    if (isNaN(pct) || pct <= 0) return null;
+    let pct: number | null = null;
+    const matchPercent = charge.match(/(\d+\.?\d*)\s*%/);
+    if (matchPercent) {
+      pct = parseFloat(matchPercent[1]);
+    } else {
+      const trimmed = charge.trim();
+      if (/^\d+\.?\d*$/.test(trimmed)) {
+        const val = parseFloat(trimmed);
+        if (val > 0 && val <= 100) pct = val;
+      }
+    }
+    if (pct === null || isNaN(pct) || pct <= 0) return null;
     const max1RM = athleteMaxes[exerciseName];
     if (!max1RM) return null;
     const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
