@@ -72,7 +72,36 @@ export default function ExerciceDetail() {
   // Vérifier si l'exercice est en mode durée (Tabata)
   const isDurationMode = exercise?.is_duration === true;
 
-  const handleLaunchEmom = () => {
+  const loadAthleteMaxes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("exercise_maxes")
+      .select("exercise_id, weight_kg, exercise_library(name)")
+      .eq("athlete_id", user.id)
+      .order("recorded_at", { ascending: false });
+    if (data) {
+      const maxMap: Record<string, number> = {};
+      data.forEach((m: any) => {
+        const name = m.exercise_library?.name;
+        if (name && !maxMap[name]) maxMap[name] = m.weight_kg;
+      });
+      setAthleteMaxes(maxMap);
+    }
+  };
+
+  const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
+    if (!charge) return null;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return null;
+    const pct = parseFloat(match[1]);
+    if (isNaN(pct) || pct <= 0) return null;
+    const max1RM = athleteMaxes[exerciseName];
+    if (!max1RM) return null;
+    const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
+    return `≈${suggested}kg`;
+  };
+
     const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
     timerRef.current?.openWithSettings({
       type: 'emom',
