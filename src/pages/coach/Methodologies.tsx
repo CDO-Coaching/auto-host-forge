@@ -401,6 +401,7 @@ export default function Methodologies() {
         num_cycles: numCycles ? parseInt(numCycles) : null,
         weeks_per_cycle: weeksPerCycle ? parseInt(weeksPerCycle) : null,
         sessions_options: sessionsOptions,
+        session_exercise_configs: sessionExerciseMap,
         updated_at: new Date().toISOString(),
       };
 
