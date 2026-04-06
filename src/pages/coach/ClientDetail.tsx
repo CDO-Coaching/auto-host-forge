@@ -177,6 +177,7 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
+  const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
   const [draggedSessionId, setDraggedSessionId] = useState<number | null>(null);
   const [draggedExerciseId, setDraggedExerciseId] = useState<number | null>(null);
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
@@ -227,10 +228,42 @@ export default function ClientDetail() {
     { value: "emom", label: "EMOM" },
   ];
 
+  // Load all athlete maxes for % suggestions
+  const loadAthleteMaxes = async () => {
+    if (!athleteId) return;
+    const { data } = await supabase
+      .from("exercise_maxes")
+      .select("exercise_id, weight_kg, exercise_library(name)")
+      .eq("athlete_id", athleteId)
+      .order("recorded_at", { ascending: false });
+    if (data) {
+      const maxMap: Record<string, number> = {};
+      data.forEach((m: any) => {
+        const name = m.exercise_library?.name;
+        if (name && !maxMap[name]) maxMap[name] = m.weight_kg;
+      });
+      setAthleteMaxes(maxMap);
+    }
+  };
+
+  // Helper: extract % from charge and compute kg from 1RM
+  const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
+    if (!charge) return null;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return null;
+    const pct = parseFloat(match[1]);
+    if (isNaN(pct) || pct <= 0) return null;
+    const max1RM = athleteMaxes[exerciseName];
+    if (!max1RM) return null;
+    const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
+    return `≈${suggested}kg`;
+  };
+
   useEffect(() => {
     loadAthleteData();
     loadLibraryExercises();
     loadHistoricalWeeks();
+    loadAthleteMaxes();
     loadCustomSessions();
     loadLastWeekFeedback();
     loadAthleteObjectives();
@@ -4659,29 +4692,36 @@ export default function ClientDetail() {
                                                         />
                                                       </TableCell>
                                                        <TableCell>
-                                                         <Input
-                                                           value={exercise.charge}
-                                                           onChange={(e) =>
-                                                             handleExerciseChange(
-                                                               session.id,
-                                                               exercise.id,
-                                                               "charge",
-                                                               e.target.value,
-                                                             )
-                                                           }
-                                                           onKeyDown={(e) =>
-                                                             handleKeyDown(e, session.id, exercise.id, "charge")
-                                                           }
-                                                           placeholder={
-                                                             !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
-                                                               ? `${chargeSuggestions[session.id][exercise.id]}kg`
-                                                               : "ex: 80kg"
-                                                           }
-                                                           disabled={isValidated}
-                                                           data-session={session.id}
-                                                           data-exercise={exercise.id}
-                                                           data-field="charge"
-                                                         />
+                                                         <div className="relative">
+                                                           <Input
+                                                             value={exercise.charge}
+                                                             onChange={(e) =>
+                                                               handleExerciseChange(
+                                                                 session.id,
+                                                                 exercise.id,
+                                                                 "charge",
+                                                                 e.target.value,
+                                                               )
+                                                             }
+                                                             onKeyDown={(e) =>
+                                                               handleKeyDown(e, session.id, exercise.id, "charge")
+                                                             }
+                                                             placeholder={
+                                                               !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
+                                                                 ? `${chargeSuggestions[session.id][exercise.id]}kg`
+                                                                 : "ex: 80kg"
+                                                             }
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={exercise.id}
+                                                             data-field="charge"
+                                                           />
+                                                           {getPercentSuggestion(exercise.charge, exercise.exercice) && (
+                                                             <span className="absolute -bottom-4 left-0 text-[10px] text-primary font-medium">
+                                                               {getPercentSuggestion(exercise.charge, exercise.exercice)}
+                                                             </span>
+                                                           )}
+                                                         </div>
                                                        </TableCell>
                                                       <TableCell>
                                                         <Input
@@ -4849,21 +4889,28 @@ export default function ClientDetail() {
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <Input
-                                                                value={serie.charge}
-                                                                onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
-                                                                onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
-                                                                placeholder={
-                                                                  !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
-                                                                    ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
-                                                                    : (exercise.charge || "charge")
-                                                                }
-                                                                disabled={isValidated}
-                                                                className="h-7 text-xs"
-                                                                data-serie-exercise={exercise.id}
-                                                                data-serie-index={si}
-                                                                data-serie-field="charge"
-                                                              />
+                                                              <div className="relative">
+                                                                <Input
+                                                                  value={serie.charge}
+                                                                  onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
+                                                                  onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
+                                                                  placeholder={
+                                                                    !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
+                                                                      ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
+                                                                      : (exercise.charge || "charge")
+                                                                  }
+                                                                  disabled={isValidated}
+                                                                  className="h-7 text-xs"
+                                                                  data-serie-exercise={exercise.id}
+                                                                  data-serie-index={si}
+                                                                  data-serie-field="charge"
+                                                                />
+                                                                {getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice) && (
+                                                                  <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">
+                                                                    {getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice)}
+                                                                  </span>
+                                                                )}
+                                                              </div>
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input

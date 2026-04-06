@@ -57,6 +57,7 @@ export default function ExerciceDetail() {
   const { toast } = useToast();
   const timerRef = useRef<UniversalTimerRef>(null);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
+  const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
 
   // Serie-level validation
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
@@ -70,6 +71,36 @@ export default function ExerciceDetail() {
   
   // Vérifier si l'exercice est en mode durée (Tabata)
   const isDurationMode = exercise?.is_duration === true;
+
+  const loadAthleteMaxes = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from("exercise_maxes")
+      .select("exercise_id, weight_kg, exercise_library(name)")
+      .eq("athlete_id", user.id)
+      .order("recorded_at", { ascending: false });
+    if (data) {
+      const maxMap: Record<string, number> = {};
+      data.forEach((m: any) => {
+        const name = m.exercise_library?.name;
+        if (name && !maxMap[name]) maxMap[name] = m.weight_kg;
+      });
+      setAthleteMaxes(maxMap);
+    }
+  };
+
+  const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
+    if (!charge) return null;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return null;
+    const pct = parseFloat(match[1]);
+    if (isNaN(pct) || pct <= 0) return null;
+    const max1RM = athleteMaxes[exerciseName];
+    if (!max1RM) return null;
+    const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
+    return `≈${suggested}kg`;
+  };
 
   const handleLaunchEmom = () => {
     const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
@@ -154,6 +185,7 @@ export default function ExerciceDetail() {
   useEffect(() => {
     loadExerciseDetail();
     loadCoachInfo();
+    loadAthleteMaxes();
 
     // Restaurer les données sauvegardées
     const savedData = localStorage.getItem(`exercise-progress-${exerciceId}`);
@@ -777,7 +809,12 @@ export default function ExerciceDetail() {
                             </span>
                           )}
                           {serie.charge && (
-                            <span className="text-red-500 font-medium">{serie.charge}</span>
+                            <span className="font-medium">
+                              <span className="text-red-500">{serie.charge}</span>
+                              {getPercentSuggestion(serie.charge, exercise.exercice) && (
+                                <span className="text-primary text-xs ml-1">{getPercentSuggestion(serie.charge, exercise.exercice)}</span>
+                              )}
+                            </span>
                           )}
                           {serie.rpe && !isValidated && (
                             <span className="text-yellow-600 text-xs">RPE {serie.rpe}</span>
