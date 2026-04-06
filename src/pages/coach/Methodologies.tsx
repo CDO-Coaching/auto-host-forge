@@ -90,6 +90,7 @@ interface Methodology {
   weeks_per_cycle: number | null;
   sessions_options: number[];
   exercises: Exercise[];
+  session_exercise_configs: Record<string, SessionExerciseConfig[]>;
 }
 
 export default function Methodologies() {
@@ -205,6 +206,7 @@ export default function Methodologies() {
         weeks_per_cycle: m.weeks_per_cycle,
         sessions_options: m.sessions_options || [],
         exercises: (exercisesMap[m.id] || []).map((eid: string) => exerciseDetailsMap[eid]).filter(Boolean),
+        session_exercise_configs: m.session_exercise_configs || {},
       }))
     );
     setLoading(false);
@@ -259,6 +261,7 @@ export default function Methodologies() {
     setSelectedExercises(m.exercises || []);
     setExerciseSearch("");
     setExerciseMuscleFilter("all");
+    setSessionExerciseMap(m.session_exercise_configs || {});
     setDialogOpen(true);
   };
 
@@ -399,6 +402,7 @@ export default function Methodologies() {
         num_cycles: numCycles ? parseInt(numCycles) : null,
         weeks_per_cycle: weeksPerCycle ? parseInt(weeksPerCycle) : null,
         sessions_options: sessionsOptions,
+        session_exercise_configs: sessionExerciseMap,
         updated_at: new Date().toISOString(),
       };
 

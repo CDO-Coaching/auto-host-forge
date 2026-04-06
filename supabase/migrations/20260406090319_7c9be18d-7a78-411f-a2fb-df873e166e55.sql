@@ -1,0 +1,1 @@
+ALTER TABLE public.coaching_methodologies ADD COLUMN IF NOT EXISTS session_exercise_configs jsonb DEFAULT '{}'::jsonb;

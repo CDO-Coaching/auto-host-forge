@@ -33,6 +33,7 @@ import {
   Video,
   CreditCard,
   Footprints,
+  BookOpen,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -194,6 +195,14 @@ export default function ClientDetail() {
   const [multiWeekTotal, setMultiWeekTotal] = useState(2);
   const [multiWeekCurrent, setMultiWeekCurrent] = useState(1);
   const [multiWeekStartWeek, setMultiWeekStartWeek] = useState<{ week: number; year: number } | null>(null);
+
+  // Methodology assignment
+  const [showMethodologyDialog, setShowMethodologyDialog] = useState(false);
+  const [availableMethodologies, setAvailableMethodologies] = useState<any[]>([]);
+  const [selectedMethodologyId, setSelectedMethodologyId] = useState<string>("");
+  const [selectedMethodologyWeek, setSelectedMethodologyWeek] = useState<number>(1);
+  const [selectedMethodologyCycle, setSelectedMethodologyCycle] = useState<number>(0);
+  const [loadingMethodologies, setLoadingMethodologies] = useState(false);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1037,6 +1046,144 @@ export default function ClientDetail() {
     setNewSessionType("renfo"); // Reset to default
     setShowTemplateSelector(false);
     toast.success(`Séance créée`);
+  };
+
+  const loadMethodologiesForAssignment = async () => {
+    setLoadingMethodologies(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("coaching_methodologies")
+        .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
+        .eq("coach_id", user.id)
+        .order("name");
+
+      if (error) throw error;
+
+      // Also load exercise details for each methodology
+      const methIds = (data || []).map(m => m.id);
+      let exercisesMap: Record<string, string[]> = {};
+      if (methIds.length > 0) {
+        const { data: methExData } = await supabase
+          .from("methodology_exercises")
+          .select("methodology_id, exercise_id")
+          .in("methodology_id", methIds);
+        (methExData || []).forEach((e: any) => {
+          if (!exercisesMap[e.methodology_id]) exercisesMap[e.methodology_id] = [];
+          exercisesMap[e.methodology_id].push(e.exercise_id);
+        });
+      }
+
+      // Load exercise names
+      const allExIds = [...new Set(Object.values(exercisesMap).flat())];
+      let exerciseNamesMap: Record<string, string> = {};
+      if (allExIds.length > 0) {
+        const { data: exData } = await supabase
+          .from("exercise_library")
+          .select("id, name, unilateral")
+          .in("id", allExIds);
+        (exData || []).forEach((e: any) => {
+          exerciseNamesMap[e.id] = e.name;
+        });
+      }
+
+      setAvailableMethodologies((data || []).map(m => ({
+        ...m,
+        exerciseNames: exercisesMap[m.id]?.map(eid => exerciseNamesMap[eid]).filter(Boolean) || [],
+        exerciseIds: exercisesMap[m.id] || [],
+      })));
+    } catch (error) {
+      console.error("Erreur chargement méthodologies:", error);
+      toast.error("Erreur lors du chargement des méthodologies");
+    } finally {
+      setLoadingMethodologies(false);
+    }
+  };
+
+  const handleApplyMethodology = () => {
+    const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
+    if (!methodology) {
+      toast.error("Sélectionne une méthodologie");
+      return;
+    }
+
+    const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
+    const cycleIndex = selectedMethodologyCycle;
+    const weekIndex = selectedMethodologyWeek - 1; // 0-based
+
+    // Find all sessions for this cycle+week
+    const sessionsForWeek: { sessionIndex: number; exercises: any[] }[] = [];
+    
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi, si] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        sessionsForWeek.push({ sessionIndex: si, exercises: configs[key] });
+      }
+    }
+
+    if (sessionsForWeek.length === 0) {
+      toast.error("Aucun exercice trouvé pour cette semaine dans la méthodologie");
+      return;
+    }
+
+    // Sort by session index
+    sessionsForWeek.sort((a, b) => a.sessionIndex - b.sessionIndex);
+
+    // Save undo state
+    setUndoStack(prev => [...prev, { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
+
+    // Create sessions and exercises
+    const newSessions: Session[] = [];
+    const newSessionExercises: Record<number, Exercise[]> = {};
+
+    sessionsForWeek.forEach((sw, idx) => {
+      const sessionId = sessions.length + idx + 1;
+      newSessions.push({
+        id: sessionId,
+        name: `Séance ${sessionId}`,
+        isExpanded: false,
+        session_type: "renfo",
+      });
+
+      const exercises: Exercise[] = sw.exercises.map((config: any, exIdx: number) => {
+        // Find exercise name from library
+        const libEx = libraryExercises.find(e => e.id === config.exerciseId);
+        return {
+          id: exIdx + 1,
+          exercice: libEx?.name || "",
+          recuperation: config.recuperation || "",
+          reps: config.reps || "",
+          series: config.series || "",
+          charge: config.charge || "",
+          rpe: config.rpe || "",
+          tempo: config.tempo || "",
+          commentaire: config.commentaire || "",
+          per_side: false,
+          is_unilateral: libEx?.unilateral || false,
+          is_duration: false,
+          request_video: false,
+          serie_details: config.serieDetails?.map((sd: any) => ({
+            reps: sd.reps || "",
+            charge: sd.charge || "",
+            rpe: sd.rpe || "",
+            tempo: sd.tempo || "",
+            commentaire: sd.commentaire || "",
+            recuperation: sd.recuperation || "",
+          })) || [],
+        };
+      });
+
+      newSessionExercises[sessionId] = exercises;
+    });
+
+    setSessions(prev => [...prev, ...newSessions]);
+    setSessionExercises(prev => ({ ...prev, ...newSessionExercises }));
+    setShowMethodologyDialog(false);
+    toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
   };
 
   const handleCreateSessionFromTemplate = async (templateId: string) => {
@@ -4904,33 +5051,52 @@ export default function ClientDetail() {
 
               {/* Boutons de création - optimisés mobile */}
               {!isValidated && (
-                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:justify-between sm:gap-2">
-                  {historicalWeeks.length > 0 && (
-                    <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleCopyPreviousWeek}
-                        disabled={!selectedWeekToProgram}
-                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        <span className="sm:hidden">Copier précédente</span>
-                        <span className="hidden sm:inline">Copier semaine précédente</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCopyDialog(true)}
-                        disabled={!selectedWeekToProgram}
-                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
-                      >
-                        <Copy className="h-3 w-3 mr-1" />
-                        <span className="sm:hidden">Autre semaine</span>
-                        <span className="hidden sm:inline">Copier d'une semaine</span>
-                      </Button>
-                    </div>
-                  )}
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:justify-between sm:gap-2">
+                  <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
+                    {historicalWeeks.length > 0 && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleCopyPreviousWeek}
+                          disabled={!selectedWeekToProgram}
+                          className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="sm:hidden">Copier précédente</span>
+                          <span className="hidden sm:inline">Copier semaine précédente</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowCopyDialog(true)}
+                          disabled={!selectedWeekToProgram}
+                          className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="sm:hidden">Autre semaine</span>
+                          <span className="hidden sm:inline">Copier d'une semaine</span>
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        loadMethodologiesForAssignment();
+                        setShowMethodologyDialog(true);
+                        setSelectedMethodologyId("");
+                        setSelectedMethodologyWeek(1);
+                        setSelectedMethodologyCycle(0);
+                      }}
+                      disabled={!selectedWeekToProgram}
+                      className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                    >
+                      <BookOpen className="h-3 w-3 mr-1" />
+                      <span className="sm:hidden">Méthodologie</span>
+                      <span className="hidden sm:inline">Appliquer méthodologie</span>
+                    </Button>
+                  </div>
                   {/* Grille 2x2 sur mobile, inline sur desktop */}
                   <div className="grid grid-cols-4 sm:flex gap-1.5 sm:gap-2 sm:ml-auto">
                     <Button
@@ -4974,6 +5140,118 @@ export default function ClientDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog méthodologie */}
+          <Dialog open={showMethodologyDialog} onOpenChange={setShowMethodologyDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  Appliquer une méthodologie
+                </DialogTitle>
+                <DialogDescription>
+                  Sélectionne une méthodologie et la semaine à appliquer
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {loadingMethodologies ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
+                ) : availableMethodologies.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Méthodologie</label>
+                      <Select value={selectedMethodologyId} onValueChange={(v) => {
+                        setSelectedMethodologyId(v);
+                        setSelectedMethodologyWeek(1);
+                        setSelectedMethodologyCycle(0);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir une méthodologie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableMethodologies.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedMethodologyId && (() => {
+                      const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
+                      if (!meth) return null;
+                      const numCycles = meth.num_cycles || 1;
+                      const weeksPerCycle = meth.weeks_per_cycle || 1;
+                      return (
+                        <div className="space-y-3">
+                          {numCycles > 1 && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Cycle</label>
+                              <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: numCycles }, (_, i) => (
+                                    <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Semaine du cycle</label>
+                            <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: weeksPerCycle }, (_, i) => (
+                                  <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {/* Preview */}
+                          {(() => {
+                            const configs = meth.session_exercise_configs || {};
+                            const weekIdx = selectedMethodologyWeek - 1;
+                            let sessionCount = 0;
+                            let exerciseCount = 0;
+                            for (const key of Object.keys(configs)) {
+                              const parts = key.split("-").map(Number);
+                              if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
+                                sessionCount++;
+                                exerciseCount += (configs[key] || []).length;
+                              }
+                            }
+                            if (sessionCount === 0) return (
+                              <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
+                            );
+                            return (
+                              <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                                <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowMethodologyDialog(false)}>Annuler</Button>
+                <Button onClick={handleApplyMethodology} disabled={!selectedMethodologyId}>
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  Appliquer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="efforts" className="space-y-4">
