@@ -4889,21 +4889,28 @@ export default function ClientDetail() {
                                                               />
                                                             </TableCell>
                                                             <TableCell className="py-1">
-                                                              <Input
-                                                                value={serie.charge}
-                                                                onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
-                                                                onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
-                                                                placeholder={
-                                                                  !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
-                                                                    ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
-                                                                    : (exercise.charge || "charge")
-                                                                }
-                                                                disabled={isValidated}
-                                                                className="h-7 text-xs"
-                                                                data-serie-exercise={exercise.id}
-                                                                data-serie-index={si}
-                                                                data-serie-field="charge"
-                                                              />
+                                                              <div className="relative">
+                                                                <Input
+                                                                  value={serie.charge}
+                                                                  onChange={(e) => handleSerieDetailChange(session.id, exercise.id, si, "charge", e.target.value)}
+                                                                  onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
+                                                                  placeholder={
+                                                                    !serie.charge && serieChargeSuggestions[`${exercise.id}-${si}`]
+                                                                      ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg`
+                                                                      : (exercise.charge || "charge")
+                                                                  }
+                                                                  disabled={isValidated}
+                                                                  className="h-7 text-xs"
+                                                                  data-serie-exercise={exercise.id}
+                                                                  data-serie-index={si}
+                                                                  data-serie-field="charge"
+                                                                />
+                                                                {getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice) && (
+                                                                  <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">
+                                                                    {getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice)}
+                                                                  </span>
+                                                                )}
+                                                              </div>
                                                             </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
