@@ -247,12 +247,22 @@ export default function ClientDetail() {
   };
 
   // Helper: extract % from charge and compute kg from 1RM
+  // Accepts "70%", "70 %", or plain "70" (treated as 70% if ≤100)
   const getPercentSuggestion = (charge: string, exerciseName: string): string | null => {
     if (!charge) return null;
-    const match = charge.match(/(\d+\.?\d*)\s*%/);
-    if (!match) return null;
-    const pct = parseFloat(match[1]);
-    if (isNaN(pct) || pct <= 0) return null;
+    let pct: number | null = null;
+    const matchPercent = charge.match(/(\d+\.?\d*)\s*%/);
+    if (matchPercent) {
+      pct = parseFloat(matchPercent[1]);
+    } else {
+      // Plain number ≤ 100 → treat as percentage
+      const trimmed = charge.trim();
+      if (/^\d+\.?\d*$/.test(trimmed)) {
+        const val = parseFloat(trimmed);
+        if (val > 0 && val <= 100) pct = val;
+      }
+    }
+    if (pct === null || isNaN(pct) || pct <= 0) return null;
     const max1RM = athleteMaxes[exerciseName];
     if (!max1RM) return null;
     const suggested = Math.round((max1RM * pct / 100) * 2) / 2;
@@ -1185,6 +1195,31 @@ export default function ClientDetail() {
       const exercises: Exercise[] = sw.exercises.map((config: any, exIdx: number) => {
         // Find exercise name from library
         const libEx = libraryExercises.find(e => e.id === config.exerciseId);
+        const seriesCount = parseInt(config.series) || 0;
+        
+        // Build serie_details: use saved details if available, otherwise generate from main values
+        let serieDetails: any[] = [];
+        if (config.serieDetails && config.serieDetails.length > 0) {
+          serieDetails = config.serieDetails.map((sd: any) => ({
+            reps: sd.reps || config.reps || "",
+            charge: sd.charge || config.charge || "",
+            rpe: sd.rpe || config.rpe || "",
+            tempo: sd.tempo || config.tempo || "",
+            commentaire: sd.commentaire || "",
+            recuperation: sd.recuperation || config.recuperation || "",
+          }));
+        } else if (seriesCount > 0) {
+          // No saved details but series count exists → generate from main values
+          serieDetails = Array.from({ length: seriesCount }, () => ({
+            reps: config.reps || "",
+            charge: config.charge || "",
+            rpe: config.rpe || "",
+            tempo: config.tempo || "",
+            commentaire: "",
+            recuperation: config.recuperation || "",
+          }));
+        }
+
         return {
           id: exIdx + 1,
           exercice: libEx?.name || "",
@@ -1199,14 +1234,7 @@ export default function ClientDetail() {
           is_unilateral: libEx?.unilateral || false,
           is_duration: false,
           request_video: false,
-          serie_details: config.serieDetails?.map((sd: any) => ({
-            reps: sd.reps || "",
-            charge: sd.charge || "",
-            rpe: sd.rpe || "",
-            tempo: sd.tempo || "",
-            commentaire: sd.commentaire || "",
-            recuperation: sd.recuperation || "",
-          })) || [],
+          serie_details: serieDetails,
         };
       });
 
