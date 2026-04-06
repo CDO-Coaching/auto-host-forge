@@ -4692,29 +4692,36 @@ export default function ClientDetail() {
                                                         />
                                                       </TableCell>
                                                        <TableCell>
-                                                         <Input
-                                                           value={exercise.charge}
-                                                           onChange={(e) =>
-                                                             handleExerciseChange(
-                                                               session.id,
-                                                               exercise.id,
-                                                               "charge",
-                                                               e.target.value,
-                                                             )
-                                                           }
-                                                           onKeyDown={(e) =>
-                                                             handleKeyDown(e, session.id, exercise.id, "charge")
-                                                           }
-                                                           placeholder={
-                                                             !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
-                                                               ? `${chargeSuggestions[session.id][exercise.id]}kg`
-                                                               : "ex: 80kg"
-                                                           }
-                                                           disabled={isValidated}
-                                                           data-session={session.id}
-                                                           data-exercise={exercise.id}
-                                                           data-field="charge"
-                                                         />
+                                                         <div className="relative">
+                                                           <Input
+                                                             value={exercise.charge}
+                                                             onChange={(e) =>
+                                                               handleExerciseChange(
+                                                                 session.id,
+                                                                 exercise.id,
+                                                                 "charge",
+                                                                 e.target.value,
+                                                               )
+                                                             }
+                                                             onKeyDown={(e) =>
+                                                               handleKeyDown(e, session.id, exercise.id, "charge")
+                                                             }
+                                                             placeholder={
+                                                               !exercise.charge && chargeSuggestions[session.id]?.[exercise.id]
+                                                                 ? `${chargeSuggestions[session.id][exercise.id]}kg`
+                                                                 : "ex: 80kg"
+                                                             }
+                                                             disabled={isValidated}
+                                                             data-session={session.id}
+                                                             data-exercise={exercise.id}
+                                                             data-field="charge"
+                                                           />
+                                                           {getPercentSuggestion(exercise.charge, exercise.exercice) && (
+                                                             <span className="absolute -bottom-4 left-0 text-[10px] text-primary font-medium">
+                                                               {getPercentSuggestion(exercise.charge, exercise.exercice)}
+                                                             </span>
+                                                           )}
+                                                         </div>
                                                        </TableCell>
                                                       <TableCell>
                                                         <Input
