@@ -5076,6 +5076,23 @@ export default function ClientDetail() {
                         <span className="sm:hidden">Autre semaine</span>
                         <span className="hidden sm:inline">Copier d'une semaine</span>
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          loadMethodologiesForAssignment();
+                          setShowMethodologyDialog(true);
+                          setSelectedMethodologyId("");
+                          setSelectedMethodologyWeek(1);
+                          setSelectedMethodologyCycle(0);
+                        }}
+                        disabled={!selectedWeekToProgram}
+                        className="w-full sm:w-auto h-9 sm:h-8 text-xs"
+                      >
+                        <BookOpen className="h-3 w-3 mr-1" />
+                        <span className="sm:hidden">Méthodologie</span>
+                        <span className="hidden sm:inline">Appliquer méthodologie</span>
+                      </Button>
                     </div>
                   )}
                   {/* Grille 2x2 sur mobile, inline sur desktop */}
