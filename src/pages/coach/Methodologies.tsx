@@ -261,6 +261,7 @@ export default function Methodologies() {
     setSelectedExercises(m.exercises || []);
     setExerciseSearch("");
     setExerciseMuscleFilter("all");
+    setSessionExerciseMap(m.session_exercise_configs || {});
     setDialogOpen(true);
   };
 
