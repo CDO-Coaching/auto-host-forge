@@ -57,6 +57,7 @@ export default function ExerciceDetail() {
   const { toast } = useToast();
   const timerRef = useRef<UniversalTimerRef>(null);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
+  const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
 
   // Serie-level validation
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
