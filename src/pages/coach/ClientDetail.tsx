@@ -196,6 +196,14 @@ export default function ClientDetail() {
   const [multiWeekCurrent, setMultiWeekCurrent] = useState(1);
   const [multiWeekStartWeek, setMultiWeekStartWeek] = useState<{ week: number; year: number } | null>(null);
 
+  // Methodology assignment
+  const [showMethodologyDialog, setShowMethodologyDialog] = useState(false);
+  const [availableMethodologies, setAvailableMethodologies] = useState<any[]>([]);
+  const [selectedMethodologyId, setSelectedMethodologyId] = useState<string>("");
+  const [selectedMethodologyWeek, setSelectedMethodologyWeek] = useState<number>(1);
+  const [selectedMethodologyCycle, setSelectedMethodologyCycle] = useState<number>(0);
+  const [loadingMethodologies, setLoadingMethodologies] = useState(false);
+
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
 
