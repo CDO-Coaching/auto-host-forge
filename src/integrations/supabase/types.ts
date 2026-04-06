@@ -197,6 +197,7 @@ export type Database = {
           progression_summary: string | null
           rpe_target_max: number | null
           rpe_target_min: number | null
+          session_exercise_configs: Json | null
           sessions_options: number[] | null
           updated_at: string
           weeks_per_cycle: number | null
@@ -214,6 +215,7 @@ export type Database = {
           progression_summary?: string | null
           rpe_target_max?: number | null
           rpe_target_min?: number | null
+          session_exercise_configs?: Json | null
           sessions_options?: number[] | null
           updated_at?: string
           weeks_per_cycle?: number | null
@@ -231,6 +233,7 @@ export type Database = {
           progression_summary?: string | null
           rpe_target_max?: number | null
           rpe_target_min?: number | null
+          session_exercise_configs?: Json | null
           sessions_options?: number[] | null
           updated_at?: string
           weeks_per_cycle?: number | null
