@@ -90,6 +90,7 @@ interface Methodology {
   weeks_per_cycle: number | null;
   sessions_options: number[];
   exercises: Exercise[];
+  session_exercise_configs: Record<string, SessionExerciseConfig[]>;
 }
 
 export default function Methodologies() {
