@@ -5138,6 +5138,118 @@ export default function ClientDetail() {
               )}
             </CardContent>
           </Card>
+
+          {/* Dialog méthodologie */}
+          <Dialog open={showMethodologyDialog} onOpenChange={setShowMethodologyDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-primary" />
+                  Appliquer une méthodologie
+                </DialogTitle>
+                <DialogDescription>
+                  Sélectionne une méthodologie et la semaine à appliquer
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {loadingMethodologies ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
+                ) : availableMethodologies.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Méthodologie</label>
+                      <Select value={selectedMethodologyId} onValueChange={(v) => {
+                        setSelectedMethodologyId(v);
+                        setSelectedMethodologyWeek(1);
+                        setSelectedMethodologyCycle(0);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choisir une méthodologie" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableMethodologies.map(m => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedMethodologyId && (() => {
+                      const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
+                      if (!meth) return null;
+                      const numCycles = meth.num_cycles || 1;
+                      const weeksPerCycle = meth.weeks_per_cycle || 1;
+                      return (
+                        <div className="space-y-3">
+                          {numCycles > 1 && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Cycle</label>
+                              <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {Array.from({ length: numCycles }, (_, i) => (
+                                    <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Semaine du cycle</label>
+                            <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: weeksPerCycle }, (_, i) => (
+                                  <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {/* Preview */}
+                          {(() => {
+                            const configs = meth.session_exercise_configs || {};
+                            const weekIdx = selectedMethodologyWeek - 1;
+                            let sessionCount = 0;
+                            let exerciseCount = 0;
+                            for (const key of Object.keys(configs)) {
+                              const parts = key.split("-").map(Number);
+                              if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
+                                sessionCount++;
+                                exerciseCount += (configs[key] || []).length;
+                              }
+                            }
+                            if (sessionCount === 0) return (
+                              <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
+                            );
+                            return (
+                              <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                                <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowMethodologyDialog(false)}>Annuler</Button>
+                <Button onClick={handleApplyMethodology} disabled={!selectedMethodologyId}>
+                  <BookOpen className="h-4 w-4 mr-1" />
+                  Appliquer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="efforts" className="space-y-4">
