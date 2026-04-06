@@ -102,6 +102,7 @@ export default function ExerciceDetail() {
     return `≈${suggested}kg`;
   };
 
+  const handleLaunchEmom = () => {
     const totalSets = exercise?.series ? parseInt(exercise.series) : 1;
     timerRef.current?.openWithSettings({
       type: 'emom',
