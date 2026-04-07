@@ -396,14 +396,9 @@ export default function ExerciceDetail() {
 
   // Handle RPE submission for a serie
   const handleRpeSubmit = () => {
-    const rpeValue = rpeInputValue.trim();
-    if (!rpeValue) {
-      toast({ title: "RPE obligatoire", description: "Merci de remplir un RPE pour valider la série", variant: "destructive" });
-      return;
-    }
-    const rpeNumber = Number(rpeValue);
-    if (isNaN(rpeNumber) || !Number.isInteger(rpeNumber) || rpeNumber < 1 || rpeNumber > 10) {
-      toast({ title: "RPE invalide", description: "Le RPE doit être un chiffre entier entre 1 et 10", variant: "destructive" });
+    const rpeNumber = Number(rpeInputValue) || 5;
+    if (rpeNumber < 1 || rpeNumber > 10) {
+      toast({ title: "RPE invalide", description: "Le RPE doit être entre 1 et 10", variant: "destructive" });
       return;
     }
     if (rpeDialogSerieIndex === null) return;
