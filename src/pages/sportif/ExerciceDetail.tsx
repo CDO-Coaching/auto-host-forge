@@ -819,9 +819,6 @@ export default function ExerciceDetail() {
                           {serie.charge && (
                             <span className="font-medium">
                               <span className="text-red-500">{serie.charge}</span>
-                              {getPercentSuggestion(serie.charge, exercise.exercice) && (
-                                <span className="text-primary text-xs ml-1">{getPercentSuggestion(serie.charge, exercise.exercice)}</span>
-                              )}
                             </span>
                           )}
                           {serie.rpe && !isValidated && (
