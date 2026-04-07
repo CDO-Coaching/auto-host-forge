@@ -389,7 +389,7 @@ export default function ExerciceDetail() {
     setRpeDialogSerieIndex(serieIndex);
     // Pre-fill with coach's RPE for this serie, or default to 5
     const coachRpe = seriesData[serieIndex]?.rpe;
-    const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "5";
+    const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
     setRpeDialogOpen(true);
   };
