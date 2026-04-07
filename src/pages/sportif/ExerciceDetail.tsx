@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -386,7 +387,10 @@ export default function ExerciceDetail() {
   // Handle clicking validate on a serie
   const handleValidateSerie = (serieIndex: number) => {
     setRpeDialogSerieIndex(serieIndex);
-    setRpeInputValue("");
+    // Pre-fill with coach's RPE for this serie, or default to 5
+    const coachRpe = seriesData[serieIndex]?.rpe;
+    const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "5";
+    setRpeInputValue(defaultVal);
     setRpeDialogOpen(true);
   };
 
@@ -665,26 +669,34 @@ export default function ExerciceDetail() {
               Série {rpeDialogSerieIndex !== null ? rpeDialogSerieIndex + 1 : ""} terminée
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-2">
+          <div className="space-y-4 py-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Label htmlFor="serie-rpe">RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
+                <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
                 <RPEExplanationDialog />
               </div>
-              <Input
-                id="serie-rpe"
-                type="number"
-                min="1"
-                max="10"
-                placeholder="Ex: 7"
-                value={rpeInputValue}
-                onChange={(e) => setRpeInputValue(e.target.value)}
-                autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter') handleRpeSubmit(); }}
-              />
-              <p className="text-xs text-muted-foreground">
-                1 = très facile, 10 = effort maximum
-              </p>
+              <div className="flex flex-col items-center gap-3">
+                <span className={`text-4xl font-bold ${
+                  Number(rpeInputValue) <= 3 ? "text-green-500" :
+                  Number(rpeInputValue) <= 6 ? "text-yellow-500" :
+                  Number(rpeInputValue) <= 8 ? "text-orange-500" :
+                  "text-red-500"
+                }`}>
+                  {rpeInputValue || "5"}
+                </span>
+                <Slider
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={[Number(rpeInputValue) || 5]}
+                  onValueChange={(val) => setRpeInputValue(String(val[0]))}
+                  className="w-full"
+                />
+                <div className="flex justify-between w-full text-xs text-muted-foreground">
+                  <span>Facile</span>
+                  <span>Maximum</span>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
