@@ -442,12 +442,34 @@ export default function SupersetDetail() {
         timeRemaining={recoveryTime}
         isRunning={isRecoveryRunning}
         onStart={() => {
-          // Restart with last used recup
           startTimer(recoveryTimerId, "1min30s");
         }}
         onPause={() => pauseTimer(recoveryTimerId)}
         onReset={() => resetTimer(recoveryTimerId)}
         title="Récupération"
+      />
+
+      {/* Chain overlay - no recovery */}
+      {showChainOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" onClick={() => setShowChainOverlay(false)}>
+          <div className="bg-gradient-to-br from-primary to-primary/80 p-6 sm:p-8 rounded-3xl shadow-2xl text-center min-w-[260px] max-w-[90vw] animate-scale-in">
+            <Zap className="h-12 w-12 text-primary-foreground mx-auto mb-3" />
+            <h2 className="text-xl sm:text-2xl font-black text-primary-foreground mb-2">
+              Enchaîné directement !
+            </h2>
+            <p className="text-lg font-semibold text-primary-foreground/90">
+              {chainExerciseName}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Round celebration */}
+      <CelebrationOverlay
+        show={showRoundCelebration}
+        message={`Série ${completedRoundNumber} terminée !`}
+        onComplete={() => setShowRoundCelebration(false)}
+        type="exercise"
       />
 
       <ExerciseFeedbackDialog
