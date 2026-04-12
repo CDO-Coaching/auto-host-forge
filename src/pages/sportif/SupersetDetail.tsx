@@ -59,6 +59,7 @@ export default function SupersetDetail() {
   const [chainExerciseName, setChainExerciseName] = useState("");
   const [showRoundCelebration, setShowRoundCelebration] = useState(false);
   const [completedRoundNumber, setCompletedRoundNumber] = useState(0);
+  const [pendingRoundRecovery, setPendingRoundRecovery] = useState<string | null>(null);
 
   // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
