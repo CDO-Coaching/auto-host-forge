@@ -474,7 +474,15 @@ export default function SupersetDetail() {
       <CelebrationOverlay
         show={showRoundCelebration}
         message={`Série ${completedRoundNumber} terminée !`}
-        onComplete={() => setShowRoundCelebration(false)}
+        onComplete={() => {
+          setShowRoundCelebration(false);
+          // Start recovery timer if there's pending recovery
+          if (pendingRoundRecovery) {
+            startTimer(recoveryTimerId, pendingRoundRecovery);
+            setShowRecoveryOverlay(true);
+            setPendingRoundRecovery(null);
+          }
+        }}
         type="exercise"
       />
 
