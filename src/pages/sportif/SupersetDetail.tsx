@@ -658,8 +658,8 @@ export default function SupersetDetail() {
                               )}
                             </div>
 
-                            {/* Recovery between exercises within the round (not after the last one) */}
-                            {exIdx < exercises.length - 1 && (
+                            {/* Recovery info under each exercise */}
+                            {exIdx < exercises.length - 1 ? (
                               <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground">
                                 {(serieData.recuperation || ex.recuperation) ? (
                                   <>
@@ -673,6 +673,17 @@ export default function SupersetDetail() {
                                   </>
                                 )}
                               </div>
+                            ) : (
+                              /* Last exercise of the round: show round recovery */
+                              (() => {
+                                const lastRecup = serieData.recuperation || ex.recuperation;
+                                return lastRecup ? (
+                                  <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground/70">
+                                    <Timer className="h-3 w-3" />
+                                    <span>Récup fin de série: {lastRecup}</span>
+                                  </div>
+                                ) : null;
+                              })()
                             )}
                           </div>
                         );
