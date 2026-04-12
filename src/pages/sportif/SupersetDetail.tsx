@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Timer, Video, Zap, Weight, Repeat, Clock } from "lucide-react";
+import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
@@ -18,25 +19,50 @@ import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+interface SerieDetail {
+  reps?: string;
+  charge?: string;
+  rpe?: string;
+  tempo?: string;
+  commentaire?: string;
+  recuperation?: string;
+}
+
+interface SerieValidation {
+  validated: boolean;
+  rpe: number | null;
+}
 
 export default function SupersetDetail() {
-  // Keep screen on during workout
   useWakeLock(true);
   const { sessionId, supersetId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [allExercises, setAllExercises] = useState<any[]>([]); // Liste complète pour les updates DB
+  const [exercises, setExercises] = useState<any[]>([]); // All exercises in superset (not deduplicated)
   const [loading, setLoading] = useState(true);
-  const [completedRounds, setCompletedRounds] = useState(0);
   const [weekId, setWeekId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [exerciseTimers, setExerciseTimers] = useState<Record<string, any>>({});
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
-  const [showSupersetRecoveryOverlay, setShowSupersetRecoveryOverlay] = useState(false);
-  
+  const [showRecoveryOverlay, setShowRecoveryOverlay] = useState(false);
+  const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+
+  // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
+  const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
+  const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
+  const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
+  const [rpeInputValue, setRpeInputValue] = useState("");
+  const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
+
   const {
     timers,
     isRunning: timersRunning,
@@ -45,47 +71,24 @@ export default function SupersetDetail() {
     resetTimer,
     formatTime: formatTimerTime,
   } = useRecoveryTimer();
-  
-  const supersetTimerId = `superset-recovery-${supersetId}`;
-  const supersetRecoveryTime = timers[supersetTimerId] || 0;
-  const isSupersetRecoveryRunning = timersRunning[supersetTimerId] || false;
+
+  const recoveryTimerId = `superset-recovery-${supersetId}`;
+  const recoveryTime = timers[recoveryTimerId] || 0;
+  const isRecoveryRunning = timersRunning[recoveryTimerId] || false;
 
   useEffect(() => {
     loadSupersetDetail();
-    
-    // Restaurer les données sauvegardées
-    const savedData = localStorage.getItem(`superset-progress-${supersetId}`);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.completedRounds !== undefined) setCompletedRounds(parsed.completedRounds);
-      } catch (error) {
-        console.error("Erreur lors de la restauration:", error);
-      }
-    }
 
-    // Recharger les données quand la page redevient visible (après modification par le coach)
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadSupersetDetail();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [supersetId]);
-
-  // Sauvegarder automatiquement la progression
-  useEffect(() => {
-    if (supersetId) {
-      const dataToSave = {
-        completedRounds,
-      };
-      localStorage.setItem(`superset-progress-${supersetId}`, JSON.stringify(dataToSave));
-    }
-  }, [completedRounds, supersetId]);
 
   const loadSupersetDetail = async () => {
     setLoading(true);
@@ -98,127 +101,216 @@ export default function SupersetDetail() {
 
     if (error) {
       console.error("Erreur lors du chargement du superset:", error);
-    } else if (data && data.length > 0) {
-      // Stocker tous les exercices pour les updates DB
-      setAllExercises(data);
-      
-      // Dédoublonner les exercices par nom pour n'afficher qu'une fois chaque exercice unique
-      const uniqueExercises = data.reduce((acc: any[], current: any) => {
-        const existingExercise = acc.find((ex) => ex.exercice === current.exercice);
-        if (!existingExercise) {
-          acc.push(current);
-        }
-        return acc;
-      }, []);
-
-      setExercises(uniqueExercises);
-
-      // Charger les URLs de vidéos depuis la bibliothèque d'exercices
-      const exerciseNames = Array.from(
-        new Set(uniqueExercises.map((ex: any) => ex.exercice).filter(Boolean))
-      );
-
-      if (exerciseNames.length > 0) {
-        const { data: libraryData, error: libraryError } = await supabase
-          .from("exercise_library")
-          .select("name, video_url")
-          .in("name", exerciseNames);
-
-        if (libraryError) {
-          console.error("Erreur lors du chargement des vidéos d'exercices:", libraryError);
-        } else if (libraryData) {
-          const videoMap: Record<string, string> = {};
-          libraryData.forEach((row: any) => {
-            if (row.video_url) {
-              videoMap[row.name] = row.video_url;
-            }
-          });
-          setVideoUrls(videoMap);
-        }
-      }
-
-      const { data: sessionRow } = await supabase
-        .from("training_sessions")
-        .select("week_id")
-        .eq("id", data[0].session_id)
-        .maybeSingle();
-      if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
-
-      // Initialiser les timers pour chaque exercice
-      const timers: Record<string, any> = {};
-      data.forEach((exercise, index) => {
-        if (exercise.recuperation) {
-          timers[exercise.id] = {
-            duration: parseRecuperationTime(exercise.recuperation),
-            isRunning: false,
-            timeRemaining: parseRecuperationTime(exercise.recuperation),
-          };
-        }
-      });
-      setExerciseTimers(timers);
+      setLoading(false);
+      return;
     }
+
+    if (!data || data.length === 0) {
+      setLoading(false);
+      return;
+    }
+
+    // Deduplicate by exercise name for display (keep unique exercises)
+    const uniqueExercises = data.reduce((acc: any[], current: any) => {
+      if (!acc.find((ex) => ex.exercice === current.exercice)) {
+        acc.push(current);
+      }
+      return acc;
+    }, []);
+
+    setExercises(uniqueExercises);
+
+    // Load video URLs
+    const exerciseNames = uniqueExercises.map((ex: any) => ex.exercice).filter(Boolean);
+    if (exerciseNames.length > 0) {
+      const { data: libraryData } = await supabase
+        .from("exercise_library")
+        .select("name, video_url")
+        .in("name", exerciseNames);
+
+      if (libraryData) {
+        const videoMap: Record<string, string> = {};
+        libraryData.forEach((row: any) => {
+          if (row.video_url) videoMap[row.name] = row.video_url;
+        });
+        setVideoUrls(videoMap);
+      }
+    }
+
+    // Get weekId
+    const { data: sessionRow } = await supabase
+      .from("training_sessions")
+      .select("week_id")
+      .eq("id", data[0].session_id)
+      .maybeSingle();
+    if (sessionRow?.week_id) setWeekId(sessionRow.week_id);
 
     setLoading(false);
   };
-  const parseRecuperationTime = (recup: string): number => {
-    const minMatch = recup.match(/(\d+)min/);
-    const secMatch = recup.match(/(\d+)s/);
-    const minutes = minMatch ? parseInt(minMatch[1]) : 0;
-    const seconds = secMatch ? parseInt(secMatch[1]) : 0;
-    return minutes * 60 + seconds;
+
+  // Build the series data for each exercise
+  const getSeriesDataForExercise = (exercise: any): SerieDetail[] => {
+    let details: SerieDetail[] = [];
+    if (exercise.serie_details) {
+      try {
+        details = typeof exercise.serie_details === 'string'
+          ? JSON.parse(exercise.serie_details)
+          : exercise.serie_details;
+      } catch (e) { details = []; }
+    }
+
+    const totalSets = exercise.series ? parseInt(exercise.series) : 0;
+    if (totalSets === 0) return [];
+
+    const series: SerieDetail[] = [];
+    for (let i = 0; i < totalSets; i++) {
+      const detail = details[i] || {};
+      series.push({
+        reps: detail.reps || exercise.reps || "",
+        charge: detail.charge || exercise.charge || "",
+        rpe: detail.rpe || exercise.rpe || "",
+        tempo: detail.tempo || exercise.tempo || "",
+        commentaire: detail.commentaire || "",
+        recuperation: detail.recuperation || "",
+      });
+    }
+    return series;
   };
 
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  // Total number of rounds (series count from first exercise)
+  const totalRounds = exercises.length > 0 ? (exercises[0].series ? parseInt(exercises[0].series) : 0) : 0;
+  const totalValidationSlots = totalRounds * exercises.length;
+
+  // Initialize validations
+  useEffect(() => {
+    if (exercises.length > 0 && totalRounds > 0) {
+      const savedValidations = localStorage.getItem(`superset-series-validations-${supersetId}`);
+      if (savedValidations) {
+        try {
+          const parsed = JSON.parse(savedValidations);
+          if (Array.isArray(parsed) && parsed.length === totalValidationSlots) {
+            setSerieValidations(parsed);
+            return;
+          }
+        } catch (e) {}
+      }
+      setSerieValidations(Array.from({ length: totalValidationSlots }, () => ({ validated: false, rpe: null })));
+    }
+  }, [exercises.length, totalRounds]);
+
+  // Save validations
+  useEffect(() => {
+    if (supersetId && serieValidations.length > 0) {
+      localStorage.setItem(`superset-series-validations-${supersetId}`, JSON.stringify(serieValidations));
+    }
+  }, [serieValidations, supersetId]);
+
+  const getValidationIndex = (roundIdx: number, exIdx: number) => roundIdx * exercises.length + exIdx;
+
+  const completedCount = serieValidations.filter(s => s.validated).length;
+  const allValidated = serieValidations.length > 0 && serieValidations.every(s => s.validated);
+
+  const handleValidateSerie = (roundIdx: number, exIdx: number) => {
+    const idx = getValidationIndex(roundIdx, exIdx);
+    setRpeDialogSerieIndex(idx);
+    
+    // Get coach RPE for this specific series
+    const seriesData = getSeriesDataForExercise(exercises[exIdx]);
+    const coachRpe = seriesData[roundIdx]?.rpe;
+    const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
+    setRpeInputValue(defaultVal);
+    setRpeDialogOpen(true);
+  };
+
+  const handleRpeSubmit = () => {
+    const rpeNumber = Number(rpeInputValue) || 7;
+    if (rpeNumber < 1 || rpeNumber > 10) {
+      toast({ title: "RPE invalide", description: "Le RPE doit être entre 1 et 10", variant: "destructive" });
+      return;
+    }
+    if (rpeDialogSerieIndex === null) return;
+
+    const newValidations = [...serieValidations];
+    newValidations[rpeDialogSerieIndex] = { validated: true, rpe: rpeNumber };
+    setSerieValidations(newValidations);
+
+    setRpeDialogOpen(false);
+    setRpeDialogSerieIndex(null);
+    setRpeInputValue("");
+
+    // Check if all validated
+    const allNowValidated = newValidations.every(s => s.validated);
+    if (allNowValidated && newValidations.length > 0) {
+      const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
+      setComputedAvgRpe(avgRpe.toString());
+      setDialogOpen(true);
+    } else {
+      // Figure out which exercise was just validated to start its recovery timer
+      const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
+      const exIdx = rpeDialogSerieIndex % exercises.length;
+      const seriesData = getSeriesDataForExercise(exercises[exIdx]);
+      const recup = seriesData[roundIdx]?.recuperation || exercises[exIdx]?.recuperation;
+      
+      if (recup) {
+        startTimer(recoveryTimerId, recup);
+        setShowRecoveryOverlay(true);
+      }
+    }
   };
 
   const handleValidateFeedback = async (rpe: string, comment: string) => {
     const rpeValue = rpe ? parseInt(rpe) : null;
 
-    // Valider TOUS les exercices du superset (pas seulement les uniques) avec le même RPE
-    for (const exercise of allExercises) {
+    // Compute average from per-serie RPEs
+    const serieRpes = serieValidations.filter(s => s.rpe !== null).map(s => s.rpe!);
+    const finalRpe = serieRpes.length > 0
+      ? Math.round(serieRpes.reduce((a, b) => a + b, 0) / serieRpes.length)
+      : rpeValue;
+
+    // Update all exercises in the superset
+    // Need to get ALL exercise rows (including duplicates by name for DB)
+    const { data: allExerciseRows } = await supabase
+      .from("session_exercises")
+      .select("*")
+      .eq("super_set_group", supersetId);
+
+    if (!allExerciseRows) return;
+
+    for (const exercise of allExerciseRows) {
       const { error } = await supabase
         .from("session_exercises")
         .update({
           sportif_comment: comment.trim() || null,
-          sportif_rpe: rpeValue,
+          sportif_rpe: finalRpe,
           sportif_feedback_at: new Date().toISOString(),
         })
         .eq("id", exercise.id);
 
       if (error) {
         console.error("Erreur lors de la sauvegarde:", error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de sauvegarder vos données",
-          variant: "destructive",
-        });
+        toast({ title: "Erreur", description: "Impossible de sauvegarder", variant: "destructive" });
         throw error;
       }
 
-      if (rpeValue && shouldRecordMax(exercise.charge, exercise.reps, rpeValue)) {
-        await recordTheoreticalMax(exercise, rpeValue);
+      if (finalRpe && shouldRecordMax(exercise.charge, exercise.reps, finalRpe)) {
+        await recordTheoreticalMax(exercise, finalRpe);
       }
     }
 
-    toast({
-      title: "Superset validé !",
-      description: "Tous les exercices ont été enregistrés",
-    });
+    toast({ title: "Superset validé !", description: "Tous les exercices ont été enregistrés" });
+
+    // Cleanup
+    localStorage.removeItem(`superset-series-validations-${supersetId}`);
+    localStorage.removeItem(`superset-progress-${supersetId}`);
 
     setDialogOpen(false);
-    await loadSupersetDetail();
+    setShowCelebration(true);
   };
 
   const recordTheoreticalMax = async (exercise: any, rpeValue: number) => {
     try {
-      // Le tempo est maintenant pris en compte dans le calcul du 1RM via coefficient
-
       const weight = parseWeight(exercise.charge);
       const repsValue = parseReps(exercise.reps);
-
       if (!weight || !repsValue) return;
 
       const theoretical1RM = calculate1RM(weight, repsValue, rpeValue, exercise.tempo);
@@ -229,14 +321,9 @@ export default function SupersetDetail() {
         .eq("name", exercise.exercice)
         .maybeSingle();
 
-      if (!libraryData?.id) {
-        console.log("Exercice non trouvé dans la bibliothèque:", exercise.exercice);
-        return;
-      }
+      if (!libraryData?.id) return;
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: latestMax } = await supabase
@@ -259,10 +346,7 @@ export default function SupersetDetail() {
         });
 
         if (!insertError) {
-          toast({
-            title: "Max théorique enregistré",
-            description: `${theoretical1RM} kg sur ${exercise.exercice}`,
-          });
+          toast({ title: "Max théorique enregistré", description: `${theoretical1RM} kg sur ${exercise.exercice}` });
         }
       }
     } catch (error) {
@@ -270,39 +354,9 @@ export default function SupersetDetail() {
     }
   };
 
-  const handleFinishSuperset = () => {
-    // Ouvrir le dialog pour valider le superset
-    setDialogOpen(true);
-  };
-
-  const handleSupersetValidated = async () => {
-    // Marquer le superset comme terminé et célébrer
-    localStorage.removeItem(`superset-progress-${supersetId}`);
-    setShowCelebration(true);
-  };
-
-  // Fonction pour incrémenter les rounds avec démarrage automatique du timer
-  const handleIncrementRound = () => {
-    const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
-    if (completedRounds < totalSets) {
-      setCompletedRounds(completedRounds + 1);
-      
-      // Démarrer automatiquement le timer de récupération du superset (récup du dernier exercice)
-      const lastExercise = exercises[exercises.length - 1];
-      if (lastExercise?.recuperation) {
-        startTimer(supersetTimerId, lastExercise.recuperation);
-        setShowSupersetRecoveryOverlay(true);
-      }
-    }
-  };
-
   const handleCelebrationComplete = () => {
     setShowCelebration(false);
-    toast({
-      title: "Superset terminé !",
-      description: "Tous les rounds ont été validés",
-    });
-
+    toast({ title: "Superset terminé !", description: "Tous les rounds ont été validés" });
     setTimeout(() => {
       if (weekId && sessionId) {
         navigate(`/sportif/seance/${weekId}/${sessionId}`);
@@ -314,86 +368,12 @@ export default function SupersetDetail() {
     }, 300);
   };
 
-  const handleCancelFeedback = () => {
-    setDialogOpen(false);
-  };
-
   const handleBack = () => {
     if (weekId && sessionId) {
       navigate(`/sportif/seance/${weekId}/${sessionId}`);
     } else {
       navigate("/sportif/seances");
     }
-  };
-
-  const startExerciseTimer = (exerciseId: string) => {
-    const timer = exerciseTimers[exerciseId];
-    if (!timer || timer.isRunning) return;
-
-    const newTimers = { ...exerciseTimers };
-    newTimers[exerciseId] = {
-      ...timer,
-      isRunning: true,
-      startTime: Date.now(),
-    };
-    setExerciseTimers(newTimers);
-
-    const interval = setInterval(() => {
-      setExerciseTimers(prev => {
-        const currentTimer = prev[exerciseId];
-        if (!currentTimer || !currentTimer.isRunning) {
-          clearInterval(interval);
-          return prev;
-        }
-
-        const elapsed = Math.floor((Date.now() - currentTimer.startTime) / 1000);
-        const remaining = Math.max(0, currentTimer.duration - elapsed);
-
-        if (remaining === 0) {
-          clearInterval(interval);
-          return {
-            ...prev,
-            [exerciseId]: {
-              ...currentTimer,
-              isRunning: false,
-              timeRemaining: 0,
-            }
-          };
-        }
-
-        return {
-          ...prev,
-          [exerciseId]: {
-            ...currentTimer,
-            timeRemaining: remaining,
-          }
-        };
-      });
-    }, 100);
-  };
-
-  const pauseExerciseTimer = (exerciseId: string) => {
-    setExerciseTimers(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...prev[exerciseId],
-        isRunning: false,
-      }
-    }));
-  };
-
-  const resetExerciseTimer = (exerciseId: string) => {
-    const timer = exerciseTimers[exerciseId];
-    if (!timer) return;
-
-    setExerciseTimers(prev => ({
-      ...prev,
-      [exerciseId]: {
-        ...timer,
-        isRunning: false,
-        timeRemaining: timer.duration,
-      }
-    }));
   };
 
   if (loading) {
@@ -412,13 +392,14 @@ export default function SupersetDetail() {
     );
   }
 
-  const totalSets = exercises[0]?.series ? parseInt(exercises[0].series) : 0;
+  // Build all series data per exercise
+  const allSeriesData = exercises.map(ex => getSeriesDataForExercise(ex));
 
   return (
     <div className="min-h-screen bg-background pb-20">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
       <UniversalTimer />
-      
+
       <CelebrationOverlay
         show={showCelebration}
         message="Superset terminé !"
@@ -427,263 +408,255 @@ export default function SupersetDetail() {
       />
 
       <TimerOverlay
-        show={showSupersetRecoveryOverlay}
-        onClose={() => setShowSupersetRecoveryOverlay(false)}
-        timeRemaining={supersetRecoveryTime}
-        isRunning={isSupersetRecoveryRunning}
+        show={showRecoveryOverlay}
+        onClose={() => setShowRecoveryOverlay(false)}
+        timeRemaining={recoveryTime}
+        isRunning={isRecoveryRunning}
         onStart={() => {
-          const lastExercise = exercises[exercises.length - 1];
-          if (lastExercise?.recuperation) {
-            startTimer(supersetTimerId, lastExercise.recuperation);
-          }
+          // Restart with last used recup
+          startTimer(recoveryTimerId, "1min30s");
         }}
-        onPause={() => pauseTimer(supersetTimerId)}
-        onReset={() => resetTimer(supersetTimerId)}
-        title="Récup entre séries"
+        onPause={() => pauseTimer(recoveryTimerId)}
+        onReset={() => resetTimer(recoveryTimerId)}
+        title="Récupération"
       />
 
       <ExerciseFeedbackDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onValidate={async (rpe, comment) => {
-          await handleValidateFeedback(rpe, comment);
-          await handleSupersetValidated();
-        }}
-        onCancel={handleCancelFeedback}
+        onValidate={handleValidateFeedback}
+        onCancel={() => setDialogOpen(false)}
         exerciseName="Superset"
         exerciseType="renfo"
-        isRpeRequired={true}
+        isRpeRequired={!allValidated}
+        defaultRpe={computedAvgRpe}
       />
 
+      {/* RPE Dialog for serie validation */}
+      <Dialog open={rpeDialogOpen} onOpenChange={setRpeDialogOpen}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>
+              {rpeDialogSerieIndex !== null && (() => {
+                const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
+                const exIdx = rpeDialogSerieIndex % exercises.length;
+                return `S${roundIdx + 1} - ${exercises[exIdx]?.exercice || ""}`;
+              })()}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
+                <RPEExplanationDialog />
+              </div>
+              <div className="flex flex-col items-center gap-3">
+                <span className={`text-4xl font-bold ${
+                  Number(rpeInputValue) <= 3 ? "text-green-500" :
+                  Number(rpeInputValue) <= 6 ? "text-yellow-500" :
+                  Number(rpeInputValue) <= 8 ? "text-orange-500" :
+                  "text-red-500"
+                }`}>
+                  {rpeInputValue || "7"}
+                </span>
+                <Slider
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={[Number(rpeInputValue) || 7]}
+                  onValueChange={(val) => setRpeInputValue(String(val[0]))}
+                  className="w-full"
+                />
+                <div className="flex justify-between w-full text-xs text-muted-foreground">
+                  <span>Facile</span>
+                  <span>Maximum</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRpeDialogOpen(false)} className="w-full sm:w-auto">
+              Annuler
+            </Button>
+            <Button onClick={handleRpeSubmit} className="w-full sm:w-auto">
+              Valider
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {/* En-tête */}
+        {/* Header */}
         <div className="flex items-center gap-3 mb-2 sm:mb-4">
           <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 p-0">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-xl sm:text-2xl font-bold">Superset</h1>
           <Badge variant="secondary" className="ml-auto text-xs">
-            Superset
+            {exercises.map(ex => ex.exercice).join(" + ")}
           </Badge>
         </div>
 
-        {/* Compteur de séries */}
+        {/* Exercise names summary */}
         <Card className="border-2 border-primary/30">
           <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm sm:text-base font-semibold">Séries</Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCompletedRounds(Math.max(0, completedRounds - 1))}
-                  className="h-8 w-8"
-                >
-                  -
-                </Button>
-                <div className="text-2xl sm:text-3xl font-bold min-w-[80px] text-center">
-                  {completedRounds}
-                  <span className="text-lg sm:text-xl text-muted-foreground">/{totalSets}</span>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleIncrementRound}
-                  className="h-8 w-8"
-                >
-                  +
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Separator className="my-4 sm:my-6" />
-
-        {/* Liste des exercices */}
-        {exercises.map((exercise, index) => (
-          <div key={exercise.id}>
-            {/* Exercice */}
-            <Card className="border-primary/50">
-              <CardContent className="p-4 sm:p-6 space-y-4">
-                {/* En-tête exercice */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg font-bold text-primary">{index + 1}</span>
-                      <h3 className="text-xl sm:text-2xl font-bold">{exercise.exercice}</h3>
-                    </div>
-                  </div>
-                  {videoUrls[exercise.exercice] && (
-                    <a
-                      href={videoUrls[exercise.exercice]}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-yellow-400 hover:text-yellow-200 text-3xl sm:text-4xl"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+            <div className="space-y-2">
+              {exercises.map((ex, idx) => (
+                <div key={ex.id} className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-primary">{idx + 1}</span>
+                  <span className="font-medium">{ex.exercice}</span>
+                  {videoUrls[ex.exercice] && (
+                    <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
                       🎥
                     </a>
                   )}
                 </div>
+              ))}
+            </div>
+            <Separator className="my-3" />
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">
+                Progression — {completedCount}/{totalValidationSlots}
+              </p>
+              {completedCount > 0 && (
+                <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
+                  {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-                {/* Détails - Grid responsive */}
-                <div className="grid grid-cols-2 gap-3">
-                  {exercise.charge && (
-                    <div className="border border-primary/30 bg-primary/5 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Weight className="h-4 w-4 text-primary" />
-                        <span className="text-xs sm:text-sm font-semibold text-primary uppercase">Charge</span>
-                      </div>
-                      <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.charge}</p>
-                    </div>
-                  )}
+        {/* Series rounds */}
+        {!seriesCollapsed && (
+          <div className="space-y-4">
+            {Array.from({ length: totalRounds }, (_, roundIdx) => {
+              const roundValidations = exercises.map((_, exIdx) => {
+                const vIdx = getValidationIndex(roundIdx, exIdx);
+                return serieValidations[vIdx];
+              });
+              const roundComplete = roundValidations.every(v => v?.validated);
 
-                  {exercise.reps && (
-                    <div className="border border-primary/30 bg-primary/5 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Repeat className="h-4 w-4 text-primary" />
-                        <span className="text-xs sm:text-sm font-semibold text-primary uppercase">Reps</span>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.reps}</p>
-                        {exercise.per_side && (
-                          <Badge variant="secondary" className="text-xs bg-primary/20 text-primary border-primary/30">
-                            par côté
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {exercise.rpe && (
-                    <div className="border border-primary/30 bg-primary/5 rounded-lg p-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-primary" />
-                          <span className="text-xs sm:text-sm font-semibold text-primary uppercase">RPE</span>
-                        </div>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <RPEExplanationDialog />
-                        </div>
-                      </div>
-                      <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.rpe}</p>
-                    </div>
-                  )}
-
-                  {exercise.tempo && (
-                    <div className="border border-primary/30 bg-primary/5 rounded-lg p-3">
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-primary" />
-                          <span className="text-xs sm:text-sm font-semibold text-primary uppercase">Tempo</span>
-                        </div>
-                        <div onClick={(e) => e.stopPropagation()}>
-                          <TempoExplanationDialog />
-                        </div>
-                      </div>
-                      <p className="text-xl sm:text-2xl font-bold text-primary">{exercise.tempo}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes du coach */}
-                {exercise.commentaire && (
-                  <div className="border-2 border-primary/20 rounded-lg p-3 sm:p-4">
-                    <div className="flex items-start gap-2">
-                      <span className="text-xl sm:text-2xl">📝</span>
-                      <div className="flex-1">
-                        <p className="text-xs sm:text-sm font-semibold text-primary mb-2">Notes du coach</p>
-                        <p className="text-sm sm:text-base leading-relaxed">{exercise.commentaire}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Timer entre les exercices */}
-            {index < exercises.length - 1 && exercise.recuperation && exerciseTimers[exercise.id] && (
-              <div className="my-3 sm:my-4">
-                <Card className="bg-muted/50 border-primary/30">
+              return (
+                <Card key={roundIdx} className={`border-2 transition-all ${roundComplete ? "border-green-500/30 bg-green-500/5" : "border-primary/20"}`}>
                   <CardContent className="p-3 sm:p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Timer className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-semibold">Avant ex. {index + 2}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-mono font-bold">
-                          {formatTime(exerciseTimers[exercise.id].timeRemaining)}
-                        </span>
-                        <Button
-                          size="sm"
-                          variant={exerciseTimers[exercise.id].isRunning ? "secondary" : "default"}
-                          onClick={() => {
-                            if (exerciseTimers[exercise.id].isRunning) {
-                              pauseExerciseTimer(exercise.id);
-                            } else {
-                              startExerciseTimer(exercise.id);
-                            }
-                          }}
-                          className="h-8 px-3"
-                        >
-                          {exerciseTimers[exercise.id].isRunning ? "Pause" : "Start"}
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant={roundComplete ? "default" : "outline"} className={roundComplete ? "bg-green-600" : ""}>
+                        Série {roundIdx + 1}
+                      </Badge>
+                      {roundComplete && <Check className="h-4 w-4 text-green-600" />}
+                    </div>
+
+                    <div className="space-y-2">
+                      {exercises.map((ex, exIdx) => {
+                        const vIdx = getValidationIndex(roundIdx, exIdx);
+                        const validation = serieValidations[vIdx];
+                        const isValidated = validation?.validated;
+                        const serieData = allSeriesData[exIdx]?.[roundIdx] || {};
+
+                        return (
+                          <div key={`${roundIdx}-${exIdx}`}>
+                            {/* Exercise row */}
+                            <div className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border transition-all ${
+                              isValidated
+                                ? "bg-green-500/10 border-green-500/30"
+                                : "bg-muted/30 border-border"
+                            }`}>
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-medium text-sm ${isValidated ? "text-green-700 dark:text-green-400" : ""}`}>
+                                  {ex.exercice}
+                                </p>
+                                <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
+                                  {serieData.reps && (
+                                    <span className="font-medium">
+                                      {serieData.reps}{ex.is_duration ? "s" : " reps"}
+                                      {ex.per_side && " /côté"}
+                                    </span>
+                                  )}
+                                  {serieData.charge && (
+                                    <span className="font-medium text-red-500">{serieData.charge}</span>
+                                  )}
+                                  {serieData.rpe && !isValidated && (
+                                    <span className="text-yellow-600">RPE {serieData.rpe}</span>
+                                  )}
+                                  {isValidated && validation.rpe !== null && (
+                                    <span className="text-green-600 font-medium">RPE {validation.rpe}</span>
+                                  )}
+                                  {serieData.tempo && (
+                                    <span className="text-purple-500">T:{serieData.tempo}</span>
+                                  )}
+                                  {serieData.commentaire && (
+                                    <span className="text-muted-foreground italic truncate">"{serieData.commentaire}"</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {isValidated ? (
+                                <Check className="h-5 w-5 text-green-600 shrink-0" />
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleValidateSerie(roundIdx, exIdx)}
+                                  className="h-8 px-3 shrink-0"
+                                >
+                                  <Check className="h-3.5 w-3.5 mr-1" />
+                                  OK
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Recovery between exercises within the round (not after the last one) */}
+                            {exIdx < exercises.length - 1 && (
+                              <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>Récup: {serieData.recuperation || ex.recuperation || "—"}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
-              </div>
-            )}
+              );
+            })}
           </div>
-        ))}
-
-        {/* Timer de récupération du superset (basé sur le dernier exercice) */}
-        {exercises[exercises.length - 1]?.recuperation && (
-          <Card className="bg-muted/50 border-primary/30">
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Timer className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Récup entre séries</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-mono font-bold">
-                    {formatTime(supersetRecoveryTime)}
-                  </span>
-                  <Button
-                    size="sm"
-                    variant={isSupersetRecoveryRunning ? "secondary" : "default"}
-                    onClick={() => {
-                      if (isSupersetRecoveryRunning) {
-                        pauseTimer(supersetTimerId);
-                      } else {
-                        const lastExercise = exercises[exercises.length - 1];
-                        startTimer(supersetTimerId, lastExercise.recuperation);
-                        setShowSupersetRecoveryOverlay(true);
-                      }
-                    }}
-                    className="h-8 px-3"
-                  >
-                    {isSupersetRecoveryRunning ? "Pause" : "Start"}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         )}
 
-        {/* Bouton terminer le superset */}
-        <Button
-          size="lg"
-          className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
-          onClick={handleFinishSuperset}
-        >
-          Superset terminé
-        </Button>
+        {seriesCollapsed && (
+          <div className="text-sm text-muted-foreground text-center py-2">
+            {completedCount} exercice{completedCount > 1 ? "s" : ""} validé{completedCount > 1 ? "s" : ""} sur {totalValidationSlots}
+          </div>
+        )}
+
+        {/* Finish button */}
+        {allValidated && (
+          <Button
+            size="lg"
+            className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
+            onClick={() => setDialogOpen(true)}
+          >
+            Superset terminé 🎉
+          </Button>
+        )}
+
+        {!allValidated && (
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full text-base sm:text-lg py-6"
+            onClick={() => {
+              const avgRpe = serieValidations.filter(s => s.rpe !== null).map(s => s.rpe!);
+              if (avgRpe.length > 0) {
+                setComputedAvgRpe(String(Math.round(avgRpe.reduce((a, b) => a + b, 0) / avgRpe.length)));
+              }
+              setDialogOpen(true);
+            }}
+          >
+            Terminer le superset
+          </Button>
+        )}
       </div>
     </div>
   );
