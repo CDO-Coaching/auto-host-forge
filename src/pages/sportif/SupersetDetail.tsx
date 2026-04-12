@@ -55,6 +55,10 @@ export default function SupersetDetail() {
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [showRecoveryOverlay, setShowRecoveryOverlay] = useState(false);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+  const [showChainOverlay, setShowChainOverlay] = useState(false);
+  const [chainExerciseName, setChainExerciseName] = useState("");
+  const [showRoundCelebration, setShowRoundCelebration] = useState(false);
+  const [completedRoundNumber, setCompletedRoundNumber] = useState(0);
 
   // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
