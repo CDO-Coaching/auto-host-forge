@@ -59,6 +59,7 @@ export default function SupersetDetail() {
   const [chainExerciseName, setChainExerciseName] = useState("");
   const [showRoundCelebration, setShowRoundCelebration] = useState(false);
   const [completedRoundNumber, setCompletedRoundNumber] = useState(0);
+  const [pendingRoundRecovery, setPendingRoundRecovery] = useState<string | null>(null);
 
   // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
@@ -262,7 +263,12 @@ export default function SupersetDetail() {
     });
 
     if (roundComplete) {
-      // Show round celebration
+      // Get recovery time from the last exercise of this round
+      const lastExIdx = exercises.length - 1;
+      const lastExSeriesData = getSeriesDataForExercise(exercises[lastExIdx]);
+      const roundRecup = lastExSeriesData[roundIdx]?.recuperation || exercises[lastExIdx]?.recuperation;
+      setPendingRoundRecovery(roundRecup || null);
+      
       setCompletedRoundNumber(roundIdx + 1);
       setShowRoundCelebration(true);
       return;
@@ -468,7 +474,15 @@ export default function SupersetDetail() {
       <CelebrationOverlay
         show={showRoundCelebration}
         message={`Série ${completedRoundNumber} terminée !`}
-        onComplete={() => setShowRoundCelebration(false)}
+        onComplete={() => {
+          setShowRoundCelebration(false);
+          // Start recovery timer if there's pending recovery
+          if (pendingRoundRecovery) {
+            startTimer(recoveryTimerId, pendingRoundRecovery);
+            setShowRecoveryOverlay(true);
+            setPendingRoundRecovery(null);
+          }
+        }}
         type="exercise"
       />
 
