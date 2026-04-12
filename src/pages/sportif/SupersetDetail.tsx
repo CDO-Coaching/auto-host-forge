@@ -55,6 +55,10 @@ export default function SupersetDetail() {
   const [videoUrls, setVideoUrls] = useState<Record<string, string>>({});
   const [showRecoveryOverlay, setShowRecoveryOverlay] = useState(false);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+  const [showChainOverlay, setShowChainOverlay] = useState(false);
+  const [chainExerciseName, setChainExerciseName] = useState("");
+  const [showRoundCelebration, setShowRoundCelebration] = useState(false);
+  const [completedRoundNumber, setCompletedRoundNumber] = useState(0);
 
   // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
@@ -238,22 +242,47 @@ export default function SupersetDetail() {
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
 
-    // Check if all validated
+    // Figure out position
+    const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
+    const exIdx = rpeDialogSerieIndex % exercises.length;
+
+    // Check if all validated → feedback dialog
     const allNowValidated = newValidations.every(s => s.validated);
     if (allNowValidated && newValidations.length > 0) {
       const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
       setComputedAvgRpe(avgRpe.toString());
       setDialogOpen(true);
-    } else {
-      // Figure out which exercise was just validated to start its recovery timer
-      const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
-      const exIdx = rpeDialogSerieIndex % exercises.length;
+      return;
+    }
+
+    // Check if this round is complete
+    const roundComplete = exercises.every((_, eIdx) => {
+      const vIdx = getValidationIndex(roundIdx, eIdx);
+      return newValidations[vIdx]?.validated;
+    });
+
+    if (roundComplete) {
+      // Show round celebration
+      setCompletedRoundNumber(roundIdx + 1);
+      setShowRoundCelebration(true);
+      return;
+    }
+
+    // Not round complete: there's a next exercise in this round
+    const nextExIdx = exIdx + 1;
+    if (nextExIdx < exercises.length) {
       const seriesData = getSeriesDataForExercise(exercises[exIdx]);
       const recup = seriesData[roundIdx]?.recuperation || exercises[exIdx]?.recuperation;
-      
+
       if (recup) {
+        // Show recovery timer
         startTimer(recoveryTimerId, recup);
         setShowRecoveryOverlay(true);
+      } else {
+        // No recovery → show "Enchaîné" for 1.5s
+        setChainExerciseName(exercises[nextExIdx]?.exercice || "");
+        setShowChainOverlay(true);
+        setTimeout(() => setShowChainOverlay(false), 1500);
       }
     }
   };
@@ -413,12 +442,34 @@ export default function SupersetDetail() {
         timeRemaining={recoveryTime}
         isRunning={isRecoveryRunning}
         onStart={() => {
-          // Restart with last used recup
           startTimer(recoveryTimerId, "1min30s");
         }}
         onPause={() => pauseTimer(recoveryTimerId)}
         onReset={() => resetTimer(recoveryTimerId)}
         title="Récupération"
+      />
+
+      {/* Chain overlay - no recovery */}
+      {showChainOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4" onClick={() => setShowChainOverlay(false)}>
+          <div className="bg-gradient-to-br from-primary to-primary/80 p-6 sm:p-8 rounded-3xl shadow-2xl text-center min-w-[260px] max-w-[90vw] animate-scale-in">
+            <Zap className="h-12 w-12 text-primary-foreground mx-auto mb-3" />
+            <h2 className="text-xl sm:text-2xl font-black text-primary-foreground mb-2">
+              Enchaîné directement !
+            </h2>
+            <p className="text-lg font-semibold text-primary-foreground/90">
+              {chainExerciseName}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Round celebration */}
+      <CelebrationOverlay
+        show={showRoundCelebration}
+        message={`Série ${completedRoundNumber} terminée !`}
+        onComplete={() => setShowRoundCelebration(false)}
+        type="exercise"
       />
 
       <ExerciseFeedbackDialog
@@ -609,8 +660,17 @@ export default function SupersetDetail() {
                             {/* Recovery between exercises within the round (not after the last one) */}
                             {exIdx < exercises.length - 1 && (
                               <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>Récup: {serieData.recuperation || ex.recuperation || "—"}</span>
+                                {(serieData.recuperation || ex.recuperation) ? (
+                                  <>
+                                    <Clock className="h-3 w-3" />
+                                    <span>Récup: {serieData.recuperation || ex.recuperation}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="h-3 w-3 text-primary" />
+                                    <span className="text-primary font-medium">Enchaîné avec {exercises[exIdx + 1]?.exercice}</span>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
