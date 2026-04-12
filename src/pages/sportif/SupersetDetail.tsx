@@ -256,21 +256,22 @@ export default function SupersetDetail() {
       return;
     }
 
-    // Check if this round is complete
+    // Check if this round is complete (for recovery between rounds, no celebration)
     const roundComplete = exercises.every((_, eIdx) => {
       const vIdx = getValidationIndex(roundIdx, eIdx);
       return newValidations[vIdx]?.validated;
     });
 
     if (roundComplete) {
-      // Get recovery time from the last exercise of this round
+      // Round finished but not all sets → just start recovery if available
       const lastExIdx = exercises.length - 1;
       const lastExSeriesData = getSeriesDataForExercise(exercises[lastExIdx]);
       const roundRecup = lastExSeriesData[roundIdx]?.recuperation || exercises[lastExIdx]?.recuperation;
-      setPendingRoundRecovery(roundRecup || null);
       
-      setCompletedRoundNumber(roundIdx + 1);
-      setShowRoundCelebration(true);
+      if (roundRecup) {
+        startTimer(recoveryTimerId, roundRecup);
+        setShowRecoveryOverlay(true);
+      }
       return;
     }
 
@@ -470,21 +471,7 @@ export default function SupersetDetail() {
         </div>
       )}
 
-      {/* Round celebration */}
-      <CelebrationOverlay
-        show={showRoundCelebration}
-        message={`Série ${completedRoundNumber} terminée !`}
-        onComplete={() => {
-          setShowRoundCelebration(false);
-          // Start recovery timer if there's pending recovery
-          if (pendingRoundRecovery) {
-            startTimer(recoveryTimerId, pendingRoundRecovery);
-            setShowRecoveryOverlay(true);
-            setPendingRoundRecovery(null);
-          }
-        }}
-        type="exercise"
-      />
+      {/* Round celebration removed - celebration only on final validation */}
 
       <ExerciseFeedbackDialog
         open={dialogOpen}
