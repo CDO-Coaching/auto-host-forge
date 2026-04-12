@@ -242,22 +242,47 @@ export default function SupersetDetail() {
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
 
-    // Check if all validated
+    // Figure out position
+    const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
+    const exIdx = rpeDialogSerieIndex % exercises.length;
+
+    // Check if all validated → feedback dialog
     const allNowValidated = newValidations.every(s => s.validated);
     if (allNowValidated && newValidations.length > 0) {
       const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
       setComputedAvgRpe(avgRpe.toString());
       setDialogOpen(true);
-    } else {
-      // Figure out which exercise was just validated to start its recovery timer
-      const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
-      const exIdx = rpeDialogSerieIndex % exercises.length;
+      return;
+    }
+
+    // Check if this round is complete
+    const roundComplete = exercises.every((_, eIdx) => {
+      const vIdx = getValidationIndex(roundIdx, eIdx);
+      return newValidations[vIdx]?.validated;
+    });
+
+    if (roundComplete) {
+      // Show round celebration
+      setCompletedRoundNumber(roundIdx + 1);
+      setShowRoundCelebration(true);
+      return;
+    }
+
+    // Not round complete: there's a next exercise in this round
+    const nextExIdx = exIdx + 1;
+    if (nextExIdx < exercises.length) {
       const seriesData = getSeriesDataForExercise(exercises[exIdx]);
       const recup = seriesData[roundIdx]?.recuperation || exercises[exIdx]?.recuperation;
-      
+
       if (recup) {
+        // Show recovery timer
         startTimer(recoveryTimerId, recup);
         setShowRecoveryOverlay(true);
+      } else {
+        // No recovery → show "Enchaîné" for 1.5s
+        setChainExerciseName(exercises[nextExIdx]?.exercice || "");
+        setShowChainOverlay(true);
+        setTimeout(() => setShowChainOverlay(false), 1500);
       }
     }
   };
