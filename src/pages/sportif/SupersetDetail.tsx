@@ -471,21 +471,7 @@ export default function SupersetDetail() {
         </div>
       )}
 
-      {/* Round celebration */}
-      <CelebrationOverlay
-        show={showRoundCelebration}
-        message={`Série ${completedRoundNumber} terminée !`}
-        onComplete={() => {
-          setShowRoundCelebration(false);
-          // Start recovery timer if there's pending recovery
-          if (pendingRoundRecovery) {
-            startTimer(recoveryTimerId, pendingRoundRecovery);
-            setShowRecoveryOverlay(true);
-            setPendingRoundRecovery(null);
-          }
-        }}
-        type="exercise"
-      />
+      {/* Round celebration removed - celebration only on final validation */}
 
       <ExerciseFeedbackDialog
         open={dialogOpen}
