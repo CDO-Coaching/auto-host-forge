@@ -660,8 +660,17 @@ export default function SupersetDetail() {
                             {/* Recovery between exercises within the round (not after the last one) */}
                             {exIdx < exercises.length - 1 && (
                               <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>Récup: {serieData.recuperation || ex.recuperation || "—"}</span>
+                                {(serieData.recuperation || ex.recuperation) ? (
+                                  <>
+                                    <Clock className="h-3 w-3" />
+                                    <span>Récup: {serieData.recuperation || ex.recuperation}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="h-3 w-3 text-primary" />
+                                    <span className="text-primary font-medium">Enchaîné avec {exercises[exIdx + 1]?.exercice}</span>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
