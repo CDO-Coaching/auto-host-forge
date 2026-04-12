@@ -263,7 +263,12 @@ export default function SupersetDetail() {
     });
 
     if (roundComplete) {
-      // Show round celebration
+      // Get recovery time from the last exercise of this round
+      const lastExIdx = exercises.length - 1;
+      const lastExSeriesData = getSeriesDataForExercise(exercises[lastExIdx]);
+      const roundRecup = lastExSeriesData[roundIdx]?.recuperation || exercises[lastExIdx]?.recuperation;
+      setPendingRoundRecovery(roundRecup || null);
+      
       setCompletedRoundNumber(roundIdx + 1);
       setShowRoundCelebration(true);
       return;
