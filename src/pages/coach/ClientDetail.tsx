@@ -1726,6 +1726,7 @@ export default function ClientDetail() {
                     sportif_rpe: ex.sportif_rpe,
                     sportif_comment: ex.sportif_comment,
                     skipped: ex.skipped || false,
+                    serie_rpe_details: ex.serie_rpe_details || null,
                   };
                 }
                 
@@ -1855,6 +1856,7 @@ export default function ClientDetail() {
                     sportif_rpe: ex.sportif_rpe,
                     sportif_comment: ex.sportif_comment,
                     skipped: ex.skipped || false,
+                    serie_rpe_details: ex.serie_rpe_details || null,
                   };
                 }
                 
