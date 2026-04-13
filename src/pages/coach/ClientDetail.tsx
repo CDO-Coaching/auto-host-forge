@@ -153,6 +153,7 @@ export default function ClientDetail() {
     sportif_rpe?: string | null; 
     sportif_comment?: string | null; 
     skipped?: boolean;
+    serie_rpe_details?: { rpe: number | null }[] | null;
   }>>({});
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [collapsedSeriesExercises, setCollapsedSeriesExercises] = useState<Record<string, boolean>>({});
