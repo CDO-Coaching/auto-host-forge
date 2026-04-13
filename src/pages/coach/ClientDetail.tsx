@@ -2444,8 +2444,8 @@ export default function ClientDetail() {
     if (e.key === "Enter") {
       e.preventDefault();
 
-      if (field === "commentaire") {
-        // Dans le commentaire, Entrée crée une nouvelle ligne
+      if (field === "series") {
+        // Séries est la dernière colonne, Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
       } else {
         // Pour les autres champs, passer au champ suivant
