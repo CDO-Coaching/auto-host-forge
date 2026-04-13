@@ -4479,7 +4479,154 @@ export default function ClientDetail() {
                                                                 </Button>
                                                               )}
                                                             </TableCell>
-                                                          </TableRow>
+                                                           </TableRow>
+
+                                                          {/* Sous-lignes par série pour superset */}
+                                                          {ex.serie_details && ex.serie_details.length > 1 && (
+                                                            <>
+                                                              <TableRow 
+                                                                key={`${ex.id}-serie-toggle`} 
+                                                                className="bg-primary/5 border-l-4 border-l-primary cursor-pointer hover:bg-primary/10 transition-colors"
+                                                                onClick={() => setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: !prev[ex.id] }))}
+                                                              >
+                                                                <TableCell colSpan={10} className="py-1 pl-10">
+                                                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsedSeriesExercises[ex.id] ? '-rotate-90' : ''}`} />
+                                                                    <span className="font-medium">
+                                                                      {collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} le détail des {ex.serie_details.length} séries
+                                                                    </span>
+                                                                  </div>
+                                                                </TableCell>
+                                                              </TableRow>
+                                                              {!collapsedSeriesExercises[ex.id] && ex.serie_details.map((serie, si) => {
+                                                                const totalSeries = ex.serie_details!.length;
+                                                                const serieFields = ["reps", "rpe", "charge", "tempo", "commentaire"] as const;
+                                                                const getNextOnEnter = (currentField: string) => {
+                                                                  const fieldIndex = serieFields.indexOf(currentField as any);
+                                                                  if (si < totalSeries - 1) {
+                                                                    return { index: si + 1, field: currentField };
+                                                                  } else if (fieldIndex < serieFields.length - 1) {
+                                                                    return { index: 0, field: serieFields[fieldIndex + 1] };
+                                                                  }
+                                                                  return null;
+                                                                };
+                                                                const handleSerieKeyDown = (e: React.KeyboardEvent, field: string) => {
+                                                                  if (e.key === "Enter") {
+                                                                    e.preventDefault();
+                                                                    const next = getNextOnEnter(field);
+                                                                    if (next) {
+                                                                      const el = document.querySelector(`[data-serie-exercise="${ex.id}"][data-serie-index="${next.index}"][data-serie-field="${next.field}"]`) as HTMLElement;
+                                                                      if (el) el.focus();
+                                                                    }
+                                                                  }
+                                                                };
+                                                                return (
+                                                                  <TableRow key={`${ex.id}-serie-${si}`} className="bg-primary/5 border-l-4 border-l-primary">
+                                                                    <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
+                                                                      Série {si + 1}
+                                                                    </TableCell>
+                                                                    <TableCell></TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Input
+                                                                        value={serie.reps}
+                                                                        onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "reps", e.target.value)}
+                                                                        onKeyDown={(e) => handleSerieKeyDown(e, "reps")}
+                                                                        placeholder={ex.reps || "reps"}
+                                                                        disabled={isValidated}
+                                                                        className="h-7 text-xs"
+                                                                        data-serie-exercise={ex.id}
+                                                                        data-serie-index={si}
+                                                                        data-serie-field="reps"
+                                                                      />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Input
+                                                                        value={serie.rpe}
+                                                                        onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "rpe", e.target.value)}
+                                                                        onKeyDown={(e) => handleSerieKeyDown(e, "rpe")}
+                                                                        placeholder={ex.rpe || "RPE"}
+                                                                        disabled={isValidated}
+                                                                        className="h-7 text-xs"
+                                                                        data-serie-exercise={ex.id}
+                                                                        data-serie-index={si}
+                                                                        data-serie-field="rpe"
+                                                                      />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <div className="relative">
+                                                                        <Input
+                                                                          value={serie.charge}
+                                                                          onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "charge", e.target.value)}
+                                                                          onKeyDown={(e) => handleSerieKeyDown(e, "charge")}
+                                                                          placeholder={
+                                                                            !serie.charge && serieChargeSuggestions[`${ex.id}-${si}`]
+                                                                              ? `${serieChargeSuggestions[`${ex.id}-${si}`]}kg`
+                                                                              : (ex.charge || "charge")
+                                                                          }
+                                                                          disabled={isValidated}
+                                                                          className="h-7 text-xs"
+                                                                          data-serie-exercise={ex.id}
+                                                                          data-serie-index={si}
+                                                                          data-serie-field="charge"
+                                                                        />
+                                                                        {getPercentSuggestion(serie.charge || ex.charge, ex.exercice) && (
+                                                                          <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">
+                                                                            {getPercentSuggestion(serie.charge || ex.charge, ex.exercice)}
+                                                                          </span>
+                                                                        )}
+                                                                      </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Input
+                                                                        value={serie.tempo}
+                                                                        onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "tempo", e.target.value)}
+                                                                        onKeyDown={(e) => handleSerieKeyDown(e, "tempo")}
+                                                                        placeholder={ex.tempo || "tempo"}
+                                                                        disabled={isValidated}
+                                                                        className="h-7 text-xs"
+                                                                        data-serie-exercise={ex.id}
+                                                                        data-serie-index={si}
+                                                                        data-serie-field="tempo"
+                                                                      />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Input
+                                                                        value={serie.commentaire}
+                                                                        onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "commentaire", e.target.value)}
+                                                                        onKeyDown={(e) => handleSerieKeyDown(e, "commentaire")}
+                                                                        placeholder=""
+                                                                        disabled={isValidated}
+                                                                        className="h-7 text-xs"
+                                                                        data-serie-exercise={ex.id}
+                                                                        data-serie-index={si}
+                                                                        data-serie-field="commentaire"
+                                                                      />
+                                                                    </TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Select
+                                                                        value={serie.recuperation || ex.recuperation || ""}
+                                                                        onValueChange={(val) => handleSerieDetailChange(session.id, ex.id, si, "recuperation", val)}
+                                                                        disabled={isValidated}
+                                                                      >
+                                                                        <SelectTrigger className="h-7 text-xs">
+                                                                          <SelectValue placeholder="Récup" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                          {recuperationOptions.map((option) => (
+                                                                            <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                              {option.label}
+                                                                            </SelectItem>
+                                                                          ))}
+                                                                        </SelectContent>
+                                                                      </Select>
+                                                                    </TableCell>
+                                                                    <TableCell></TableCell>
+                                                                    <TableCell></TableCell>
+                                                                  </TableRow>
+                                                                );
+                                                              })}
+                                                            </>
+                                                          )}
 
                                                           {/* Bouton pour gérer les liens dans le super-set */}
                                                           {exIndex < groupExercises.length - 1 && !isValidated && (
