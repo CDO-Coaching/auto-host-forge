@@ -153,6 +153,7 @@ export default function ClientDetail() {
     sportif_rpe?: string | null; 
     sportif_comment?: string | null; 
     skipped?: boolean;
+    serie_rpe_details?: { rpe: number | null }[] | null;
   }>>({});
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [collapsedSeriesExercises, setCollapsedSeriesExercises] = useState<Record<string, boolean>>({});
@@ -1725,6 +1726,7 @@ export default function ClientDetail() {
                     sportif_rpe: ex.sportif_rpe,
                     sportif_comment: ex.sportif_comment,
                     skipped: ex.skipped || false,
+                    serie_rpe_details: ex.serie_rpe_details || null,
                   };
                 }
                 
@@ -1854,6 +1856,7 @@ export default function ClientDetail() {
                     sportif_rpe: ex.sportif_rpe,
                     sportif_comment: ex.sportif_comment,
                     skipped: ex.skipped || false,
+                    serie_rpe_details: ex.serie_rpe_details || null,
                   };
                 }
                 
@@ -4523,7 +4526,16 @@ export default function ClientDetail() {
                                                                 return (
                                                                   <TableRow key={`${ex.id}-serie-${si}`} className="bg-primary/5 border-l-4 border-l-primary">
                                                                     <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
-                                                                      Série {si + 1}
+                                                                      <span className="flex items-center gap-2">
+                                                                        Série {si + 1}
+                                                                        {(() => {
+                                                                          const fb = getExerciseFeedback(session.id, ex.exercice);
+                                                                          const serieRpe = fb?.serie_rpe_details?.[si]?.rpe;
+                                                                          return serieRpe != null ? (
+                                                                            <span className="text-[10px] font-medium text-orange-500">RPE {serieRpe}</span>
+                                                                          ) : null;
+                                                                        })()}
+                                                                      </span>
                                                                     </TableCell>
                                                                     <TableCell></TableCell>
                                                                     <TableCell className="py-1">
@@ -5034,7 +5046,16 @@ export default function ClientDetail() {
                                                           return (
                                                           <TableRow key={`${exercise.id}-serie-${si}`} className="bg-muted/20">
                                                             <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
-                                                              Série {si + 1}
+                                                              <span className="flex items-center gap-2">
+                                                                Série {si + 1}
+                                                                {(() => {
+                                                                  const fb = getExerciseFeedback(session.id, exercise.exercice);
+                                                                  const serieRpe = fb?.serie_rpe_details?.[si]?.rpe;
+                                                                  return serieRpe != null ? (
+                                                                    <span className="text-[10px] font-medium text-orange-500">RPE {serieRpe}</span>
+                                                                  ) : null;
+                                                                })()}
+                                                              </span>
                                                             </TableCell>
                                                             <TableCell></TableCell>
                                                             <TableCell className="py-1">

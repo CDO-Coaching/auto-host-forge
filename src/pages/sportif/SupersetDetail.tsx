@@ -304,7 +304,6 @@ export default function SupersetDetail() {
       : rpeValue;
 
     // Update all exercises in the superset
-    // Need to get ALL exercise rows (including duplicates by name for DB)
     const { data: allExerciseRows } = await supabase
       .from("session_exercises")
       .select("*")
@@ -312,14 +311,26 @@ export default function SupersetDetail() {
 
     if (!allExerciseRows) return;
 
-    for (const exercise of allExerciseRows) {
+    for (let i = 0; i < allExerciseRows.length; i++) {
+      const exercise = allExerciseRows[i];
+      // Build per-serie RPE for this exercise (rounds where this exercise was validated)
+      const exIdx = exercises.findIndex(e => e.id === exercise.id);
+      const perSerieRpe: { rpe: number | null }[] = [];
+      if (exIdx >= 0) {
+        for (let r = 0; r < totalRounds; r++) {
+          const vIdx = r * exercises.length + exIdx;
+          perSerieRpe.push({ rpe: serieValidations[vIdx]?.rpe ?? null });
+        }
+      }
+
       const { error } = await supabase
         .from("session_exercises")
         .update({
           sportif_comment: comment.trim() || null,
           sportif_rpe: finalRpe,
           sportif_feedback_at: new Date().toISOString(),
-        })
+          serie_rpe_details: perSerieRpe.length > 0 ? perSerieRpe : null,
+        } as any)
         .eq("id", exercise.id);
 
       if (error) {
