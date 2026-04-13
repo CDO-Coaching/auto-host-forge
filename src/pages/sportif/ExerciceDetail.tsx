@@ -485,13 +485,17 @@ export default function ExerciceDetail() {
       ? Math.round(serieRpes.reduce((a, b) => a + b, 0) / serieRpes.length)
       : rpeValue;
 
+    // Build per-serie RPE details for persistence
+    const serieRpeDetails = serieValidations.map(s => ({ rpe: s.rpe }));
+
     const { error } = await supabase
       .from("session_exercises")
       .update({
         sportif_comment: comment.trim() || null,
         sportif_rpe: finalRpe,
         sportif_feedback_at: new Date().toISOString(),
-      })
+        serie_rpe_details: serieRpeDetails,
+      } as any)
       .eq("id", exerciceId);
 
     if (error) {
