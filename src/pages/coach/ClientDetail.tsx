@@ -206,7 +206,7 @@ export default function ClientDetail() {
   const [selectedMethodologyCycle, setSelectedMethodologyCycle] = useState<number>(0);
   const [loadingMethodologies, setLoadingMethodologies] = useState(false);
   const [methodologyStep, setMethodologyStep] = useState<"select" | "maxes">("select");
-  const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string }>>({});
+  const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string; athleteMax?: number | null }>>({});
   const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
@@ -5702,23 +5702,30 @@ export default function ClientDetail() {
                     Définis les maxes de référence (1RM) pour chaque exercice. Les charges en % seront automatiquement converties en kg. Laisse vide si non applicable.
                   </p>
                   {Object.entries(methodologyMaxes).map(([exerciseId, data]) => (
-                    <div key={exerciseId} className="flex items-center gap-3">
-                      <label className="text-sm flex-1 min-w-0 truncate">{data.name}</label>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          placeholder="1RM"
-                          className="w-20 h-8 text-sm"
-                          value={data.max}
-                          onChange={(e) => setMethodologyMaxes(prev => ({
-                            ...prev,
-                            [exerciseId]: { ...prev[exerciseId], max: e.target.value }
-                          }))}
-                        />
-                        <span className="text-xs text-muted-foreground">kg</span>
+                    <div key={exerciseId} className="space-y-0.5">
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm flex-1 min-w-0 truncate">{data.name}</label>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            placeholder={data.athleteMax ? `${data.athleteMax}` : "1RM"}
+                            className="w-20 h-8 text-sm"
+                            value={data.max}
+                            onChange={(e) => setMethodologyMaxes(prev => ({
+                              ...prev,
+                              [exerciseId]: { ...prev[exerciseId], max: e.target.value }
+                            }))}
+                          />
+                          <span className="text-xs text-muted-foreground">kg</span>
+                        </div>
                       </div>
+                      {data.athleteMax && (
+                        <p className="text-[10px] text-muted-foreground text-right pr-8">
+                          Max actuel : {data.athleteMax}kg
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
