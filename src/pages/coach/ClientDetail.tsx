@@ -2368,15 +2368,22 @@ export default function ClientDetail() {
     const pick = (configVal: string | undefined, fallback: string) => 
       configVal !== undefined && configVal !== null && configVal !== "" ? configVal : fallback;
 
+    // Map programming session numbers to methodology session indices
+    const sessionKeys = Object.keys(updatedExercises).map(Number).sort((a, b) => a - b);
+    
     // Log current exercise names for debugging
-    for (const sessionId of Object.keys(updatedExercises)) {
-      console.log("[ADAPT] Session", sessionId, "exercises:", updatedExercises[parseInt(sessionId)].map(e => e.exercice));
+    for (const sessionId of sessionKeys) {
+      console.log("[ADAPT] Session", sessionId, "exercises:", updatedExercises[sessionId].map(e => e.exercice));
     }
 
-    for (const sessionId of Object.keys(updatedExercises)) {
-      updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
-        const config = methExerciseConfigs[ex.exercice];
-        console.log("[ADAPT] Checking exercise:", ex.exercice, "found config:", !!config);
+    for (let i = 0; i < sessionKeys.length; i++) {
+      const sessionId = sessionKeys[i];
+      const sessionConfigs = methPerSession[i] || {}; // sessionIndex i maps to programming session i
+      console.log("[ADAPT] Adapting session", sessionId, "using methodologySessionIndex:", i, "available configs:", Object.keys(sessionConfigs));
+      
+      updatedExercises[sessionId] = updatedExercises[sessionId].map(ex => {
+        const config = sessionConfigs[ex.exercice];
+        console.log("[ADAPT] Checking exercise:", ex.exercice, "in session", sessionId, "found config:", !!config);
         if (!config) return ex; // Not a methodology exercise, keep as-is
 
         adaptedCount++;
