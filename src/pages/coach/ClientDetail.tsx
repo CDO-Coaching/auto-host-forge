@@ -1393,19 +1393,68 @@ export default function ClientDetail() {
     // Sort by session index
     sessionsForWeek.sort((a, b) => a.sessionIndex - b.sessionIndex);
 
-    // Save maxes to DB if we have an active assignment
-    if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id && Object.keys(methodologyMaxes).length > 0) {
+    // Auto-create assignment if none exists for this methodology
+    let assignmentId = activeAssignmentForMethodology?.id;
+    if (!activeAssignmentForMethodology || activeAssignmentForMethodology.methodology_id !== methodology.id) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && athleteId) {
+        // Check if an active assignment already exists
+        const { data: existing } = await supabase
+          .from("athlete_methodology_assignments")
+          .select("id")
+          .eq("athlete_id", athleteId)
+          .eq("coach_id", user.id)
+          .eq("methodology_id", methodology.id)
+          .eq("status", "active")
+          .limit(1);
+        
+        if (existing && existing.length > 0) {
+          assignmentId = existing[0].id;
+        } else {
+          // Create assignment automatically
+          const totalWeeks = (methodology.num_cycles || 1) * (methodology.weeks_per_cycle || 1);
+          // Calculate start date from selectedWeekToProgram
+          const jan1 = new Date(selectedWeekToProgram.year, 0, 1);
+          const dayOfWeek = jan1.getDay() || 7;
+          const mondayOfSelectedWeek = new Date(jan1.getTime() + ((selectedWeekToProgram.week - 1) * 7 - (dayOfWeek - 1)) * 86400000);
+          
+          const { data: newAssignment } = await supabase
+            .from("athlete_methodology_assignments")
+            .insert({
+              coach_id: user.id,
+              athlete_id: athleteId,
+              methodology_id: methodology.id,
+              total_weeks: totalWeeks,
+              start_date: mondayOfSelectedWeek.toISOString().split("T")[0],
+            })
+            .select("id")
+            .single();
+          
+          if (newAssignment) {
+            assignmentId = newAssignment.id;
+            // Create week tracking rows
+            const weekRows = Array.from({ length: totalWeeks }, (_, i) => ({
+              assignment_id: newAssignment.id,
+              week_number: i + 1,
+            }));
+            await supabase.from("athlete_methodology_weeks").insert(weekRows);
+          }
+        }
+      }
+    }
+
+    // Save maxes to DB
+    if (assignmentId && Object.keys(methodologyMaxes).length > 0) {
       const maxRows = Object.entries(methodologyMaxes)
         .filter(([_, v]) => v.max && parseFloat(v.max) > 0)
         .map(([exerciseId, v]) => ({
-          assignment_id: activeAssignmentForMethodology.id,
+          assignment_id: assignmentId!,
           exercise_id: exerciseId,
           exercise_name: v.name,
           reference_max: parseFloat(v.max),
         }));
 
       if (maxRows.length > 0) {
-        // Upsert maxes
         for (const row of maxRows) {
           await supabase
             .from("athlete_methodology_maxes")
