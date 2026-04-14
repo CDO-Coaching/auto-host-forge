@@ -3422,7 +3422,15 @@ export default function ClientDetail() {
 
           <Card>
             <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
-              <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
+                {cycleInfo && (
+                  <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
+                    {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-3 sm:pb-4">
               {/* Sélecteur de semaine compact */}
