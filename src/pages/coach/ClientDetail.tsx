@@ -1166,10 +1166,10 @@ export default function ClientDetail() {
     }
   };
 
-  // Helper: extract exercises that use % in their charges for a given cycle/week
-  const getExercisesWithPercentCharges = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string }[] => {
+  // Helper: extract ALL exercises for a given cycle/week
+  const getAllExercisesForWeek = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string; hasPercent: boolean }[] => {
     const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
-    const exercisesWithPercent: Map<string, string> = new Map();
+    const exercisesMap: Map<string, { name: string; hasPercent: boolean }> = new Map();
 
     for (const key of Object.keys(configs)) {
       const parts = key.split("-");
@@ -1180,15 +1180,18 @@ export default function ClientDetail() {
           const hasPercent = (charge: string) => charge && charge.includes("%");
           const chargeHasPercent = hasPercent(ex.charge);
           const detailsHavePercent = ex.serieDetails?.some((sd: any) => hasPercent(sd.charge));
-          if (chargeHasPercent || detailsHavePercent) {
-            const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
-            exercisesWithPercent.set(ex.exerciseId, libEx?.name || ex.exerciseId);
-          }
+          const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+          const name = libEx?.name || ex.exerciseId;
+          const existing = exercisesMap.get(ex.exerciseId);
+          exercisesMap.set(ex.exerciseId, {
+            name,
+            hasPercent: (existing?.hasPercent || false) || chargeHasPercent || detailsHavePercent,
+          });
         });
       }
     }
 
-    return Array.from(exercisesWithPercent.entries()).map(([exerciseId, name]) => ({ exerciseId, name }));
+    return Array.from(exercisesMap.entries()).map(([exerciseId, data]) => ({ exerciseId, name: data.name, hasPercent: data.hasPercent }));
   };
 
   // Helper: convert a % charge string to actual kg using reference max
@@ -1229,15 +1232,15 @@ export default function ClientDetail() {
     if (!methodology) return;
 
     const weekIndex = selectedMethodologyWeek - 1;
-    const exercisesWithPercent = getExercisesWithPercentCharges(methodology, selectedMethodologyCycle, weekIndex);
+    const allExercises = getAllExercisesForWeek(methodology, selectedMethodologyCycle, weekIndex);
 
-    if (exercisesWithPercent.length === 0) {
-      // No % charges, apply directly
+    if (allExercises.length === 0) {
+      // No exercises at all, apply directly (will show error)
       handleApplyMethodology();
       return;
     }
 
-    // Load existing maxes from DB if assignment exists
+    // Always show maxes step so coach can see/set reference maxes
     const loadExistingMaxes = async () => {
       if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id) {
         const { data: existingMaxes } = await supabase
@@ -1246,7 +1249,7 @@ export default function ClientDetail() {
           .eq("assignment_id", activeAssignmentForMethodology.id);
 
         const maxesMap: Record<string, { name: string; max: string }> = {};
-        exercisesWithPercent.forEach(ex => {
+        allExercises.forEach(ex => {
           const existing = existingMaxes?.find(m => m.exercise_id === ex.exerciseId);
           maxesMap[ex.exerciseId] = {
             name: ex.name,
@@ -1256,7 +1259,7 @@ export default function ClientDetail() {
         setMethodologyMaxes(maxesMap);
       } else {
         const maxesMap: Record<string, { name: string; max: string }> = {};
-        exercisesWithPercent.forEach(ex => {
+        allExercises.forEach(ex => {
           maxesMap[ex.exerciseId] = { name: ex.name, max: "" };
         });
         setMethodologyMaxes(maxesMap);
@@ -5632,19 +5635,39 @@ export default function ClientDetail() {
                               const weekIdx = selectedMethodologyWeek - 1;
                               let sessionCount = 0;
                               let exerciseCount = 0;
+                              const sessionDetails: { sessionIndex: number; exercises: any[] }[] = [];
                               for (const key of Object.keys(configs)) {
                                 const parts = key.split("-").map(Number);
                                 if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
                                   sessionCount++;
-                                  exerciseCount += (configs[key] || []).length;
+                                  const exs = configs[key] || [];
+                                  exerciseCount += exs.length;
+                                  sessionDetails.push({ sessionIndex: parts[2], exercises: exs });
                                 }
                               }
                               if (sessionCount === 0) return (
                                 <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
                               );
                               return (
-                                <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
-                                  <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                                <div className="space-y-2">
+                                  <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                                    <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                                  </div>
+                                  {sessionDetails.sort((a, b) => a.sessionIndex - b.sessionIndex).map(sd => (
+                                    <div key={sd.sessionIndex} className="text-xs space-y-0.5 p-2 bg-muted/30 rounded border border-border">
+                                      <span className="font-medium text-foreground">Séance {sd.sessionIndex + 1}</span>
+                                      {sd.exercises.map((ex: any, i: number) => {
+                                        const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+                                        return (
+                                          <div key={i} className="text-muted-foreground flex items-center gap-2 pl-2">
+                                            <span>• {libEx?.name || "?"}</span>
+                                            {ex.series && <span className="text-[10px]">{ex.series}x{ex.reps || "?"}</span>}
+                                            {ex.charge && <span className="text-[10px] text-primary">{ex.charge}</span>}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ))}
                                 </div>
                               );
                             })()}
@@ -5658,7 +5681,7 @@ export default function ClientDetail() {
                 /* Step 2: Maxes input */
                 <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
-                    Ces maxes serviront à calculer les charges en % pour chaque série. Tu peux les modifier à tout moment.
+                    Définis les maxes de référence (1RM) pour chaque exercice. Les charges en % seront automatiquement converties en kg. Laisse vide si non applicable.
                   </p>
                   {Object.entries(methodologyMaxes).map(([exerciseId, data]) => (
                     <div key={exerciseId} className="flex items-center gap-3">
