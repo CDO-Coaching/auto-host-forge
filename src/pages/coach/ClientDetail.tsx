@@ -2365,8 +2365,6 @@ export default function ClientDetail() {
         }
       } catch (e) { /* ignore */ }
     }
-      } catch (e) { /* ignore */ }
-    }
 
     // Update exercises in the current programming that match methodology exercises
     const updatedExercises = { ...sessionExercises };
