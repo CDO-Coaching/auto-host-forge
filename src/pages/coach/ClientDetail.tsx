@@ -2326,15 +2326,36 @@ export default function ClientDetail() {
         .select("*")
         .eq("assignment_id", persistentActiveAssignment.id);
       (maxesData || []).forEach((m: any) => {
-        // Map by exercise name
         const libEx = libraryExercises.find(e => e.id === m.exercise_id);
         if (libEx) maxesMap[libEx.name] = m.reference_max;
       });
+    }
+    
+    // Fallback: load maxes from localStorage if DB returned nothing
+    if (Object.keys(maxesMap).length === 0) {
+      try {
+        const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.maxes) {
+            Object.entries(parsed.maxes).forEach(([exerciseId, v]: [string, any]) => {
+              if (v.max && parseFloat(v.max) > 0) {
+                const libEx = libraryExercises.find(e => e.id === exerciseId);
+                if (libEx) maxesMap[libEx.name] = parseFloat(v.max);
+              }
+            });
+          }
+        }
+      } catch (e) { /* ignore */ }
     }
 
     // Update exercises in the current programming that match methodology exercises
     const updatedExercises = { ...sessionExercises };
     let adaptedCount = 0;
+
+    // Helper: use config value if it exists (even if "0"), otherwise fallback
+    const pick = (configVal: string | undefined, fallback: string) => 
+      configVal !== undefined && configVal !== null && configVal !== "" ? configVal : fallback;
 
     for (const sessionId of Object.keys(updatedExercises)) {
       updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
@@ -2352,12 +2373,12 @@ export default function ClientDetail() {
         let serieDetails: any[] = [];
         if (config.serieDetails && config.serieDetails.length > 0) {
           serieDetails = config.serieDetails.map((sd: any) => ({
-            reps: sd.reps || config.reps || "",
-            charge: resolveCharge(sd.charge || config.charge || ""),
-            rpe: sd.rpe || config.rpe || "",
-            tempo: sd.tempo || config.tempo || "",
+            reps: pick(sd.reps, config.reps || ""),
+            charge: resolveCharge(pick(sd.charge, config.charge || "")),
+            rpe: pick(sd.rpe, config.rpe || ""),
+            tempo: pick(sd.tempo, config.tempo || ""),
             commentaire: sd.commentaire || "",
-            recuperation: sd.recuperation || config.recuperation || "",
+            recuperation: pick(sd.recuperation, config.recuperation || ""),
           }));
         } else if (seriesCount > 0) {
           serieDetails = Array.from({ length: seriesCount }, () => ({
@@ -2372,12 +2393,12 @@ export default function ClientDetail() {
 
         return {
           ...ex,
-          reps: config.reps || ex.reps,
-          series: config.series || ex.series,
-          charge: resolveCharge(config.charge || ex.charge),
-          rpe: config.rpe || ex.rpe,
-          tempo: config.tempo || ex.tempo,
-          recuperation: config.recuperation || ex.recuperation,
+          reps: pick(config.reps, ex.reps),
+          series: pick(config.series, ex.series),
+          charge: resolveCharge(pick(config.charge, ex.charge)),
+          rpe: pick(config.rpe, ex.rpe),
+          tempo: pick(config.tempo, ex.tempo),
+          recuperation: pick(config.recuperation, ex.recuperation),
           serie_details: serieDetails.length > 0 ? serieDetails : ex.serie_details,
         };
       });
