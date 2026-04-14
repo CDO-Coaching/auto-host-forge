@@ -329,8 +329,29 @@ export default function ClientDetail() {
         .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
         .eq("id", assignments[0].methodology_id)
         .single();
-      if (meth) setPersistentMethodology(meth);
+      if (meth) {
+        setPersistentMethodology(meth);
+        // Update localStorage cache
+        try {
+          localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
+            assignment: assignments[0],
+            methodology: meth,
+          }));
+        } catch (e) { /* ignore */ }
+      }
     } else {
+      // Fallback to localStorage if DB returns nothing
+      try {
+        const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.assignment && parsed.methodology && parsed.assignment.status === "active") {
+            setPersistentActiveAssignment(parsed.assignment);
+            setPersistentMethodology(parsed.methodology);
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
       setPersistentActiveAssignment(null);
       setPersistentMethodology(null);
     }
@@ -1540,7 +1561,41 @@ export default function ClientDetail() {
     setShowMethodologyDialog(false);
     setMethodologyStep("select");
     toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
-    // Reload persistent assignment for badge
+
+    // Set persistent state directly (don't rely solely on DB refetch)
+    if (assignmentId) {
+      const assignmentData = {
+        id: assignmentId,
+        methodology_id: methodology.id,
+        athlete_id: athleteId,
+        total_weeks: (methodology.num_cycles || 1) * (methodology.weeks_per_cycle || 1),
+        start_date: (() => {
+          const jan1 = new Date(selectedWeekToProgram.year, 0, 1);
+          const dayOfWeek = jan1.getDay() || 7;
+          const mondayOfSelectedWeek = new Date(jan1.getTime() + ((selectedWeekToProgram.week - 1) * 7 - (dayOfWeek - 1)) * 86400000);
+          return mondayOfSelectedWeek.toISOString().split("T")[0];
+        })(),
+        status: "active",
+      };
+      setPersistentActiveAssignment(assignmentData);
+      setPersistentMethodology(methodology);
+      // Persist to localStorage as fallback
+      try {
+        localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
+          assignment: assignmentData,
+          methodology: {
+            id: methodology.id,
+            name: methodology.name,
+            num_cycles: methodology.num_cycles,
+            weeks_per_cycle: methodology.weeks_per_cycle,
+            sessions_options: methodology.sessions_options,
+            session_exercise_configs: methodology.session_exercise_configs,
+          },
+          maxes: methodologyMaxes,
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    // Also try DB refetch
     loadPersistentActiveAssignment();
   };
 
@@ -2271,15 +2326,36 @@ export default function ClientDetail() {
         .select("*")
         .eq("assignment_id", persistentActiveAssignment.id);
       (maxesData || []).forEach((m: any) => {
-        // Map by exercise name
         const libEx = libraryExercises.find(e => e.id === m.exercise_id);
         if (libEx) maxesMap[libEx.name] = m.reference_max;
       });
+    }
+    
+    // Fallback: load maxes from localStorage if DB returned nothing
+    if (Object.keys(maxesMap).length === 0) {
+      try {
+        const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.maxes) {
+            Object.entries(parsed.maxes).forEach(([exerciseId, v]: [string, any]) => {
+              if (v.max && parseFloat(v.max) > 0) {
+                const libEx = libraryExercises.find(e => e.id === exerciseId);
+                if (libEx) maxesMap[libEx.name] = parseFloat(v.max);
+              }
+            });
+          }
+        }
+      } catch (e) { /* ignore */ }
     }
 
     // Update exercises in the current programming that match methodology exercises
     const updatedExercises = { ...sessionExercises };
     let adaptedCount = 0;
+
+    // Helper: use config value if it exists (even if "0"), otherwise fallback
+    const pick = (configVal: string | undefined, fallback: string) => 
+      configVal !== undefined && configVal !== null && configVal !== "" ? configVal : fallback;
 
     for (const sessionId of Object.keys(updatedExercises)) {
       updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
@@ -2297,12 +2373,12 @@ export default function ClientDetail() {
         let serieDetails: any[] = [];
         if (config.serieDetails && config.serieDetails.length > 0) {
           serieDetails = config.serieDetails.map((sd: any) => ({
-            reps: sd.reps || config.reps || "",
-            charge: resolveCharge(sd.charge || config.charge || ""),
-            rpe: sd.rpe || config.rpe || "",
-            tempo: sd.tempo || config.tempo || "",
+            reps: pick(sd.reps, config.reps || ""),
+            charge: resolveCharge(pick(sd.charge, config.charge || "")),
+            rpe: pick(sd.rpe, config.rpe || ""),
+            tempo: pick(sd.tempo, config.tempo || ""),
             commentaire: sd.commentaire || "",
-            recuperation: sd.recuperation || config.recuperation || "",
+            recuperation: pick(sd.recuperation, config.recuperation || ""),
           }));
         } else if (seriesCount > 0) {
           serieDetails = Array.from({ length: seriesCount }, () => ({
@@ -2317,12 +2393,12 @@ export default function ClientDetail() {
 
         return {
           ...ex,
-          reps: config.reps || ex.reps,
-          series: config.series || ex.series,
-          charge: resolveCharge(config.charge || ex.charge),
-          rpe: config.rpe || ex.rpe,
-          tempo: config.tempo || ex.tempo,
-          recuperation: config.recuperation || ex.recuperation,
+          reps: pick(config.reps, ex.reps),
+          series: pick(config.series, ex.series),
+          charge: resolveCharge(pick(config.charge, ex.charge)),
+          rpe: pick(config.rpe, ex.rpe),
+          tempo: pick(config.tempo, ex.tempo),
+          recuperation: pick(config.recuperation, ex.recuperation),
           serie_details: serieDetails.length > 0 ? serieDetails : ex.serie_details,
         };
       });
