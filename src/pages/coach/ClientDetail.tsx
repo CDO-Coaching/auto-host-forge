@@ -1195,13 +1195,23 @@ export default function ClientDetail() {
   };
 
   // Helper: convert a % charge string to actual kg using reference max
+  // Accepts "80%", "80 %", or plain "80" (number ≤100 treated as %)
   const convertPercentCharge = (charge: string, referenceMax: number): string => {
-    if (!charge || !charge.includes("%")) return charge;
-    const match = charge.match(/(\d+\.?\d*)\s*%/);
-    if (!match) return charge;
-    const percent = parseFloat(match[1]);
-    const actualKg = Math.round((percent / 100) * referenceMax * 10) / 10;
-    // Replace % with kg value but keep the % as reference
+    if (!charge) return charge;
+    let percent: number | null = null;
+    const matchPercent = charge.match(/(\d+\.?\d*)\s*%/);
+    if (matchPercent) {
+      percent = parseFloat(matchPercent[1]);
+    } else {
+      // Plain number ≤ 100 → treat as percentage
+      const trimmed = charge.trim();
+      if (/^\d+\.?\d*$/.test(trimmed)) {
+        const val = parseFloat(trimmed);
+        if (val > 0 && val <= 100) percent = val;
+      }
+    }
+    if (percent === null || isNaN(percent) || percent <= 0) return charge;
+    const actualKg = Math.round((percent / 100) * referenceMax * 2) / 2; // arrondi à 0.5kg
     return `${actualKg}kg (${percent}%)`;
   };
 
