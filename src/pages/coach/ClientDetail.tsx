@@ -1708,7 +1708,7 @@ export default function ClientDetail() {
         });
 
         const newExercises: Record<number, Exercise[]> = {};
-        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean; serie_rpe_details?: any }> = {};
         
         // Créer un mapping pour générer de nouveaux UUIDs pour les super_set_group
         // afin d'éviter les conflits avec les exercices de la semaine source
@@ -1842,7 +1842,7 @@ export default function ClientDetail() {
         });
 
         const newExercises: Record<number, Exercise[]> = {};
-        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean; serie_rpe_details?: any }> = {};
         const superSetGroupMapping: Record<string, string> = {};
         
         sessionsData.forEach((session, sessionIndex) => {
