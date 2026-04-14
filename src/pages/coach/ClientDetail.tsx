@@ -2375,6 +2375,7 @@ export default function ClientDetail() {
       updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
         const config = methExerciseConfigs[ex.exercice];
         console.log("[ADAPT] Checking exercise:", ex.exercice, "found config:", !!config);
+        if (!config) return ex; // Not a methodology exercise, keep as-is
 
         adaptedCount++;
         const refMax = maxesMap[ex.exercice] || 0;
