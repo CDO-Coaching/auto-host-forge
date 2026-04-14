@@ -2140,6 +2140,12 @@ export default function ClientDetail() {
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         toast.success(`Semaine S${previousWeek} copiée ! Vous pouvez maintenant la modifier.`);
+
+        // Check if there's an active methodology cycle and ask to adapt
+        if (cycleInfo && persistentMethodology) {
+          setPendingCopyData({ newSessions, newExercises });
+          setShowCopyAdaptDialog(true);
+        }
       } else {
         toast.error("La semaine précédente ne contient aucune séance");
       }
@@ -2147,6 +2153,111 @@ export default function ClientDetail() {
       console.error("Erreur lors de la copie:", error);
       toast.error("Erreur lors de la copie de la semaine précédente");
     }
+  };
+
+  // Adapt methodology exercises after copy
+  const handleAdaptMethodologyExercises = async () => {
+    if (!cycleInfo || !persistentMethodology || !pendingCopyData) return;
+    
+    const meth = persistentMethodology;
+    const configs: Record<string, any[]> = typeof meth.session_exercise_configs === "string" 
+      ? JSON.parse(meth.session_exercise_configs) 
+      : (meth.session_exercise_configs || {});
+    
+    const cycleIndex = cycleInfo.cycleNum - 1;
+    const weekIndex = cycleInfo.weekInCycle - 1;
+
+    // Collect all methodology exercise configs for this cycle+week, across all sessions
+    const methExerciseConfigs: Record<string, any> = {}; // keyed by exercise name
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        (configs[key] || []).forEach((ex: any) => {
+          const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+          const name = libEx?.name || "";
+          if (name) methExerciseConfigs[name] = ex;
+        });
+      }
+    }
+
+    if (Object.keys(methExerciseConfigs).length === 0) {
+      toast.info("Aucun exercice trouvé dans la méthodologie pour cette semaine");
+      setShowCopyAdaptDialog(false);
+      setPendingCopyData(null);
+      return;
+    }
+
+    // Load maxes for this assignment
+    let maxesMap: Record<string, number> = {};
+    if (persistentActiveAssignment) {
+      const { data: maxesData } = await supabase
+        .from("athlete_methodology_maxes")
+        .select("*")
+        .eq("assignment_id", persistentActiveAssignment.id);
+      (maxesData || []).forEach((m: any) => {
+        // Map by exercise name
+        const libEx = libraryExercises.find(e => e.id === m.exercise_id);
+        if (libEx) maxesMap[libEx.name] = m.reference_max;
+      });
+    }
+
+    // Update exercises in the current programming that match methodology exercises
+    const updatedExercises = { ...sessionExercises };
+    let adaptedCount = 0;
+
+    for (const sessionId of Object.keys(updatedExercises)) {
+      updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
+        const config = methExerciseConfigs[ex.exercice];
+        if (!config) return ex; // Not a methodology exercise, keep as-is
+
+        adaptedCount++;
+        const refMax = maxesMap[ex.exercice] || 0;
+        const resolveCharge = (charge: string) => {
+          if (refMax > 0) return convertPercentCharge(charge, refMax);
+          return charge;
+        };
+
+        const seriesCount = parseInt(config.series) || 0;
+        let serieDetails: any[] = [];
+        if (config.serieDetails && config.serieDetails.length > 0) {
+          serieDetails = config.serieDetails.map((sd: any) => ({
+            reps: sd.reps || config.reps || "",
+            charge: resolveCharge(sd.charge || config.charge || ""),
+            rpe: sd.rpe || config.rpe || "",
+            tempo: sd.tempo || config.tempo || "",
+            commentaire: sd.commentaire || "",
+            recuperation: sd.recuperation || config.recuperation || "",
+          }));
+        } else if (seriesCount > 0) {
+          serieDetails = Array.from({ length: seriesCount }, () => ({
+            reps: config.reps || "",
+            charge: resolveCharge(config.charge || ""),
+            rpe: config.rpe || "",
+            tempo: config.tempo || "",
+            commentaire: "",
+            recuperation: config.recuperation || "",
+          }));
+        }
+
+        return {
+          ...ex,
+          reps: config.reps || ex.reps,
+          series: config.series || ex.series,
+          charge: resolveCharge(config.charge || ex.charge),
+          rpe: config.rpe || ex.rpe,
+          tempo: config.tempo || ex.tempo,
+          recuperation: config.recuperation || ex.recuperation,
+          serie_details: serieDetails.length > 0 ? serieDetails : ex.serie_details,
+        };
+      });
+    }
+
+    setSessionExercises(updatedExercises);
+    setShowCopyAdaptDialog(false);
+    setPendingCopyData(null);
+    toast.success(`${adaptedCount} exercice(s) adapté(s) selon la semaine ${cycleInfo.weekInCycle} du cycle`);
   };
 
   const handleSelectWeekForPreview = async (weekId: string) => {
