@@ -3721,9 +3721,20 @@ export default function ClientDetail() {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
                 {cycleInfo && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
-                    {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
+                      {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
+                    </Badge>
+                    {Object.keys(persistentMaxes).length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {Object.values(persistentMaxes).map((m) => (
+                          <Badge key={m.exercise_name} variant="secondary" className="text-[9px] sm:text-[10px] font-normal whitespace-nowrap">
+                            {m.exercise_name}: {m.reference_max}kg
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </CardHeader>
