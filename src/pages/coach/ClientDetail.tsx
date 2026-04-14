@@ -2340,20 +2340,14 @@ export default function ClientDetail() {
       return;
     }
 
-    // Load maxes for this assignment
+    // Build maxes map from persistentMaxes (already loaded from DB or cache)
     let maxesMap: Record<string, number> = {};
-    if (persistentActiveAssignment) {
-      const { data: maxesData } = await supabase
-        .from("athlete_methodology_maxes")
-        .select("*")
-        .eq("assignment_id", persistentActiveAssignment.id);
-      (maxesData || []).forEach((m: any) => {
-        const libEx = libraryExercises.find(e => e.id === m.exercise_id);
-        if (libEx) maxesMap[libEx.name] = m.reference_max;
-      });
-    }
+    Object.entries(persistentMaxes).forEach(([exerciseId, v]) => {
+      const libEx = libraryExercises.find(e => e.id === exerciseId);
+      if (libEx && v.reference_max > 0) maxesMap[libEx.name] = v.reference_max;
+    });
     
-    // Fallback: load maxes from localStorage if DB returned nothing
+    // Fallback: try localStorage cache format
     if (Object.keys(maxesMap).length === 0) {
       try {
         const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
@@ -2361,13 +2355,16 @@ export default function ClientDetail() {
           const parsed = JSON.parse(cached);
           if (parsed.maxes) {
             Object.entries(parsed.maxes).forEach(([exerciseId, v]: [string, any]) => {
-              if (v.max && parseFloat(v.max) > 0) {
+              const refMax = v.reference_max || (v.max ? parseFloat(v.max) : 0);
+              if (refMax > 0) {
                 const libEx = libraryExercises.find(e => e.id === exerciseId);
-                if (libEx) maxesMap[libEx.name] = parseFloat(v.max);
+                if (libEx) maxesMap[libEx.name] = refMax;
               }
             });
           }
         }
+      } catch (e) { /* ignore */ }
+    }
       } catch (e) { /* ignore */ }
     }
 
