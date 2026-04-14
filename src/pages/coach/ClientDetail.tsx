@@ -358,6 +358,7 @@ export default function ClientDetail() {
           if (parsed.assignment && parsed.methodology && parsed.assignment.status === "active") {
             setPersistentActiveAssignment(parsed.assignment);
             setPersistentMethodology(parsed.methodology);
+            if (parsed.maxes) setPersistentMaxes(parsed.maxes);
             return;
           }
         }
