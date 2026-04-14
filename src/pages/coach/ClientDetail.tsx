@@ -205,6 +205,9 @@ export default function ClientDetail() {
   const [selectedMethodologyWeek, setSelectedMethodologyWeek] = useState<number>(1);
   const [selectedMethodologyCycle, setSelectedMethodologyCycle] = useState<number>(0);
   const [loadingMethodologies, setLoadingMethodologies] = useState(false);
+  const [methodologyStep, setMethodologyStep] = useState<"select" | "maxes">("select");
+  const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string }>>({});
+  const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
