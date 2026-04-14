@@ -262,6 +262,30 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
     if (!error) { toast.success("Méthodologie terminée"); fetchData(); }
   };
 
+  const startEditMaxes = (assignmentId: string) => {
+    const maxes = assignmentMaxes[assignmentId] || [];
+    const values: Record<string, string> = {};
+    maxes.forEach(m => { values[m.exercise_id] = String(m.reference_max); });
+    setEditMaxValues(values);
+    setEditingMaxes(assignmentId);
+  };
+
+  const saveEditMaxes = async (assignmentId: string) => {
+    const maxes = assignmentMaxes[assignmentId] || [];
+    for (const m of maxes) {
+      const newVal = editMaxValues[m.exercise_id];
+      if (newVal !== undefined && parseFloat(newVal) !== m.reference_max) {
+        await supabase
+          .from("athlete_methodology_maxes")
+          .update({ reference_max: parseFloat(newVal) || 0, updated_at: new Date().toISOString() })
+          .eq("id", m.id);
+      }
+    }
+    setEditingMaxes(null);
+    toast.success("Maxes mis à jour");
+    fetchData();
+  };
+
   const getThemeInfo = (value: string) => THEMES.find((t) => t.value === value);
 
   const getCompletedWeeks = (weeks: WeekTracking[]) => weeks.filter(w => w.completed).length;
