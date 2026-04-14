@@ -2064,6 +2064,12 @@ export default function ClientDetail() {
         setWeekToCopyData(sessionsData);
         setShowCopyDialog(false);
         toast.success("Semaine copiée avec succès ! Vous pouvez maintenant la modifier.");
+
+        // Check if there's an active methodology cycle and ask to adapt
+        if (cycleInfo && persistentMethodology) {
+          setPendingCopyData({ newSessions, newExercises });
+          setShowCopyAdaptDialog(true);
+        }
       }
     } catch (error) {
       console.error("Erreur lors de la copie:", error);
