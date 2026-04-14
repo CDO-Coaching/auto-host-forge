@@ -7100,6 +7100,31 @@ export default function ClientDetail() {
         </TabsContent>
       </Tabs>
 
+      {/* Dialog pour adapter les exercices de la méthodologie après copie */}
+      <Dialog open={showCopyAdaptDialog} onOpenChange={(open) => { if (!open) { setShowCopyAdaptDialog(false); setPendingCopyData(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Adapter la méthodologie ?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Vous êtes en <strong>Semaine {cycleInfo?.weekInCycle}/{cycleInfo?.weeksPerCycle}</strong> du cycle {cycleInfo?.cycleNum} ({persistentMethodology?.name}).
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Voulez-vous adapter les exercices de la méthodologie avec les paramètres prévus pour cette semaine ? Les autres exercices resteront inchangés.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setShowCopyAdaptDialog(false); setPendingCopyData(null); }}>
+              Non, garder tel quel
+            </Button>
+            <Button onClick={handleAdaptMethodologyExercises}>
+              Oui, adapter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog pour copier une semaine */}
       <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
         <DialogContent className="w-[95vw] max-w-4xl max-h-[85vh] overflow-y-auto">
