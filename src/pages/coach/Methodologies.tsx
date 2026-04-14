@@ -206,7 +206,7 @@ export default function Methodologies() {
         weeks_per_cycle: m.weeks_per_cycle,
         sessions_options: m.sessions_options || [],
         exercises: (exercisesMap[m.id] || []).map((eid: string) => exerciseDetailsMap[eid]).filter(Boolean),
-        session_exercise_configs: m.session_exercise_configs || {},
+        session_exercise_configs: (typeof m.session_exercise_configs === 'string' ? JSON.parse(m.session_exercise_configs) : m.session_exercise_configs) || {},
       }))
     );
     setLoading(false);
