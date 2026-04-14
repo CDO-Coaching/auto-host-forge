@@ -1141,6 +1141,23 @@ export default function ClientDetail() {
         exerciseNames: exercisesMap[m.id]?.map(eid => exerciseNamesMap[eid]).filter(Boolean) || [],
         exerciseIds: exercisesMap[m.id] || [],
       })));
+
+      // Load active assignment for this athlete to auto-detect cycle/week
+      if (id) {
+        const { data: assignments } = await supabase
+          .from("athlete_methodology_assignments")
+          .select("*")
+          .eq("athlete_id", id)
+          .eq("coach_id", user.id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+        
+        if (assignments && assignments.length > 0) {
+          setActiveAssignmentForMethodology(assignments[0]);
+        } else {
+          setActiveAssignmentForMethodology(null);
+        }
+      }
     } catch (error) {
       console.error("Erreur chargement méthodologies:", error);
       toast.error("Erreur lors du chargement des méthodologies");
@@ -1149,7 +1166,108 @@ export default function ClientDetail() {
     }
   };
 
-  const handleApplyMethodology = () => {
+  // Helper: extract exercises that use % in their charges for a given cycle/week
+  const getExercisesWithPercentCharges = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string }[] => {
+    const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
+    const exercisesWithPercent: Map<string, string> = new Map();
+
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        (configs[key] || []).forEach((ex: any) => {
+          const hasPercent = (charge: string) => charge && charge.includes("%");
+          const chargeHasPercent = hasPercent(ex.charge);
+          const detailsHavePercent = ex.serieDetails?.some((sd: any) => hasPercent(sd.charge));
+          if (chargeHasPercent || detailsHavePercent) {
+            const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+            exercisesWithPercent.set(ex.exerciseId, libEx?.name || ex.exerciseId);
+          }
+        });
+      }
+    }
+
+    return Array.from(exercisesWithPercent.entries()).map(([exerciseId, name]) => ({ exerciseId, name }));
+  };
+
+  // Helper: convert a % charge string to actual kg using reference max
+  const convertPercentCharge = (charge: string, referenceMax: number): string => {
+    if (!charge || !charge.includes("%")) return charge;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return charge;
+    const percent = parseFloat(match[1]);
+    const actualKg = Math.round((percent / 100) * referenceMax * 10) / 10;
+    // Replace % with kg value but keep the % as reference
+    return `${actualKg}kg (${percent}%)`;
+  };
+
+  // Auto-detect cycle and week from active assignment
+  const autoDetectMethodologyWeek = (methodology: any) => {
+    if (!activeAssignmentForMethodology || activeAssignmentForMethodology.methodology_id !== methodology.id) return;
+    
+    const startDate = new Date(activeAssignmentForMethodology.start_date);
+    const today = new Date();
+    const diffMs = today.getTime() - startDate.getTime();
+    const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+    
+    const weeksPerCycle = methodology.weeks_per_cycle || 1;
+    const numCycles = methodology.num_cycles || 1;
+    
+    const totalWeeksInMethodology = weeksPerCycle * numCycles;
+    const currentWeekInMethodology = Math.min(Math.max(diffWeeks, 0), totalWeeksInMethodology - 1);
+    
+    const detectedCycle = Math.floor(currentWeekInMethodology / weeksPerCycle);
+    const detectedWeek = (currentWeekInMethodology % weeksPerCycle) + 1;
+    
+    setSelectedMethodologyCycle(Math.min(detectedCycle, numCycles - 1));
+    setSelectedMethodologyWeek(Math.min(detectedWeek, weeksPerCycle));
+  };
+
+  const handleProceedToMaxes = () => {
+    const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
+    if (!methodology) return;
+
+    const weekIndex = selectedMethodologyWeek - 1;
+    const exercisesWithPercent = getExercisesWithPercentCharges(methodology, selectedMethodologyCycle, weekIndex);
+
+    if (exercisesWithPercent.length === 0) {
+      // No % charges, apply directly
+      handleApplyMethodology();
+      return;
+    }
+
+    // Load existing maxes from DB if assignment exists
+    const loadExistingMaxes = async () => {
+      if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id) {
+        const { data: existingMaxes } = await supabase
+          .from("athlete_methodology_maxes")
+          .select("*")
+          .eq("assignment_id", activeAssignmentForMethodology.id);
+
+        const maxesMap: Record<string, { name: string; max: string }> = {};
+        exercisesWithPercent.forEach(ex => {
+          const existing = existingMaxes?.find(m => m.exercise_id === ex.exerciseId);
+          maxesMap[ex.exerciseId] = {
+            name: ex.name,
+            max: existing ? String(existing.reference_max) : "",
+          };
+        });
+        setMethodologyMaxes(maxesMap);
+      } else {
+        const maxesMap: Record<string, { name: string; max: string }> = {};
+        exercisesWithPercent.forEach(ex => {
+          maxesMap[ex.exerciseId] = { name: ex.name, max: "" };
+        });
+        setMethodologyMaxes(maxesMap);
+      }
+      setMethodologyStep("maxes");
+    };
+
+    loadExistingMaxes();
+  };
+
+  const handleApplyMethodology = async () => {
     const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
     if (!methodology) {
       toast.error("Sélectionne une méthodologie");
@@ -1180,6 +1298,27 @@ export default function ClientDetail() {
     // Sort by session index
     sessionsForWeek.sort((a, b) => a.sessionIndex - b.sessionIndex);
 
+    // Save maxes to DB if we have an active assignment
+    if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id && Object.keys(methodologyMaxes).length > 0) {
+      const maxRows = Object.entries(methodologyMaxes)
+        .filter(([_, v]) => v.max && parseFloat(v.max) > 0)
+        .map(([exerciseId, v]) => ({
+          assignment_id: activeAssignmentForMethodology.id,
+          exercise_id: exerciseId,
+          exercise_name: v.name,
+          reference_max: parseFloat(v.max),
+        }));
+
+      if (maxRows.length > 0) {
+        // Upsert maxes
+        for (const row of maxRows) {
+          await supabase
+            .from("athlete_methodology_maxes")
+            .upsert(row, { onConflict: "assignment_id,exercise_id" });
+        }
+      }
+    }
+
     // Save undo state
     setUndoStack(prev => [...prev, { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
 
@@ -1200,13 +1339,20 @@ export default function ClientDetail() {
         // Find exercise name from library
         const libEx = libraryExercises.find(e => e.id === config.exerciseId);
         const seriesCount = parseInt(config.series) || 0;
+        const refMax = methodologyMaxes[config.exerciseId]?.max ? parseFloat(methodologyMaxes[config.exerciseId].max) : 0;
+
+        // Helper to convert charge
+        const resolveCharge = (charge: string) => {
+          if (refMax > 0) return convertPercentCharge(charge, refMax);
+          return charge;
+        };
         
         // Build serie_details: use saved details if available, otherwise generate from main values
         let serieDetails: any[] = [];
         if (config.serieDetails && config.serieDetails.length > 0) {
           serieDetails = config.serieDetails.map((sd: any) => ({
             reps: sd.reps || config.reps || "",
-            charge: sd.charge || config.charge || "",
+            charge: resolveCharge(sd.charge || config.charge || ""),
             rpe: sd.rpe || config.rpe || "",
             tempo: sd.tempo || config.tempo || "",
             commentaire: sd.commentaire || "",
@@ -1216,7 +1362,7 @@ export default function ClientDetail() {
           // No saved details but series count exists → generate from main values
           serieDetails = Array.from({ length: seriesCount }, () => ({
             reps: config.reps || "",
-            charge: config.charge || "",
+            charge: resolveCharge(config.charge || ""),
             rpe: config.rpe || "",
             tempo: config.tempo || "",
             commentaire: "",
@@ -1230,7 +1376,7 @@ export default function ClientDetail() {
           recuperation: config.recuperation || "",
           reps: config.reps || "",
           series: config.series || "",
-          charge: config.charge || "",
+          charge: resolveCharge(config.charge || ""),
           rpe: config.rpe || "",
           tempo: config.tempo || "",
           commentaire: config.commentaire || "",
@@ -1248,6 +1394,7 @@ export default function ClientDetail() {
     setSessions(prev => [...prev, ...newSessions]);
     setSessionExercises(prev => ({ ...prev, ...newSessionExercises }));
     setShowMethodologyDialog(false);
+    setMethodologyStep("select");
     toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
   };
 
