@@ -2296,6 +2296,11 @@ export default function ClientDetail() {
     const cycleIndex = cycleInfo.cycleNum - 1;
     const weekIndex = cycleInfo.weekInCycle - 1;
 
+    console.log("[ADAPT] cycleInfo:", cycleInfo);
+    console.log("[ADAPT] Looking for configs with cycleIndex:", cycleIndex, "weekIndex:", weekIndex);
+    console.log("[ADAPT] All config keys:", Object.keys(configs));
+    console.log("[ADAPT] libraryExercises count:", libraryExercises.length);
+
     // Collect all methodology exercise configs for this cycle+week, across all sessions
     const methExerciseConfigs: Record<string, any> = {}; // keyed by exercise name
     for (const key of Object.keys(configs)) {
@@ -2303,13 +2308,17 @@ export default function ClientDetail() {
       if (parts.length !== 3) continue;
       const [ci, wi] = parts.map(Number);
       if (ci === cycleIndex && wi === weekIndex) {
+        console.log("[ADAPT] Found matching config key:", key, "exercises:", configs[key]);
         (configs[key] || []).forEach((ex: any) => {
           const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
           const name = libEx?.name || "";
+          console.log("[ADAPT] Exercise mapping:", ex.exerciseId, "→", name, "config:", { reps: ex.reps, rpe: ex.rpe, charge: ex.charge, tempo: ex.tempo });
           if (name) methExerciseConfigs[name] = ex;
         });
       }
     }
+    
+    console.log("[ADAPT] methExerciseConfigs:", methExerciseConfigs);
 
     if (Object.keys(methExerciseConfigs).length === 0) {
       toast.info("Aucun exercice trouvé dans la méthodologie pour cette semaine");
