@@ -1232,15 +1232,15 @@ export default function ClientDetail() {
     if (!methodology) return;
 
     const weekIndex = selectedMethodologyWeek - 1;
-    const exercisesWithPercent = getExercisesWithPercentCharges(methodology, selectedMethodologyCycle, weekIndex);
+    const allExercises = getAllExercisesForWeek(methodology, selectedMethodologyCycle, weekIndex);
 
-    if (exercisesWithPercent.length === 0) {
-      // No % charges, apply directly
+    if (allExercises.length === 0) {
+      // No exercises at all, apply directly (will show error)
       handleApplyMethodology();
       return;
     }
 
-    // Load existing maxes from DB if assignment exists
+    // Always show maxes step so coach can see/set reference maxes
     const loadExistingMaxes = async () => {
       if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id) {
         const { data: existingMaxes } = await supabase
@@ -1249,7 +1249,7 @@ export default function ClientDetail() {
           .eq("assignment_id", activeAssignmentForMethodology.id);
 
         const maxesMap: Record<string, { name: string; max: string }> = {};
-        exercisesWithPercent.forEach(ex => {
+        allExercises.forEach(ex => {
           const existing = existingMaxes?.find(m => m.exercise_id === ex.exerciseId);
           maxesMap[ex.exerciseId] = {
             name: ex.name,
@@ -1259,7 +1259,7 @@ export default function ClientDetail() {
         setMethodologyMaxes(maxesMap);
       } else {
         const maxesMap: Record<string, { name: string; max: string }> = {};
-        exercisesWithPercent.forEach(ex => {
+        allExercises.forEach(ex => {
           maxesMap[ex.exerciseId] = { name: ex.name, max: "" };
         });
         setMethodologyMaxes(maxesMap);
