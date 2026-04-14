@@ -1540,6 +1540,8 @@ export default function ClientDetail() {
     setShowMethodologyDialog(false);
     setMethodologyStep("select");
     toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
+    // Reload persistent assignment for badge
+    loadPersistentActiveAssignment();
   };
 
   const handleCreateSessionFromTemplate = async (templateId: string) => {
