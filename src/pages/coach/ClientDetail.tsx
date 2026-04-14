@@ -210,6 +210,7 @@ export default function ClientDetail() {
   const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
   const [persistentActiveAssignment, setPersistentActiveAssignment] = useState<any>(null);
   const [persistentMethodology, setPersistentMethodology] = useState<any>(null);
+  const [persistentMaxes, setPersistentMaxes] = useState<Record<string, { exercise_name: string; reference_max: number }>>({});
   const [showCopyAdaptDialog, setShowCopyAdaptDialog] = useState(false);
   const [pendingCopyData, setPendingCopyData] = useState<any>(null);
 
@@ -331,11 +332,20 @@ export default function ClientDetail() {
         .single();
       if (meth) {
         setPersistentMethodology(meth);
+        // Load reference maxes for this assignment
+        const { data: maxesData } = await supabase
+          .from("athlete_methodology_maxes")
+          .select("exercise_id, exercise_name, reference_max")
+          .eq("assignment_id", assignments[0].id);
+        const maxesObj: Record<string, { exercise_name: string; reference_max: number }> = {};
+        (maxesData || []).forEach((m: any) => { maxesObj[m.exercise_id] = { exercise_name: m.exercise_name, reference_max: m.reference_max }; });
+        setPersistentMaxes(maxesObj);
         // Update localStorage cache
         try {
           localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
             assignment: assignments[0],
             methodology: meth,
+            maxes: maxesObj,
           }));
         } catch (e) { /* ignore */ }
       }
@@ -348,6 +358,7 @@ export default function ClientDetail() {
           if (parsed.assignment && parsed.methodology && parsed.assignment.status === "active") {
             setPersistentActiveAssignment(parsed.assignment);
             setPersistentMethodology(parsed.methodology);
+            if (parsed.maxes) setPersistentMaxes(parsed.maxes);
             return;
           }
         }
@@ -1579,6 +1590,14 @@ export default function ClientDetail() {
       };
       setPersistentActiveAssignment(assignmentData);
       setPersistentMethodology(methodology);
+      // Update persistentMaxes from methodologyMaxes
+      const maxesObj: Record<string, { exercise_name: string; reference_max: number }> = {};
+      Object.entries(methodologyMaxes).forEach(([exId, v]) => {
+        if (v.max && parseFloat(v.max) > 0) {
+          maxesObj[exId] = { exercise_name: v.name, reference_max: parseFloat(v.max) };
+        }
+      });
+      setPersistentMaxes(maxesObj);
       // Persist to localStorage as fallback
       try {
         localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
@@ -1591,7 +1610,7 @@ export default function ClientDetail() {
             sessions_options: methodology.sessions_options,
             session_exercise_configs: methodology.session_exercise_configs,
           },
-          maxes: methodologyMaxes,
+          maxes: maxesObj,
         }));
       } catch (e) { /* ignore */ }
     }
@@ -2329,20 +2348,14 @@ export default function ClientDetail() {
       return;
     }
 
-    // Load maxes for this assignment
+    // Build maxes map from persistentMaxes (already loaded from DB or cache)
     let maxesMap: Record<string, number> = {};
-    if (persistentActiveAssignment) {
-      const { data: maxesData } = await supabase
-        .from("athlete_methodology_maxes")
-        .select("*")
-        .eq("assignment_id", persistentActiveAssignment.id);
-      (maxesData || []).forEach((m: any) => {
-        const libEx = libraryExercises.find(e => e.id === m.exercise_id);
-        if (libEx) maxesMap[libEx.name] = m.reference_max;
-      });
-    }
+    Object.entries(persistentMaxes).forEach(([exerciseId, v]) => {
+      const libEx = libraryExercises.find(e => e.id === exerciseId);
+      if (libEx && v.reference_max > 0) maxesMap[libEx.name] = v.reference_max;
+    });
     
-    // Fallback: load maxes from localStorage if DB returned nothing
+    // Fallback: try localStorage cache format
     if (Object.keys(maxesMap).length === 0) {
       try {
         const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
@@ -2350,9 +2363,10 @@ export default function ClientDetail() {
           const parsed = JSON.parse(cached);
           if (parsed.maxes) {
             Object.entries(parsed.maxes).forEach(([exerciseId, v]: [string, any]) => {
-              if (v.max && parseFloat(v.max) > 0) {
+              const refMax = v.reference_max || (v.max ? parseFloat(v.max) : 0);
+              if (refMax > 0) {
                 const libEx = libraryExercises.find(e => e.id === exerciseId);
-                if (libEx) maxesMap[libEx.name] = parseFloat(v.max);
+                if (libEx) maxesMap[libEx.name] = refMax;
               }
             });
           }
@@ -3710,9 +3724,20 @@ export default function ClientDetail() {
               <div className="flex items-center justify-between gap-2">
                 <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
                 {cycleInfo && (
-                  <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
-                    {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
-                  </Badge>
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
+                      {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
+                    </Badge>
+                    {Object.keys(persistentMaxes).length > 0 && (
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {Object.values(persistentMaxes).map((m) => (
+                          <Badge key={m.exercise_name} variant="secondary" className="text-[9px] sm:text-[10px] font-normal whitespace-nowrap">
+                            {m.exercise_name}: {m.reference_max}kg
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </CardHeader>
