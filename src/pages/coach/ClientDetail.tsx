@@ -329,8 +329,29 @@ export default function ClientDetail() {
         .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
         .eq("id", assignments[0].methodology_id)
         .single();
-      if (meth) setPersistentMethodology(meth);
+      if (meth) {
+        setPersistentMethodology(meth);
+        // Update localStorage cache
+        try {
+          localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
+            assignment: assignments[0],
+            methodology: meth,
+          }));
+        } catch (e) { /* ignore */ }
+      }
     } else {
+      // Fallback to localStorage if DB returns nothing
+      try {
+        const cached = localStorage.getItem(`coach-active-methodology-${athleteId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.assignment && parsed.methodology && parsed.assignment.status === "active") {
+            setPersistentActiveAssignment(parsed.assignment);
+            setPersistentMethodology(parsed.methodology);
+            return;
+          }
+        }
+      } catch (e) { /* ignore */ }
       setPersistentActiveAssignment(null);
       setPersistentMethodology(null);
     }
