@@ -261,7 +261,30 @@ export default function Methodologies() {
     setSelectedExercises(m.exercises || []);
     setExerciseSearch("");
     setExerciseMuscleFilter("all");
-    setSessionExerciseMap(m.session_exercise_configs || {});
+    // Normalize configs loaded from DB to ensure all fields have defaults
+    const rawConfigs = m.session_exercise_configs || {};
+    const normalizedConfigs: Record<string, SessionExerciseConfig[]> = {};
+    for (const [key, configs] of Object.entries(rawConfigs)) {
+      normalizedConfigs[key] = (configs as any[]).map((c: any) => ({
+        exerciseId: c.exerciseId || "",
+        recuperation: c.recuperation || "",
+        reps: c.reps || "",
+        series: c.series || "",
+        rpe: c.rpe || "",
+        charge: c.charge || "",
+        tempo: c.tempo || "",
+        commentaire: c.commentaire || "",
+        serieDetails: (c.serieDetails || []).map((sd: any) => ({
+          reps: sd.reps || "",
+          rpe: sd.rpe || "",
+          charge: sd.charge || "",
+          tempo: sd.tempo || "",
+          commentaire: sd.commentaire || "",
+          recuperation: sd.recuperation || "",
+        })),
+      }));
+    }
+    setSessionExerciseMap(normalizedConfigs);
     setDialogOpen(true);
   };
 
