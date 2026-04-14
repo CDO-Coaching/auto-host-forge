@@ -1610,7 +1610,7 @@ export default function ClientDetail() {
             sessions_options: methodology.sessions_options,
             session_exercise_configs: methodology.session_exercise_configs,
           },
-          maxes: methodologyMaxes,
+          maxes: maxesObj,
         }));
       } catch (e) { /* ignore */ }
     }
