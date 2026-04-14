@@ -76,6 +76,9 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
   const [assignNotes, setAssignNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [expandedAssignment, setExpandedAssignment] = useState<string | null>(null);
+  const [assignmentMaxes, setAssignmentMaxes] = useState<Record<string, { exercise_id: string; exercise_name: string; reference_max: number; id: string }[]>>({});
+  const [editingMaxes, setEditingMaxes] = useState<string | null>(null);
+  const [editMaxValues, setEditMaxValues] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     if (!session?.user?.id) return;
