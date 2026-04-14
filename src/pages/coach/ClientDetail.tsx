@@ -1166,10 +1166,10 @@ export default function ClientDetail() {
     }
   };
 
-  // Helper: extract exercises that use % in their charges for a given cycle/week
-  const getExercisesWithPercentCharges = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string }[] => {
+  // Helper: extract ALL exercises for a given cycle/week
+  const getAllExercisesForWeek = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string; hasPercent: boolean }[] => {
     const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
-    const exercisesWithPercent: Map<string, string> = new Map();
+    const exercisesMap: Map<string, { name: string; hasPercent: boolean }> = new Map();
 
     for (const key of Object.keys(configs)) {
       const parts = key.split("-");
@@ -1180,15 +1180,18 @@ export default function ClientDetail() {
           const hasPercent = (charge: string) => charge && charge.includes("%");
           const chargeHasPercent = hasPercent(ex.charge);
           const detailsHavePercent = ex.serieDetails?.some((sd: any) => hasPercent(sd.charge));
-          if (chargeHasPercent || detailsHavePercent) {
-            const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
-            exercisesWithPercent.set(ex.exerciseId, libEx?.name || ex.exerciseId);
-          }
+          const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+          const name = libEx?.name || ex.exerciseId;
+          const existing = exercisesMap.get(ex.exerciseId);
+          exercisesMap.set(ex.exerciseId, {
+            name,
+            hasPercent: (existing?.hasPercent || false) || chargeHasPercent || detailsHavePercent,
+          });
         });
       }
     }
 
-    return Array.from(exercisesWithPercent.entries()).map(([exerciseId, name]) => ({ exerciseId, name }));
+    return Array.from(exercisesMap.entries()).map(([exerciseId, data]) => ({ exerciseId, name: data.name, hasPercent: data.hasPercent }));
   };
 
   // Helper: convert a % charge string to actual kg using reference max
