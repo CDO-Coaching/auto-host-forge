@@ -379,6 +379,43 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
               <CollapsibleContent>
                 <CardContent className="pt-0">
                   {a.notes && <p className="text-xs text-muted-foreground mb-3 italic">{a.notes}</p>}
+                  {/* Maxes de référence */}
+                  {(assignmentMaxes[a.id] || []).length > 0 && (
+                    <div className="mb-3 p-2 bg-muted/30 rounded-lg border border-border">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Maxes de référence</span>
+                        {a.status !== "completed" && (
+                          editingMaxes === a.id ? (
+                            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5" onClick={() => saveEditMaxes(a.id)}>
+                              <Check className="h-3 w-3 mr-0.5" /> Sauver
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5" onClick={() => startEditMaxes(a.id)}>
+                              <Pencil className="h-3 w-3 mr-0.5" /> Modifier
+                            </Button>
+                          )
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {(assignmentMaxes[a.id] || []).map(m => (
+                          <div key={m.exercise_id} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="truncate flex-1">{m.exercise_name}</span>
+                            {editingMaxes === a.id ? (
+                              <Input
+                                type="number"
+                                step="0.5"
+                                className="w-16 h-6 text-xs"
+                                value={editMaxValues[m.exercise_id] || ""}
+                                onChange={(e) => setEditMaxValues(prev => ({ ...prev, [m.exercise_id]: e.target.value }))}
+                              />
+                            ) : (
+                              <span className="font-medium">{m.reference_max}kg</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {a.weeks.map((w) => (
                       <div key={w.id} className={`flex items-start gap-2 p-2 rounded-lg border ${w.completed ? "bg-muted/30 border-muted" : "border-border"}`}>
