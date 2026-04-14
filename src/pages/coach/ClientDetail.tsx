@@ -332,11 +332,20 @@ export default function ClientDetail() {
         .single();
       if (meth) {
         setPersistentMethodology(meth);
+        // Load reference maxes for this assignment
+        const { data: maxesData } = await supabase
+          .from("athlete_methodology_maxes")
+          .select("exercise_id, exercise_name, reference_max")
+          .eq("assignment_id", assignments[0].id);
+        const maxesObj: Record<string, { exercise_name: string; reference_max: number }> = {};
+        (maxesData || []).forEach((m: any) => { maxesObj[m.exercise_id] = { exercise_name: m.exercise_name, reference_max: m.reference_max }; });
+        setPersistentMaxes(maxesObj);
         // Update localStorage cache
         try {
           localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
             assignment: assignments[0],
             methodology: meth,
+            maxes: maxesObj,
           }));
         } catch (e) { /* ignore */ }
       }
