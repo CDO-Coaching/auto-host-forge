@@ -1242,25 +1242,43 @@ export default function ClientDetail() {
 
     // Always show maxes step so coach can see/set reference maxes
     const loadExistingMaxes = async () => {
+      // Fetch athlete's current maxes from exercise_maxes table
+      const exerciseIds = allExercises.map(ex => ex.exerciseId);
+      const { data: athleteCurrentMaxes } = await supabase
+        .from("exercise_maxes")
+        .select("exercise_id, weight_kg")
+        .eq("athlete_id", athleteId!)
+        .in("exercise_id", exerciseIds)
+        .order("recorded_at", { ascending: false });
+
+      // Build a map of latest max per exercise
+      const latestMaxMap: Record<string, number> = {};
+      (athleteCurrentMaxes || []).forEach((m: any) => {
+        if (!latestMaxMap[m.exercise_id]) latestMaxMap[m.exercise_id] = m.weight_kg;
+      });
+
       if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id) {
         const { data: existingMaxes } = await supabase
           .from("athlete_methodology_maxes")
           .select("*")
           .eq("assignment_id", activeAssignmentForMethodology.id);
 
-        const maxesMap: Record<string, { name: string; max: string }> = {};
+        const maxesMap: Record<string, { name: string; max: string; athleteMax: number | null }> = {};
         allExercises.forEach(ex => {
           const existing = existingMaxes?.find(m => m.exercise_id === ex.exerciseId);
+          const athleteMax = latestMaxMap[ex.exerciseId] || null;
           maxesMap[ex.exerciseId] = {
             name: ex.name,
-            max: existing ? String(existing.reference_max) : "",
+            max: existing ? String(existing.reference_max) : (athleteMax ? String(athleteMax) : ""),
+            athleteMax,
           };
         });
         setMethodologyMaxes(maxesMap);
       } else {
-        const maxesMap: Record<string, { name: string; max: string }> = {};
+        const maxesMap: Record<string, { name: string; max: string; athleteMax: number | null }> = {};
         allExercises.forEach(ex => {
-          maxesMap[ex.exerciseId] = { name: ex.name, max: "" };
+          const athleteMax = latestMaxMap[ex.exerciseId] || null;
+          maxesMap[ex.exerciseId] = { name: ex.name, max: athleteMax ? String(athleteMax) : "", athleteMax };
         });
         setMethodologyMaxes(maxesMap);
       }
