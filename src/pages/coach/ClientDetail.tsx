@@ -208,9 +208,43 @@ export default function ClientDetail() {
   const [methodologyStep, setMethodologyStep] = useState<"select" | "maxes">("select");
   const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string; athleteMax?: number | null }>>({});
   const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
+  const [persistentActiveAssignment, setPersistentActiveAssignment] = useState<any>(null);
+  const [persistentMethodology, setPersistentMethodology] = useState<any>(null);
+  const [showCopyAdaptDialog, setShowCopyAdaptDialog] = useState(false);
+  const [pendingCopyData, setPendingCopyData] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
+
+  // Compute which methodology cycle week the selected programming week corresponds to
+  const getMethodologyCycleInfo = () => {
+    if (!persistentActiveAssignment || !persistentMethodology) return null;
+    const assignment = persistentActiveAssignment;
+    const meth = persistentMethodology;
+    const weeksPerCycle = meth.weeks_per_cycle || 1;
+    const numCycles = meth.num_cycles || 1;
+    const totalWeeks = weeksPerCycle * numCycles;
+
+    // Calculate week offset from start_date to the Monday of selectedWeekToProgram
+    const startDate = new Date(assignment.start_date);
+    // Get Monday of the selected programming week
+    const jan1 = new Date(selectedWeekToProgram.year, 0, 1);
+    const days = (selectedWeekToProgram.week - 1) * 7;
+    const dayOfWeek = jan1.getDay() || 7; // Mon=1..Sun=7
+    const mondayOfWeek = new Date(jan1.getTime() + (days - (dayOfWeek - 1)) * 86400000);
+    
+    const diffMs = mondayOfWeek.getTime() - startDate.getTime();
+    const diffWeeks = Math.floor(diffMs / (7 * 86400000));
+    
+    if (diffWeeks < 0 || diffWeeks >= totalWeeks) return null;
+    
+    const cycleNum = Math.floor(diffWeeks / weeksPerCycle) + 1;
+    const weekInCycle = (diffWeeks % weeksPerCycle) + 1;
+    
+    return { cycleNum, weekInCycle, weeksPerCycle, numCycles, totalWeeks, methodologyName: meth.name, weekIndex: diffWeeks };
+  };
+
+  const cycleInfo = getMethodologyCycleInfo();
 
   const recuperationOptions = [
     { value: "0s", label: "Aucune" },
