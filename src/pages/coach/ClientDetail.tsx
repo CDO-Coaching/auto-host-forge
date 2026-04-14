@@ -208,9 +208,43 @@ export default function ClientDetail() {
   const [methodologyStep, setMethodologyStep] = useState<"select" | "maxes">("select");
   const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string; athleteMax?: number | null }>>({});
   const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
+  const [persistentActiveAssignment, setPersistentActiveAssignment] = useState<any>(null);
+  const [persistentMethodology, setPersistentMethodology] = useState<any>(null);
+  const [showCopyAdaptDialog, setShowCopyAdaptDialog] = useState(false);
+  const [pendingCopyData, setPendingCopyData] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
+
+  // Compute which methodology cycle week the selected programming week corresponds to
+  const getMethodologyCycleInfo = () => {
+    if (!persistentActiveAssignment || !persistentMethodology) return null;
+    const assignment = persistentActiveAssignment;
+    const meth = persistentMethodology;
+    const weeksPerCycle = meth.weeks_per_cycle || 1;
+    const numCycles = meth.num_cycles || 1;
+    const totalWeeks = weeksPerCycle * numCycles;
+
+    // Calculate week offset from start_date to the Monday of selectedWeekToProgram
+    const startDate = new Date(assignment.start_date);
+    // Get Monday of the selected programming week
+    const jan1 = new Date(selectedWeekToProgram.year, 0, 1);
+    const days = (selectedWeekToProgram.week - 1) * 7;
+    const dayOfWeek = jan1.getDay() || 7; // Mon=1..Sun=7
+    const mondayOfWeek = new Date(jan1.getTime() + (days - (dayOfWeek - 1)) * 86400000);
+    
+    const diffMs = mondayOfWeek.getTime() - startDate.getTime();
+    const diffWeeks = Math.floor(diffMs / (7 * 86400000));
+    
+    if (diffWeeks < 0 || diffWeeks >= totalWeeks) return null;
+    
+    const cycleNum = Math.floor(diffWeeks / weeksPerCycle) + 1;
+    const weekInCycle = (diffWeeks % weeksPerCycle) + 1;
+    
+    return { cycleNum, weekInCycle, weeksPerCycle, numCycles, totalWeeks, methodologyName: meth.name, weekIndex: diffWeeks };
+  };
+
+  const cycleInfo = getMethodologyCycleInfo();
 
   const recuperationOptions = [
     { value: "0s", label: "Aucune" },
@@ -273,6 +307,35 @@ export default function ClientDetail() {
     return `≈${suggested}kg`;
   };
 
+  // Load active assignment persistently for cycle indicator
+  const loadPersistentActiveAssignment = async () => {
+    if (!athleteId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: assignments } = await supabase
+      .from("athlete_methodology_assignments")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .eq("coach_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    if (assignments && assignments.length > 0) {
+      setPersistentActiveAssignment(assignments[0]);
+      // Load the methodology details
+      const { data: meth } = await supabase
+        .from("coaching_methodologies")
+        .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
+        .eq("id", assignments[0].methodology_id)
+        .single();
+      if (meth) setPersistentMethodology(meth);
+    } else {
+      setPersistentActiveAssignment(null);
+      setPersistentMethodology(null);
+    }
+  };
+
   useEffect(() => {
     loadAthleteData();
     loadLibraryExercises();
@@ -284,6 +347,7 @@ export default function ClientDetail() {
     loadHeaderMonotony();
     loadHeaderInjury();
     loadSessionTemplates();
+    loadPersistentActiveAssignment();
     
     // Restaurer les données sauvegardées localement
     const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
@@ -2076,6 +2140,12 @@ export default function ClientDetail() {
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         toast.success(`Semaine S${previousWeek} copiée ! Vous pouvez maintenant la modifier.`);
+
+        // Check if there's an active methodology cycle and ask to adapt
+        if (cycleInfo && persistentMethodology) {
+          setPendingCopyData({ newSessions, newExercises });
+          setShowCopyAdaptDialog(true);
+        }
       } else {
         toast.error("La semaine précédente ne contient aucune séance");
       }
@@ -2083,6 +2153,111 @@ export default function ClientDetail() {
       console.error("Erreur lors de la copie:", error);
       toast.error("Erreur lors de la copie de la semaine précédente");
     }
+  };
+
+  // Adapt methodology exercises after copy
+  const handleAdaptMethodologyExercises = async () => {
+    if (!cycleInfo || !persistentMethodology || !pendingCopyData) return;
+    
+    const meth = persistentMethodology;
+    const configs: Record<string, any[]> = typeof meth.session_exercise_configs === "string" 
+      ? JSON.parse(meth.session_exercise_configs) 
+      : (meth.session_exercise_configs || {});
+    
+    const cycleIndex = cycleInfo.cycleNum - 1;
+    const weekIndex = cycleInfo.weekInCycle - 1;
+
+    // Collect all methodology exercise configs for this cycle+week, across all sessions
+    const methExerciseConfigs: Record<string, any> = {}; // keyed by exercise name
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        (configs[key] || []).forEach((ex: any) => {
+          const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+          const name = libEx?.name || "";
+          if (name) methExerciseConfigs[name] = ex;
+        });
+      }
+    }
+
+    if (Object.keys(methExerciseConfigs).length === 0) {
+      toast.info("Aucun exercice trouvé dans la méthodologie pour cette semaine");
+      setShowCopyAdaptDialog(false);
+      setPendingCopyData(null);
+      return;
+    }
+
+    // Load maxes for this assignment
+    let maxesMap: Record<string, number> = {};
+    if (persistentActiveAssignment) {
+      const { data: maxesData } = await supabase
+        .from("athlete_methodology_maxes")
+        .select("*")
+        .eq("assignment_id", persistentActiveAssignment.id);
+      (maxesData || []).forEach((m: any) => {
+        // Map by exercise name
+        const libEx = libraryExercises.find(e => e.id === m.exercise_id);
+        if (libEx) maxesMap[libEx.name] = m.reference_max;
+      });
+    }
+
+    // Update exercises in the current programming that match methodology exercises
+    const updatedExercises = { ...sessionExercises };
+    let adaptedCount = 0;
+
+    for (const sessionId of Object.keys(updatedExercises)) {
+      updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
+        const config = methExerciseConfigs[ex.exercice];
+        if (!config) return ex; // Not a methodology exercise, keep as-is
+
+        adaptedCount++;
+        const refMax = maxesMap[ex.exercice] || 0;
+        const resolveCharge = (charge: string) => {
+          if (refMax > 0) return convertPercentCharge(charge, refMax);
+          return charge;
+        };
+
+        const seriesCount = parseInt(config.series) || 0;
+        let serieDetails: any[] = [];
+        if (config.serieDetails && config.serieDetails.length > 0) {
+          serieDetails = config.serieDetails.map((sd: any) => ({
+            reps: sd.reps || config.reps || "",
+            charge: resolveCharge(sd.charge || config.charge || ""),
+            rpe: sd.rpe || config.rpe || "",
+            tempo: sd.tempo || config.tempo || "",
+            commentaire: sd.commentaire || "",
+            recuperation: sd.recuperation || config.recuperation || "",
+          }));
+        } else if (seriesCount > 0) {
+          serieDetails = Array.from({ length: seriesCount }, () => ({
+            reps: config.reps || "",
+            charge: resolveCharge(config.charge || ""),
+            rpe: config.rpe || "",
+            tempo: config.tempo || "",
+            commentaire: "",
+            recuperation: config.recuperation || "",
+          }));
+        }
+
+        return {
+          ...ex,
+          reps: config.reps || ex.reps,
+          series: config.series || ex.series,
+          charge: resolveCharge(config.charge || ex.charge),
+          rpe: config.rpe || ex.rpe,
+          tempo: config.tempo || ex.tempo,
+          recuperation: config.recuperation || ex.recuperation,
+          serie_details: serieDetails.length > 0 ? serieDetails : ex.serie_details,
+        };
+      });
+    }
+
+    setSessionExercises(updatedExercises);
+    setShowCopyAdaptDialog(false);
+    setPendingCopyData(null);
+    toast.success(`${adaptedCount} exercice(s) adapté(s) selon la semaine ${cycleInfo.weekInCycle} du cycle`);
   };
 
   const handleSelectWeekForPreview = async (weekId: string) => {
@@ -3358,7 +3533,14 @@ export default function ClientDetail() {
 
           <Card>
             <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
-              <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-sm sm:text-base">Nouvelle programmation</CardTitle>
+                {cycleInfo && (
+                  <Badge variant="outline" className="text-[10px] sm:text-xs border-primary/50 text-primary font-medium whitespace-nowrap">
+                    {persistentMethodology?.name} — Cycle {cycleInfo.cycleNum} · Sem. {cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-3 sm:pb-4">
               {/* Sélecteur de semaine compact */}
@@ -6917,6 +7099,31 @@ export default function ClientDetail() {
           <CoachAthleteSubscriptionOverview athleteId={athleteId!} />
         </TabsContent>
       </Tabs>
+
+      {/* Dialog pour adapter les exercices de la méthodologie après copie */}
+      <Dialog open={showCopyAdaptDialog} onOpenChange={(open) => { if (!open) { setShowCopyAdaptDialog(false); setPendingCopyData(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base">Adapter la méthodologie ?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Vous êtes en <strong>Semaine {cycleInfo?.weekInCycle}/{cycleInfo?.weeksPerCycle}</strong> du cycle {cycleInfo?.cycleNum} ({persistentMethodology?.name}).
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Voulez-vous adapter les exercices de la méthodologie avec les paramètres prévus pour cette semaine ? Les autres exercices resteront inchangés.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => { setShowCopyAdaptDialog(false); setPendingCopyData(null); }}>
+              Non, garder tel quel
+            </Button>
+            <Button onClick={handleAdaptMethodologyExercises}>
+              Oui, adapter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog pour copier une semaine */}
       <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
