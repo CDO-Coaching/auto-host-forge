@@ -116,35 +116,34 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
       const assignIds = assignData.map(a => a.id);
       const methIds = assignData.map(a => a.methodology_id);
 
-      // Fetch weeks
-      const { data: weeksData } = await supabase
-        .from("athlete_methodology_weeks")
-        .select("*")
-        .in("assignment_id", assignIds)
-        .order("week_number");
+      // Fetch weeks, methodology details, themes, and maxes in parallel
+      const [weeksRes, methDetailsRes, themesRes, maxesRes] = await Promise.all([
+        supabase.from("athlete_methodology_weeks").select("*").in("assignment_id", assignIds).order("week_number"),
+        supabase.from("coaching_methodologies").select("id, name, description, full_description").in("id", methIds),
+        supabase.from("methodology_themes").select("*").in("methodology_id", methIds),
+        supabase.from("athlete_methodology_maxes").select("*").in("assignment_id", assignIds),
+      ]);
 
-      // Fetch methodology details
-      const { data: methDetails } = await supabase
-        .from("coaching_methodologies")
-        .select("id, name, description, full_description")
-        .in("id", methIds);
-
-      // Fetch themes
       let themesMap: Record<string, string[]> = {};
-      if (methIds.length > 0) {
-        const { data: themesData } = await supabase.from("methodology_themes").select("*").in("methodology_id", methIds);
-        (themesData || []).forEach((t: any) => {
-          if (!themesMap[t.methodology_id]) themesMap[t.methodology_id] = [];
-          themesMap[t.methodology_id].push(t.theme);
-        });
-      }
+      (themesRes.data || []).forEach((t: any) => {
+        if (!themesMap[t.methodology_id]) themesMap[t.methodology_id] = [];
+        themesMap[t.methodology_id].push(t.theme);
+      });
 
-      const methMap = Object.fromEntries((methDetails || []).map(m => [m.id, m]));
+      const methMap = Object.fromEntries((methDetailsRes.data || []).map(m => [m.id, m]));
       const weeksMap: Record<string, WeekTracking[]> = {};
-      (weeksData || []).forEach((w: any) => {
+      (weeksRes.data || []).forEach((w: any) => {
         if (!weeksMap[w.assignment_id]) weeksMap[w.assignment_id] = [];
         weeksMap[w.assignment_id].push(w);
       });
+
+      // Build maxes map by assignment
+      const maxesMap: Record<string, any[]> = {};
+      (maxesRes.data || []).forEach((m: any) => {
+        if (!maxesMap[m.assignment_id]) maxesMap[m.assignment_id] = [];
+        maxesMap[m.assignment_id].push(m);
+      });
+      setAssignmentMaxes(maxesMap);
 
       setAssignments(assignData.map(a => {
         const meth = methMap[a.methodology_id];
@@ -164,6 +163,7 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
       }));
     } else {
       setAssignments([]);
+      setAssignmentMaxes({});
     }
 
     setLoading(false);
