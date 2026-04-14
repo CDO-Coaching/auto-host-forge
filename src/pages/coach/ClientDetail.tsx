@@ -1212,7 +1212,7 @@ export default function ClientDetail() {
     }
     if (percent === null || isNaN(percent) || percent <= 0) return charge;
     const actualKg = Math.round((percent / 100) * referenceMax * 2) / 2; // arrondi à 0.5kg
-    return `${actualKg}kg (${percent}%)`;
+    return `${actualKg}kg`;
   };
 
   // Auto-detect cycle and week from active assignment
