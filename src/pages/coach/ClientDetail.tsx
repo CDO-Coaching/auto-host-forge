@@ -3431,7 +3431,6 @@ export default function ClientDetail() {
                 )}
               </div>
             </CardHeader>
-            </CardHeader>
             <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-3 sm:pb-4">
               {/* Sélecteur de semaine compact */}
               {!isValidated && (
