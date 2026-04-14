@@ -307,6 +307,35 @@ export default function ClientDetail() {
     return `≈${suggested}kg`;
   };
 
+  // Load active assignment persistently for cycle indicator
+  const loadPersistentActiveAssignment = async () => {
+    if (!athleteId) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data: assignments } = await supabase
+      .from("athlete_methodology_assignments")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .eq("coach_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    
+    if (assignments && assignments.length > 0) {
+      setPersistentActiveAssignment(assignments[0]);
+      // Load the methodology details
+      const { data: meth } = await supabase
+        .from("coaching_methodologies")
+        .select("id, name, num_cycles, weeks_per_cycle, sessions_options, session_exercise_configs")
+        .eq("id", assignments[0].methodology_id)
+        .single();
+      if (meth) setPersistentMethodology(meth);
+    } else {
+      setPersistentActiveAssignment(null);
+      setPersistentMethodology(null);
+    }
+  };
+
   useEffect(() => {
     loadAthleteData();
     loadLibraryExercises();
@@ -318,6 +347,7 @@ export default function ClientDetail() {
     loadHeaderMonotony();
     loadHeaderInjury();
     loadSessionTemplates();
+    loadPersistentActiveAssignment();
     
     // Restaurer les données sauvegardées localement
     const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
