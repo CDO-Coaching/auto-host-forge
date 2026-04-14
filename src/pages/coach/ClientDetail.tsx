@@ -1143,11 +1143,11 @@ export default function ClientDetail() {
       })));
 
       // Load active assignment for this athlete to auto-detect cycle/week
-      if (id) {
+      if (athleteId) {
         const { data: assignments } = await supabase
           .from("athlete_methodology_assignments")
           .select("*")
-          .eq("athlete_id", id)
+          .eq("athlete_id", athleteId)
           .eq("coach_id", user.id)
           .eq("status", "active")
           .order("created_at", { ascending: false });
