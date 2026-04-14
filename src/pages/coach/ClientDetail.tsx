@@ -2320,9 +2320,9 @@ export default function ClientDetail() {
       }
     }
     
-    console.log("[ADAPT] methExerciseConfigs:", methExerciseConfigs);
+    console.log("[ADAPT] methPerSession:", methPerSession);
 
-    if (Object.keys(methExerciseConfigs).length === 0) {
+    if (Object.keys(methPerSession).length === 0) {
       toast.info("Aucun exercice trouvé dans la méthodologie pour cette semaine");
       setShowCopyAdaptDialog(false);
       setPendingCopyData(null);
