@@ -5481,6 +5481,8 @@ export default function ClientDetail() {
                         setSelectedMethodologyId("");
                         setSelectedMethodologyWeek(1);
                         setSelectedMethodologyCycle(0);
+                        setMethodologyStep("select");
+                        setMethodologyMaxes({});
                       }}
                       disabled={!selectedWeekToProgram}
                       className="w-full sm:w-auto h-9 sm:h-8 text-xs"
