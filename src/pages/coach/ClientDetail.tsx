@@ -2093,8 +2093,8 @@ export default function ClientDetail() {
     }
 
     try {
-      // Trouver la semaine précédente validée
-      const { data: weeks, error: weeksError } = await supabase
+      // Trouver la semaine précédente validée - d'abord exact match
+      let { data: weeks, error: weeksError } = await supabase
         .from("training_weeks")
         .select("*")
         .eq("athlete_id", athleteId)
@@ -2103,8 +2103,25 @@ export default function ClientDetail() {
         .eq("year", previousYear)
         .limit(1);
 
+      // Fallback: si pas trouvée, chercher la dernière semaine validée
+      if ((!weeks || weeks.length === 0) && !weeksError) {
+        const { data: fallbackWeeks } = await supabase
+          .from("training_weeks")
+          .select("*")
+          .eq("athlete_id", athleteId)
+          .eq("validated", true)
+          .order("year", { ascending: false })
+          .order("week_number", { ascending: false })
+          .limit(1);
+        
+        if (fallbackWeeks && fallbackWeeks.length > 0) {
+          weeks = fallbackWeeks;
+          toast.info(`S${previousWeek} non trouvée, copie de S${fallbackWeeks[0].week_number} ${fallbackWeeks[0].year} à la place`);
+        }
+      }
+
       if (weeksError || !weeks || weeks.length === 0) {
-        toast.error(`Aucune semaine validée trouvée pour S${previousWeek} ${previousYear}`);
+        toast.error(`Aucune semaine validée trouvée`);
         return;
       }
 
