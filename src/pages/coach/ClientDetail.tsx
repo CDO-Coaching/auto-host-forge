@@ -2301,26 +2301,28 @@ export default function ClientDetail() {
     console.log("[ADAPT] All config keys:", Object.keys(configs));
     console.log("[ADAPT] libraryExercises count:", libraryExercises.length);
 
-    // Collect all methodology exercise configs for this cycle+week, across all sessions
-    const methExerciseConfigs: Record<string, any> = {}; // keyed by exercise name
+    // Collect methodology exercise configs PER SESSION for this cycle+week
+    // Key: sessionIndex → exerciseName → config
+    const methPerSession: Record<number, Record<string, any>> = {};
     for (const key of Object.keys(configs)) {
       const parts = key.split("-");
       if (parts.length !== 3) continue;
-      const [ci, wi] = parts.map(Number);
+      const [ci, wi, si] = parts.map(Number);
       if (ci === cycleIndex && wi === weekIndex) {
         console.log("[ADAPT] Found matching config key:", key, "exercises:", configs[key]);
+        if (!methPerSession[si]) methPerSession[si] = {};
         (configs[key] || []).forEach((ex: any) => {
           const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
           const name = libEx?.name || "";
-          console.log("[ADAPT] Exercise mapping:", ex.exerciseId, "→", name, "config:", { reps: ex.reps, rpe: ex.rpe, charge: ex.charge, tempo: ex.tempo });
-          if (name) methExerciseConfigs[name] = ex;
+          console.log("[ADAPT] Exercise mapping: session", si, ex.exerciseId, "→", name, "config:", { reps: ex.reps, rpe: ex.rpe, charge: ex.charge, tempo: ex.tempo });
+          if (name) methPerSession[si][name] = ex;
         });
       }
     }
     
-    console.log("[ADAPT] methExerciseConfigs:", methExerciseConfigs);
+    console.log("[ADAPT] methPerSession:", methPerSession);
 
-    if (Object.keys(methExerciseConfigs).length === 0) {
+    if (Object.keys(methPerSession).length === 0) {
       toast.info("Aucun exercice trouvé dans la méthodologie pour cette semaine");
       setShowCopyAdaptDialog(false);
       setPendingCopyData(null);
@@ -2366,15 +2368,22 @@ export default function ClientDetail() {
     const pick = (configVal: string | undefined, fallback: string) => 
       configVal !== undefined && configVal !== null && configVal !== "" ? configVal : fallback;
 
+    // Map programming session numbers to methodology session indices
+    const sessionKeys = Object.keys(updatedExercises).map(Number).sort((a, b) => a - b);
+    
     // Log current exercise names for debugging
-    for (const sessionId of Object.keys(updatedExercises)) {
-      console.log("[ADAPT] Session", sessionId, "exercises:", updatedExercises[parseInt(sessionId)].map(e => e.exercice));
+    for (const sessionId of sessionKeys) {
+      console.log("[ADAPT] Session", sessionId, "exercises:", updatedExercises[sessionId].map(e => e.exercice));
     }
 
-    for (const sessionId of Object.keys(updatedExercises)) {
-      updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
-        const config = methExerciseConfigs[ex.exercice];
-        console.log("[ADAPT] Checking exercise:", ex.exercice, "found config:", !!config);
+    for (let i = 0; i < sessionKeys.length; i++) {
+      const sessionId = sessionKeys[i];
+      const sessionConfigs = methPerSession[i] || {}; // sessionIndex i maps to programming session i
+      console.log("[ADAPT] Adapting session", sessionId, "using methodologySessionIndex:", i, "available configs:", Object.keys(sessionConfigs));
+      
+      updatedExercises[sessionId] = updatedExercises[sessionId].map(ex => {
+        const config = sessionConfigs[ex.exercice];
+        console.log("[ADAPT] Checking exercise:", ex.exercice, "in session", sessionId, "found config:", !!config);
         if (!config) return ex; // Not a methodology exercise, keep as-is
 
         adaptedCount++;
