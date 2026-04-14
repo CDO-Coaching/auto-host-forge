@@ -2301,19 +2301,21 @@ export default function ClientDetail() {
     console.log("[ADAPT] All config keys:", Object.keys(configs));
     console.log("[ADAPT] libraryExercises count:", libraryExercises.length);
 
-    // Collect all methodology exercise configs for this cycle+week, across all sessions
-    const methExerciseConfigs: Record<string, any> = {}; // keyed by exercise name
+    // Collect methodology exercise configs PER SESSION for this cycle+week
+    // Key: sessionIndex → exerciseName → config
+    const methPerSession: Record<number, Record<string, any>> = {};
     for (const key of Object.keys(configs)) {
       const parts = key.split("-");
       if (parts.length !== 3) continue;
-      const [ci, wi] = parts.map(Number);
+      const [ci, wi, si] = parts.map(Number);
       if (ci === cycleIndex && wi === weekIndex) {
         console.log("[ADAPT] Found matching config key:", key, "exercises:", configs[key]);
+        if (!methPerSession[si]) methPerSession[si] = {};
         (configs[key] || []).forEach((ex: any) => {
           const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
           const name = libEx?.name || "";
-          console.log("[ADAPT] Exercise mapping:", ex.exerciseId, "→", name, "config:", { reps: ex.reps, rpe: ex.rpe, charge: ex.charge, tempo: ex.tempo });
-          if (name) methExerciseConfigs[name] = ex;
+          console.log("[ADAPT] Exercise mapping: session", si, ex.exerciseId, "→", name, "config:", { reps: ex.reps, rpe: ex.rpe, charge: ex.charge, tempo: ex.tempo });
+          if (name) methPerSession[si][name] = ex;
         });
       }
     }
