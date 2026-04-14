@@ -2366,10 +2366,15 @@ export default function ClientDetail() {
     const pick = (configVal: string | undefined, fallback: string) => 
       configVal !== undefined && configVal !== null && configVal !== "" ? configVal : fallback;
 
+    // Log current exercise names for debugging
+    for (const sessionId of Object.keys(updatedExercises)) {
+      console.log("[ADAPT] Session", sessionId, "exercises:", updatedExercises[parseInt(sessionId)].map(e => e.exercice));
+    }
+
     for (const sessionId of Object.keys(updatedExercises)) {
       updatedExercises[parseInt(sessionId)] = updatedExercises[parseInt(sessionId)].map(ex => {
         const config = methExerciseConfigs[ex.exercice];
-        if (!config) return ex; // Not a methodology exercise, keep as-is
+        console.log("[ADAPT] Checking exercise:", ex.exercice, "found config:", !!config);
 
         adaptedCount++;
         const refMax = maxesMap[ex.exercice] || 0;
