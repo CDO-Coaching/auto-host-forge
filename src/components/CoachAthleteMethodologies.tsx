@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Eye, Check, ChevronDown, ChevronUp, FlaskConical } from "lucide-react";
+import { Plus, Trash2, Eye, Check, ChevronDown, ChevronUp, FlaskConical, Pencil } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -76,6 +76,9 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
   const [assignNotes, setAssignNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [expandedAssignment, setExpandedAssignment] = useState<string | null>(null);
+  const [assignmentMaxes, setAssignmentMaxes] = useState<Record<string, { exercise_id: string; exercise_name: string; reference_max: number; id: string }[]>>({});
+  const [editingMaxes, setEditingMaxes] = useState<string | null>(null);
+  const [editMaxValues, setEditMaxValues] = useState<Record<string, string>>({});
 
   const fetchData = async () => {
     if (!session?.user?.id) return;
@@ -113,35 +116,34 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
       const assignIds = assignData.map(a => a.id);
       const methIds = assignData.map(a => a.methodology_id);
 
-      // Fetch weeks
-      const { data: weeksData } = await supabase
-        .from("athlete_methodology_weeks")
-        .select("*")
-        .in("assignment_id", assignIds)
-        .order("week_number");
+      // Fetch weeks, methodology details, themes, and maxes in parallel
+      const [weeksRes, methDetailsRes, themesRes, maxesRes] = await Promise.all([
+        supabase.from("athlete_methodology_weeks").select("*").in("assignment_id", assignIds).order("week_number"),
+        supabase.from("coaching_methodologies").select("id, name, description, full_description").in("id", methIds),
+        supabase.from("methodology_themes").select("*").in("methodology_id", methIds),
+        supabase.from("athlete_methodology_maxes").select("*").in("assignment_id", assignIds),
+      ]);
 
-      // Fetch methodology details
-      const { data: methDetails } = await supabase
-        .from("coaching_methodologies")
-        .select("id, name, description, full_description")
-        .in("id", methIds);
-
-      // Fetch themes
       let themesMap: Record<string, string[]> = {};
-      if (methIds.length > 0) {
-        const { data: themesData } = await supabase.from("methodology_themes").select("*").in("methodology_id", methIds);
-        (themesData || []).forEach((t: any) => {
-          if (!themesMap[t.methodology_id]) themesMap[t.methodology_id] = [];
-          themesMap[t.methodology_id].push(t.theme);
-        });
-      }
+      (themesRes.data || []).forEach((t: any) => {
+        if (!themesMap[t.methodology_id]) themesMap[t.methodology_id] = [];
+        themesMap[t.methodology_id].push(t.theme);
+      });
 
-      const methMap = Object.fromEntries((methDetails || []).map(m => [m.id, m]));
+      const methMap = Object.fromEntries((methDetailsRes.data || []).map(m => [m.id, m]));
       const weeksMap: Record<string, WeekTracking[]> = {};
-      (weeksData || []).forEach((w: any) => {
+      (weeksRes.data || []).forEach((w: any) => {
         if (!weeksMap[w.assignment_id]) weeksMap[w.assignment_id] = [];
         weeksMap[w.assignment_id].push(w);
       });
+
+      // Build maxes map by assignment
+      const maxesMap: Record<string, any[]> = {};
+      (maxesRes.data || []).forEach((m: any) => {
+        if (!maxesMap[m.assignment_id]) maxesMap[m.assignment_id] = [];
+        maxesMap[m.assignment_id].push(m);
+      });
+      setAssignmentMaxes(maxesMap);
 
       setAssignments(assignData.map(a => {
         const meth = methMap[a.methodology_id];
@@ -161,6 +163,7 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
       }));
     } else {
       setAssignments([]);
+      setAssignmentMaxes({});
     }
 
     setLoading(false);
@@ -259,6 +262,30 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
     if (!error) { toast.success("Méthodologie terminée"); fetchData(); }
   };
 
+  const startEditMaxes = (assignmentId: string) => {
+    const maxes = assignmentMaxes[assignmentId] || [];
+    const values: Record<string, string> = {};
+    maxes.forEach(m => { values[m.exercise_id] = String(m.reference_max); });
+    setEditMaxValues(values);
+    setEditingMaxes(assignmentId);
+  };
+
+  const saveEditMaxes = async (assignmentId: string) => {
+    const maxes = assignmentMaxes[assignmentId] || [];
+    for (const m of maxes) {
+      const newVal = editMaxValues[m.exercise_id];
+      if (newVal !== undefined && parseFloat(newVal) !== m.reference_max) {
+        await supabase
+          .from("athlete_methodology_maxes")
+          .update({ reference_max: parseFloat(newVal) || 0, updated_at: new Date().toISOString() })
+          .eq("id", m.id);
+      }
+    }
+    setEditingMaxes(null);
+    toast.success("Maxes mis à jour");
+    fetchData();
+  };
+
   const getThemeInfo = (value: string) => THEMES.find((t) => t.value === value);
 
   const getCompletedWeeks = (weeks: WeekTracking[]) => weeks.filter(w => w.completed).length;
@@ -352,6 +379,43 @@ export function CoachAthleteMethodologies({ athleteId, athleteName }: Props) {
               <CollapsibleContent>
                 <CardContent className="pt-0">
                   {a.notes && <p className="text-xs text-muted-foreground mb-3 italic">{a.notes}</p>}
+                  {/* Maxes de référence */}
+                  {(assignmentMaxes[a.id] || []).length > 0 && (
+                    <div className="mb-3 p-2 bg-muted/30 rounded-lg border border-border">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Maxes de référence</span>
+                        {a.status !== "completed" && (
+                          editingMaxes === a.id ? (
+                            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5" onClick={() => saveEditMaxes(a.id)}>
+                              <Check className="h-3 w-3 mr-0.5" /> Sauver
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5" onClick={() => startEditMaxes(a.id)}>
+                              <Pencil className="h-3 w-3 mr-0.5" /> Modifier
+                            </Button>
+                          )
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        {(assignmentMaxes[a.id] || []).map(m => (
+                          <div key={m.exercise_id} className="flex items-center justify-between gap-2 text-xs">
+                            <span className="truncate flex-1">{m.exercise_name}</span>
+                            {editingMaxes === a.id ? (
+                              <Input
+                                type="number"
+                                step="0.5"
+                                className="w-16 h-6 text-xs"
+                                value={editMaxValues[m.exercise_id] || ""}
+                                onChange={(e) => setEditMaxValues(prev => ({ ...prev, [m.exercise_id]: e.target.value }))}
+                              />
+                            ) : (
+                              <span className="font-medium">{m.reference_max}kg</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {a.weeks.map((w) => (
                       <div key={w.id} className={`flex items-start gap-2 p-2 rounded-lg border ${w.completed ? "bg-muted/30 border-muted" : "border-border"}`}>

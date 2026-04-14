@@ -205,6 +205,9 @@ export default function ClientDetail() {
   const [selectedMethodologyWeek, setSelectedMethodologyWeek] = useState<number>(1);
   const [selectedMethodologyCycle, setSelectedMethodologyCycle] = useState<number>(0);
   const [loadingMethodologies, setLoadingMethodologies] = useState(false);
+  const [methodologyStep, setMethodologyStep] = useState<"select" | "maxes">("select");
+  const [methodologyMaxes, setMethodologyMaxes] = useState<Record<string, { name: string; max: string }>>({});
+  const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
   const availableWeeks = getNextWeeks(12);
@@ -1138,6 +1141,23 @@ export default function ClientDetail() {
         exerciseNames: exercisesMap[m.id]?.map(eid => exerciseNamesMap[eid]).filter(Boolean) || [],
         exerciseIds: exercisesMap[m.id] || [],
       })));
+
+      // Load active assignment for this athlete to auto-detect cycle/week
+      if (athleteId) {
+        const { data: assignments } = await supabase
+          .from("athlete_methodology_assignments")
+          .select("*")
+          .eq("athlete_id", athleteId)
+          .eq("coach_id", user.id)
+          .eq("status", "active")
+          .order("created_at", { ascending: false });
+        
+        if (assignments && assignments.length > 0) {
+          setActiveAssignmentForMethodology(assignments[0]);
+        } else {
+          setActiveAssignmentForMethodology(null);
+        }
+      }
     } catch (error) {
       console.error("Erreur chargement méthodologies:", error);
       toast.error("Erreur lors du chargement des méthodologies");
@@ -1146,7 +1166,108 @@ export default function ClientDetail() {
     }
   };
 
-  const handleApplyMethodology = () => {
+  // Helper: extract exercises that use % in their charges for a given cycle/week
+  const getExercisesWithPercentCharges = (methodology: any, cycleIndex: number, weekIndex: number): { exerciseId: string; name: string }[] => {
+    const configs: Record<string, any[]> = methodology.session_exercise_configs || {};
+    const exercisesWithPercent: Map<string, string> = new Map();
+
+    for (const key of Object.keys(configs)) {
+      const parts = key.split("-");
+      if (parts.length !== 3) continue;
+      const [ci, wi] = parts.map(Number);
+      if (ci === cycleIndex && wi === weekIndex) {
+        (configs[key] || []).forEach((ex: any) => {
+          const hasPercent = (charge: string) => charge && charge.includes("%");
+          const chargeHasPercent = hasPercent(ex.charge);
+          const detailsHavePercent = ex.serieDetails?.some((sd: any) => hasPercent(sd.charge));
+          if (chargeHasPercent || detailsHavePercent) {
+            const libEx = libraryExercises.find(e => e.id === ex.exerciseId);
+            exercisesWithPercent.set(ex.exerciseId, libEx?.name || ex.exerciseId);
+          }
+        });
+      }
+    }
+
+    return Array.from(exercisesWithPercent.entries()).map(([exerciseId, name]) => ({ exerciseId, name }));
+  };
+
+  // Helper: convert a % charge string to actual kg using reference max
+  const convertPercentCharge = (charge: string, referenceMax: number): string => {
+    if (!charge || !charge.includes("%")) return charge;
+    const match = charge.match(/(\d+\.?\d*)\s*%/);
+    if (!match) return charge;
+    const percent = parseFloat(match[1]);
+    const actualKg = Math.round((percent / 100) * referenceMax * 10) / 10;
+    // Replace % with kg value but keep the % as reference
+    return `${actualKg}kg (${percent}%)`;
+  };
+
+  // Auto-detect cycle and week from active assignment
+  const autoDetectMethodologyWeek = (methodology: any) => {
+    if (!activeAssignmentForMethodology || activeAssignmentForMethodology.methodology_id !== methodology.id) return;
+    
+    const startDate = new Date(activeAssignmentForMethodology.start_date);
+    const today = new Date();
+    const diffMs = today.getTime() - startDate.getTime();
+    const diffWeeks = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000));
+    
+    const weeksPerCycle = methodology.weeks_per_cycle || 1;
+    const numCycles = methodology.num_cycles || 1;
+    
+    const totalWeeksInMethodology = weeksPerCycle * numCycles;
+    const currentWeekInMethodology = Math.min(Math.max(diffWeeks, 0), totalWeeksInMethodology - 1);
+    
+    const detectedCycle = Math.floor(currentWeekInMethodology / weeksPerCycle);
+    const detectedWeek = (currentWeekInMethodology % weeksPerCycle) + 1;
+    
+    setSelectedMethodologyCycle(Math.min(detectedCycle, numCycles - 1));
+    setSelectedMethodologyWeek(Math.min(detectedWeek, weeksPerCycle));
+  };
+
+  const handleProceedToMaxes = () => {
+    const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
+    if (!methodology) return;
+
+    const weekIndex = selectedMethodologyWeek - 1;
+    const exercisesWithPercent = getExercisesWithPercentCharges(methodology, selectedMethodologyCycle, weekIndex);
+
+    if (exercisesWithPercent.length === 0) {
+      // No % charges, apply directly
+      handleApplyMethodology();
+      return;
+    }
+
+    // Load existing maxes from DB if assignment exists
+    const loadExistingMaxes = async () => {
+      if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id) {
+        const { data: existingMaxes } = await supabase
+          .from("athlete_methodology_maxes")
+          .select("*")
+          .eq("assignment_id", activeAssignmentForMethodology.id);
+
+        const maxesMap: Record<string, { name: string; max: string }> = {};
+        exercisesWithPercent.forEach(ex => {
+          const existing = existingMaxes?.find(m => m.exercise_id === ex.exerciseId);
+          maxesMap[ex.exerciseId] = {
+            name: ex.name,
+            max: existing ? String(existing.reference_max) : "",
+          };
+        });
+        setMethodologyMaxes(maxesMap);
+      } else {
+        const maxesMap: Record<string, { name: string; max: string }> = {};
+        exercisesWithPercent.forEach(ex => {
+          maxesMap[ex.exerciseId] = { name: ex.name, max: "" };
+        });
+        setMethodologyMaxes(maxesMap);
+      }
+      setMethodologyStep("maxes");
+    };
+
+    loadExistingMaxes();
+  };
+
+  const handleApplyMethodology = async () => {
     const methodology = availableMethodologies.find(m => m.id === selectedMethodologyId);
     if (!methodology) {
       toast.error("Sélectionne une méthodologie");
@@ -1177,6 +1298,27 @@ export default function ClientDetail() {
     // Sort by session index
     sessionsForWeek.sort((a, b) => a.sessionIndex - b.sessionIndex);
 
+    // Save maxes to DB if we have an active assignment
+    if (activeAssignmentForMethodology && activeAssignmentForMethodology.methodology_id === methodology.id && Object.keys(methodologyMaxes).length > 0) {
+      const maxRows = Object.entries(methodologyMaxes)
+        .filter(([_, v]) => v.max && parseFloat(v.max) > 0)
+        .map(([exerciseId, v]) => ({
+          assignment_id: activeAssignmentForMethodology.id,
+          exercise_id: exerciseId,
+          exercise_name: v.name,
+          reference_max: parseFloat(v.max),
+        }));
+
+      if (maxRows.length > 0) {
+        // Upsert maxes
+        for (const row of maxRows) {
+          await supabase
+            .from("athlete_methodology_maxes")
+            .upsert(row, { onConflict: "assignment_id,exercise_id" });
+        }
+      }
+    }
+
     // Save undo state
     setUndoStack(prev => [...prev, { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
 
@@ -1197,13 +1339,20 @@ export default function ClientDetail() {
         // Find exercise name from library
         const libEx = libraryExercises.find(e => e.id === config.exerciseId);
         const seriesCount = parseInt(config.series) || 0;
+        const refMax = methodologyMaxes[config.exerciseId]?.max ? parseFloat(methodologyMaxes[config.exerciseId].max) : 0;
+
+        // Helper to convert charge
+        const resolveCharge = (charge: string) => {
+          if (refMax > 0) return convertPercentCharge(charge, refMax);
+          return charge;
+        };
         
         // Build serie_details: use saved details if available, otherwise generate from main values
         let serieDetails: any[] = [];
         if (config.serieDetails && config.serieDetails.length > 0) {
           serieDetails = config.serieDetails.map((sd: any) => ({
             reps: sd.reps || config.reps || "",
-            charge: sd.charge || config.charge || "",
+            charge: resolveCharge(sd.charge || config.charge || ""),
             rpe: sd.rpe || config.rpe || "",
             tempo: sd.tempo || config.tempo || "",
             commentaire: sd.commentaire || "",
@@ -1213,7 +1362,7 @@ export default function ClientDetail() {
           // No saved details but series count exists → generate from main values
           serieDetails = Array.from({ length: seriesCount }, () => ({
             reps: config.reps || "",
-            charge: config.charge || "",
+            charge: resolveCharge(config.charge || ""),
             rpe: config.rpe || "",
             tempo: config.tempo || "",
             commentaire: "",
@@ -1227,7 +1376,7 @@ export default function ClientDetail() {
           recuperation: config.recuperation || "",
           reps: config.reps || "",
           series: config.series || "",
-          charge: config.charge || "",
+          charge: resolveCharge(config.charge || ""),
           rpe: config.rpe || "",
           tempo: config.tempo || "",
           commentaire: config.commentaire || "",
@@ -1245,6 +1394,7 @@ export default function ClientDetail() {
     setSessions(prev => [...prev, ...newSessions]);
     setSessionExercises(prev => ({ ...prev, ...newSessionExercises }));
     setShowMethodologyDialog(false);
+    setMethodologyStep("select");
     toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
   };
 
@@ -1708,7 +1858,7 @@ export default function ClientDetail() {
         });
 
         const newExercises: Record<number, Exercise[]> = {};
-        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean; serie_rpe_details?: any }> = {};
         
         // Créer un mapping pour générer de nouveaux UUIDs pour les super_set_group
         // afin d'éviter les conflits avec les exercices de la semaine source
@@ -1842,7 +1992,7 @@ export default function ClientDetail() {
         });
 
         const newExercises: Record<number, Exercise[]> = {};
-        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean }> = {};
+        const feedbackMapping: Record<string, { sportif_rpe?: string | null; sportif_comment?: string | null; skipped?: boolean; serie_rpe_details?: any }> = {};
         const superSetGroupMapping: Record<string, string> = {};
         
         sessionsData.forEach((session, sessionIndex) => {
@@ -5331,6 +5481,8 @@ export default function ClientDetail() {
                         setSelectedMethodologyId("");
                         setSelectedMethodologyWeek(1);
                         setSelectedMethodologyCycle(0);
+                        setMethodologyStep("select");
+                        setMethodologyMaxes({});
                       }}
                       disabled={!selectedWeekToProgram}
                       className="w-full sm:w-auto h-9 sm:h-8 text-xs"
@@ -5385,113 +5537,168 @@ export default function ClientDetail() {
           </Card>
 
           {/* Dialog méthodologie */}
-          <Dialog open={showMethodologyDialog} onOpenChange={setShowMethodologyDialog}>
+          <Dialog open={showMethodologyDialog} onOpenChange={(open) => { setShowMethodologyDialog(open); if (!open) setMethodologyStep("select"); }}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-primary" />
-                  Appliquer une méthodologie
+                  {methodologyStep === "select" ? "Appliquer une méthodologie" : "Définir les maxes de référence"}
                 </DialogTitle>
                 <DialogDescription>
-                  Sélectionne une méthodologie et la semaine à appliquer
+                  {methodologyStep === "select"
+                    ? "Sélectionne une méthodologie et la semaine à appliquer"
+                    : "Renseigne le 1RM de référence pour calculer les charges en %"
+                  }
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                {loadingMethodologies ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
-                ) : availableMethodologies.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Méthodologie</label>
-                      <Select value={selectedMethodologyId} onValueChange={(v) => {
-                        setSelectedMethodologyId(v);
-                        setSelectedMethodologyWeek(1);
-                        setSelectedMethodologyCycle(0);
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir une méthodologie" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableMethodologies.map(m => (
-                            <SelectItem key={m.id} value={m.id}>
-                              {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    {selectedMethodologyId && (() => {
-                      const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
-                      if (!meth) return null;
-                      const numCycles = meth.num_cycles || 1;
-                      const weeksPerCycle = meth.weeks_per_cycle || 1;
-                      return (
-                        <div className="space-y-3">
-                          {numCycles > 1 && (
+              {methodologyStep === "select" ? (
+                <div className="space-y-4">
+                  {loadingMethodologies ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
+                  ) : availableMethodologies.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Méthodologie</label>
+                        <Select value={selectedMethodologyId} onValueChange={(v) => {
+                          setSelectedMethodologyId(v);
+                          const meth = availableMethodologies.find(m => m.id === v);
+                          if (meth) {
+                            autoDetectMethodologyWeek(meth);
+                          } else {
+                            setSelectedMethodologyWeek(1);
+                            setSelectedMethodologyCycle(0);
+                          }
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choisir une méthodologie" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMethodologies.map(m => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedMethodologyId && (() => {
+                        const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
+                        if (!meth) return null;
+                        const numCycles = meth.num_cycles || 1;
+                        const weeksPerCycle = meth.weeks_per_cycle || 1;
+                        const isAutoDetected = activeAssignmentForMethodology?.methodology_id === meth.id;
+                        return (
+                          <div className="space-y-3">
+                            {isAutoDetected && (
+                              <div className="p-2 bg-primary/10 border border-primary/20 rounded text-xs text-primary">
+                                📍 Semaine auto-détectée selon l'assignation active
+                              </div>
+                            )}
+                            {numCycles > 1 && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Cycle</label>
+                                <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({ length: numCycles }, (_, i) => (
+                                      <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                             <div className="space-y-2">
-                              <label className="text-sm font-medium">Cycle</label>
-                              <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                              <label className="text-sm font-medium">Semaine du cycle</label>
+                              <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: numCycles }, (_, i) => (
-                                    <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                  {Array.from({ length: weeksPerCycle }, (_, i) => (
+                                    <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             </div>
-                          )}
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Semaine du cycle</label>
-                            <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: weeksPerCycle }, (_, i) => (
-                                  <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {/* Preview */}
-                          {(() => {
-                            const configs = meth.session_exercise_configs || {};
-                            const weekIdx = selectedMethodologyWeek - 1;
-                            let sessionCount = 0;
-                            let exerciseCount = 0;
-                            for (const key of Object.keys(configs)) {
-                              const parts = key.split("-").map(Number);
-                              if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
-                                sessionCount++;
-                                exerciseCount += (configs[key] || []).length;
+                            {/* Preview */}
+                            {(() => {
+                              const configs = meth.session_exercise_configs || {};
+                              const weekIdx = selectedMethodologyWeek - 1;
+                              let sessionCount = 0;
+                              let exerciseCount = 0;
+                              for (const key of Object.keys(configs)) {
+                                const parts = key.split("-").map(Number);
+                                if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
+                                  sessionCount++;
+                                  exerciseCount += (configs[key] || []).length;
+                                }
                               }
-                            }
-                            if (sessionCount === 0) return (
-                              <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
-                            );
-                            return (
-                              <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
-                                <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
+                              if (sessionCount === 0) return (
+                                <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
+                              );
+                              return (
+                                <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                                  <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Step 2: Maxes input */
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Ces maxes serviront à calculer les charges en % pour chaque série. Tu peux les modifier à tout moment.
+                  </p>
+                  {Object.entries(methodologyMaxes).map(([exerciseId, data]) => (
+                    <div key={exerciseId} className="flex items-center gap-3">
+                      <label className="text-sm flex-1 min-w-0 truncate">{data.name}</label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder="1RM"
+                          className="w-20 h-8 text-sm"
+                          value={data.max}
+                          onChange={(e) => setMethodologyMaxes(prev => ({
+                            ...prev,
+                            [exerciseId]: { ...prev[exerciseId], max: e.target.value }
+                          }))}
+                        />
+                        <span className="text-xs text-muted-foreground">kg</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowMethodologyDialog(false)}>Annuler</Button>
-                <Button onClick={handleApplyMethodology} disabled={!selectedMethodologyId}>
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Appliquer
-                </Button>
+                {methodologyStep === "maxes" && (
+                  <Button variant="outline" onClick={() => setMethodologyStep("select")}>Retour</Button>
+                )}
+                <Button variant="outline" onClick={() => { setShowMethodologyDialog(false); setMethodologyStep("select"); }}>Annuler</Button>
+                {methodologyStep === "select" ? (
+                  <Button onClick={handleProceedToMaxes} disabled={!selectedMethodologyId}>
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Suivant
+                  </Button>
+                ) : (
+                  <Button onClick={handleApplyMethodology}>
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Appliquer
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>

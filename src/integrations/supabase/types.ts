@@ -61,6 +61,44 @@ export type Database = {
           },
         ]
       }
+      athlete_methodology_maxes: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          exercise_id: string
+          exercise_name: string
+          id: string
+          reference_max: number
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          exercise_id: string
+          exercise_name: string
+          id?: string
+          reference_max?: number
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          exercise_id?: string
+          exercise_name?: string
+          id?: string
+          reference_max?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "athlete_methodology_maxes_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "athlete_methodology_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       athlete_methodology_weeks: {
         Row: {
           assignment_id: string
