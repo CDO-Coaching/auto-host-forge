@@ -5681,7 +5681,7 @@ export default function ClientDetail() {
                 /* Step 2: Maxes input */
                 <div className="space-y-3">
                   <p className="text-xs text-muted-foreground">
-                    Ces maxes serviront à calculer les charges en % pour chaque série. Tu peux les modifier à tout moment.
+                    Définis les maxes de référence (1RM) pour chaque exercice. Les charges en % seront automatiquement converties en kg. Laisse vide si non applicable.
                   </p>
                   {Object.entries(methodologyMaxes).map(([exerciseId, data]) => (
                     <div key={exerciseId} className="flex items-center gap-3">
