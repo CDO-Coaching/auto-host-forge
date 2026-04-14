@@ -5537,113 +5537,168 @@ export default function ClientDetail() {
           </Card>
 
           {/* Dialog méthodologie */}
-          <Dialog open={showMethodologyDialog} onOpenChange={setShowMethodologyDialog}>
+          <Dialog open={showMethodologyDialog} onOpenChange={(open) => { setShowMethodologyDialog(open); if (!open) setMethodologyStep("select"); }}>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <BookOpen className="h-5 w-5 text-primary" />
-                  Appliquer une méthodologie
+                  {methodologyStep === "select" ? "Appliquer une méthodologie" : "Définir les maxes de référence"}
                 </DialogTitle>
                 <DialogDescription>
-                  Sélectionne une méthodologie et la semaine à appliquer
+                  {methodologyStep === "select"
+                    ? "Sélectionne une méthodologie et la semaine à appliquer"
+                    : "Renseigne le 1RM de référence pour calculer les charges en %"
+                  }
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4">
-                {loadingMethodologies ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
-                ) : availableMethodologies.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Méthodologie</label>
-                      <Select value={selectedMethodologyId} onValueChange={(v) => {
-                        setSelectedMethodologyId(v);
-                        setSelectedMethodologyWeek(1);
-                        setSelectedMethodologyCycle(0);
-                      }}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choisir une méthodologie" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableMethodologies.map(m => (
-                            <SelectItem key={m.id} value={m.id}>
-                              {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
 
-                    {selectedMethodologyId && (() => {
-                      const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
-                      if (!meth) return null;
-                      const numCycles = meth.num_cycles || 1;
-                      const weeksPerCycle = meth.weeks_per_cycle || 1;
-                      return (
-                        <div className="space-y-3">
-                          {numCycles > 1 && (
+              {methodologyStep === "select" ? (
+                <div className="space-y-4">
+                  {loadingMethodologies ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Chargement...</p>
+                  ) : availableMethodologies.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">Aucune méthodologie créée</p>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Méthodologie</label>
+                        <Select value={selectedMethodologyId} onValueChange={(v) => {
+                          setSelectedMethodologyId(v);
+                          const meth = availableMethodologies.find(m => m.id === v);
+                          if (meth) {
+                            autoDetectMethodologyWeek(meth);
+                          } else {
+                            setSelectedMethodologyWeek(1);
+                            setSelectedMethodologyCycle(0);
+                          }
+                        }}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choisir une méthodologie" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableMethodologies.map(m => (
+                              <SelectItem key={m.id} value={m.id}>
+                                {m.name} {m.num_cycles ? `(${m.num_cycles} cycles, ${m.weeks_per_cycle} sem/cycle)` : ""}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {selectedMethodologyId && (() => {
+                        const meth = availableMethodologies.find((m: any) => m.id === selectedMethodologyId);
+                        if (!meth) return null;
+                        const numCycles = meth.num_cycles || 1;
+                        const weeksPerCycle = meth.weeks_per_cycle || 1;
+                        const isAutoDetected = activeAssignmentForMethodology?.methodology_id === meth.id;
+                        return (
+                          <div className="space-y-3">
+                            {isAutoDetected && (
+                              <div className="p-2 bg-primary/10 border border-primary/20 rounded text-xs text-primary">
+                                📍 Semaine auto-détectée selon l'assignation active
+                              </div>
+                            )}
+                            {numCycles > 1 && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Cycle</label>
+                                <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {Array.from({ length: numCycles }, (_, i) => (
+                                      <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                             <div className="space-y-2">
-                              <label className="text-sm font-medium">Cycle</label>
-                              <Select value={String(selectedMethodologyCycle)} onValueChange={(v) => setSelectedMethodologyCycle(Number(v))}>
+                              <label className="text-sm font-medium">Semaine du cycle</label>
+                              <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
                                 <SelectTrigger>
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {Array.from({ length: numCycles }, (_, i) => (
-                                    <SelectItem key={i} value={String(i)}>Cycle {i + 1}</SelectItem>
+                                  {Array.from({ length: weeksPerCycle }, (_, i) => (
+                                    <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
                             </div>
-                          )}
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Semaine du cycle</label>
-                            <Select value={String(selectedMethodologyWeek)} onValueChange={(v) => setSelectedMethodologyWeek(Number(v))}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {Array.from({ length: weeksPerCycle }, (_, i) => (
-                                  <SelectItem key={i + 1} value={String(i + 1)}>Semaine {i + 1}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {/* Preview */}
-                          {(() => {
-                            const configs = meth.session_exercise_configs || {};
-                            const weekIdx = selectedMethodologyWeek - 1;
-                            let sessionCount = 0;
-                            let exerciseCount = 0;
-                            for (const key of Object.keys(configs)) {
-                              const parts = key.split("-").map(Number);
-                              if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
-                                sessionCount++;
-                                exerciseCount += (configs[key] || []).length;
+                            {/* Preview */}
+                            {(() => {
+                              const configs = meth.session_exercise_configs || {};
+                              const weekIdx = selectedMethodologyWeek - 1;
+                              let sessionCount = 0;
+                              let exerciseCount = 0;
+                              for (const key of Object.keys(configs)) {
+                                const parts = key.split("-").map(Number);
+                                if (parts.length === 3 && parts[0] === selectedMethodologyCycle && parts[1] === weekIdx) {
+                                  sessionCount++;
+                                  exerciseCount += (configs[key] || []).length;
+                                }
                               }
-                            }
-                            if (sessionCount === 0) return (
-                              <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
-                            );
-                            return (
-                              <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
-                                <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })()}
-                  </>
-                )}
-              </div>
+                              if (sessionCount === 0) return (
+                                <p className="text-xs text-muted-foreground p-2 bg-muted rounded">Aucun exercice configuré pour cette semaine</p>
+                              );
+                              return (
+                                <div className="p-2 bg-primary/5 border border-primary/20 rounded text-xs">
+                                  <span className="font-medium">{sessionCount} séance(s)</span> avec <span className="font-medium">{exerciseCount} exercice(s)</span> au total
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              ) : (
+                /* Step 2: Maxes input */
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Ces maxes serviront à calculer les charges en % pour chaque série. Tu peux les modifier à tout moment.
+                  </p>
+                  {Object.entries(methodologyMaxes).map(([exerciseId, data]) => (
+                    <div key={exerciseId} className="flex items-center gap-3">
+                      <label className="text-sm flex-1 min-w-0 truncate">{data.name}</label>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          placeholder="1RM"
+                          className="w-20 h-8 text-sm"
+                          value={data.max}
+                          onChange={(e) => setMethodologyMaxes(prev => ({
+                            ...prev,
+                            [exerciseId]: { ...prev[exerciseId], max: e.target.value }
+                          }))}
+                        />
+                        <span className="text-xs text-muted-foreground">kg</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowMethodologyDialog(false)}>Annuler</Button>
-                <Button onClick={handleApplyMethodology} disabled={!selectedMethodologyId}>
-                  <BookOpen className="h-4 w-4 mr-1" />
-                  Appliquer
-                </Button>
+                {methodologyStep === "maxes" && (
+                  <Button variant="outline" onClick={() => setMethodologyStep("select")}>Retour</Button>
+                )}
+                <Button variant="outline" onClick={() => { setShowMethodologyDialog(false); setMethodologyStep("select"); }}>Annuler</Button>
+                {methodologyStep === "select" ? (
+                  <Button onClick={handleProceedToMaxes} disabled={!selectedMethodologyId}>
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Suivant
+                  </Button>
+                ) : (
+                  <Button onClick={handleApplyMethodology}>
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Appliquer
+                  </Button>
+                )}
               </DialogFooter>
             </DialogContent>
           </Dialog>
