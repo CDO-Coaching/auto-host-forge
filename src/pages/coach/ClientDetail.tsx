@@ -1540,7 +1540,41 @@ export default function ClientDetail() {
     setShowMethodologyDialog(false);
     setMethodologyStep("select");
     toast.success(`Méthodologie appliquée : ${sessionsForWeek.length} séance(s) ajoutée(s)`);
-    // Reload persistent assignment for badge
+
+    // Set persistent state directly (don't rely solely on DB refetch)
+    if (assignmentId) {
+      const assignmentData = {
+        id: assignmentId,
+        methodology_id: methodology.id,
+        athlete_id: athleteId,
+        total_weeks: (methodology.num_cycles || 1) * (methodology.weeks_per_cycle || 1),
+        start_date: (() => {
+          const jan1 = new Date(selectedWeekToProgram.year, 0, 1);
+          const dayOfWeek = jan1.getDay() || 7;
+          const mondayOfSelectedWeek = new Date(jan1.getTime() + ((selectedWeekToProgram.week - 1) * 7 - (dayOfWeek - 1)) * 86400000);
+          return mondayOfSelectedWeek.toISOString().split("T")[0];
+        })(),
+        status: "active",
+      };
+      setPersistentActiveAssignment(assignmentData);
+      setPersistentMethodology(methodology);
+      // Persist to localStorage as fallback
+      try {
+        localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
+          assignment: assignmentData,
+          methodology: {
+            id: methodology.id,
+            name: methodology.name,
+            num_cycles: methodology.num_cycles,
+            weeks_per_cycle: methodology.weeks_per_cycle,
+            sessions_options: methodology.sessions_options,
+            session_exercise_configs: methodology.session_exercise_configs,
+          },
+          maxes: methodologyMaxes,
+        }));
+      } catch (e) { /* ignore */ }
+    }
+    // Also try DB refetch
     loadPersistentActiveAssignment();
   };
 
