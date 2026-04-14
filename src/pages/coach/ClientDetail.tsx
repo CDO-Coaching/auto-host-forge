@@ -1590,6 +1590,14 @@ export default function ClientDetail() {
       };
       setPersistentActiveAssignment(assignmentData);
       setPersistentMethodology(methodology);
+      // Update persistentMaxes from methodologyMaxes
+      const maxesObj: Record<string, { exercise_name: string; reference_max: number }> = {};
+      Object.entries(methodologyMaxes).forEach(([exId, v]) => {
+        if (v.max && parseFloat(v.max) > 0) {
+          maxesObj[exId] = { exercise_name: v.name, reference_max: parseFloat(v.max) };
+        }
+      });
+      setPersistentMaxes(maxesObj);
       // Persist to localStorage as fallback
       try {
         localStorage.setItem(`coach-active-methodology-${athleteId}`, JSON.stringify({
