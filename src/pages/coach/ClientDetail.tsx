@@ -210,6 +210,7 @@ export default function ClientDetail() {
   const [activeAssignmentForMethodology, setActiveAssignmentForMethodology] = useState<any>(null);
   const [persistentActiveAssignment, setPersistentActiveAssignment] = useState<any>(null);
   const [persistentMethodology, setPersistentMethodology] = useState<any>(null);
+  const [persistentMaxes, setPersistentMaxes] = useState<Record<string, { exercise_name: string; reference_max: number }>>({});
   const [showCopyAdaptDialog, setShowCopyAdaptDialog] = useState(false);
   const [pendingCopyData, setPendingCopyData] = useState<any>(null);
 
