@@ -757,7 +757,7 @@ export default function SeancesProgrammees() {
                   <TableBody>
                     {templateExercises[template.id].map((ex) => (
                       <TableRow key={ex.id}>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium uppercase">
                           {ex.exercice}
                           {ex.per_side && (
                             <Badge variant="outline" className="ml-2 text-xs">

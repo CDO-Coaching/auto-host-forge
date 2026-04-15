@@ -143,7 +143,7 @@ export function ExerciseCombobox({ value, onChange, exercises, disabled, autoOpe
                     )}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium">{exercise.name}</div>
+                    <div className="font-medium uppercase">{exercise.name}</div>
                     {exercise.muscles_second && exercise.muscles_second.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-1">
                         {exercise.muscles_second.map((muscle, idx) => (

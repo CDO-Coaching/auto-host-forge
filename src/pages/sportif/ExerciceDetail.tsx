@@ -715,7 +715,7 @@ export default function ExerciceDetail() {
           <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold flex-1">{exercise.exercice}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold flex-1 uppercase">{exercise.exercice}</h1>
           {videoUrl && (
             <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
               🎥

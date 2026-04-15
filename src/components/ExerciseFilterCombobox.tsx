@@ -124,7 +124,7 @@ export function ExerciseFilterCombobox({ value, onChange, exercises }: ExerciseF
                       )}
                     />
                     <Star className="mr-2 h-3 w-3 text-yellow-500 fill-yellow-500" />
-                    {exercise.name}
+                    <span className="uppercase">{exercise.name}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -148,7 +148,7 @@ export function ExerciseFilterCombobox({ value, onChange, exercises }: ExerciseF
                         value === exercise.id ? "opacity-100" : "opacity-0"
                       )}
                     />
-                    {exercise.name}
+                    <span className="uppercase">{exercise.name}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>

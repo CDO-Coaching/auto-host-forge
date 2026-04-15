@@ -699,7 +699,7 @@ export default function Methodologies() {
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {viewingMethodology.exercises.map((ex) => (
                         <Badge key={ex.id} variant="secondary" className="text-xs">
-                          {ex.name}
+                          <span className="uppercase">{ex.name}</span>
                         </Badge>
                       ))}
                     </div>

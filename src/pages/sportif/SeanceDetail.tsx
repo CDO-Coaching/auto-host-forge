@@ -856,7 +856,7 @@ export default function SeanceDetail() {
                           >
                             <p className={`${allCompleted ? "font-medium" : "text-sm text-muted-foreground"}`}>
                               {!allCompleted && `${exIndex + 1}. `}
-                              {ex.exercice}
+                              <span className="uppercase">{ex.exercice}</span>
                             </p>
 
                             {allCompleted && (
@@ -962,7 +962,7 @@ export default function SeanceDetail() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
                               {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
-                              <p className="font-semibold text-base sm:text-lg truncate">{item.exercice}</p>
+                              <p className="font-semibold text-base sm:text-lg truncate uppercase">{item.exercice}</p>
                             </div>
                             {isCardio && (
                               <div className="space-y-3">

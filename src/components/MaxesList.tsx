@@ -67,7 +67,7 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps)
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-lg">{max.exercise_name}</h3>
+                    <h3 className="font-semibold text-lg uppercase">{max.exercise_name}</h3>
                     <Badge
                       variant="outline"
                       className={muscleColors[max.muscle] || ""}
