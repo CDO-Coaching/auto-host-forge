@@ -567,7 +567,7 @@ export default function SupersetDetail() {
               {exercises.map((ex, idx) => (
                 <div key={ex.id} className="flex items-center gap-2">
                   <span className="text-lg font-bold text-primary">{idx + 1}</span>
-                  <span className="font-medium">{ex.exercice}</span>
+                  <span className="font-medium uppercase">{ex.exercice}</span>
                   {videoUrls[ex.exercice] && (
                     <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
                       🎥
@@ -626,7 +626,7 @@ export default function SupersetDetail() {
                                 : "bg-muted/30 border-border"
                             }`}>
                               <div className="flex-1 min-w-0">
-                                <p className={`font-medium text-sm ${isValidated ? "text-green-700 dark:text-green-400" : ""}`}>
+                                <p className={`font-medium text-sm uppercase ${isValidated ? "text-green-700 dark:text-green-400" : ""}`}>
                                   {ex.exercice}
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap text-xs mt-1">

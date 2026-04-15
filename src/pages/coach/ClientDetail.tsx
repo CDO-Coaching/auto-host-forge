@@ -3625,7 +3625,7 @@ export default function ClientDetail() {
                                 {exercisesToShow.map((ex: any) => (
                                   <div key={ex.id} className={`text-sm p-2 rounded ${ex.skipped ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/50'}`}>
                                     <div className="flex items-center justify-between">
-                                      <span className={`font-medium ${ex.skipped ? 'text-destructive line-through' : ''}`}>
+                                      <span className={`font-medium uppercase ${ex.skipped ? 'text-destructive line-through' : ''}`}>
                                         {ex.exercice}
                                       </span>
                                       <div className="flex gap-1">
