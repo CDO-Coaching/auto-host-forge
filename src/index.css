@@ -131,4 +131,14 @@ All colors MUST be HSL.
     background-position: center;
     background-repeat: no-repeat;
   }
+
+  /* Same textured background for the sidebar surface */
+  .bg-sidebar {
+    background-image:
+      linear-gradient(hsla(0 0% 6% / 0.85), hsla(0 0% 6% / 0.85)),
+      url('/src/assets/card-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }
