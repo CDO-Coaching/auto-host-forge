@@ -120,4 +120,15 @@ All colors MUST be HSL.
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Subtle textured background applied globally to all cards.
+     A dark overlay sits on top of the texture to preserve readability. */
+  .bg-card {
+    background-image:
+      linear-gradient(hsla(0 0% 6% / 0.82), hsla(0 0% 6% / 0.82)),
+      url('/src/assets/card-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }
