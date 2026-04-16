@@ -373,12 +373,12 @@ export default function Seances() {
                           transform-gpu hover:scale-[1.02] hover:-translate-y-1
                           shadow-lg hover:shadow-2xl
                           ${completed
-                            ? "border-green-500/50 bg-gradient-to-br from-green-500/10 via-green-500/5 to-transparent"
+                            ? "border-green-500/50 bg-card"
                             : hasSchedule
-                              ? "border-orange-500/50 bg-gradient-to-br from-orange-500/10 via-orange-500/5 to-transparent"
+                              ? "border-orange-500/50 bg-card"
                               : isFirstToDo
-                                ? "border-primary border-2 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent shadow-primary/20"
-                                : "border-border/50 bg-gradient-to-br from-card via-card/80 to-transparent hover:border-primary/50"
+                                ? "border-primary border-2 bg-card shadow-primary/20"
+                                : "border-border/50 bg-card hover:border-primary/50"
                           }
                         `}
                         style={{
