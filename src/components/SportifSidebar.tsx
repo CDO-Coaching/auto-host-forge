@@ -80,8 +80,15 @@ export function SportifSidebar() {
   }
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r">
-      <SidebarContent style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    <Sidebar
+      collapsible="offcanvas"
+      variant="floating"
+      className="border-r-0 [&_[data-sidebar=sidebar]]:!h-auto [&_[data-sidebar=sidebar]]:!max-h-[calc(100svh-1rem)] [&_[data-sidebar=sidebar]]:rounded-2xl [&_[data-sidebar=sidebar]]:border [&_[data-sidebar=sidebar]]:border-border/60 [&_[data-sidebar=sidebar]]:shadow-2xl [&_[data-sidebar=sidebar]]:overflow-hidden"
+    >
+      <SidebarContent
+        className="!h-auto"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs sm:text-sm">Menu Sportif</SidebarGroupLabel>
           <SidebarGroupContent>
