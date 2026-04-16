@@ -73,6 +73,12 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    /* Discreet textured background applied globally */
+    background-image: url('/src/assets/app-background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
     /* Mobile optimization */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
