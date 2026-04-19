@@ -7,6 +7,7 @@ import { fr } from "date-fns/locale";
 import { getWeekYear } from "@/lib/weekUtils";
 import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 
 interface CoachClientSummaryViewProps {
   athleteId: string;
@@ -62,7 +63,7 @@ type InjuryPoint = {
   douleur: number;
 };
 
-export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProps) {
+export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSummaryViewProps) {
   const [fatiguePoints, setFatiguePoints] = useState<FatiguePoint[]>([]);
   const [injuryPoints, setInjuryPoints] = useState<InjuryPoint[]>([]);
   const [latestInjury, setLatestInjury] = useState<{ location: string | null; level: number | null } | null>(null);
@@ -72,6 +73,7 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
   const [previousWeekSessions, setPreviousWeekSessions] = useState<SessionInfo[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
 
   const today = new Date();
   const currentWeekNumber = getISOWeek(today);
@@ -301,30 +303,38 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
         <p className="text-[10px] text-muted-foreground text-center py-1">Aucune séance</p>
       ) : (
         <div className="space-y-1">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}
-            >
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
-                {s.completed_at ? (
-                  <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
-                ) : (
-                  <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                )}
-                <span className="truncate text-[11px]">{s.name}</span>
+          {sessions.map((s) => {
+            const isClickable = !!s.completed_at && !s.isCustom;
+            return (
+              <div
+                key={s.id}
+                onClick={isClickable ? () => setSelectedSession(s) : undefined}
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedSession(s); } } : undefined}
+                className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden transition-colors ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"} ${isClickable ? "cursor-pointer hover:bg-green-500/10 hover:border-green-500/40" : ""}`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                  {s.completed_at ? (
+                    <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : (
+                    <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <span className="truncate text-[11px]">{s.name}</span>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                  {getTypeBadge(s)}
+                </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                {getTypeBadge(s)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
   );
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
       {/* LEFT COLUMN: Fatigue chart + Injury + Objectives */}
       <div className="space-y-3">
@@ -450,5 +460,15 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
         </Card>
       </div>
     </div>
+
+    <CoachSessionDetailDialog
+      open={!!selectedSession}
+      onOpenChange={(open) => !open && setSelectedSession(null)}
+      sessionId={selectedSession?.id ?? null}
+      sessionType={selectedSession?.session_type ?? ""}
+      athleteId={athleteId}
+      athleteName={athleteName}
+    />
+    </>
   );
 }
