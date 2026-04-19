@@ -303,24 +303,31 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
         <p className="text-[10px] text-muted-foreground text-center py-1">Aucune séance</p>
       ) : (
         <div className="space-y-1">
-          {sessions.map((s) => (
-            <div
-              key={s.id}
-              className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"}`}
-            >
-              <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
-                {s.completed_at ? (
-                  <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
-                ) : (
-                  <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                )}
-                <span className="truncate text-[11px]">{s.name}</span>
+          {sessions.map((s) => {
+            const isClickable = !!s.completed_at && !s.isCustom;
+            return (
+              <div
+                key={s.id}
+                onClick={isClickable ? () => setSelectedSession(s) : undefined}
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
+                onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedSession(s); } } : undefined}
+                className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden transition-colors ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"} ${isClickable ? "cursor-pointer hover:bg-green-500/10 hover:border-green-500/40" : ""}`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+                  {s.completed_at ? (
+                    <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : (
+                    <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <span className="truncate text-[11px]">{s.name}</span>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                  {getTypeBadge(s)}
+                </div>
               </div>
-              <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                {getTypeBadge(s)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
