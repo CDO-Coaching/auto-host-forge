@@ -67,6 +67,8 @@ export default function Comptabilite() {
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hideClientNames, setHideClientNames] = useState(true);
+  const [showUrssafDialog, setShowUrssafDialog] = useState(false);
+  const { session } = useAuth();
 
   useEffect(() => {
     // Vérifier s'il y a des modifications non sauvegardées avant de changer de mois
@@ -627,18 +629,7 @@ export default function Comptabilite() {
           <Button
             variant="outline"
             size={isMobile ? "sm" : "default"}
-            onClick={() => {
-              const coachInfo = {
-                first_name: profile?.first_name || "Coach",
-                last_name: profile?.last_name || "",
-                email: profile?.email || undefined,
-                address: profile?.address || undefined,
-                siret: profile?.siret || undefined,
-                phone: profile?.phone || undefined
-              };
-              exportMonthlyInvoicesToPdf(entries, currentMonth, coachInfo);
-              toast.success("Factures téléchargées");
-            }}
+            onClick={() => setShowUrssafDialog(true)}
             className="text-xs md:text-sm"
           >
             <FileText className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
