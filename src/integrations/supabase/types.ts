@@ -278,6 +278,111 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_counters: {
+        Row: {
+          coach_id: string
+          created_at: string
+          id: string
+          last_number: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          id?: string
+          last_number?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          id?: string
+          last_number?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          client_address: string | null
+          client_id: string | null
+          client_name: string
+          coach_address: string | null
+          coach_email: string | null
+          coach_id: string
+          coach_name: string
+          coach_phone: string | null
+          coach_siret: string | null
+          created_at: string
+          external_client_id: string | null
+          id: string
+          invoice_number: string
+          issue_date: string
+          metadata: Json | null
+          payment_date: string | null
+          payment_method: string
+          service_period_end: string
+          service_period_start: string
+          sessions_count: number
+          status: string
+          total_amount: number
+          unit_price: number | null
+        }
+        Insert: {
+          client_address?: string | null
+          client_id?: string | null
+          client_name: string
+          coach_address?: string | null
+          coach_email?: string | null
+          coach_id: string
+          coach_name: string
+          coach_phone?: string | null
+          coach_siret?: string | null
+          created_at?: string
+          external_client_id?: string | null
+          id?: string
+          invoice_number: string
+          issue_date?: string
+          metadata?: Json | null
+          payment_date?: string | null
+          payment_method: string
+          service_period_end: string
+          service_period_start: string
+          sessions_count?: number
+          status?: string
+          total_amount: number
+          unit_price?: number | null
+        }
+        Update: {
+          client_address?: string | null
+          client_id?: string | null
+          client_name?: string
+          coach_address?: string | null
+          coach_email?: string | null
+          coach_id?: string
+          coach_name?: string
+          coach_phone?: string | null
+          coach_siret?: string | null
+          created_at?: string
+          external_client_id?: string | null
+          id?: string
+          invoice_number?: string
+          issue_date?: string
+          metadata?: Json | null
+          payment_date?: string | null
+          payment_method?: string
+          service_period_end?: string
+          service_period_start?: string
+          sessions_count?: number
+          status?: string
+          total_amount?: number
+          unit_price?: number | null
+        }
+        Relationships: []
+      }
       methodology_exercises: {
         Row: {
           created_at: string
@@ -338,7 +443,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      next_invoice_number: {
+        Args: { p_coach_id: string; p_year: number }
+        Returns: number
+      }
     }
     Enums: {
       methodology_theme:
