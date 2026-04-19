@@ -334,6 +334,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
   );
 
   return (
+    <>
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
       {/* LEFT COLUMN: Fatigue chart + Injury + Objectives */}
       <div className="space-y-3">
