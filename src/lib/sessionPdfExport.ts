@@ -1,35 +1,31 @@
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { formatCardioTime, calculatePace } from "./cardioCalculations";
 
 interface ExerciseData {
   id: string;
-  // Noms d'exercice (selon la structure utilisée dans l'app)
-  exercice?: string; // nom utilisé côté sportif
-  exercise_name?: string; // fallback éventuel
+  exercice?: string;
+  exercise_name?: string;
 
-  // Structure de travail
-  series?: number; // nombre de séries (UI)
-  sets?: number; // alias éventuel
+  series?: number;
+  sets?: number;
   reps?: number;
-  charge?: string | number; // charge affichée côté sportif (ex: "40kg", "PDC")
-  weight?: number; // fallback numérique éventuel
+  charge?: string | number;
+  weight?: number;
   recuperation?: string;
   coach_comment?: string;
   tempo?: string;
   is_duration?: boolean;
   per_side?: boolean;
 
-  // Cardio
   cardio_data?: any;
   cardio_sport?: string;
 
-  // Supersets / ordre
   super_set_group?: string;
   exercise_order: number;
 
-  // RPE et feedback
-  rpe?: number; // RPE prescrit
-  sportif_rpe?: number | null; // RPE ressenti
+  rpe?: number;
+  sportif_rpe?: number | null;
   sportif_comment?: string | null;
   sportif_feedback_at?: string | null;
 }
@@ -40,337 +36,44 @@ interface SessionData {
   session_exercises: ExerciseData[];
 }
 
-export const exportSessionToPdf = (session: SessionData, athleteVma?: number | null) => {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 20;
-  let yPosition = 20;
-  const lineHeight = 7;
-
-  // Titre de la séance
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text(session.name, margin, yPosition);
-  yPosition += 12;
-
-  // Type de séance
-  doc.setFontSize(12);
-  doc.setFont("helvetica", "normal");
-  const sessionTypeLabels: Record<string, string> = {
-    renfo: "Renforcement",
-    course: "Course à pied",
-    velo: "Vélo",
-    natation: "Natation",
-    recup: "Récupération / Mobilité",
-  };
-  doc.text(`Type: ${sessionTypeLabels[session.session_type] || session.session_type}`, margin, yPosition);
-  yPosition += 15;
-
-  // Regrouper les exercices par superset
-  const exercises = session.session_exercises || [];
-  const grouped: any[] = [];
-  const processedGroups = new Set<string>();
-
-  exercises.forEach((exercise) => {
-    if (exercise.super_set_group && !processedGroups.has(exercise.super_set_group)) {
-      processedGroups.add(exercise.super_set_group);
-      const supersetExercises = exercises.filter((ex) => ex.super_set_group === exercise.super_set_group);
-      grouped.push({
-        isSuperset: true,
-        super_set_group: exercise.super_set_group,
-        exercises: supersetExercises.sort((a, b) => a.exercise_order - b.exercise_order),
-      });
-    } else if (!exercise.super_set_group) {
-      grouped.push(exercise);
-    }
-  });
-
-  grouped.sort((a, b) => {
-    const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-    const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
-    return orderA - orderB;
-  });
-
-  // Fonction pour vérifier si on a besoin d'une nouvelle page
-  const checkNewPage = (requiredSpace: number) => {
-    if (yPosition + requiredSpace > doc.internal.pageSize.getHeight() - 20) {
-      doc.addPage();
-      yPosition = 20;
-    }
-  };
-
-  // Afficher chaque exercice
-  grouped.forEach((item, index) => {
-    checkNewPage(50);
-
-    if (item.isSuperset) {
-      // Superset header
-      doc.setFillColor(255, 165, 0);
-      doc.rect(margin, yPosition - 5, pageWidth - 2 * margin, 8, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(255, 255, 255);
-      doc.text(`SUPERSET (${item.exercises.length} exercices)`, margin + 3, yPosition);
-      doc.setTextColor(0, 0, 0);
-      yPosition += 12;
-
-      // Afficher chaque exercice du superset
-      item.exercises.forEach((ex: ExerciseData, exIndex: number) => {
-        checkNewPage(40);
-        renderExercise(doc, ex, margin + 5, yPosition, pageWidth, athleteVma);
-        yPosition += calculateExerciseHeight(ex);
-      });
-
-      yPosition += 5;
-    } else if (item.cardio_data || item.cardio_sport) {
-      // Exercice cardio
-      renderCardioExercise(doc, item, margin, yPosition, pageWidth, athleteVma);
-      yPosition += calculateCardioHeight(item);
-    } else {
-      // Exercice standard
-      renderExercise(doc, item, margin, yPosition, pageWidth, athleteVma);
-      yPosition += calculateExerciseHeight(item);
-    }
-  });
-
-  // Date d'export
-  checkNewPage(20);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "italic");
-  doc.setTextColor(128, 128, 128);
-  const now = new Date();
-  doc.text(
-    `Exporté le ${now.toLocaleDateString("fr-FR")} à ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`,
-    margin,
-    doc.internal.pageSize.getHeight() - 10
-  );
-
-  // Télécharger le PDF
-  const fileName = `${session.name.replace(/[^a-zA-Z0-9]/g, "_")}_${now.toISOString().split("T")[0]}.pdf`;
-  doc.save(fileName);
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  renfo: "Renforcement",
+  course: "Course à pied",
+  velo: "Vélo",
+  natation: "Natation",
+  recup: "Récupération / Mobilité",
 };
 
-const renderExercise = (
-  doc: jsPDF,
-  exercise: ExerciseData,
-  x: number,
-  y: number,
-  pageWidth: number,
-  athleteVma?: number | null
-) => {
-  const margin = 20;
-  
-  // Nom de l'exercice
-  const exerciseName = exercise.exercice || exercise.exercise_name || "Exercice";
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text(exerciseName, x, y);
-
-  // Détails
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  let detailY = y + 7;
-
-  // Séries x Répétitions
-  const series = exercise.series ?? exercise.sets;
-  const reps = exercise.reps;
-  if (series || reps) {
-    let setsRepsText = "";
-    if (series) setsRepsText += `${series} séries`;
-    if (reps) {
-      if (exercise.is_duration) {
-        setsRepsText += ` x ${reps} sec`;
-      } else {
-        setsRepsText += ` x ${reps} reps`;
-        if (exercise.per_side) setsRepsText += " (par côté)";
-      }
-    }
-    doc.text(setsRepsText, x, detailY);
-    detailY += 5;
-  }
-
-  // Charge
-  const weight = exercise.charge ?? exercise.weight;
-  if (weight !== undefined && weight !== null && weight !== "") {
-    doc.text(`Charge: ${weight}`, x, detailY);
-    detailY += 5;
-  }
-
-  // Récupération
-  if (exercise.recuperation) {
-    doc.text(`Récup: ${exercise.recuperation}`, x, detailY);
-    detailY += 5;
-  }
-
-  // Tempo
-  if (exercise.tempo) {
-    doc.text(`Tempo: ${exercise.tempo}`, x, detailY);
-    detailY += 5;
-  }
-
-  // RPE prescrit
-  if (typeof exercise.rpe === "number") {
-    doc.text(`RPE prescrit: ${exercise.rpe}`, x, detailY);
-    detailY += 5;
-  }
-
-  // RPE ressenti + date
-  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) {
-    const rpeValue = exercise.sportif_rpe ?? "-";
-    let rpeText = `RPE ressenti: ${rpeValue}`;
-    if (exercise.sportif_feedback_at) {
-      const d = new Date(exercise.sportif_feedback_at);
-      rpeText += ` (${d.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-      })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`;
-    }
-    doc.text(rpeText, x, detailY);
-    detailY += 5;
-  }
-
-  // Commentaire coach
-  if (exercise.coach_comment) {
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    const lines = doc.splitTextToSize(`💬 Coach: ${exercise.coach_comment}`, pageWidth - x - margin);
-    doc.text(lines, x, detailY);
-    doc.setTextColor(0, 0, 0);
-    detailY += 5;
-  }
-
-  // Commentaire sportif
-  if (exercise.sportif_comment) {
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(80, 80, 80);
-    const lines = doc.splitTextToSize(`💬 Sportif: ${exercise.sportif_comment}`, pageWidth - x - margin);
-    doc.text(lines, x, detailY);
-    doc.setTextColor(0, 0, 0);
-  }
+const SPORT_LABELS: Record<string, string> = {
+  course: "Course à pied",
+  velo: "Vélo",
+  natation: "Natation",
 };
 
-const renderCardioExercise = (
-  doc: jsPDF,
-  exercise: ExerciseData,
-  x: number,
-  y: number,
-  pageWidth: number,
-  athleteVma?: number | null
-) => {
-  const margin = 20;
-  
-  // Header cardio
-  const sportLabels: Record<string, string> = {
-    course: "🏃 Course à pied",
-    velo: "🚴 Vélo",
-    natation: "🏊 Natation",
-  };
-  
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(0, 0, 0);
-  doc.text(sportLabels[exercise.cardio_sport || "course"] || "Cardio", x, y);
+// Brand color
+const BRAND = { r: 255, g: 209, b: 47 };
+const TEXT_DARK = { r: 30, g: 30, b: 30 };
+const TEXT_MUTED = { r: 110, g: 110, b: 110 };
+const SUPERSET_COLOR = { r: 255, g: 140, b: 0 };
 
-  let detailY = y + 10;
-
-  // Parser les données cardio
-  if (exercise.cardio_data) {
-    let cardioData;
-    try {
-      cardioData = typeof exercise.cardio_data === "string" 
-        ? JSON.parse(exercise.cardio_data) 
-        : exercise.cardio_data;
-    } catch {
-      cardioData = { steps: [] };
-    }
-
-    const steps = cardioData.steps || [];
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-
-    steps.forEach((step: any, index: number) => {
-      if (step.type === "block") {
-        // Bloc répétable
-        doc.setFont("helvetica", "bold");
-        doc.text(`Bloc x${step.repetitions || 1}`, x, detailY);
-        doc.setFont("helvetica", "normal");
-        detailY += 6;
-
-        (step.steps || []).forEach((subStep: any, subIndex: number) => {
-          const stepText = formatStepText(subStep, athleteVma);
-          doc.text(`  • ${stepText}`, x, detailY);
-          detailY += 5;
-        });
-
-        if (step.recovery) {
-          doc.text(`  Récup bloc: ${formatCardioTime(step.recovery)}`, x, detailY);
-          detailY += 5;
-        }
-        detailY += 3;
-      } else {
-        // Étape simple
-        const stepText = formatStepText(step, athleteVma);
-        doc.text(`${index + 1}. ${stepText}`, x, detailY);
-        detailY += 6;
-      }
-    });
-  }
-
-  // Commentaires et RPE
-  if (typeof exercise.rpe === "number") {
-    doc.text(`RPE prescrit: ${exercise.rpe}`, x, detailY);
-    detailY += 5;
-  }
-
-  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) {
-    const rpeValue = exercise.sportif_rpe ?? "-";
-    let rpeText = `RPE ressenti: ${rpeValue}`;
-    if (exercise.sportif_feedback_at) {
-      const d = new Date(exercise.sportif_feedback_at);
-      rpeText += ` (${d.toLocaleDateString("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-      })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })})`;
-    }
-    doc.text(rpeText, x, detailY);
-    detailY += 5;
-  }
-
-  if (exercise.coach_comment) {
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    const lines = doc.splitTextToSize(`💬 Coach: ${exercise.coach_comment}`, pageWidth - x - margin);
-    doc.text(lines, x, detailY);
-    doc.setTextColor(0, 0, 0);
-    detailY += 5;
-  }
-
-  if (exercise.sportif_comment) {
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(80, 80, 80);
-    const lines = doc.splitTextToSize(`💬 Sportif: ${exercise.sportif_comment}`, pageWidth - x - margin);
-    doc.text(lines, x, detailY);
-    doc.setTextColor(0, 0, 0);
-  }
+const formatDateTime = (iso?: string | null) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })} ${d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
 };
 
 const formatStepText = (step: any, athleteVma?: number | null): string => {
   const isWalking = step.movementType === "marche";
   const movementLabel = isWalking ? "Marche" : "Course";
-  
   let text = movementLabel;
 
-  // Distance ou durée
   if (step.effortType === "distance" && step.distance) {
-    const distanceValue = step.distanceUnit === "km" ? step.distance : step.distance;
     const unit = step.distanceUnit || "m";
-    text += ` - ${distanceValue}${unit}`;
+    text += ` ${step.distance}${unit}`;
   } else if (step.duration) {
-    text += ` - ${formatCardioTime(step.duration)}`;
+    text += ` ${formatCardioTime(step.duration)}`;
   }
 
-  // Allure - correction de l'ordre des paramètres
   if (step.vmaPercentage && athleteVma && !isWalking) {
     const pace = calculatePace(step.vmaPercentage, athleteVma);
     text += ` @ ${step.vmaPercentage}% VMA (${pace})`;
@@ -378,54 +81,328 @@ const formatStepText = (step: any, athleteVma?: number | null): string => {
     text += " @ 10:00/km";
   }
 
-  // FC cible
-  if (step.targetHeartRate) {
-    text += ` - FC: ${step.targetHeartRate} bpm`;
-  }
+  if (step.targetHeartRate) text += ` · FC ${step.targetHeartRate} bpm`;
+  if (step.recovery) text += ` · Récup ${formatCardioTime(step.recovery)}`;
 
   return text;
 };
 
-const calculateExerciseHeight = (exercise: ExerciseData): number => {
-  let height = 20; // Base height for name
-  if (exercise.series || exercise.sets || exercise.reps) height += 5;
-  if (exercise.charge !== undefined || exercise.weight !== undefined) height += 5;
-  if (exercise.recuperation) height += 5;
-  if (exercise.tempo) height += 5;
-  if (exercise.rpe !== undefined) height += 5;
-  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) height += 5;
-  if (exercise.coach_comment) height += 10;
-  if (exercise.sportif_comment) height += 10;
-  return height + 5; // Padding
+const buildExerciseRow = (ex: ExerciseData) => {
+  const name = ex.exercice || ex.exercise_name || "Exercice";
+
+  // Series x Reps
+  const series = ex.series ?? ex.sets;
+  let setsReps = "—";
+  if (series || ex.reps) {
+    const parts: string[] = [];
+    if (series) parts.push(`${series} séries`);
+    if (ex.reps) {
+      if (ex.is_duration) parts.push(`${ex.reps} sec`);
+      else parts.push(`${ex.reps} reps${ex.per_side ? " /côté" : ""}`);
+    }
+    setsReps = parts.join(" × ");
+  }
+
+  const charge = ex.charge ?? ex.weight;
+  const chargeStr = charge !== undefined && charge !== null && charge !== "" ? String(charge) : "—";
+  const recup = ex.recuperation || "—";
+  const tempo = ex.tempo || "—";
+  const rpePresc = typeof ex.rpe === "number" ? String(ex.rpe) : "—";
+
+  let rpeFelt = "—";
+  if (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) {
+    rpeFelt = String(ex.sportif_rpe);
+    if (ex.sportif_feedback_at) rpeFelt += `\n(${formatDateTime(ex.sportif_feedback_at)})`;
+  }
+
+  return { name, setsReps, chargeStr, recup, tempo, rpePresc, rpeFelt };
 };
 
-const calculateCardioHeight = (exercise: ExerciseData): number => {
-  let height = 20;
-  
+const renderCommentsBlock = (doc: jsPDF, ex: ExerciseData, startY: number, margin: number, pageWidth: number): number => {
+  let y = startY;
+  const innerWidth = pageWidth - 2 * margin - 4;
+
+  if (ex.coach_comment) {
+    doc.setFillColor(255, 248, 220);
+    doc.setDrawColor(BRAND.r, BRAND.g, BRAND.b);
+    doc.setLineWidth(0.3);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(120, 90, 0);
+    const label = "Commentaire coach :";
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    const lines = doc.splitTextToSize(ex.coach_comment, innerWidth - 4);
+    const blockH = 5 + lines.length * 4 + 2;
+    doc.rect(margin, y, pageWidth - 2 * margin, blockH, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(120, 90, 0);
+    doc.text(label, margin + 2, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    doc.text(lines, margin + 2, y + 8);
+    y += blockH + 1;
+  }
+
+  if (ex.sportif_comment) {
+    doc.setFillColor(235, 245, 255);
+    doc.setDrawColor(100, 150, 200);
+    doc.setLineWidth(0.3);
+    const lines = doc.splitTextToSize(ex.sportif_comment, innerWidth - 4);
+    const blockH = 5 + lines.length * 4 + 2;
+    doc.rect(margin, y, pageWidth - 2 * margin, blockH, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(40, 80, 140);
+    doc.text("Commentaire athlète :", margin + 2, y + 4);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(60, 60, 60);
+    doc.text(lines, margin + 2, y + 8);
+    y += blockH + 1;
+  }
+
+  return y;
+};
+
+const renderStandardExerciseTable = (
+  doc: jsPDF,
+  exercises: ExerciseData[],
+  startY: number,
+  margin: number,
+  pageWidth: number,
+  options: { isSuperset?: boolean; supersetLabel?: string } = {}
+): number => {
+  const rows = exercises.map((ex) => {
+    const r = buildExerciseRow(ex);
+    return [r.name, r.setsReps, r.chargeStr, r.recup, r.tempo, r.rpePresc, r.rpeFelt];
+  });
+
+  let currentY = startY;
+
+  if (options.isSuperset) {
+    doc.setFillColor(SUPERSET_COLOR.r, SUPERSET_COLOR.g, SUPERSET_COLOR.b);
+    doc.rect(margin, currentY, pageWidth - 2 * margin, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(options.supersetLabel || "SUPERSET", margin + 2, currentY + 5);
+    currentY += 7;
+  }
+
+  autoTable(doc, {
+    startY: currentY,
+    head: [["Exercice", "Séries × Reps", "Charge", "Récup", "Tempo", "RPE prescrit", "RPE ressenti"]],
+    body: rows,
+    margin: { left: margin, right: margin },
+    styles: {
+      fontSize: 9,
+      cellPadding: 2.5,
+      overflow: "linebreak",
+      valign: "middle",
+      textColor: [TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b],
+    },
+    headStyles: {
+      fillColor: [BRAND.r, BRAND.g, BRAND.b],
+      textColor: [30, 30, 30],
+      fontStyle: "bold",
+      fontSize: 9,
+    },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    columnStyles: {
+      0: { cellWidth: 42, fontStyle: "bold" },
+      1: { cellWidth: 28, halign: "center" },
+      2: { cellWidth: 22, halign: "center" },
+      3: { cellWidth: 22, halign: "center" },
+      4: { cellWidth: 18, halign: "center" },
+      5: { cellWidth: 18, halign: "center" },
+      6: { cellWidth: "auto", halign: "center" },
+    },
+  });
+
+  let endY = (doc as any).lastAutoTable.finalY + 2;
+
+  // Comments per exercise (only if any)
+  exercises.forEach((ex) => {
+    if (ex.coach_comment || ex.sportif_comment) {
+      // Add small label with exercise name
+      const exName = ex.exercice || ex.exercise_name || "Exercice";
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
+      doc.text(`▸ ${exName}`, margin, endY + 3);
+      endY += 4;
+      endY = renderCommentsBlock(doc, ex, endY, margin, pageWidth);
+    }
+  });
+
+  return endY + 4;
+};
+
+const renderCardioExercise = (
+  doc: jsPDF,
+  exercise: ExerciseData,
+  startY: number,
+  margin: number,
+  pageWidth: number,
+  athleteVma?: number | null
+): number => {
+  const sportLabel = SPORT_LABELS[exercise.cardio_sport || "course"] || "Cardio";
+
+  // Header
+  doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+  doc.rect(margin, startY, pageWidth - 2 * margin, 7, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(30, 30, 30);
+  doc.text(sportLabel, margin + 2, startY + 5);
+  let y = startY + 7;
+
+  // Build rows from cardio_data steps
+  const rows: any[] = [];
   if (exercise.cardio_data) {
     let cardioData;
     try {
-      cardioData = typeof exercise.cardio_data === "string" 
-        ? JSON.parse(exercise.cardio_data) 
-        : exercise.cardio_data;
+      cardioData = typeof exercise.cardio_data === "string" ? JSON.parse(exercise.cardio_data) : exercise.cardio_data;
     } catch {
       cardioData = { steps: [] };
     }
-
     const steps = cardioData.steps || [];
-    steps.forEach((step: any) => {
+    steps.forEach((step: any, i: number) => {
       if (step.type === "block") {
-        height += 10 + (step.steps?.length || 0) * 6;
-        if (step.recovery) height += 5;
+        rows.push([
+          { content: `Bloc × ${step.repetitions || 1}`, colSpan: 2, styles: { fillColor: [255, 235, 180], fontStyle: "bold" } },
+        ]);
+        (step.steps || []).forEach((sub: any, j: number) => {
+          rows.push([`  ${j + 1}.`, formatStepText(sub, athleteVma)]);
+        });
+        if (step.recovery) {
+          rows.push([{ content: `Récup bloc : ${formatCardioTime(step.recovery)}`, colSpan: 2, styles: { fontStyle: "italic", textColor: [110, 110, 110] } }]);
+        }
       } else {
-        height += 6;
+        rows.push([`${i + 1}.`, formatStepText(step, athleteVma)]);
       }
     });
   }
 
-  if (exercise.coach_comment) height += 10;
-  if (exercise.rpe !== undefined) height += 5;
-  if (exercise.sportif_rpe !== undefined || exercise.sportif_feedback_at) height += 5;
-  if (exercise.sportif_comment) height += 10;
-  return height + 10;
+  if (rows.length > 0) {
+    autoTable(doc, {
+      startY: y,
+      head: [["#", "Étape"]],
+      body: rows,
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 2, valign: "middle", textColor: [TEXT_DARK.r, TEXT_DARK.g, TEXT_DARK.b] },
+      headStyles: { fillColor: [240, 240, 240], textColor: [50, 50, 50], fontStyle: "bold" },
+      columnStyles: { 0: { cellWidth: 14, halign: "center" }, 1: { cellWidth: "auto" } },
+    });
+    y = (doc as any).lastAutoTable.finalY + 2;
+  }
+
+  // RPE summary table
+  const rpePresc = typeof exercise.rpe === "number" ? String(exercise.rpe) : "—";
+  let rpeFelt = "—";
+  if (exercise.sportif_rpe !== null && exercise.sportif_rpe !== undefined) {
+    rpeFelt = String(exercise.sportif_rpe);
+    if (exercise.sportif_feedback_at) rpeFelt += ` (${formatDateTime(exercise.sportif_feedback_at)})`;
+  }
+
+  if (rpePresc !== "—" || rpeFelt !== "—") {
+    autoTable(doc, {
+      startY: y,
+      body: [["RPE prescrit", rpePresc, "RPE ressenti", rpeFelt]],
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 9, cellPadding: 2 },
+      columnStyles: {
+        0: { fontStyle: "bold", fillColor: [245, 245, 245], cellWidth: 35 },
+        1: { halign: "center", cellWidth: 30 },
+        2: { fontStyle: "bold", fillColor: [245, 245, 245], cellWidth: 35 },
+        3: { halign: "center" },
+      },
+    });
+    y = (doc as any).lastAutoTable.finalY + 2;
+  }
+
+  y = renderCommentsBlock(doc, exercise, y, margin, pageWidth);
+
+  return y + 4;
+};
+
+export const exportSessionToPdf = (session: SessionData, athleteVma?: number | null) => {
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 14;
+
+  // ===== Header band =====
+  doc.setFillColor(BRAND.r, BRAND.g, BRAND.b);
+  doc.rect(0, 0, pageWidth, 22, "F");
+  doc.setTextColor(30, 30, 30);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text(session.name, margin, 11);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(SESSION_TYPE_LABELS[session.session_type] || session.session_type, margin, 18);
+
+  const now = new Date();
+  const dateStr = `${now.toLocaleDateString("fr-FR")} · ${now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+  doc.setFontSize(9);
+  doc.text(dateStr, pageWidth - margin, 18, { align: "right" });
+
+  let y = 30;
+
+  // ===== Group exercises =====
+  const exercises = session.session_exercises || [];
+  const grouped: any[] = [];
+  const processed = new Set<string>();
+
+  exercises.forEach((ex) => {
+    if (ex.super_set_group && !processed.has(ex.super_set_group)) {
+      processed.add(ex.super_set_group);
+      const supersetExercises = exercises
+        .filter((e) => e.super_set_group === ex.super_set_group)
+        .sort((a, b) => a.exercise_order - b.exercise_order);
+      grouped.push({ isSuperset: true, exercises: supersetExercises });
+    } else if (!ex.super_set_group) {
+      grouped.push(ex);
+    }
+  });
+
+  grouped.sort((a, b) => {
+    const oa = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
+    const ob = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+    return oa - ob;
+  });
+
+  // ===== Render each group =====
+  grouped.forEach((item) => {
+    if (y > pageHeight - 40) {
+      doc.addPage();
+      y = 20;
+    }
+
+    if (item.isSuperset) {
+      y = renderStandardExerciseTable(doc, item.exercises, y, margin, pageWidth, {
+        isSuperset: true,
+        supersetLabel: `SUPERSET — ${item.exercises.length} exercices enchaînés`,
+      });
+    } else if (item.cardio_data || item.cardio_sport) {
+      y = renderCardioExercise(doc, item, y, margin, pageWidth, athleteVma);
+    } else {
+      y = renderStandardExerciseTable(doc, [item], y, margin, pageWidth);
+    }
+  });
+
+  // ===== Footer on every page =====
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(TEXT_MUTED.r, TEXT_MUTED.g, TEXT_MUTED.b);
+    doc.text(`Exporté le ${dateStr}`, margin, pageHeight - 6);
+    doc.text(`Page ${i} / ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: "right" });
+  }
+
+  const fileName = `${session.name.replace(/[^a-zA-Z0-9]/g, "_")}_${now.toISOString().split("T")[0]}.pdf`;
+  doc.save(fileName);
 };
