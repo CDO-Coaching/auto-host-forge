@@ -460,5 +460,15 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
         </Card>
       </div>
     </div>
+
+    <CoachSessionDetailDialog
+      open={!!selectedSession}
+      onOpenChange={(open) => !open && setSelectedSession(null)}
+      sessionId={selectedSession?.id ?? null}
+      sessionType={selectedSession?.session_type ?? ""}
+      athleteId={athleteId}
+      athleteName={athleteName}
+    />
+    </>
   );
 }
