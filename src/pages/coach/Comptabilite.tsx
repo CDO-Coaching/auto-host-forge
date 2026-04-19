@@ -19,6 +19,8 @@ import { useNavigate } from "react-router-dom";
 import { getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { exportMonthlyInvoicesToPdf, exportMonthlySummaryToPdf } from "@/lib/invoicePdfExport";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { UrssafInvoiceDialog } from "@/components/UrssafInvoiceDialog";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Client {
   id: string;
