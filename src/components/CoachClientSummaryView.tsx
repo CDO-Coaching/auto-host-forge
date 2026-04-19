@@ -63,7 +63,7 @@ type InjuryPoint = {
   douleur: number;
 };
 
-export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProps) {
+export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSummaryViewProps) {
   const [fatiguePoints, setFatiguePoints] = useState<FatiguePoint[]>([]);
   const [injuryPoints, setInjuryPoints] = useState<InjuryPoint[]>([]);
   const [latestInjury, setLatestInjury] = useState<{ location: string | null; level: number | null } | null>(null);
@@ -73,6 +73,7 @@ export function CoachClientSummaryView({ athleteId }: CoachClientSummaryViewProp
   const [previousWeekSessions, setPreviousWeekSessions] = useState<SessionInfo[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
 
   const today = new Date();
   const currentWeekNumber = getISOWeek(today);
