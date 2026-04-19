@@ -1189,6 +1189,22 @@ export default function Comptabilite() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <UrssafInvoiceDialog
+        open={showUrssafDialog}
+        onOpenChange={setShowUrssafDialog}
+        entries={entries}
+        currentMonth={currentMonth}
+        coach={{
+          id: session?.user?.id || "",
+          first_name: profile?.first_name || "",
+          last_name: profile?.last_name || "",
+          email: profile?.email,
+          address: profile?.address,
+          siret: profile?.siret,
+          phone: profile?.phone,
+        }}
+      />
     </div>
   );
 }
