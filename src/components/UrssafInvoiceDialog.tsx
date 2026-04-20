@@ -207,7 +207,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
 
