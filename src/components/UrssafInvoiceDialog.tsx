@@ -121,8 +121,8 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl h-[90vh] flex flex-col gap-3 overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Générer les factures URSSAF — {monthLabelCap}
@@ -134,7 +134,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
         </DialogHeader>
 
         {missingCoachInfo.length > 0 && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="flex-shrink-0">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Informations manquantes</AlertTitle>
             <AlertDescription>
@@ -149,7 +149,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b pb-2">
+            <div className="flex items-center justify-between border-b pb-2 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <Checkbox
                   checked={selectedCount === billable.length}
@@ -164,7 +164,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
               </div>
             </div>
 
-            <ScrollArea className="flex-1 pr-3">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-3">
               <div className="space-y-2">
                 {billable.map((e) => {
                   const total = (e.amount_cash || 0) + (e.amount_transfer || 0);
@@ -207,7 +207,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
 
