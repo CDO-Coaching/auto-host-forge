@@ -91,6 +91,30 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
     setRows(next);
   };
 
+  // Sélectionne / déselectionne uniquement les sportifs ayant payé > 0 € via ce mode
+  const toggleByPaymentSource = (source: "cash" | "transfer", value: boolean) => {
+    const next: Record<string, RowState> = { ...rows };
+    billable.forEach((e) => {
+      const amount = source === "cash" ? (e.amount_cash || 0) : (e.amount_transfer || 0);
+      if (amount > 0) {
+        const current = next[e.id] || {
+          selected: true,
+          payment_method: source === "cash" ? "especes" : "virement",
+        };
+        next[e.id] = {
+          ...current,
+          selected: value,
+          // Aligner le mode de règlement de la facture sur la source utilisée
+          payment_method: source === "cash" ? "especes" : "virement",
+        };
+      }
+    });
+    setRows(next);
+  };
+
+  const cashCount = billable.filter((e) => (e.amount_cash || 0) > 0).length;
+  const transferCount = billable.filter((e) => (e.amount_transfer || 0) > 0).length;
+
   const handleGenerate = async () => {
     const selected: InvoiceClientLine[] = billable
       .filter((e) => rows[e.id]?.selected)
@@ -171,24 +195,48 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">Tout marquer en :</span>
+                <span className="text-xs text-muted-foreground">Espèces ({cashCount}) :</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setAllPaymentMethod("especes")}
+                  disabled={cashCount === 0}
+                  onClick={() => toggleByPaymentSource("cash", true)}
                 >
-                  Espèces
+                  Tout cocher
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setAllPaymentMethod("virement")}
+                  disabled={cashCount === 0}
+                  onClick={() => toggleByPaymentSource("cash", false)}
                 >
-                  Virement
+                  Tout décocher
+                </Button>
+                <span className="mx-1 h-4 w-px bg-border" />
+                <span className="text-xs text-muted-foreground">Virement ({transferCount}) :</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={transferCount === 0}
+                  onClick={() => toggleByPaymentSource("transfer", true)}
+                >
+                  Tout cocher
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={transferCount === 0}
+                  onClick={() => toggleByPaymentSource("transfer", false)}
+                >
+                  Tout décocher
                 </Button>
               </div>
             </div>
