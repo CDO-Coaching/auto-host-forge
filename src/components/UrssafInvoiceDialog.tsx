@@ -82,6 +82,15 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
     setRows(next);
   };
 
+  const setAllPaymentMethod = (method: PaymentMethod) => {
+    const next: Record<string, RowState> = {};
+    billable.forEach((e) => {
+      const current = rows[e.id] || { selected: true, payment_method: method };
+      next[e.id] = { ...current, payment_method: method };
+    });
+    setRows(next);
+  };
+
   const handleGenerate = async () => {
     const selected: InvoiceClientLine[] = billable
       .filter((e) => rows[e.id]?.selected)
