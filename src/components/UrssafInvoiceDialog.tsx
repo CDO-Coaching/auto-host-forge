@@ -91,6 +91,30 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
     setRows(next);
   };
 
+  // Sélectionne / déselectionne uniquement les sportifs ayant payé > 0 € via ce mode
+  const toggleByPaymentSource = (source: "cash" | "transfer", value: boolean) => {
+    const next: Record<string, RowState> = { ...rows };
+    billable.forEach((e) => {
+      const amount = source === "cash" ? (e.amount_cash || 0) : (e.amount_transfer || 0);
+      if (amount > 0) {
+        const current = next[e.id] || {
+          selected: true,
+          payment_method: source === "cash" ? "especes" : "virement",
+        };
+        next[e.id] = {
+          ...current,
+          selected: value,
+          // Aligner le mode de règlement de la facture sur la source utilisée
+          payment_method: source === "cash" ? "especes" : "virement",
+        };
+      }
+    });
+    setRows(next);
+  };
+
+  const cashCount = billable.filter((e) => (e.amount_cash || 0) > 0).length;
+  const transferCount = billable.filter((e) => (e.amount_transfer || 0) > 0).length;
+
   const handleGenerate = async () => {
     const selected: InvoiceClientLine[] = billable
       .filter((e) => rows[e.id]?.selected)
