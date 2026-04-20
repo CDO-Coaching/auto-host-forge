@@ -195,24 +195,48 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground">Tout marquer en :</span>
+                <span className="text-xs text-muted-foreground">Espèces ({cashCount}) :</span>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setAllPaymentMethod("especes")}
+                  disabled={cashCount === 0}
+                  onClick={() => toggleByPaymentSource("cash", true)}
                 >
-                  Espèces
+                  Tout cocher
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="h-7 text-xs"
-                  onClick={() => setAllPaymentMethod("virement")}
+                  disabled={cashCount === 0}
+                  onClick={() => toggleByPaymentSource("cash", false)}
                 >
-                  Virement
+                  Tout décocher
+                </Button>
+                <span className="mx-1 h-4 w-px bg-border" />
+                <span className="text-xs text-muted-foreground">Virement ({transferCount}) :</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={transferCount === 0}
+                  onClick={() => toggleByPaymentSource("transfer", true)}
+                >
+                  Tout cocher
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={transferCount === 0}
+                  onClick={() => toggleByPaymentSource("transfer", false)}
+                >
+                  Tout décocher
                 </Button>
               </div>
             </div>
