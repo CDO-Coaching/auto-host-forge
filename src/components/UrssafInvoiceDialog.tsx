@@ -49,20 +49,17 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
   useEffect(() => {
     if (!open) return;
     const init: Record<string, RowState> = {};
-    entries
-      .filter((e) => (e.amount_cash || 0) + (e.amount_transfer || 0) > 0)
-      .forEach((e) => {
-        // Pré-sélectionner le mode dominant
-        const dominant: PaymentMethod = (e.amount_cash || 0) >= (e.amount_transfer || 0) ? "especes" : "virement";
-        init[e.id] = { selected: true, payment_method: dominant };
-      });
+    entries.forEach((e) => {
+      const total = (e.amount_cash || 0) + (e.amount_transfer || 0);
+      // Pré-sélectionner uniquement les sportifs avec un montant encaissé
+      const dominant: PaymentMethod = (e.amount_cash || 0) >= (e.amount_transfer || 0) ? "especes" : "virement";
+      init[e.id] = { selected: total > 0, payment_method: dominant };
+    });
     setRows(init);
   }, [open, entries]);
 
-  const billable = useMemo(
-    () => entries.filter((e) => (e.amount_cash || 0) + (e.amount_transfer || 0) > 0),
-    [entries]
-  );
+  // Afficher tous les sportifs (pour permettre de cocher manuellement même sans montant pré-rempli)
+  const billable = useMemo(() => entries, [entries]);
 
   const selectedCount = Object.values(rows).filter((r) => r.selected).length;
   const selectedTotal = billable.reduce(
@@ -145,7 +142,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
 
         {billable.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
-            Aucun client à facturer ce mois-ci (aucun montant encaissé).
+            Aucun sportif dans la comptabilité ce mois-ci.
           </div>
         ) : (
           <>
