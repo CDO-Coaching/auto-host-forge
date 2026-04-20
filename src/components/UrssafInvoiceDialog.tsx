@@ -142,7 +142,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
 
         {billable.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
-            Aucun client à facturer ce mois-ci (aucun montant encaissé).
+            Aucun sportif dans la comptabilité ce mois-ci.
           </div>
         ) : (
           <>
