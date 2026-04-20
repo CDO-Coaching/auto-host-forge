@@ -82,6 +82,15 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
     setRows(next);
   };
 
+  const setAllPaymentMethod = (method: PaymentMethod) => {
+    const next: Record<string, RowState> = {};
+    billable.forEach((e) => {
+      const current = rows[e.id] || { selected: true, payment_method: method };
+      next[e.id] = { ...current, payment_method: method };
+    });
+    setRows(next);
+  };
+
   const handleGenerate = async () => {
     const selected: InvoiceClientLine[] = billable
       .filter((e) => rows[e.id]?.selected)
@@ -146,18 +155,41 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between border-b pb-2 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={selectedCount === billable.length}
-                  onCheckedChange={(v) => toggleAll(!!v)}
-                />
-                <span className="text-sm font-medium">
-                  {selectedCount} / {billable.length} sélectionné(s)
-                </span>
+            <div className="flex flex-col gap-2 border-b pb-2 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={selectedCount === billable.length}
+                    onCheckedChange={(v) => toggleAll(!!v)}
+                  />
+                  <span className="text-sm font-medium">
+                    {selectedCount} / {billable.length} sélectionné(s)
+                  </span>
+                </div>
+                <div className="text-sm font-semibold text-primary">
+                  Total : {selectedTotal.toFixed(2)} €
+                </div>
               </div>
-              <div className="text-sm font-semibold text-primary">
-                Total : {selectedTotal.toFixed(2)} €
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Tout marquer en :</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setAllPaymentMethod("especes")}
+                >
+                  Espèces
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => setAllPaymentMethod("virement")}
+                >
+                  Virement
+                </Button>
               </div>
             </div>
 
