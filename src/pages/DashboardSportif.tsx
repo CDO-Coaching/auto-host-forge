@@ -16,6 +16,7 @@ import RecupDetail from "./sportif/RecupDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
+import QuestionnaireSurentrainement from "./sportif/QuestionnaireSurentrainement";
 import Maxes from "./sportif/Maxes";
 import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
