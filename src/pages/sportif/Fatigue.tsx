@@ -300,12 +300,22 @@ export default function Fatigue() {
               {firstName}, suis ton niveau de fatigue pour optimiser tes performances
             </p>
           </div>
-          {canAnswerToday && (
-            <Button onClick={() => setShowDialog(true)} size="sm" className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Répondre aujourd'hui
+          <div className="flex flex-col sm:flex-row gap-2">
+            {canAnswerToday && (
+              <Button onClick={() => setShowDialog(true)} size="sm" className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Répondre aujourd'hui
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => window.location.assign("/sportif/questionnaire-surentrainement")}
+            >
+              Questionnaire surentraînement
             </Button>
-          )}
+          </div>
         </div>
 
         {loading ? (
