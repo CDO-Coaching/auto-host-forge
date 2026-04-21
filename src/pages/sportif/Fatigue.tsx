@@ -35,6 +35,7 @@ interface FatigueLog {
 
 export default function Fatigue() {
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
   const firstName = profile?.first_name || "champion";
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
