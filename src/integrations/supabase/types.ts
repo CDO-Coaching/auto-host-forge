@@ -438,6 +438,51 @@ export type Database = {
           },
         ]
       }
+      sfms_questionnaire_results: {
+        Row: {
+          answers: Json
+          athlete_id: string
+          completed_at: string
+          created_at: string
+          id: string
+          score_cognitif: number
+          score_fatigue_physique: number
+          score_performance: number
+          score_physiologique: number
+          score_psychologique: number
+          score_sommeil_appetit: number
+          total_score: number
+        }
+        Insert: {
+          answers?: Json
+          athlete_id: string
+          completed_at?: string
+          created_at?: string
+          id?: string
+          score_cognitif?: number
+          score_fatigue_physique?: number
+          score_performance?: number
+          score_physiologique?: number
+          score_psychologique?: number
+          score_sommeil_appetit?: number
+          total_score: number
+        }
+        Update: {
+          answers?: Json
+          athlete_id?: string
+          completed_at?: string
+          created_at?: string
+          id?: string
+          score_cognitif?: number
+          score_fatigue_physique?: number
+          score_performance?: number
+          score_physiologique?: number
+          score_psychologique?: number
+          score_sommeil_appetit?: number
+          total_score?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

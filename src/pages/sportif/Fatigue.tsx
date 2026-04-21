@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,7 @@ interface FatigueLog {
 
 export default function Fatigue() {
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
   const firstName = profile?.first_name || "champion";
   const [logs, setLogs] = useState<FatigueLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -300,12 +302,22 @@ export default function Fatigue() {
               {firstName}, suis ton niveau de fatigue pour optimiser tes performances
             </p>
           </div>
-          {canAnswerToday && (
-            <Button onClick={() => setShowDialog(true)} size="sm" className="w-full">
-              <Plus className="h-4 w-4 mr-2" />
-              Répondre aujourd'hui
+          <div className="flex flex-col sm:flex-row gap-2">
+            {canAnswerToday && (
+              <Button onClick={() => setShowDialog(true)} size="sm" className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                Répondre aujourd'hui
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => navigate("/sportif/questionnaire-surentrainement")}
+            >
+              Questionnaire surentraînement
             </Button>
-          )}
+          </div>
         </div>
 
         {loading ? (

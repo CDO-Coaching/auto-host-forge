@@ -16,6 +16,7 @@ import RecupDetail from "./sportif/RecupDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
+import QuestionnaireSurentrainement from "./sportif/QuestionnaireSurentrainement";
 import Maxes from "./sportif/Maxes";
 import Poids from "./sportif/Poids";
 import Questions from "./sportif/Questions";
@@ -99,6 +100,7 @@ export default function DashboardSportif() {
               <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />
+              <Route path="/questionnaire-surentrainement" element={<QuestionnaireSurentrainement />} />
               <Route path="/maxes" element={<Maxes />} />
               <Route path="/poids" element={<Poids />} />
               <Route path="/programmer" element={<ProgrammerSeances />} />
