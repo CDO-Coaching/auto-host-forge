@@ -57,6 +57,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { CoachMaxesView } from "@/components/CoachMaxesView";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
+import { CoachSfmsAlert } from "@/components/CoachSfmsAlert";
 import { CoachFcReminderAlert } from "@/components/CoachFcReminderAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
 import { CoachRunningView } from "@/components/CoachRunningView";
@@ -3704,6 +3705,14 @@ export default function ClientDetail() {
           {athlete && (
             <CoachFatigueAlert 
               athleteId={athleteId!} 
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+
+          {/* Alerte questionnaire SFMS surentraînement */}
+          {athlete && (
+            <CoachSfmsAlert
+              athleteId={athleteId!}
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
           )}
