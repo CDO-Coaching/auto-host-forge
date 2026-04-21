@@ -2540,17 +2540,17 @@ export default function ClientDetail() {
         const seriesCount = parseInt(value) || 0;
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
         
-        // Auto-generate serie_details
+        // Auto-generate serie_details: regenerate ALL series from the main line values
+        // (discards previously copied/edited per-series values to give a clean slate)
         const generateSerieDetails = (ex: Exercise, count: number): SerieDetail[] => {
           if (count <= 0) return [];
-          const existing = ex.serie_details || [];
-          return Array.from({ length: count }, (_, i) => ({
-            reps: existing[i]?.reps ?? ex.reps ?? "",
-            charge: existing[i]?.charge ?? ex.charge ?? "",
-            rpe: existing[i]?.rpe ?? ex.rpe ?? "",
-            tempo: existing[i]?.tempo ?? ex.tempo ?? "",
-            commentaire: existing[i]?.commentaire ?? "",
-            recuperation: existing[i]?.recuperation ?? ex.recuperation ?? "",
+          return Array.from({ length: count }, () => ({
+            reps: ex.reps ?? "",
+            charge: ex.charge ?? "",
+            rpe: ex.rpe ?? "",
+            tempo: ex.tempo ?? "",
+            commentaire: "",
+            recuperation: ex.recuperation ?? "",
           }));
         };
 
