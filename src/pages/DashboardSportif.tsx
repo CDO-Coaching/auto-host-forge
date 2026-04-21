@@ -100,6 +100,7 @@ export default function DashboardSportif() {
               <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
               <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
               <Route path="/fatigue" element={<Fatigue />} />
+              <Route path="/questionnaire-surentrainement" element={<QuestionnaireSurentrainement />} />
               <Route path="/maxes" element={<Maxes />} />
               <Route path="/poids" element={<Poids />} />
               <Route path="/programmer" element={<ProgrammerSeances />} />
