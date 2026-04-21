@@ -32,7 +32,7 @@ interface SfmsResult {
 }
 
 const DIMENSION_TOTALS: Record<SfmsDimension, number> = {
-  fatigue_physique: 6,
+  fatigue_physique: 7,
   performance: 8,
   psychologique: 14,
   cognitif: 5,
