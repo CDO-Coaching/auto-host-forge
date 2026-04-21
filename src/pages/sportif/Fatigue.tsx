@@ -313,7 +313,7 @@ export default function Fatigue() {
               variant="outline"
               size="sm"
               className="w-full sm:w-auto"
-              onClick={() => window.location.assign("/sportif/questionnaire-surentrainement")}
+              onClick={() => navigate("/sportif/questionnaire-surentrainement")}
             >
               Questionnaire surentraînement
             </Button>
