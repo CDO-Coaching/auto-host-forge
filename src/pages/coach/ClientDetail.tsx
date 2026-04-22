@@ -3216,18 +3216,18 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-4">
-          {/* Alerte questionnaire SFMS surentraînement */}
+          <CoachClientSummaryView
+            athleteId={athleteId!}
+            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
+          />
+
+          {/* Alerte questionnaire SFMS surentraînement (en bas, repliable) */}
           {athlete && (
             <CoachSfmsAlert
               athleteId={athleteId!}
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
           )}
-
-          <CoachClientSummaryView
-            athleteId={athleteId!}
-            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
-          />
         </TabsContent>
 
         <TabsContent value="programmation" className="space-y-4">
