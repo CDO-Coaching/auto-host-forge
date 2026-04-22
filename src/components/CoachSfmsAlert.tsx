@@ -61,6 +61,8 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
         .order("completed_at", { ascending: false })
         .limit(2);
 
+      console.log("[CoachSfmsAlert] athleteId:", athleteId, "data:", data, "error:", error);
+
       if (!active || error || !data) return;
       setResults(data as SfmsResult[]);
     })();
