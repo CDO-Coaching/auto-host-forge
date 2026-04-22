@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.cleanup-old-attachments]
 verify_jwt = false
+
+[functions.notify-sfms-result]
+verify_jwt = false
