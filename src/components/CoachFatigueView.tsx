@@ -235,16 +235,19 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
   if (logs.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Aucune donnée</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            {athleteName} n'a pas encore enregistré de données de fatigue.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Aucune donnée</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              {athleteName} n'a pas encore enregistré de données de fatigue.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
