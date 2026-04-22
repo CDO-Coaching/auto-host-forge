@@ -26,6 +26,7 @@ interface SfmsResult {
   score_cognitif: number;
   score_sommeil_appetit: number;
   score_physiologique: number;
+  ai_feedback: string | null;
 }
 
 const DIMENSION_TOTALS: Record<SfmsDimension, number> = {
@@ -57,7 +58,7 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
       const { data, error } = await supabase
         .from("sfms_questionnaire_results")
         .select(
-          "id, completed_at, total_score, score_fatigue_physique, score_performance, score_psychologique, score_cognitif, score_sommeil_appetit, score_physiologique"
+          "id, completed_at, total_score, score_fatigue_physique, score_performance, score_psychologique, score_cognitif, score_sommeil_appetit, score_physiologique, ai_feedback"
         )
         .eq("athlete_id", athleteId)
         .order("completed_at", { ascending: false })
