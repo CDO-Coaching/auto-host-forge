@@ -3717,14 +3717,6 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* Alerte questionnaire SFMS surentraînement */}
-          {athlete && (
-            <CoachSfmsAlert
-              athleteId={athleteId!}
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
-          )}
-
           {/* Alerte objectif atteint */}
           {athlete && (
             <CoachObjectiveAlert 
