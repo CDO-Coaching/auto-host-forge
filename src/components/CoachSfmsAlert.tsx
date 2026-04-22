@@ -26,6 +26,7 @@ interface SfmsResult {
   score_cognitif: number;
   score_sommeil_appetit: number;
   score_physiologique: number;
+  ai_feedback: string | null;
 }
 
 const DIMENSION_TOTALS: Record<SfmsDimension, number> = {
@@ -57,7 +58,7 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
       const { data, error } = await supabase
         .from("sfms_questionnaire_results")
         .select(
-          "id, completed_at, total_score, score_fatigue_physique, score_performance, score_psychologique, score_cognitif, score_sommeil_appetit, score_physiologique"
+          "id, completed_at, total_score, score_fatigue_physique, score_performance, score_psychologique, score_cognitif, score_sommeil_appetit, score_physiologique, ai_feedback"
         )
         .eq("athlete_id", athleteId)
         .order("completed_at", { ascending: false })
@@ -152,6 +153,15 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
 
               <CollapsibleContent>
                 <AlertDescription className="mt-3 space-y-3">
+                  {result.ai_feedback && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                      <p className="font-semibold mb-1 text-sm">Retour personnalisé pour l'athlète :</p>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                        {result.ai_feedback}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <p className="font-semibold mb-1">Recommandations selon le score global :</p>
                     <ul className="list-disc list-inside space-y-1 text-sm">

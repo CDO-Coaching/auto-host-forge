@@ -23,6 +23,8 @@ export default function QuestionnaireSurentrainement() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [started, setStarted] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const savingRef = useRef(false);
 
   const total = SFMS_QUESTIONS.length;
@@ -117,6 +119,40 @@ export default function QuestionnaireSurentrainement() {
           title: "Résultat enregistré",
           description: "Ton coach pourra le consulter sur ton profil.",
         });
+
+        // Génération du retour personnalisé via IA
+        setAiLoading(true);
+        try {
+          const { data: aiData, error: aiError } = await supabase.functions.invoke(
+            "generate-sfms-feedback",
+            {
+              body: {
+                totalScore,
+                scores: {
+                  fatigue_physique: scores.fatigue_physique,
+                  performance: scores.performance,
+                  psychologique: scores.psychologique,
+                  cognitif: scores.cognitif,
+                  sommeil_appetit: scores.sommeil_appetit,
+                  physiologique: scores.physiologique,
+                },
+              },
+            }
+          );
+          if (aiError) throw aiError;
+          const feedback = (aiData as any)?.feedback as string | undefined;
+          if (feedback && inserted?.id) {
+            setAiFeedback(feedback);
+            await supabase
+              .from("sfms_questionnaire_results")
+              .update({ ai_feedback: feedback })
+              .eq("id", inserted.id);
+          }
+        } catch (aiErr: any) {
+          console.error("AI feedback error:", aiErr);
+        } finally {
+          setAiLoading(false);
+        }
       } catch (e: any) {
         savingRef.current = false;
         toast({
@@ -205,6 +241,26 @@ export default function QuestionnaireSurentrainement() {
                 <li>27 et plus : surentraînement probable</li>
               </ul>
             </div>
+
+            {(aiLoading || aiFeedback) && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-2">
+                <div className="flex items-center gap-2 font-semibold text-primary">
+                  <ShieldCheck className="h-4 w-4" />
+                  Ton retour personnalisé
+                </div>
+                {aiLoading && !aiFeedback && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analyse de tes réponses en cours…
+                  </div>
+                )}
+                {aiFeedback && (
+                  <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground/90">
+                    {aiFeedback}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-wrap items-center gap-3 justify-between">
               <div className="text-sm flex items-center gap-2">
