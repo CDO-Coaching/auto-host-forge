@@ -25,6 +25,7 @@ import {
   Frown,
   Meh,
 } from "lucide-react";
+import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
 
 interface WeeklySessionInfo {
   total: number;
@@ -338,6 +339,8 @@ export default function SportifDashboard() {
 
   return (
     <div className="space-y-2 sm:space-y-4 pb-4">
+      <AthleteSfmsRequestBanner />
+
       <p className="text-xs sm:text-sm text-muted-foreground">
         Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}
       </p>

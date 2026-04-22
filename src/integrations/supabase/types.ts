@@ -438,6 +438,42 @@ export type Database = {
           },
         ]
       }
+      sfms_questionnaire_requests: {
+        Row: {
+          athlete_id: string
+          coach_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          requested_at: string
+          result_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          athlete_id: string
+          coach_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          requested_at?: string
+          result_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          athlete_id?: string
+          coach_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          requested_at?: string
+          result_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sfms_questionnaire_results: {
         Row: {
           answers: Json

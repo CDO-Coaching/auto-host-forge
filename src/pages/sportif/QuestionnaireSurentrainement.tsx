@@ -80,18 +80,36 @@ export default function QuestionnaireSurentrainement() {
         const user = userRes.user;
         if (!user) throw new Error("Non authentifié");
 
-        const { error } = await supabase.from("sfms_questionnaire_results").insert({
-          athlete_id: user.id,
-          total_score: totalScore,
-          answers,
-          score_fatigue_physique: scores.fatigue_physique,
-          score_performance: scores.performance,
-          score_psychologique: scores.psychologique,
-          score_cognitif: scores.cognitif,
-          score_sommeil_appetit: scores.sommeil_appetit,
-          score_physiologique: scores.physiologique,
-        });
+        const { data: inserted, error } = await supabase
+          .from("sfms_questionnaire_results")
+          .insert({
+            athlete_id: user.id,
+            total_score: totalScore,
+            answers,
+            score_fatigue_physique: scores.fatigue_physique,
+            score_performance: scores.performance,
+            score_psychologique: scores.psychologique,
+            score_cognitif: scores.cognitif,
+            score_sommeil_appetit: scores.sommeil_appetit,
+            score_physiologique: scores.physiologique,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+
+        // Marquer toutes les demandes pending de cet athlète comme complétées
+        await supabase
+          .from("sfms_questionnaire_requests")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            result_id: inserted?.id ?? null,
+          })
+          .eq("athlete_id", user.id)
+          .eq("status", "pending");
+
+        // Nettoyer le snooze de session pour cet athlète
+        sessionStorage.removeItem(`sfms-snooze-${user.id}`);
 
         setSaved(true);
         toast({
