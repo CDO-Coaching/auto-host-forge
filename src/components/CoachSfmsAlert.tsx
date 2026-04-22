@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, ClipboardCheck } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { type SfmsDimension } from "@/lib/sfmsQuestions";
 import {
@@ -47,6 +48,7 @@ const DIMENSION_KEYS: SfmsDimension[] = [
 
 export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) {
   const [results, setResults] = useState<SfmsResult[]>([]);
+  const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     let active = true;
@@ -82,9 +84,10 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
   };
 
   return (
-    <div className="mb-4 space-y-3">
+    <div className="mt-4 space-y-3">
       {results.map((result, index) => {
         const scoreRec = getScoreRecommendation(result.total_score);
+        const isOpen = !!openIds[result.id];
 
         const scoresByDim: Record<SfmsDimension, number> = {
           fatigue_physique: result.score_fatigue_physique,
@@ -113,70 +116,86 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
 
         return (
           <Alert key={result.id} className={levelStyles[scoreRec.level]}>
-            {scoreRec.level === "ok" ? (
-              <ClipboardCheck className="h-5 w-5" />
-            ) : (
-              <AlertTriangle className="h-5 w-5" />
-            )}
-
-            <AlertTitle className="font-semibold">
-              Questionnaire surentraînement (SFMS) — {athleteName}
-              <span className="ml-2 text-xs font-normal opacity-80">
-                {index === 0 ? "Dernier résultat" : "Avant-dernier résultat"}
-              </span>
-            </AlertTitle>
-
-            <AlertDescription className="mt-2 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="font-semibold">
-                  Score : {result.total_score}/54
-                </Badge>
-                <Badge variant="outline">{scoreRec.title}</Badge>
-                <span className="text-xs opacity-80">Réalisé le {completedDate}</span>
-              </div>
-
-              <div>
-                <p className="font-semibold mb-1">Recommandations selon le score global :</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {scoreRec.recommendations.map((recommendation, recommendationIndex) => (
-                    <li key={recommendationIndex}>{recommendation}</li>
-                  ))}
-                </ul>
-              </div>
-
-              {sortedDimensions.length > 0 && (
-                <>
-                  <Separator className="opacity-50" />
-                  <div className="space-y-3">
-                    <p className="font-semibold">
-                      Dimension{sortedDimensions.length > 1 ? "s" : ""} dominante
-                      {sortedDimensions.length > 1 ? "s" : ""} :
-                    </p>
-                    {sortedDimensions.map((dim, dimIndex) => {
-                      const recommendation = DIMENSION_RECOMMENDATIONS[dim.key];
-                      return (
-                        <div key={dim.key} className="space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant="secondary" className="text-xs">
-                              #{dimIndex + 1}
-                            </Badge>
-                            <span className="font-medium">{recommendation.title}</span>
-                            <span className="text-xs opacity-80">
-                              ({dim.raw}/{dim.total} — {Math.round(dim.ratio * 100)}%)
-                            </span>
-                          </div>
-                          <ul className="list-disc list-inside space-y-1 text-sm pl-2">
-                            {recommendation.recommendations.map((item, itemIndex) => (
-                              <li key={itemIndex}>{item}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      );
-                    })}
+            <Collapsible
+              open={isOpen}
+              onOpenChange={(v) => setOpenIds((prev) => ({ ...prev, [result.id]: v }))}
+            >
+              <CollapsibleTrigger className="w-full text-left">
+                <div className="flex items-start gap-3">
+                  {scoreRec.level === "ok" ? (
+                    <ClipboardCheck className="h-5 w-5 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <AlertTitle className="font-semibold flex items-center justify-between gap-2 mb-1">
+                      <span className="truncate">
+                        SFMS — {athleteName}
+                        <span className="ml-2 text-xs font-normal opacity-80">
+                          {index === 0 ? "Dernier" : "Avant-dernier"}
+                        </span>
+                      </span>
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </AlertTitle>
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <Badge variant="outline" className="font-semibold">
+                        {result.total_score}/54
+                      </Badge>
+                      <Badge variant="outline">{scoreRec.title}</Badge>
+                      <span className="opacity-80">{completedDate}</span>
+                    </div>
                   </div>
-                </>
-              )}
-            </AlertDescription>
+                </div>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <AlertDescription className="mt-3 space-y-3">
+                  <div>
+                    <p className="font-semibold mb-1">Recommandations selon le score global :</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      {scoreRec.recommendations.map((recommendation, recommendationIndex) => (
+                        <li key={recommendationIndex}>{recommendation}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {sortedDimensions.length > 0 && (
+                    <>
+                      <Separator className="opacity-50" />
+                      <div className="space-y-3">
+                        <p className="font-semibold">
+                          Dimension{sortedDimensions.length > 1 ? "s" : ""} dominante
+                          {sortedDimensions.length > 1 ? "s" : ""} :
+                        </p>
+                        {sortedDimensions.map((dim, dimIndex) => {
+                          const recommendation = DIMENSION_RECOMMENDATIONS[dim.key];
+                          return (
+                            <div key={dim.key} className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <Badge variant="secondary" className="text-xs">
+                                  #{dimIndex + 1}
+                                </Badge>
+                                <span className="font-medium">{recommendation.title}</span>
+                                <span className="text-xs opacity-80">
+                                  ({dim.raw}/{dim.total} — {Math.round(dim.ratio * 100)}%)
+                                </span>
+                              </div>
+                              <ul className="list-disc list-inside space-y-1 text-sm pl-2">
+                                {recommendation.recommendations.map((item, itemIndex) => (
+                                  <li key={itemIndex}>{item}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </AlertDescription>
+              </CollapsibleContent>
+            </Collapsible>
           </Alert>
         );
       })}
