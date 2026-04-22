@@ -193,7 +193,7 @@ export default function QuestionnaireSurentrainement() {
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      Enregistrement et envoi à ton coach…
+                      Enregistrement de ton résultat…
                     </span>
                   </>
                 )}
@@ -201,7 +201,7 @@ export default function QuestionnaireSurentrainement() {
                   <>
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                      Résultat enregistré et envoyé à ton coach
+                      Résultat enregistré — visible par ton coach
                     </span>
                   </>
                 )}
