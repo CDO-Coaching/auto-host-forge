@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, ArrowRight, Check, X, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, X, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +22,7 @@ export default function QuestionnaireSurentrainement() {
   const [showResult, setShowResult] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const savingRef = useRef(false);
 
   const total = SFMS_QUESTIONS.length;
   const current = SFMS_QUESTIONS[step];
@@ -38,6 +39,8 @@ export default function QuestionnaireSurentrainement() {
 
   const handleBack = () => {
     if (showResult) {
+      // Une fois enregistré, on bloque le retour (résultat déjà envoyé au coach)
+      if (saved || saving) return;
       setShowResult(false);
       return;
     }
@@ -66,37 +69,60 @@ export default function QuestionnaireSurentrainement() {
     return entries[0];
   }, [scores, totals]);
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
-      if (!user) throw new Error("Non authentifié");
+  // Enregistrement automatique + notification du coach à l'arrivée sur le résultat
+  useEffect(() => {
+    if (!showResult || saved || savingRef.current) return;
+    savingRef.current = true;
+    (async () => {
+      try {
+        setSaving(true);
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) throw new Error("Non authentifié");
 
-      const { error } = await supabase.from("sfms_questionnaire_results").insert({
-        athlete_id: user.id,
-        total_score: totalScore,
-        answers,
-        score_fatigue_physique: scores.fatigue_physique,
-        score_performance: scores.performance,
-        score_psychologique: scores.psychologique,
-        score_cognitif: scores.cognitif,
-        score_sommeil_appetit: scores.sommeil_appetit,
-        score_physiologique: scores.physiologique,
-      });
-      if (error) throw error;
-      setSaved(true);
-      toast({ title: "Résultat enregistré", description: "Ton score a été sauvegardé." });
-    } catch (e: any) {
-      toast({
-        title: "Erreur",
-        description: e.message || "Impossible d'enregistrer le résultat.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+        const { error } = await supabase.from("sfms_questionnaire_results").insert({
+          athlete_id: user.id,
+          total_score: totalScore,
+          answers,
+          score_fatigue_physique: scores.fatigue_physique,
+          score_performance: scores.performance,
+          score_psychologique: scores.psychologique,
+          score_cognitif: scores.cognitif,
+          score_sommeil_appetit: scores.sommeil_appetit,
+          score_physiologique: scores.physiologique,
+        });
+        if (error) throw error;
+
+        // Notifier le coach (best-effort)
+        try {
+          await supabase.functions.invoke("notify-sfms-result", {
+            body: {
+              athlete_id: user.id,
+              total_score: totalScore,
+              scores,
+            },
+          });
+        } catch (notifyErr) {
+          console.error("notify-sfms-result error:", notifyErr);
+        }
+
+        setSaved(true);
+        toast({
+          title: "Résultat enregistré",
+          description: "Ton coach a été notifié de ton résultat.",
+        });
+      } catch (e: any) {
+        savingRef.current = false;
+        toast({
+          title: "Erreur",
+          description: e.message || "Impossible d'enregistrer le résultat.",
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
+  }, [showResult, saved, totalScore, answers, scores, toast]);
 
   if (showResult) {
     return (
@@ -174,13 +200,27 @@ export default function QuestionnaireSurentrainement() {
               </ul>
             </div>
 
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" /> Modifier mes réponses
-              </Button>
-              <Button onClick={handleSave} disabled={saving || saved}>
-                <Save className="h-4 w-4 mr-2" />
-                {saved ? "Enregistré" : saving ? "Enregistrement…" : "Enregistrer le résultat"}
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="text-sm flex items-center gap-2">
+                {saving && (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      Enregistrement et envoi à ton coach…
+                    </span>
+                  </>
+                )}
+                {saved && (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                      Résultat enregistré et envoyé à ton coach
+                    </span>
+                  </>
+                )}
+              </div>
+              <Button onClick={() => navigate("/sportif/fatigue")} disabled={saving}>
+                Retour à Fatigue
               </Button>
             </div>
           </CardContent>
