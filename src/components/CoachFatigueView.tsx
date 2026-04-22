@@ -8,6 +8,7 @@ import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, TrendingUp, Activity } from "lucide-react";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
+import { CoachSfmsRequestToggle } from "@/components/CoachSfmsRequestToggle";
 
 interface FatigueLog {
   id: string;
@@ -249,6 +250,8 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
   return (
     <div className="space-y-6">
+      <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
+
       {recentHighFatigue.length > 0 && (
         <Card className="border-orange-500/50 bg-orange-500/5">
           <CardHeader>
