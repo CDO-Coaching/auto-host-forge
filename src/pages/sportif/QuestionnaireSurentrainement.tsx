@@ -235,6 +235,75 @@ export default function QuestionnaireSurentrainement() {
     );
   }
 
+  if (!started) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/fatigue")}>
+          <ArrowLeft className="h-4 w-4 mr-2" /> Retour à Fatigue
+        </Button>
+
+        <Card>
+          <CardHeader className="space-y-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-6 w-6 text-primary" />
+              <CardTitle>Avant de commencer — confidentialité</CardTitle>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Réponds en toute honnêteté. Voici exactement ce que ton coach verra (ou non).
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-emerald-700 dark:text-emerald-400">
+                <Eye className="h-4 w-4" />
+                Ce que ton coach verra
+              </div>
+              <ul className="list-disc list-inside text-sm space-y-1 text-foreground/90">
+                <li>Ton <strong>score global</strong> (sur 54) et son interprétation (OK, à surveiller, alerte, critique)</li>
+                <li>La <strong>date</strong> à laquelle tu as rempli le questionnaire</li>
+                <li>Le <strong>détail des scores par dimension</strong> (fatigue physique, performance, psychologique, cognitif, sommeil/appétit, physiologique) afin d'adapter au mieux ton entraînement</li>
+                <li>Des <strong>recommandations</strong> automatiques basées sur ces scores</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-destructive">
+                <EyeOff className="h-4 w-4" />
+                Ce que ton coach ne verra JAMAIS
+              </div>
+              <ul className="list-disc list-inside text-sm space-y-1 text-foreground/90">
+                <li>Tes <strong>réponses individuelles</strong> à chaque question (oui/non)</li>
+                <li>Le détail des questions auxquelles tu as répondu oui ou non</li>
+              </ul>
+            </div>
+
+            <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
+              <div className="flex items-center gap-2 font-medium">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                Bon à savoir
+              </div>
+              <ul className="list-disc list-inside text-muted-foreground space-y-0.5 ml-1">
+                <li>54 questions oui/non, environ 5 minutes</li>
+                <li>Réponds en pensant au <strong>mois écoulé</strong></li>
+                <li>Plus tu es honnête, plus ton coach pourra t'aider efficacement</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-end pt-2">
+              <Button variant="ghost" onClick={() => navigate("/sportif/fatigue")}>
+                Annuler
+              </Button>
+              <Button onClick={() => setStarted(true)}>
+                J'ai compris, commencer
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-2xl mx-auto space-y-4">
       <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/fatigue")}>
