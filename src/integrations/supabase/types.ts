@@ -476,6 +476,7 @@ export type Database = {
       }
       sfms_questionnaire_results: {
         Row: {
+          ai_feedback: string | null
           answers: Json
           athlete_id: string
           completed_at: string
@@ -490,6 +491,7 @@ export type Database = {
           total_score: number
         }
         Insert: {
+          ai_feedback?: string | null
           answers?: Json
           athlete_id: string
           completed_at?: string
@@ -504,6 +506,7 @@ export type Database = {
           total_score: number
         }
         Update: {
+          ai_feedback?: string | null
           answers?: Json
           athlete_id?: string
           completed_at?: string
