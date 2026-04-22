@@ -153,6 +153,15 @@ export function CoachSfmsAlert({ athleteId, athleteName }: CoachSfmsAlertProps) 
 
               <CollapsibleContent>
                 <AlertDescription className="mt-3 space-y-3">
+                  {result.ai_feedback && (
+                    <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                      <p className="font-semibold mb-1 text-sm">Retour personnalisé pour l'athlète :</p>
+                      <div className="text-sm whitespace-pre-wrap leading-relaxed">
+                        {result.ai_feedback}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <p className="font-semibold mb-1">Recommandations selon le score global :</p>
                     <ul className="list-disc list-inside space-y-1 text-sm">
