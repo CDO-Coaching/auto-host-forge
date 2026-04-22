@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, ArrowRight, Check, X, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, X, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +22,7 @@ export default function QuestionnaireSurentrainement() {
   const [showResult, setShowResult] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const savingRef = useRef(false);
 
   const total = SFMS_QUESTIONS.length;
   const current = SFMS_QUESTIONS[step];
@@ -38,6 +39,8 @@ export default function QuestionnaireSurentrainement() {
 
   const handleBack = () => {
     if (showResult) {
+      // Une fois enregistré, on bloque le retour (résultat déjà envoyé au coach)
+      if (saved || saving) return;
       setShowResult(false);
       return;
     }
@@ -66,37 +69,60 @@ export default function QuestionnaireSurentrainement() {
     return entries[0];
   }, [scores, totals]);
 
-  const handleSave = async () => {
-    try {
-      setSaving(true);
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes.user;
-      if (!user) throw new Error("Non authentifié");
+  // Enregistrement automatique + notification du coach à l'arrivée sur le résultat
+  useEffect(() => {
+    if (!showResult || saved || savingRef.current) return;
+    savingRef.current = true;
+    (async () => {
+      try {
+        setSaving(true);
+        const { data: userRes } = await supabase.auth.getUser();
+        const user = userRes.user;
+        if (!user) throw new Error("Non authentifié");
 
-      const { error } = await supabase.from("sfms_questionnaire_results").insert({
-        athlete_id: user.id,
-        total_score: totalScore,
-        answers,
-        score_fatigue_physique: scores.fatigue_physique,
-        score_performance: scores.performance,
-        score_psychologique: scores.psychologique,
-        score_cognitif: scores.cognitif,
-        score_sommeil_appetit: scores.sommeil_appetit,
-        score_physiologique: scores.physiologique,
-      });
-      if (error) throw error;
-      setSaved(true);
-      toast({ title: "Résultat enregistré", description: "Ton score a été sauvegardé." });
-    } catch (e: any) {
-      toast({
-        title: "Erreur",
-        description: e.message || "Impossible d'enregistrer le résultat.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+        const { error } = await supabase.from("sfms_questionnaire_results").insert({
+          athlete_id: user.id,
+          total_score: totalScore,
+          answers,
+          score_fatigue_physique: scores.fatigue_physique,
+          score_performance: scores.performance,
+          score_psychologique: scores.psychologique,
+          score_cognitif: scores.cognitif,
+          score_sommeil_appetit: scores.sommeil_appetit,
+          score_physiologique: scores.physiologique,
+        });
+        if (error) throw error;
+
+        // Notifier le coach (best-effort)
+        try {
+          await supabase.functions.invoke("notify-sfms-result", {
+            body: {
+              athlete_id: user.id,
+              total_score: totalScore,
+              scores,
+            },
+          });
+        } catch (notifyErr) {
+          console.error("notify-sfms-result error:", notifyErr);
+        }
+
+        setSaved(true);
+        toast({
+          title: "Résultat enregistré",
+          description: "Ton coach a été notifié de ton résultat.",
+        });
+      } catch (e: any) {
+        savingRef.current = false;
+        toast({
+          title: "Erreur",
+          description: e.message || "Impossible d'enregistrer le résultat.",
+          variant: "destructive",
+        });
+      } finally {
+        setSaving(false);
+      }
+    })();
+  }, [showResult, saved, totalScore, answers, scores, toast]);
 
   if (showResult) {
     return (
