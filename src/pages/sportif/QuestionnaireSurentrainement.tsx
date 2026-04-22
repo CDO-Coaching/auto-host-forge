@@ -93,23 +93,10 @@ export default function QuestionnaireSurentrainement() {
         });
         if (error) throw error;
 
-        // Notifier le coach (best-effort)
-        try {
-          await supabase.functions.invoke("notify-sfms-result", {
-            body: {
-              athlete_id: user.id,
-              total_score: totalScore,
-              scores,
-            },
-          });
-        } catch (notifyErr) {
-          console.error("notify-sfms-result error:", notifyErr);
-        }
-
         setSaved(true);
         toast({
           title: "Résultat enregistré",
-          description: "Ton coach a été notifié de ton résultat.",
+          description: "Ton coach pourra le consulter sur ton profil.",
         });
       } catch (e: any) {
         savingRef.current = false;
@@ -206,7 +193,7 @@ export default function QuestionnaireSurentrainement() {
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     <span className="text-muted-foreground">
-                      Enregistrement et envoi à ton coach…
+                      Enregistrement de ton résultat…
                     </span>
                   </>
                 )}
@@ -214,7 +201,7 @@ export default function QuestionnaireSurentrainement() {
                   <>
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                     <span className="text-emerald-700 dark:text-emerald-400 font-medium">
-                      Résultat enregistré et envoyé à ton coach
+                      Résultat enregistré — visible par ton coach
                     </span>
                   </>
                 )}
