@@ -635,6 +635,7 @@ export default function Fatigue() {
           </CardContent>
         </Card>
 
+        {profile?.id && <AthleteSfmsResults athleteId={profile.id} />}
 
         <DailyFatigueDialog 
           open={showDialog} 
