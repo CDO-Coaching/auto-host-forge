@@ -93,23 +93,10 @@ export default function QuestionnaireSurentrainement() {
         });
         if (error) throw error;
 
-        // Notifier le coach (best-effort)
-        try {
-          await supabase.functions.invoke("notify-sfms-result", {
-            body: {
-              athlete_id: user.id,
-              total_score: totalScore,
-              scores,
-            },
-          });
-        } catch (notifyErr) {
-          console.error("notify-sfms-result error:", notifyErr);
-        }
-
         setSaved(true);
         toast({
           title: "Résultat enregistré",
-          description: "Ton coach a été notifié de ton résultat.",
+          description: "Ton coach pourra le consulter sur ton profil.",
         });
       } catch (e: any) {
         savingRef.current = false;
