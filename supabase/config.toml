@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.notify-sfms-result]
 verify_jwt = false
+
+[functions.generate-sfms-feedback]
+verify_jwt = false
