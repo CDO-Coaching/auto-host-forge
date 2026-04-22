@@ -22,6 +22,7 @@ export default function QuestionnaireSurentrainement() {
   const [showResult, setShowResult] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [started, setStarted] = useState(false);
   const savingRef = useRef(false);
 
   const total = SFMS_QUESTIONS.length;
