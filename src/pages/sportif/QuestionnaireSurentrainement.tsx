@@ -120,8 +120,7 @@ export default function QuestionnaireSurentrainement() {
           description: "Ton coach pourra le consulter sur ton profil.",
         });
 
-        // Génération du retour personnalisé via IA
-        setAiLoading(true);
+        // Génération du retour personnalisé via IA (visible uniquement par le coach)
         try {
           const { data: aiData, error: aiError } = await supabase.functions.invoke(
             "generate-sfms-feedback",
@@ -142,7 +141,6 @@ export default function QuestionnaireSurentrainement() {
           if (aiError) throw aiError;
           const feedback = (aiData as any)?.feedback as string | undefined;
           if (feedback && inserted?.id) {
-            setAiFeedback(feedback);
             await supabase
               .from("sfms_questionnaire_results")
               .update({ ai_feedback: feedback })
@@ -150,8 +148,6 @@ export default function QuestionnaireSurentrainement() {
           }
         } catch (aiErr: any) {
           console.error("AI feedback error:", aiErr);
-        } finally {
-          setAiLoading(false);
         }
       } catch (e: any) {
         savingRef.current = false;
