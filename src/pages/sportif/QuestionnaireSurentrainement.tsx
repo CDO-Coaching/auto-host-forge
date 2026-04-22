@@ -200,13 +200,27 @@ export default function QuestionnaireSurentrainement() {
               </ul>
             </div>
 
-            <div className="flex flex-wrap gap-2 justify-end">
-              <Button variant="outline" onClick={handleBack}>
-                <ArrowLeft className="h-4 w-4 mr-2" /> Modifier mes réponses
-              </Button>
-              <Button onClick={handleSave} disabled={saving || saved}>
-                <Save className="h-4 w-4 mr-2" />
-                {saved ? "Enregistré" : saving ? "Enregistrement…" : "Enregistrer le résultat"}
+            <div className="flex flex-wrap items-center gap-3 justify-between">
+              <div className="text-sm flex items-center gap-2">
+                {saving && (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-muted-foreground">
+                      Enregistrement et envoi à ton coach…
+                    </span>
+                  </>
+                )}
+                {saved && (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span className="text-emerald-700 dark:text-emerald-400 font-medium">
+                      Résultat enregistré et envoyé à ton coach
+                    </span>
+                  </>
+                )}
+              </div>
+              <Button onClick={() => navigate("/sportif/fatigue")} disabled={saving}>
+                Retour à Fatigue
               </Button>
             </div>
           </CardContent>
