@@ -10,7 +10,6 @@ export function AthleteSfmsRequestBanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [hasPending, setHasPending] = useState(false);
-  const [snoozed, setSnoozed] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -28,23 +27,12 @@ export function AthleteSfmsRequestBanner() {
       }
     })();
 
-    // Snooze de session uniquement (réapparaît à la prochaine connexion / refresh)
-    const snoozeKey = `sfms-snooze-${user.id}`;
-    if (sessionStorage.getItem(snoozeKey) === "1") {
-      setSnoozed(true);
-    }
-
     return () => {
       active = false;
     };
   }, [user]);
 
-  if (!user || !hasPending || snoozed) return null;
-
-  const handleLater = () => {
-    sessionStorage.setItem(`sfms-snooze-${user.id}`, "1");
-    setSnoozed(true);
-  };
+  if (!user || !hasPending) return null;
 
   return (
     <Alert className="border-primary/50 bg-primary/10">
@@ -62,9 +50,6 @@ export function AthleteSfmsRequestBanner() {
             onClick={() => navigate("/sportif/questionnaire-surentrainement")}
           >
             Remplir maintenant
-          </Button>
-          <Button size="sm" variant="ghost" onClick={handleLater}>
-            Plus tard
           </Button>
         </div>
       </AlertDescription>
