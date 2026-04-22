@@ -3216,6 +3216,14 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-4">
+          {/* Alerte questionnaire SFMS surentraînement */}
+          {athlete && (
+            <CoachSfmsAlert
+              athleteId={athleteId!}
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+
           <CoachClientSummaryView
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
