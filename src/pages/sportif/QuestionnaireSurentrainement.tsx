@@ -23,8 +23,6 @@ export default function QuestionnaireSurentrainement() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [started, setStarted] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
   const savingRef = useRef(false);
 
   const total = SFMS_QUESTIONS.length;
