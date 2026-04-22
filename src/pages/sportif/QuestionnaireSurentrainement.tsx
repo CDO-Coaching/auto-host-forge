@@ -236,6 +236,27 @@ export default function QuestionnaireSurentrainement() {
               </ul>
             </div>
 
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-start gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Et maintenant ?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Ton coach a reçu ton résultat avec une analyse personnalisée.
+                    Prends le temps d'<strong>échanger avec lui</strong> pour avoir un retour détaillé,
+                    adapté à ta situation et à tes objectifs.
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => navigate("/sportif/messagerie")}
+              >
+                Échanger avec mon coach
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
 
             <div className="flex flex-wrap items-center gap-3 justify-between">
               <div className="text-sm flex items-center gap-2">
@@ -256,7 +277,7 @@ export default function QuestionnaireSurentrainement() {
                   </>
                 )}
               </div>
-              <Button onClick={() => navigate("/sportif/fatigue")} disabled={saving}>
+              <Button variant="outline" onClick={() => navigate("/sportif/fatigue")} disabled={saving}>
                 Retour à Fatigue
               </Button>
             </div>
