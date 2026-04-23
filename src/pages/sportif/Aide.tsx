@@ -227,15 +227,6 @@ export default function Aide() {
       testLabel: "Aller à la Messagerie",
     },
     {
-      icon: <HelpCircle className="h-8 w-8" />,
-      badge: "Étape 18 — Aide",
-      title: "Consulte la rubrique Questions",
-      description:
-        "Dans 'Questions', retrouve les réponses aux questions courantes que ton coach a préparées pour toi.",
-      testRoute: "/sportif/questions",
-      testLabel: "Aller à Questions",
-    },
-    {
       icon: <Sparkles className="h-8 w-8" />,
       badge: "Bravo !",
       title: "Tu es prêt à progresser 🎉",
