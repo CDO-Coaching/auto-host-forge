@@ -96,7 +96,7 @@ const Index = () => {
 
         <div className="relative z-10 container mx-auto px-4 text-center animate-fade-in">
           <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight">
-            Deviens Plus <span className="text-primary">Fort</span>,<br />
+            Devien Plus <span className="text-primary">Fort</span>,<br />
             Plus <span className="text-primary">Endurant</span>,<br />
             Plus <span className="text-primary">Confiant</span>
           </h1>
