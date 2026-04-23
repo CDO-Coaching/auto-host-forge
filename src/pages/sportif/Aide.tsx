@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -25,6 +26,7 @@ import {
   Target,
   RotateCcw,
   Lightbulb,
+  ExternalLink,
 } from "lucide-react";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
@@ -34,12 +36,31 @@ interface Step {
   title: string;
   description: string;
   tip?: string;
+  testRoute?: string;
+  testLabel?: string;
 }
+
+const STORAGE_KEY = "aide-tutorial-step";
 
 export default function Aide() {
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
   const firstName = profile?.first_name || "champion";
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Restaurer l'étape depuis localStorage au chargement
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (!isNaN(parsed)) setCurrentStep(parsed);
+    }
+  }, []);
+
+  // Sauvegarder l'étape dès qu'elle change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, currentStep.toString());
+  }, [currentStep]);
 
   const steps: Step[] = [
     {
@@ -48,7 +69,7 @@ export default function Aide() {
       title: `Salut ${firstName} ! 👋`,
       description:
         "On va découvrir ensemble l'application, étape par étape. Prends le temps de bien comprendre chaque écran avant de passer au suivant.",
-      tip: "Tu peux revenir à ce tutoriel à tout moment depuis le menu.",
+      tip: "Tu peux revenir à ce tutoriel à tout moment, on reprendra exactement là où tu t'étais arrêté.",
     },
     {
       icon: <User className="h-8 w-8" />,
@@ -57,6 +78,8 @@ export default function Aide() {
       description:
         "Rends-toi dans 'Mon profil' pour renseigner tes informations personnelles : date de naissance, taille, poids et objectifs.",
       tip: "Plus ton profil est complet, mieux ton coach pourra te suivre.",
+      testRoute: "/sportif/profil",
+      testLabel: "Aller à Mon profil",
     },
     {
       icon: <TrendingUp className="h-8 w-8" />,
@@ -65,6 +88,8 @@ export default function Aide() {
       description:
         "Dans 'Mes max', entre tes performances de référence : tes 1RM en force, ta VMA si tu cours, ta FC max et FC repos.",
       tip: "Ces valeurs servent à calculer automatiquement tes charges et allures.",
+      testRoute: "/sportif/maxes",
+      testLabel: "Aller à Mes max",
     },
     {
       icon: <Smartphone className="h-8 w-8" />,
@@ -73,6 +98,8 @@ export default function Aide() {
       description:
         "Sur iPhone : Safari → Partager → 'Sur l'écran d'accueil'. Sur Android : Chrome → menu → 'Installer l'application'.",
       tip: "Tu auras une vraie icône d'app et tu recevras les notifications.",
+      testRoute: "/sportif/install",
+      testLabel: "Voir le guide d'installation",
     },
     {
       icon: <Activity className="h-8 w-8" />,
@@ -81,6 +108,8 @@ export default function Aide() {
       description:
         "Chaque jour, ouvre 'Suivi fatigue' et note ton sommeil, ton stress, ta fatigue et tes courbatures sur 7.",
       tip: "30 secondes par jour suffisent et permettent à ton coach d'adapter tes séances.",
+      testRoute: "/sportif/fatigue",
+      testLabel: "Aller au Suivi fatigue",
     },
     {
       icon: <Dumbbell className="h-8 w-8" />,
@@ -89,6 +118,8 @@ export default function Aide() {
       description:
         "Dans 'Mes séances', tu verras le programme prévu par ton coach : exercices, séries, répétitions, charges et commentaires.",
       tip: "Lis bien les commentaires de ton coach avant de commencer.",
+      testRoute: "/sportif/seances",
+      testLabel: "Aller à Mes séances",
     },
     {
       icon: <CheckCircle2 className="h-8 w-8" />,
@@ -97,6 +128,8 @@ export default function Aide() {
       description:
         "Pendant l'entraînement, valide chaque série dès qu'elle est terminée. Le minuteur de récupération se lance automatiquement.",
       tip: "Ne remplis pas tout à la fin : fais-le série par série pour ne rien oublier.",
+      testRoute: "/sportif/seances",
+      testLabel: "Voir Mes séances",
     },
     {
       icon: <Target className="h-8 w-8" />,
@@ -121,6 +154,8 @@ export default function Aide() {
       description:
         "Pour la course, le vélo ou la natation, suis les étapes programmées avec les allures cibles, puis enregistre tes données réelles.",
       tip: "Tes performances prévues vs réalisées s'affichent côte à côte.",
+      testRoute: "/sportif/seances",
+      testLabel: "Voir Mes séances",
     },
     {
       icon: <Zap className="h-8 w-8" />,
@@ -144,6 +179,8 @@ export default function Aide() {
       description:
         "Dans 'Mon poids', enregistre ta valeur. Idéalement le matin à jeun, toujours le même jour de la semaine.",
       tip: "Active le rappel hebdomadaire pour ne pas oublier.",
+      testRoute: "/sportif/poids",
+      testLabel: "Aller à Mon poids",
     },
     {
       icon: <Calendar className="h-8 w-8" />,
@@ -152,6 +189,8 @@ export default function Aide() {
       description:
         "'Mon agenda' affiche le calendrier de tes séances et rendez-vous. Les séances faites apparaissent en vert.",
       tip: "Tu peux aussi créer des séances personnelles avec le bouton +.",
+      testRoute: "/sportif/agenda",
+      testLabel: "Aller à Mon agenda",
     },
     {
       icon: <Stethoscope className="h-8 w-8" />,
@@ -168,6 +207,8 @@ export default function Aide() {
       description:
         "Dans le questionnaire de fatigue, active le suivi des douleurs pour indiquer leur emplacement et leur intensité.",
       tip: "Ton coach est automatiquement alerté pour adapter ta programmation.",
+      testRoute: "/sportif/fatigue",
+      testLabel: "Aller au Suivi fatigue",
     },
     {
       icon: <RotateCcw className="h-8 w-8" />,
@@ -184,6 +225,8 @@ export default function Aide() {
       description:
         "Utilise la messagerie pour les questions générales, ou laisse un commentaire directement sur un exercice pour une question précise.",
       tip: "Plus tu communiques, mieux ton coach peut t'accompagner.",
+      testRoute: "/sportif/messagerie",
+      testLabel: "Aller à la Messagerie",
     },
     {
       icon: <HelpCircle className="h-8 w-8" />,
@@ -191,6 +234,8 @@ export default function Aide() {
       title: "Consulte la rubrique Questions",
       description:
         "Dans 'Questions', retrouve les réponses aux questions courantes que ton coach a préparées pour toi.",
+      testRoute: "/sportif/questions",
+      testLabel: "Aller à Questions",
     },
     {
       icon: <Sparkles className="h-8 w-8" />,
@@ -208,6 +253,11 @@ export default function Aide() {
   const isFirst = currentStep === 0;
   const isLast = currentStep === totalSteps - 1;
 
+  const handleReset = () => {
+    setCurrentStep(0);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
   return (
     <div className="w-full min-h-screen overflow-x-hidden">
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
@@ -218,7 +268,7 @@ export default function Aide() {
               {currentStep + 1} / {totalSteps}
             </span>
             <button
-              onClick={() => setCurrentStep(0)}
+              onClick={handleReset}
               className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
             >
               <RotateCcw className="h-3 w-3" />
@@ -257,10 +307,27 @@ export default function Aide() {
 
             {/* Astuce */}
             {step.tip && (
-              <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-4 mt-2">
+              <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-4">
                 <Lightbulb className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                 <p className="text-xs sm:text-sm text-foreground/80">
                   <span className="font-semibold">Astuce :</span> {step.tip}
+                </p>
+              </div>
+            )}
+
+            {/* Bouton Tester la fonctionnalité */}
+            {step.testRoute && (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full border-primary/40 hover:bg-primary/5"
+                  onClick={() => navigate(step.testRoute!)}
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {step.testLabel || "Tester maintenant"}
+                </Button>
+                <p className="text-[11px] text-muted-foreground text-center mt-2">
+                  Reviens ici quand tu veux, tu reprendras à cette étape.
                 </p>
               </div>
             )}
@@ -298,10 +365,7 @@ export default function Aide() {
           </div>
 
           {isLast ? (
-            <Button
-              onClick={() => setCurrentStep(0)}
-              className="flex-1 sm:flex-none"
-            >
+            <Button onClick={handleReset} className="flex-1 sm:flex-none">
               <RotateCcw className="h-4 w-4" />
               Recommencer
             </Button>
