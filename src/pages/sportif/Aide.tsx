@@ -87,7 +87,7 @@ export default function Aide() {
       title: "Renseigne tes max",
       description:
         "Dans 'Mes max', entre tes performances de référence : tes 1RM en force, ta VMA si tu cours, ta FC max et FC repos.",
-      tip: "Ces valeurs servent à calculer automatiquement tes charges et allures.",
+      tip: "Ces valeurs seront utiles à ton coach pour personnaliser ta programmation. Si tu ne les connais pas, pas de souci, tu pourras les voir plus tard avec lui.",
       testRoute: "/sportif/maxes",
       testLabel: "Aller à Mes max",
     },
@@ -97,9 +97,7 @@ export default function Aide() {
       title: "Installe l'app sur ton téléphone",
       description:
         "Sur iPhone : Safari → Partager → 'Sur l'écran d'accueil'. Sur Android : Chrome → menu → 'Installer l'application'.",
-      tip: "Tu auras une vraie icône d'app et tu recevras les notifications.",
-      testRoute: "/sportif/install",
-      testLabel: "Voir le guide d'installation",
+      tip: "Tu auras une vraie icône d'app sur ton écran d'accueil.",
     },
     {
       icon: <Activity className="h-8 w-8" />,
