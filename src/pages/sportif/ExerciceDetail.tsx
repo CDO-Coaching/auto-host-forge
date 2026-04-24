@@ -842,7 +842,7 @@ export default function ExerciceDetail() {
                             <span className="text-purple-500 text-xs">T:{serie.tempo}</span>
                           )}
                           {serie.commentaire && (
-                            <span className="text-muted-foreground italic text-xs truncate">"{serie.commentaire}"</span>
+                            <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{serie.commentaire}"</span>
                           )}
                           <Badge 
                             variant={isValidated ? "default" : "outline"} 
