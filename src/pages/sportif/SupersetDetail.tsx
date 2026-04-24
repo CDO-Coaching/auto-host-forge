@@ -565,13 +565,24 @@ export default function SupersetDetail() {
           <CardContent className="p-3 sm:p-4">
             <div className="space-y-2">
               {exercises.map((ex, idx) => (
-                <div key={ex.id} className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-primary">{idx + 1}</span>
-                  <span className="font-medium uppercase">{ex.exercice}</span>
-                  {videoUrls[ex.exercice] && (
-                    <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
-                      🎥
-                    </a>
+                <div key={ex.id} className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-primary">{idx + 1}</span>
+                    <span className="font-medium uppercase">{ex.exercice}</span>
+                    {videoUrls[ex.exercice] && (
+                      <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
+                        🎥
+                      </a>
+                    )}
+                  </div>
+                  {(ex as any).commentaire && (
+                    <div className="ml-7 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                      <span className="text-base">📝</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
+                        <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{(ex as any).commentaire}</p>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
@@ -649,7 +660,7 @@ export default function SupersetDetail() {
                                     <span className="text-purple-500">T:{serieData.tempo}</span>
                                   )}
                                   {serieData.commentaire && (
-                                    <span className="text-muted-foreground italic truncate">"{serieData.commentaire}"</span>
+                                    <span className="basis-full text-muted-foreground italic whitespace-pre-wrap break-words">"{serieData.commentaire}"</span>
                                   )}
                                 </div>
                               </div>

@@ -859,6 +859,16 @@ export default function SeanceDetail() {
                               <span className="uppercase">{ex.exercice}</span>
                             </p>
 
+                            {ex.commentaire && (
+                              <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                                <span className="text-sm">📝</span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
+                                  <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{ex.commentaire}</p>
+                                </div>
+                              </div>
+                            )}
+
                             {allCompleted && (
                               <div className="flex gap-2 flex-wrap">
                                 {ex.series && (
