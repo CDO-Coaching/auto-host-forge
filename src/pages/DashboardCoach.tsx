@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CoachSidebar } from "@/components/CoachSidebar";
+import { CoachBottomNav } from "@/components/CoachBottomNav";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -136,21 +137,21 @@ export default function DashboardCoach() {
         );
       })()}
       <SidebarProvider>
-        <div className="min-h-screen flex w-full">
+        <div className="min-h-screen flex w-full app-page">
         <CoachSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 app-header">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              <SidebarTrigger />
+              <SidebarTrigger className="hidden sm:flex" />
               <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
             <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">
               Prêt à accompagner tes athlètes aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 sm:pb-6">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-bottom-nav app-container max-w-full overflow-x-hidden">
             {birthdayAthletes.length > 0 && (
-              <div className="mb-6">
+              <div className="mb-4 sm:mb-6">
                 <CoachBirthdayAlert
                   athletes={birthdayAthletes}
                   onDismiss={dismissBirthday}
@@ -158,16 +159,16 @@ export default function DashboardCoach() {
               </div>
             )}
             {pendingCount > 0 && (
-              <Alert className="mb-6 border-primary bg-primary/10">
+              <Alert className="mb-4 sm:mb-6 border-primary bg-primary/10">
                 <Bell className="h-5 w-5 text-primary" />
-                <AlertTitle className="text-lg font-semibold">
+                <AlertTitle className="text-base sm:text-lg font-semibold">
                   Tu as {pendingCount} nouvelle{pendingCount > 1 ? "s" : ""} demande{pendingCount > 1 ? "s" : ""} !
                 </AlertTitle>
-                <AlertDescription className="mt-2 flex items-center justify-between">
-                  <span>
+                <AlertDescription className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <span className="text-sm">
                     Des athlètes aimeraient que tu sois leur coach
                   </span>
-                  <Button onClick={() => navigate("/coach/mes-clients")} size="sm">
+                  <Button onClick={() => navigate("/coach/mes-clients")} size="sm" className="w-full sm:w-auto">
                     Voir les demandes
                   </Button>
                 </AlertDescription>
@@ -190,6 +191,7 @@ export default function DashboardCoach() {
               <Route path="/profil" element={<Profil />} />
             </Routes>
           </main>
+          <CoachBottomNav />
         </div>
       </div>
     </SidebarProvider>
