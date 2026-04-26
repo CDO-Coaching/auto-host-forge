@@ -2550,7 +2550,7 @@ export default function ClientDetail() {
             charge: ex.charge ?? "",
             rpe: ex.rpe ?? "",
             tempo: ex.tempo ?? "",
-            commentaire: "",
+            commentaire: ex.commentaire ?? "",
             recuperation: ex.recuperation ?? "",
           }));
         };
