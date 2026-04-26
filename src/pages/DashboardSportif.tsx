@@ -3,6 +3,7 @@ import { useNavigate, Routes, Route, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
+import { SportifBottomNav } from "@/components/SportifBottomNav";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { ChatBubble } from "@/components/ChatBubble";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,19 +77,19 @@ export default function DashboardSportif() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full app-page">
         <SportifSidebar />
-        <div className="flex-1 flex flex-col">
-          <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-40 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 app-header h-14">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              <SidebarTrigger />
+              <SidebarTrigger className="hidden sm:inline-flex" />
               <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
             <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">
               Prêt à donner le meilleur de toi-même aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 sm:pb-6">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 app-container pb-bottom-nav smooth-scroll">
             <Routes>
               <Route path="/" element={<Navigate to="/sportif/dashboard" replace />} />
               <Route path="/dashboard" element={<SportifDashboard />} />
@@ -116,6 +117,7 @@ export default function DashboardSportif() {
           </main>
         </div>
         <ChatBubble />
+        <SportifBottomNav />
       </div>
       <DailyFatigueDialog 
         open={shouldShowDialog && !isChecking} 
