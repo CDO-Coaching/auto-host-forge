@@ -4559,6 +4559,48 @@ export default function ClientDetail() {
                                                         </label>
                                                       </div>
                                                     </div>
+                                                    {/* Détail des séries (superset mobile) */}
+                                                    {ex.serie_details && ex.serie_details.length > 1 && (
+                                                      <div className="mt-1.5 border-l-2 border-primary pl-2 bg-primary/5 rounded-r">
+                                                        <button
+                                                          type="button"
+                                                          onClick={() => setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: !prev[ex.id] }))}
+                                                          className="flex items-center gap-1 w-full py-1 text-[10px] text-muted-foreground font-medium"
+                                                        >
+                                                          <ChevronDown className={`h-3 w-3 transition-transform ${collapsedSeriesExercises[ex.id] ? '-rotate-90' : ''}`} />
+                                                          <span>{collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} les {ex.serie_details.length} séries</span>
+                                                        </button>
+                                                        {!collapsedSeriesExercises[ex.id] && ex.serie_details.map((serie, si) => (
+                                                          <div key={`${ex.id}-mobile-ss-serie-${si}`} className="py-1 border-t border-primary/20 first:border-t-0">
+                                                            <div className="text-[9px] font-semibold text-primary mb-1">Série {si + 1}</div>
+                                                            <div className="grid grid-cols-3 gap-1">
+                                                              <div>
+                                                                <label className="text-[8px] text-muted-foreground">Reps</label>
+                                                                <Input value={serie.reps || ""} onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "reps", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="10" />
+                                                              </div>
+                                                              <div>
+                                                                <label className="text-[8px] text-muted-foreground">RPE</label>
+                                                                <Input value={serie.rpe || ""} onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "rpe", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="8" />
+                                                              </div>
+                                                              <div>
+                                                                <label className="text-[8px] text-muted-foreground">Charge</label>
+                                                                <Input value={serie.charge || ""} onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "charge", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="kg" />
+                                                              </div>
+                                                            </div>
+                                                            <div className="grid grid-cols-2 gap-1 mt-1">
+                                                              <div>
+                                                                <label className="text-[8px] text-muted-foreground">Tempo</label>
+                                                                <Input value={serie.tempo || ""} onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "tempo", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="3010" />
+                                                              </div>
+                                                              <div>
+                                                                <label className="text-[8px] text-muted-foreground">Comm.</label>
+                                                                <Input value={serie.commentaire || ""} onChange={(e) => handleSerieDetailChange(session.id, ex.id, si, "commentaire", e.target.value)} disabled={isValidated} className="h-6 text-[10px] px-1" placeholder="..." />
+                                                              </div>
+                                                            </div>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    )}
                                                   </div>
                                                 ))}
                                               </div>
