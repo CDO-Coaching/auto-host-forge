@@ -142,9 +142,12 @@ All colors MUST be HSL.
     }
   }
 
-  /* Bottom navigation safe area (used on the main scroll container) */
+  /* Bottom navigation safe area (used on the main scroll container).
+     Nav height = h-16 (4rem) + its own safe-area-inset-bottom.
+     We add a generous gap so floating action bars / "Ajouter" buttons
+     stay tappable above the nav on every mobile device. */
   .pb-bottom-nav {
-    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(6.5rem + env(safe-area-inset-bottom));
   }
   @media (min-width: 640px) {
     .pb-bottom-nav {
