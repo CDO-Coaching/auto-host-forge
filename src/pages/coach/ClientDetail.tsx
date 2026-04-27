@@ -3750,7 +3750,7 @@ export default function ClientDetail() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-3 sm:pb-4">
+              <CardContent className="space-y-2 sm:space-y-3 px-2 sm:px-4 pb-32 sm:pb-4">
               {/* Sélecteur de semaine compact */}
               {!isValidated && (
                 <Card className="border-primary/30 bg-primary/5">
@@ -5949,7 +5949,7 @@ export default function ClientDetail() {
 
               {/* Boutons de création - optimisés mobile */}
               {!isValidated && (
-                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:justify-between sm:gap-2">
+                <div className="mt-4 sm:mt-6 space-y-2 sm:space-y-0 sm:flex sm:flex-wrap sm:justify-between sm:gap-2 sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 rounded-xl border border-border/70 bg-card/95 p-2 shadow-lg backdrop-blur sm:static sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-0">
                   <div className="flex flex-col sm:flex-row gap-1.5 sm:gap-2 w-full sm:w-auto">
                     {historicalWeeks.length > 0 && (
                       <>
