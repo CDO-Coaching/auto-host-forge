@@ -4579,7 +4579,7 @@ export default function ClientDetail() {
                                                       </div>
                                                     </div>
                                                     {/* Détail des séries (superset mobile) */}
-                                                    {ex.serie_details && ex.serie_details.length > 1 && (
+                                                    {getSerieDetailsArray(ex.serie_details).length > 1 && (
                                                       <div className="mt-1.5 border-l-2 border-primary pl-2 bg-primary/5 rounded-r">
                                                         <button
                                                           type="button"
@@ -4587,9 +4587,9 @@ export default function ClientDetail() {
                                                           className="flex items-center gap-1 w-full py-1 text-[10px] text-muted-foreground font-medium"
                                                         >
                                                           <ChevronDown className={`h-3 w-3 transition-transform ${collapsedSeriesExercises[ex.id] ? '-rotate-90' : ''}`} />
-                                                          <span>{collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} les {ex.serie_details.length} séries</span>
+                                                          <span>{collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} les {getSerieDetailsArray(ex.serie_details).length} séries</span>
                                                         </button>
-                                                        {!collapsedSeriesExercises[ex.id] && ex.serie_details.map((serie, si) => (
+                                                        {!collapsedSeriesExercises[ex.id] && getSerieDetailsArray(ex.serie_details).map((serie, si) => (
                                                           <div key={`${ex.id}-mobile-ss-serie-${si}`} className="py-1 border-t border-primary/20 first:border-t-0">
                                                             <div className="text-[9px] font-semibold text-primary mb-1">Série {si + 1}</div>
                                                             <div className="grid grid-cols-3 gap-1">
@@ -4726,7 +4726,7 @@ export default function ClientDetail() {
                                                   </div>
                                                 </div>
                                                 {/* Détail des séries (mobile) */}
-                                                {exercise.serie_details && exercise.serie_details.length > 1 && (
+                                                {getSerieDetailsArray(exercise.serie_details).length > 1 && (
                                                   <div className="mt-1.5 border-l-2 border-primary pl-2 bg-primary/5 rounded-r">
                                                     <button
                                                       type="button"
@@ -4734,9 +4734,9 @@ export default function ClientDetail() {
                                                       className="flex items-center gap-1 w-full py-1 text-[10px] text-muted-foreground font-medium"
                                                     >
                                                       <ChevronDown className={`h-3 w-3 transition-transform ${collapsedSeriesExercises[exercise.id] ? '-rotate-90' : ''}`} />
-                                                      <span>{collapsedSeriesExercises[exercise.id] ? 'Afficher' : 'Masquer'} les {exercise.serie_details.length} séries</span>
+                                                      <span>{collapsedSeriesExercises[exercise.id] ? 'Afficher' : 'Masquer'} les {getSerieDetailsArray(exercise.serie_details).length} séries</span>
                                                     </button>
-                                                    {!collapsedSeriesExercises[exercise.id] && exercise.serie_details.map((serie, si) => (
+                                                    {!collapsedSeriesExercises[exercise.id] && getSerieDetailsArray(exercise.serie_details).map((serie, si) => (
                                                       <div key={`${exercise.id}-mobile-serie-${si}`} className="py-1 border-t border-primary/20 first:border-t-0">
                                                         <div className="text-[9px] font-semibold text-primary mb-1">Série {si + 1}</div>
                                                         <div className="grid grid-cols-3 gap-1">
@@ -5159,7 +5159,7 @@ export default function ClientDetail() {
                                                            </TableRow>
 
                                                           {/* Sous-lignes par série pour superset */}
-                                                          {ex.serie_details && ex.serie_details.length > 1 && (
+                                                          {getSerieDetailsArray(ex.serie_details).length > 1 && (
                                                             <>
                                                               <TableRow 
                                                                 key={`${ex.id}-serie-toggle`} 
@@ -5170,13 +5170,13 @@ export default function ClientDetail() {
                                                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                                     <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsedSeriesExercises[ex.id] ? '-rotate-90' : ''}`} />
                                                                     <span className="font-medium">
-                                                                      {collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} le détail des {ex.serie_details.length} séries
+                                                                      {collapsedSeriesExercises[ex.id] ? 'Afficher' : 'Masquer'} le détail des {getSerieDetailsArray(ex.serie_details).length} séries
                                                                     </span>
                                                                   </div>
                                                                 </TableCell>
                                                               </TableRow>
-                                                              {!collapsedSeriesExercises[ex.id] && ex.serie_details.map((serie, si) => {
-                                                                const totalSeries = ex.serie_details!.length;
+                                                              {!collapsedSeriesExercises[ex.id] && getSerieDetailsArray(ex.serie_details).map((serie, si) => {
+                                                                const totalSeries = getSerieDetailsArray(ex.serie_details).length;
                                                                 const serieFields = ["reps", "rpe", "charge", "tempo", "commentaire"] as const;
                                                                 const getNextOnEnter = (currentField: string) => {
                                                                   const fieldIndex = serieFields.indexOf(currentField as any);
@@ -5679,7 +5679,7 @@ export default function ClientDetail() {
                                                     </TableRow>
 
                                                     {/* Sous-lignes par série avec toggle */}
-                                                    {exercise.serie_details && exercise.serie_details.length > 1 && (
+                                                    {getSerieDetailsArray(exercise.serie_details).length > 1 && (
                                                       <>
                                                         <TableRow 
                                                           key={`${exercise.id}-serie-toggle`} 
@@ -5690,13 +5690,13 @@ export default function ClientDetail() {
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                               <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${collapsedSeriesExercises[exercise.id] ? '-rotate-90' : ''}`} />
                                                               <span className="font-medium">
-                                                                {collapsedSeriesExercises[exercise.id] ? 'Afficher' : 'Masquer'} le détail des {exercise.serie_details.length} séries
+                                                                {collapsedSeriesExercises[exercise.id] ? 'Afficher' : 'Masquer'} le détail des {getSerieDetailsArray(exercise.serie_details).length} séries
                                                               </span>
                                                             </div>
                                                           </TableCell>
                                                         </TableRow>
-                                                        {!collapsedSeriesExercises[exercise.id] && exercise.serie_details.map((serie, si) => {
-                                                          const totalSeries = exercise.serie_details!.length;
+                                                        {!collapsedSeriesExercises[exercise.id] && getSerieDetailsArray(exercise.serie_details).map((serie, si) => {
+                                                          const totalSeries = getSerieDetailsArray(exercise.serie_details).length;
                                                           const serieFields = ["reps", "rpe", "charge", "tempo", "commentaire"] as const;
                                                           const getNextOnEnter = (currentField: string) => {
                                                             const fieldIndex = serieFields.indexOf(currentField as any);
