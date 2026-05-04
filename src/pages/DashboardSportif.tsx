@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { SportifBottomNav } from "@/components/SportifBottomNav";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { ChatBubble } from "@/components/ChatBubble";
 import { useAuth } from "@/contexts/AuthContext";
