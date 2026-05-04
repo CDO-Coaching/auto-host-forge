@@ -324,8 +324,8 @@ export default function SeanceDetail() {
     });
 
     const sorted = grouped.sort((a: any, b: any) => {
-      const orderA = a.isSuperset ? a.exercises[0].exercise_order : a.exercise_order;
-      const orderB = b.isSuperset ? b.exercises[0].exercise_order : b.exercise_order;
+      const orderA = a.isSuperset ? (a.exercises?.[0]?.exercise_order ?? 0) : (a.exercise_order ?? 0);
+      const orderB = b.isSuperset ? (b.exercises?.[0]?.exercise_order ?? 0) : (b.exercise_order ?? 0);
       return orderA - orderB;
     });
 
