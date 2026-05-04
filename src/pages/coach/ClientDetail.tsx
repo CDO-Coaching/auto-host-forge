@@ -128,6 +128,25 @@ interface Exercise {
   serie_details?: SerieDetail[];
 }
 
+/**
+ * Returns serie_details as an array, even when the value comes from the DB
+ * as a JSON string (e.g. right after a week-copy). Always returns an array,
+ * never null/undefined, so callers can safely use .map / .length.
+ */
+function getSerieDetailsArray(value: any): SerieDetail[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 export default function ClientDetail() {
   const { athleteId } = useParams();
   const navigate = useNavigate();
