@@ -91,30 +91,32 @@ export default function DashboardSportif() {
             </p>
           </header>
           <main className="flex-1 p-3 sm:p-4 md:p-6 app-container pb-bottom-nav smooth-scroll">
-            <Routes>
-              <Route path="/" element={<Navigate to="/sportif/dashboard" replace />} />
-              <Route path="/dashboard" element={<SportifDashboard />} />
-              <Route path="/seances" element={<Seances />} />
-              <Route path="/agenda" element={<Agenda />} />
-              <Route path="/mes-seances" element={<MesSeances />} />
-              <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
-              <Route path="/recup/:weekId/:sessionId" element={<RecupDetail />} />
-              <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
-              <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
-              <Route path="/fatigue" element={<Fatigue />} />
-              <Route path="/questionnaire-surentrainement" element={<QuestionnaireSurentrainement />} />
-              <Route path="/maxes" element={<Maxes />} />
-              <Route path="/poids" element={<Poids />} />
-              <Route path="/programmer" element={<ProgrammerSeances />} />
-              <Route path="/meditation" element={<Meditation />} />
-              <Route path="/messagerie" element={<Messagerie />} />
-              <Route path="/paiement" element={<Paiement />} />
-              <Route path="/paiement-succes" element={<PaiementSucces />} />
-              <Route path="/factures" element={<MesFactures />} />
-              <Route path="/questions" element={<Questions />} />
-              <Route path="/profil" element={<Profil />} />
-              <Route path="/aide" element={<Aide />} />
-            </Routes>
+            <PageErrorBoundary fallbackPath="/sportif/seances">
+              <Routes>
+                <Route path="/" element={<Navigate to="/sportif/dashboard" replace />} />
+                <Route path="/dashboard" element={<SportifDashboard />} />
+                <Route path="/seances" element={<Seances />} />
+                <Route path="/agenda" element={<Agenda />} />
+                <Route path="/mes-seances" element={<MesSeances />} />
+                <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />
+                <Route path="/recup/:weekId/:sessionId" element={<RecupDetail />} />
+                <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
+                <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
+                <Route path="/fatigue" element={<Fatigue />} />
+                <Route path="/questionnaire-surentrainement" element={<QuestionnaireSurentrainement />} />
+                <Route path="/maxes" element={<Maxes />} />
+                <Route path="/poids" element={<Poids />} />
+                <Route path="/programmer" element={<ProgrammerSeances />} />
+                <Route path="/meditation" element={<Meditation />} />
+                <Route path="/messagerie" element={<Messagerie />} />
+                <Route path="/paiement" element={<Paiement />} />
+                <Route path="/paiement-succes" element={<PaiementSucces />} />
+                <Route path="/factures" element={<MesFactures />} />
+                <Route path="/questions" element={<Questions />} />
+                <Route path="/profil" element={<Profil />} />
+                <Route path="/aide" element={<Aide />} />
+              </Routes>
+            </PageErrorBoundary>
           </main>
         </div>
         <ChatBubble />
