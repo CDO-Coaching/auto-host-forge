@@ -68,7 +68,7 @@ export default function Profil() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone")
+        .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone, iban, bic")
         .eq("id", session.user.id)
         .single();
 
