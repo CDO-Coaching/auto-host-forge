@@ -147,13 +147,21 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
         </ram:SpecifiedLegalOrganization>`
     : "";
 
+  // SpecifiedTaxRegistration : OBLIGATOIRE pour exonération TVA (BR-E-02).
+  // Si pas de n° de TVA, on déclare le SIRET comme identifiant fiscal (schemeID="FC" = France).
   const sellerTaxReg = data.seller.vatId
     ? `
         <ram:SpecifiedTaxRegistration>
           <ram:ID schemeID="VA">${xmlEscape(data.seller.vatId)}</ram:ID>
         </ram:SpecifiedTaxRegistration>`
+    : data.seller.siret
+    ? `
+        <ram:SpecifiedTaxRegistration>
+          <ram:ID schemeID="FC">${xmlEscape(data.seller.siret)}</ram:ID>
+        </ram:SpecifiedTaxRegistration>`
     : "";
 
+  // BillingSpecifiedPeriod doit être dans Settlement (pas Delivery) selon le XSD CII
   const periodXml =
     data.servicePeriodStart && data.servicePeriodEnd
       ? `
@@ -184,17 +192,19 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
       </ram:SpecifiedTradeSettlementPaymentMeans>`
     : "";
 
-  const paymentTerms = data.paymentTerms || data.paymentDate
-    ? `
+  // BR-CO-25 : si montant dû positif, DueDate OU PaymentTerms description doit être présent.
+  // On garantit toujours une description (ex: "Payé" si déjà réglé).
+  const termsDescription =
+    data.paymentTerms || (data.paymentDate ? "Facture acquittée" : "Paiement à réception");
+  const paymentTermsXml = `
       <ram:SpecifiedTradePaymentTerms>
-        ${data.paymentTerms ? `<ram:Description>${xmlEscape(data.paymentTerms)}</ram:Description>` : ""}
-        ${
-          data.paymentDate
-            ? `<ram:DueDateDateTime><udt:DateTimeString format="102">${fmtDate(data.paymentDate)}</udt:DateTimeString></ram:DueDateDateTime>`
-            : ""
-        }
-      </ram:SpecifiedTradePaymentTerms>`
-    : "";
+        <ram:Description>${xmlEscape(termsDescription)}</ram:Description>${
+    data.paymentDate
+      ? `
+        <ram:DueDateDateTime><udt:DateTimeString format="102">${fmtDate(data.paymentDate)}</udt:DateTimeString></ram:DueDateDateTime>`
+      : ""
+  }
+      </ram:SpecifiedTradePaymentTerms>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rsm:CrossIndustryInvoice
@@ -234,9 +244,9 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
   }
       </ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
-    <ram:ApplicableHeaderTradeDelivery>${periodXml}</ram:ApplicableHeaderTradeDelivery>
+    <ram:ApplicableHeaderTradeDelivery/>
     <ram:ApplicableHeaderTradeSettlement>
-      <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>${paymentMeans}${vatBreakdown}${paymentTerms}
+      <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>${paymentMeans}${vatBreakdown}${periodXml}${paymentTermsXml}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>${fmtAmount(totalHT)}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${fmtAmount(totalHT)}</ram:TaxBasisTotalAmount>
