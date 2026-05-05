@@ -64,6 +64,8 @@ export interface FacturXInvoiceData {
   paymentMeansCode?: string; // UNTDID 4461: 30 = virement, 10 = espèces, 1 = autre
   paymentTerms?: string;
   paymentDate?: Date;
+  payeeIban?: string;
+  payeeBic?: string;
 }
 
 const xmlEscape = (s: string) =>
