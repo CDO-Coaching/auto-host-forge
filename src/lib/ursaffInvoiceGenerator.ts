@@ -16,6 +16,8 @@ export interface CoachIssuer {
   address?: string | null;
   siret?: string | null;
   phone?: string | null;
+  iban?: string | null;
+  bic?: string | null;
 }
 
 export interface InvoiceClientLine {
