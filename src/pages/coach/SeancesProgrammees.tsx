@@ -846,13 +846,16 @@ export default function SeancesProgrammees() {
           </div>
 
           {filteredTemplates.length === 0 && filteredFolders.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
+            <Card className="border-dashed">
+              <CardContent className="flex flex-col items-center justify-center py-14 text-center">
                 {getTabIcon(activeTab)}
-                <p className="text-muted-foreground mt-4">
-                  Aucune séance programmée pour cette catégorie
+                <p className="text-foreground font-medium mt-4">
+                  Pas encore de séance ici
                 </p>
-                <div className="flex gap-2 mt-4">
+                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
+                  Crée des templates réutilisables pour gagner du temps lors de la programmation de tes athlètes.
+                </p>
+                <div className="flex gap-2 mt-6">
                   <Button onClick={handleCreateFolder} variant="outline">
                     <FolderPlus className="h-4 w-4 mr-2" />
                     Créer un dossier

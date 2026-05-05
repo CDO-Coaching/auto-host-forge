@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer } from "lucide-react";
+import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer, CheckCircle } from "lucide-react";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours, addHours } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -339,6 +340,30 @@ export default function CoachDashboard() {
     ? Math.round((data.sessionsCompletedThisWeek / data.sessionsProgrammedThisWeek) * 100)
     : 0;
 
+  const completionRateColor =
+    completionRate >= 70 ? "text-green-500" :
+    completionRate >= 30 ? "text-orange-400" :
+    data.sessionsProgrammedThisWeek > 0 ? "text-red-500" : "text-muted-foreground";
+
+  const handleValidateWeek = async (athleteId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!session?.user?.id) return;
+    const currentWeek = getWeekNumber(new Date());
+    const currentYear = getWeekYear(new Date());
+    const { error } = await supabase
+      .from("training_weeks")
+      .upsert(
+        { athlete_id: athleteId, coach_id: session.user.id, week_number: currentWeek, year: currentYear, validated: true },
+        { onConflict: "athlete_id,week_number,year" }
+      );
+    if (!error) {
+      setData(prev => ({
+        ...prev,
+        unvalidatedAthletes: prev.unvalidatedAthletes.filter(a => a.athleteId !== athleteId),
+      }));
+    }
+  };
+
   const hasUnvalidated = data.unvalidatedAthletes.length > 0;
   const hasFatigueAlerts = data.fatigueAlerts.length > 0;
   const hasUpcoming = data.upcomingSessions.length > 0;
@@ -379,9 +404,9 @@ export default function CoachDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <Dumbbell className="h-5 w-5 text-primary" />
-              <span className="text-xs text-muted-foreground">{completionRate}%</span>
+              <span className={`text-xs font-semibold ${completionRateColor}`}>{completionRate}%</span>
             </div>
-            <p className="text-2xl font-bold text-foreground">
+            <p className={`text-2xl font-bold ${completionRateColor}`}>
               {data.sessionsCompletedThisWeek}/{data.sessionsProgrammedThisWeek}
             </p>
             <p className="text-xs text-muted-foreground">Séances cette semaine</p>
@@ -427,9 +452,15 @@ export default function CoachDashboard() {
                       <p className="text-xs text-muted-foreground truncate">{a.email}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Badge variant="outline" className="text-xs text-orange-400 border-orange-400/50">
-                        Non validé
-                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs text-green-500 border-green-500/50 hover:bg-green-500/10 hover:text-green-400"
+                        onClick={(e) => handleValidateWeek(a.athleteId, e)}
+                      >
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Valider
+                      </Button>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Heart, Dumbbell, MessageSquare, Clock, Activity, User, Send } from "lucide-react";
@@ -31,7 +30,7 @@ interface SessionDetail {
   id: string;
   name: string;
   session_type: string;
-  completed_at: string;
+  completed_at: string | null;
   duration_minutes: number | null;
   session_rpe: number | null;
   session_comment: string | null;
@@ -293,7 +292,7 @@ export function CoachSessionDetailDialog({
           </div>
         ) : session ? (
           <>
-            <ScrollArea className="flex-1 pr-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pr-4">
               <div className="space-y-4">
                 {/* Session info */}
                 <div className="space-y-2">
@@ -307,7 +306,9 @@ export function CoachSessionDetailDialog({
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
-                      {format(parseISO(session.completed_at), "d MMM yyyy 'à' HH:mm", { locale: fr })}
+                      {session.completed_at
+                        ? format(parseISO(session.completed_at), "d MMM yyyy 'à' HH:mm", { locale: fr })
+                        : "Non terminée"}
                     </span>
                     {session.duration_minutes && (
                       <span>{session.duration_minutes} min</span>
@@ -406,7 +407,7 @@ export function CoachSessionDetailDialog({
                   )}
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Coach feedback section */}
             <Separator className="my-2" />

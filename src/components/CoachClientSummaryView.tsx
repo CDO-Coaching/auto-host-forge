@@ -44,6 +44,7 @@ interface SessionInfo {
   duration_minutes: number | null;
   scheduled_date: string | null;
   isCustom?: boolean;
+  inProgress?: boolean;
 }
 
 interface Milestone {
@@ -212,7 +213,23 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
           weeks.map((w) => w.id)
         )
         .order("session_number");
-      if (sessions) coachSessions = sessions.map((s) => ({ ...s, isCustom: false }));
+
+      if (sessions) {
+        const sessionIds = sessions.map((s) => s.id);
+        const { data: exercisesWithFeedback } = await supabase
+          .from("session_exercises")
+          .select("session_id")
+          .in("session_id", sessionIds)
+          .or("sportif_rpe.not.is.null,skipped.eq.true,sportif_feedback.not.is.null");
+
+        const sessionIdsWithProgress = new Set((exercisesWithFeedback || []).map((e: any) => e.session_id));
+
+        coachSessions = sessions.map((s) => ({
+          ...s,
+          isCustom: false,
+          inProgress: !s.completed_at && sessionIdsWithProgress.has(s.id),
+        }));
+      }
     }
 
     const weekStart = startOfWeek(new Date(year, 0, 1 + (weekNum - 1) * 7), { weekStartsOn: 1 });
@@ -304,7 +321,17 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
       ) : (
         <div className="space-y-1">
           {sessions.map((s) => {
-            const isClickable = !!s.completed_at && !s.isCustom;
+            const isClickable = !s.isCustom;
+            const bgClass = s.completed_at
+              ? "bg-green-500/5 border-green-500/20"
+              : s.inProgress
+              ? "bg-orange-500/5 border-orange-500/30"
+              : "bg-muted/20 border-border";
+            const hoverClass = s.completed_at
+              ? "hover:bg-green-500/10 hover:border-green-500/40"
+              : s.inProgress
+              ? "hover:bg-orange-500/10 hover:border-orange-500/50"
+              : "hover:bg-muted/40";
             return (
               <div
                 key={s.id}
@@ -312,17 +339,22 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
                 onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedSession(s); } } : undefined}
-                className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden transition-colors ${s.completed_at ? "bg-green-500/5 border-green-500/20" : "bg-muted/20 border-border"} ${isClickable ? "cursor-pointer hover:bg-green-500/10 hover:border-green-500/40" : ""}`}
+                className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden transition-colors ${bgClass} ${isClickable ? `cursor-pointer ${hoverClass}` : ""}`}
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                   {s.completed_at ? (
                     <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : s.inProgress ? (
+                    <Clock className="h-3 w-3 text-orange-500 flex-shrink-0" />
                   ) : (
                     <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   )}
-                  <span className="truncate text-[11px]">{s.name}</span>
+                  <span className={`truncate text-[11px] ${s.inProgress ? "text-orange-400" : ""}`}>{s.name}</span>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                  {s.inProgress && (
+                    <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-[9px] px-1.5 py-0">En cours</Badge>
+                  )}
                   {getTypeBadge(s)}
                 </div>
               </div>

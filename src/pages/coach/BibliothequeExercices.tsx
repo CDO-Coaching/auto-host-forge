@@ -54,6 +54,9 @@ const CATEGORIES = [
   'explosivité-vitesse'
 ] as const;
 
+const toTitleCase = (str: string) =>
+  str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
 export default function BibliothequeExercices() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
@@ -475,7 +478,7 @@ export default function BibliothequeExercices() {
                 <div className="space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
-                      <p className="font-semibold text-sm uppercase">{exercise.name}</p>
+                      <p className="font-semibold text-sm">{toTitleCase(exercise.name)}</p>
                       {exercise.muscle_principal && (
                         <Badge variant="outline" className="mt-1 text-xs">
                           {exercise.muscle_principal}
@@ -533,7 +536,7 @@ export default function BibliothequeExercices() {
               <TableBody>
                 {filteredExercises.map((exercise) => (
                   <TableRow key={exercise.id}>
-                    <TableCell className="font-medium uppercase">{exercise.name}</TableCell>
+                    <TableCell className="font-medium">{toTitleCase(exercise.name)}</TableCell>
                     <TableCell>{exercise.muscle_principal || "-"}</TableCell>
                     <TableCell>
                       {exercise.muscles_second && exercise.muscles_second.length > 0 ? (
