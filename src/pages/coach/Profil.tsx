@@ -26,6 +26,8 @@ const profileSchema = z.object({
   address: z.string().trim().max(500).optional(),
   siret: z.string().trim().max(20).optional(),
   phone: z.string().trim().max(20).optional(),
+  iban: z.string().trim().max(34).optional(),
+  bic: z.string().trim().max(11).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
