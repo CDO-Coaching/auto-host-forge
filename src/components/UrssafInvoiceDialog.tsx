@@ -23,6 +23,7 @@ interface AccountingEntryLite {
   external_client_id?: string;
   client_name: string;
   client_address?: string;
+  client_phone?: string;
   sessions_done: number;
   amount_cash: number;
   amount_transfer: number;
@@ -124,6 +125,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
         external_client_id: e.external_client_id,
         client_name: e.client_name,
         client_address: e.client_address,
+        client_phone: e.client_phone,
         sessions_count: e.sessions_done || 0,
         total_amount: (e.amount_cash || 0) + (e.amount_transfer || 0),
         payment_method: rows[e.id].payment_method,

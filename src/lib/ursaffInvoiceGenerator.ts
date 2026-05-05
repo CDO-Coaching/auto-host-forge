@@ -23,6 +23,7 @@ export interface InvoiceClientLine {
   external_client_id?: string | null;
   client_name: string;
   client_address?: string | null;
+  client_phone?: string | null;
   sessions_count: number;
   total_amount: number; // amount_cash + amount_transfer (cumul mois)
   payment_method: PaymentMethod;
@@ -97,6 +98,7 @@ const buildSingleInvoicePdf = (params: {
       doc.text(line, xRight, yRight); yRight += 4;
     });
   }
+  if (client.client_phone) { doc.text(`Tél : ${client.client_phone}`, xRight, yRight); yRight += 4; }
 
   y = Math.max(y, yRight) + 6;
 

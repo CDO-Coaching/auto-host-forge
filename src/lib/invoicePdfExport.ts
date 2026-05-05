@@ -6,6 +6,7 @@ export interface InvoiceEntry {
   id: string;
   client_name: string;
   client_address?: string;
+  client_phone?: string;
   sessions_planned: number;
   sessions_done: number;
   sessions_paid: number;
@@ -131,6 +132,10 @@ export const exportMonthlyInvoicesToPdf = (
         doc.text(line, margin, y);
         y += 5;
       });
+    }
+    if (entry.client_phone) {
+      doc.text(`Tél: ${entry.client_phone}`, margin, y);
+      y += 5;
     }
     y += 15;
     

@@ -35,6 +35,7 @@ interface AccountingEntry {
   external_client_id?: string;
   client_name: string;
   client_address?: string;
+  client_phone?: string;
   sessions_planned: number;
   sessions_done: number;
   sessions_paid: number;
@@ -111,15 +112,21 @@ export default function Comptabilite() {
       // Charger les clients internes (athlètes du coach)
       const { data: relationships, error: relError } = await supabase
         .from("coach_athlete_relationships")
-        .select("athlete_id")
+        .select("athlete_id, client_address, client_phone")
         .eq("coach_id", session.user.id)
         .eq("status", "approved");
 
       console.log("Relationships:", relationships, "Error:", relError);
 
+      // Map athlete_id → { client_address, client_phone } from relationships
+      const athleteContactMap = new Map<string, { client_address?: string | null; client_phone?: string | null }>();
+      (relationships || []).forEach((r: any) => {
+        athleteContactMap.set(r.athlete_id, { client_address: r.client_address, client_phone: r.client_phone });
+      });
+
       let internalClients: Client[] = [];
       if (relationships && relationships.length > 0) {
-        const athleteIds = relationships.map(r => r.athlete_id);
+        const athleteIds = relationships.map((r: any) => r.athlete_id);
         const { data: profiles, error: profilesError } = await supabase
           .from("user_profiles")
           .select("id, first_name, last_name")
@@ -167,7 +174,7 @@ export default function Comptabilite() {
         .select(`
           *,
           user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-          external_clients (first_name, last_name, address)
+          external_clients (first_name, last_name, address, phone)
         `)
         .eq("coach_id", session.user.id)
         .eq("month", monthStr);
@@ -195,7 +202,7 @@ export default function Comptabilite() {
             .select(`
               *,
               user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-              external_clients (first_name, last_name, address)
+              external_clients (first_name, last_name, address, phone)
             `)
             .eq("coach_id", session.user.id)
             .eq("month", monthStr);
@@ -242,7 +249,12 @@ export default function Comptabilite() {
             client_name: entry.client_id
               ? `${entry.user_profiles?.first_name} ${entry.user_profiles?.last_name}`
               : `${entry.external_clients?.first_name} ${entry.external_clients?.last_name}`,
-            client_address: entry.external_clients?.address || undefined,
+            client_address: entry.client_id
+              ? (athleteContactMap.get(entry.client_id)?.client_address || undefined)
+              : (entry.external_clients?.address || undefined),
+            client_phone: entry.client_id
+              ? (athleteContactMap.get(entry.client_id)?.client_phone || undefined)
+              : (entry.external_clients?.phone || undefined),
             sessions_planned: entry.sessions_planned || 0,
             sessions_done: entry.sessions_done || 0,
             sessions_paid: entry.sessions_paid || 0,

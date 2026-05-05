@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown, CreditCard, UserX } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown, CreditCard, UserX, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,8 @@ interface AthleteRelationship {
   athlete: Athlete;
   weeksAheadCount?: number; // 0 = semaine courante seulement, 1 = +1 semaine d'avance, etc.
   display_order?: number;
+  client_address?: string | null;
+  client_phone?: string | null;
 }
 
 interface ExternalClient {
@@ -41,6 +43,7 @@ interface ExternalClient {
   last_name: string;
   email: string | null;
   address: string | null;
+  phone: string | null;
   is_active: boolean;
 }
 
@@ -59,6 +62,11 @@ export default function MesClients() {
   const [newExternalLastName, setNewExternalLastName] = useState("");
   const [newExternalEmail, setNewExternalEmail] = useState("");
   const [newExternalAddress, setNewExternalAddress] = useState("");
+  const [newExternalPhone, setNewExternalPhone] = useState("");
+  const [showContactDialog, setShowContactDialog] = useState(false);
+  const [contactTarget, setContactTarget] = useState<{ type: "athlete" | "external"; id: string; name: string } | null>(null);
+  const [contactAddress, setContactAddress] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
@@ -85,14 +93,14 @@ export default function MesClients() {
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
-        .select("id, athlete_id, status, requested_at, display_order")
+        .select("id, athlete_id, status, requested_at, display_order, client_address, client_phone")
         .eq("coach_id", profile.id)
         .eq("status", "approved")
         .order("display_order", { ascending: true })
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
-        .select("id, athlete_id, status, requested_at")
+        .select("id, athlete_id, status, requested_at, client_address, client_phone")
         .eq("coach_id", profile.id)
         .eq("status", "paused")
         .order("requested_at", { ascending: false }),
@@ -217,7 +225,7 @@ export default function MesClients() {
     // 5) Charger les clients externes
     const { data: externalClientsData } = await supabase
       .from("external_clients")
-      .select("id, first_name, last_name, email, address, is_active")
+      .select("id, first_name, last_name, email, address, phone, is_active")
       .eq("coach_id", profile.id)
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true });
@@ -392,6 +400,7 @@ export default function MesClients() {
           last_name: newExternalLastName.trim(),
           email: newExternalEmail.trim() || null,
           address: newExternalAddress.trim() || null,
+          phone: newExternalPhone.trim() || null,
           is_active: true
         });
 
@@ -405,11 +414,59 @@ export default function MesClients() {
       setNewExternalLastName("");
       setNewExternalEmail("");
       setNewExternalAddress("");
+      setNewExternalPhone("");
       setShowAddExternalDialog(false);
       await loadRelationships();
     } catch (error: any) {
       console.error("Erreur:", error);
       toast.error(`Erreur: ${error.message || "Impossible d'ajouter le client"}`);
+    }
+  };
+
+  const openContactDialog = (
+    type: "athlete" | "external",
+    id: string,
+    name: string,
+    currentAddress: string | null | undefined,
+    currentPhone: string | null | undefined
+  ) => {
+    setContactTarget({ type, id, name });
+    setContactAddress(currentAddress || "");
+    setContactPhone(currentPhone || "");
+    setShowContactDialog(true);
+  };
+
+  const handleSaveContact = async () => {
+    if (!contactTarget) return;
+
+    try {
+      if (contactTarget.type === "athlete") {
+        const { error } = await supabase
+          .from("coach_athlete_relationships")
+          .update({
+            client_address: contactAddress.trim() || null,
+            client_phone: contactPhone.trim() || null,
+          } as any)
+          .eq("id", contactTarget.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("external_clients")
+          .update({
+            address: contactAddress.trim() || null,
+            phone: contactPhone.trim() || null,
+          })
+          .eq("id", contactTarget.id);
+        if (error) throw error;
+      }
+
+      toast.success("Coordonnées mises à jour");
+      setShowContactDialog(false);
+      setContactTarget(null);
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur:", error);
+      toast.error(`Erreur: ${error.message || "Impossible de sauvegarder"}`);
     }
   };
 
@@ -741,6 +798,24 @@ export default function MesClients() {
                         </div>
                         <Button
                           size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openContactDialog(
+                              "athlete",
+                              relationship.id,
+                              `${relationship.athlete.first_name || ""} ${relationship.athlete.last_name || ""}`.trim(),
+                              relationship.client_address,
+                              relationship.client_phone
+                            );
+                          }}
+                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone ? "text-primary" : "text-muted-foreground"}`}
+                          title="Adresse / Téléphone"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -818,6 +893,24 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openContactDialog(
+                              "athlete",
+                              relationship.id,
+                              `${relationship.athlete.first_name || ""} ${relationship.athlete.last_name || ""}`.trim(),
+                              relationship.client_address,
+                              relationship.client_phone
+                            );
+                          }}
+                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone ? "text-primary" : "text-muted-foreground"}`}
+                          title="Adresse / Téléphone"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           size="sm"
                           onClick={(e) => {
@@ -898,12 +991,22 @@ export default function MesClients() {
                         />
                       </div>
                       <div>
-                        <Label htmlFor="address" className="text-xs sm:text-sm">Adresse (optionnel - pour factures B2B)</Label>
+                        <Label htmlFor="address" className="text-xs sm:text-sm">Adresse (optionnel)</Label>
                         <Input
                           id="address"
                           value={newExternalAddress}
                           onChange={(e) => setNewExternalAddress(e.target.value)}
                           placeholder="123 rue Example, 75001 Paris"
+                          className="h-9 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="phone" className="text-xs sm:text-sm">Téléphone (optionnel)</Label>
+                        <Input
+                          id="phone"
+                          value={newExternalPhone}
+                          onChange={(e) => setNewExternalPhone(e.target.value)}
+                          placeholder="06 12 34 56 78"
                           className="h-9 text-sm"
                         />
                       </div>
@@ -943,6 +1046,21 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => openContactDialog(
+                            "external",
+                            client.id,
+                            `${client.first_name} ${client.last_name}`,
+                            client.address,
+                            client.phone
+                          )}
+                          className={`h-6 w-6 p-0 ${client.address || client.phone ? "text-primary" : "text-muted-foreground"}`}
+                          title="Adresse / Téléphone"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           size="sm"
                           variant={client.is_active ? "outline" : "default"}
@@ -1001,6 +1119,46 @@ export default function MesClients() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showContactDialog} onOpenChange={setShowContactDialog}>
+        <DialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base sm:text-lg">
+              Coordonnées — {contactTarget?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 sm:space-y-4">
+            <div>
+              <Label htmlFor="contactAddress" className="text-xs sm:text-sm">Adresse (pour les factures)</Label>
+              <Input
+                id="contactAddress"
+                value={contactAddress}
+                onChange={(e) => setContactAddress(e.target.value)}
+                placeholder="123 rue Example, 75001 Paris"
+                className="h-9 text-sm"
+              />
+            </div>
+            <div>
+              <Label htmlFor="contactPhone" className="text-xs sm:text-sm">Téléphone</Label>
+              <Input
+                id="contactPhone"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+                placeholder="06 12 34 56 78"
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={() => setShowContactDialog(false)} className="flex-1 h-9 text-sm">
+                Annuler
+              </Button>
+              <Button onClick={handleSaveContact} className="flex-1 h-9 text-sm">
+                Enregistrer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <PauseReminderDialog
         open={showPauseDialog}
