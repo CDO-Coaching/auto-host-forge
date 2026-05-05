@@ -244,9 +244,9 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
   }
       </ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
-    <ram:ApplicableHeaderTradeDelivery>${periodXml}</ram:ApplicableHeaderTradeDelivery>
+    <ram:ApplicableHeaderTradeDelivery/>
     <ram:ApplicableHeaderTradeSettlement>
-      <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>${paymentMeans}${vatBreakdown}${paymentTerms}
+      <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>${paymentMeans}${vatBreakdown}${periodXml}${paymentTermsXml}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>${fmtAmount(totalHT)}</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>${fmtAmount(totalHT)}</ram:TaxBasisTotalAmount>
