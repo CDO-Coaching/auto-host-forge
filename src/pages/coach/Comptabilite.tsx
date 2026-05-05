@@ -1215,6 +1215,8 @@ export default function Comptabilite() {
           address: profile?.address,
           siret: profile?.siret,
           phone: profile?.phone,
+          iban: (profile as any)?.iban,
+          bic: (profile as any)?.bic,
         }}
       />
     </div>
