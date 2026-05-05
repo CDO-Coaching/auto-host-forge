@@ -361,23 +361,26 @@ export const embedFacturXIntoPdf = async (
   const context = pdfDoc.context;
   const catalog = pdfDoc.catalog;
 
-  // Récupérer les EmbeddedFiles
-  const namesDict = catalog.lookup(PDFName.of("Names"), PDFDict);
-  const embeddedFiles = namesDict?.lookup(PDFName.of("EmbeddedFiles"), PDFDict);
-  const efNames = embeddedFiles?.lookup(PDFName.of("Names"), PDFArray);
+  // Récupérer les EmbeddedFiles de manière défensive
+  // (lookup(key, Type) throw si la clé est absente => on utilise lookup(key) puis instanceof)
+  const namesRaw = catalog.lookup(PDFName.of("Names"));
+  const namesDict = namesRaw instanceof PDFDict ? namesRaw : undefined;
+  const embeddedFilesRaw = namesDict?.lookup(PDFName.of("EmbeddedFiles"));
+  const embeddedFiles = embeddedFilesRaw instanceof PDFDict ? embeddedFilesRaw : undefined;
+  const efNamesRaw = embeddedFiles?.lookup(PDFName.of("Names"));
+  const efNames = efNamesRaw instanceof PDFArray ? efNamesRaw : undefined;
 
   if (efNames) {
-    // Trouver le filespec associé à factur-x.xml
     for (let i = 0; i < efNames.size(); i += 2) {
       const nameObj = efNames.lookup(i);
-      const fileSpec = efNames.lookup(i + 1, PDFDict);
+      const fileSpecRaw = efNames.lookup(i + 1);
+      const fileSpec = fileSpecRaw instanceof PDFDict ? fileSpecRaw : undefined;
       const nameStr =
-        nameObj instanceof PDFString || nameObj instanceof PDFHexString ? nameObj.decodeText() : String(nameObj);
+        nameObj instanceof PDFString || nameObj instanceof PDFHexString ? nameObj.decodeText() : "";
       if (nameStr === "factur-x.xml" && fileSpec) {
-        // Ajouter AFRelationship au filespec
         fileSpec.set(PDFName.of("AFRelationship"), PDFName.of("Alternative"));
-        // Ajouter au tableau /AF du catalogue
-        let afArray = catalog.lookup(PDFName.of("AF"), PDFArray);
+        const existingAfRaw = catalog.lookup(PDFName.of("AF"));
+        let afArray = existingAfRaw instanceof PDFArray ? existingAfRaw : undefined;
         if (!afArray) {
           afArray = context.obj([]);
           catalog.set(PDFName.of("AF"), afArray);
