@@ -50,6 +50,8 @@ export default function Profil() {
       address: "",
       siret: "",
       phone: "",
+      iban: "",
+      bic: "",
     },
   });
 
