@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import { format, endOfMonth } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { embedFacturXIntoPdf, type FacturXInvoiceData } from "@/lib/facturXBuilder";
 
 export type PaymentMethod = "especes" | "virement";
 
@@ -266,7 +267,7 @@ export const generateMonthlyInvoicesZip = async (params: {
 
     const invoiceNumber = `FACT-${year}-${String(nextNum).padStart(4, "0")}`;
 
-    // 2) Générer le PDF
+    // 2) Générer le PDF visuel
     const doc = buildSingleInvoicePdf({
       invoiceNumber,
       issueDate,
@@ -276,7 +277,46 @@ export const generateMonthlyInvoicesZip = async (params: {
       client,
     });
 
-    const pdfBlob = doc.output("blob");
+    const basePdfBytes = doc.output("arraybuffer");
+
+    // 2bis) Transformer en Factur-X EN 16931 (PDF hybride avec XML CII embarqué)
+    const unitPriceHT = client.sessions_count > 0 ? client.total_amount / client.sessions_count : client.total_amount;
+    const facturXData: FacturXInvoiceData = {
+      invoiceNumber,
+      issueDate,
+      servicePeriodStart: periodStart,
+      servicePeriodEnd: periodEnd,
+      currency: "EUR",
+      seller: {
+        name: `${coach.first_name || ""} ${coach.last_name || ""}`.trim() || "Coach",
+        address: coach.address,
+        countryCode: "FR",
+        siret: coach.siret,
+        email: coach.email,
+        phone: coach.phone,
+      },
+      buyer: {
+        name: client.client_name,
+        address: client.client_address,
+        countryCode: "FR",
+      },
+      lines: [
+        {
+          description: `Coaching sportif — ${format(periodStart, "MMMM yyyy", { locale: fr })}`,
+          quantity: client.sessions_count > 0 ? client.sessions_count : 1,
+          unitCode: client.sessions_count > 0 ? "C62" : "C62",
+          unitPriceHT,
+          vatRate: 0, // Franchise en base TVA
+        },
+      ],
+      vatCategory: "E",
+      vatExemptionReason: "TVA non applicable, art. 293 B du CGI",
+      paymentMeansCode: client.payment_method === "especes" ? "10" : "30",
+      paymentDate: client.payment_date ? new Date(client.payment_date) : undefined,
+    };
+
+    const facturXBytes = await embedFacturXIntoPdf(basePdfBytes, facturXData);
+    const pdfBlob = new Blob([facturXBytes as BlobPart], { type: "application/pdf" });
     const fileName = `${invoiceNumber}_${sanitize(client.client_name)}.pdf`;
     zip.file(fileName, pdfBlob);
 
