@@ -368,6 +368,34 @@ export default function Profil() {
                 )}
               />
 
+              <FormField
+                control={form.control}
+                name="iban"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IBAN (pour Factur-X)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="FR76 1234 5678 9012 3456 7890 123" maxLength={34} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="bic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>BIC / SWIFT (optionnel)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="BNPAFRPPXXX" maxLength={11} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex gap-3 pt-4">
                 <Button type="submit" disabled={saving} className="flex-1">
                   {saving ? "Enregistrement..." : "Enregistrer"}
