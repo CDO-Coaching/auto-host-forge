@@ -261,7 +261,13 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
   }
       </ram:BuyerTradeParty>
     </ram:ApplicableHeaderTradeAgreement>
-    <ram:ApplicableHeaderTradeDelivery/>
+    <ram:ApplicableHeaderTradeDelivery>
+      <ram:ActualDeliverySupplyChainEvent>
+        <ram:OccurrenceDateTime>
+          <udt:DateTimeString format="102">${fmtDate(data.servicePeriodEnd || data.issueDate)}</udt:DateTimeString>
+        </ram:OccurrenceDateTime>
+      </ram:ActualDeliverySupplyChainEvent>
+    </ram:ApplicableHeaderTradeDelivery>
     <ram:ApplicableHeaderTradeSettlement>
       <ram:InvoiceCurrencyCode>${currency}</ram:InvoiceCurrencyCode>${paymentMeans}${vatBreakdown}${periodXml}${paymentTermsXml}
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
