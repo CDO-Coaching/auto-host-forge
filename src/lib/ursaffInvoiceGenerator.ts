@@ -353,27 +353,6 @@ export const generateMonthlyInvoicesZip = async (params: {
       payment_date: client.payment_date || null,
       status: "issued",
     } as any);
-      coach_id: coach.id,
-      invoice_number: invoiceNumber,
-      issue_date: format(issueDate, "yyyy-MM-dd"),
-      service_period_start: format(periodStart, "yyyy-MM-dd"),
-      service_period_end: format(periodEnd, "yyyy-MM-dd"),
-      coach_name: `${coach.first_name || ""} ${coach.last_name || ""}`.trim(),
-      coach_address: coach.address || null,
-      coach_siret: coach.siret || null,
-      coach_phone: coach.phone || null,
-      coach_email: coach.email || null,
-      client_id: client.client_id || null,
-      external_client_id: client.external_client_id || null,
-      client_name: client.client_name,
-      client_address: client.client_address || null,
-      sessions_count: client.sessions_count,
-      unit_price: client.sessions_count > 0 ? Number((client.total_amount / client.sessions_count).toFixed(2)) : null,
-      total_amount: Number(client.total_amount.toFixed(2)),
-      payment_method: client.payment_method,
-      payment_date: client.payment_date || null,
-      status: "issued",
-    });
     if (insertError) {
       console.error("[invoice insert]", insertError);
       throw new Error(`Erreur archivage facture ${invoiceNumber}: ${insertError.message}`);
