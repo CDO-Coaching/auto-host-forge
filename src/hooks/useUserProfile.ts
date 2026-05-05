@@ -12,6 +12,8 @@ interface UserProfile {
   address: string | null;
   siret: string | null;
   phone: string | null;
+  iban: string | null;
+  bic: string | null;
   approved: boolean | null;
   role: string | null;
 }
