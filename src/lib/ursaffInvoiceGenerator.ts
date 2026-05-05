@@ -193,6 +193,10 @@ const buildSingleInvoicePdf = (params: {
     doc.text(`Date de règlement : ${format(new Date(client.payment_date), "dd/MM/yyyy")}`, margin, y);
     y += 4;
   }
+  if (client.payment_method === "virement" && coach.iban) {
+    doc.text(`IBAN : ${coach.iban}`, margin, y); y += 4;
+    if (coach.bic) { doc.text(`BIC : ${coach.bic}`, margin, y); y += 4; }
+  }
 
   y += 4;
 
