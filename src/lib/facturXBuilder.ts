@@ -64,6 +64,8 @@ export interface FacturXInvoiceData {
   paymentMeansCode?: string; // UNTDID 4461: 30 = virement, 10 = espèces, 1 = autre
   paymentTerms?: string;
   paymentDate?: Date;
+  payeeIban?: string;
+  payeeBic?: string;
 }
 
 const xmlEscape = (s: string) =>
@@ -185,10 +187,25 @@ export const buildFacturXXml = (data: FacturXInvoiceData): string => {
         <ram:RateApplicablePercent>${fmtAmount(data.lines[0]?.vatRate || 0)}</ram:RateApplicablePercent>
       </ram:ApplicableTradeTax>`;
 
+  const cleanIban = data.payeeIban ? data.payeeIban.replace(/\s+/g, "").toUpperCase() : "";
+  const cleanBic = data.payeeBic ? data.payeeBic.replace(/\s+/g, "").toUpperCase() : "";
+  const payeeAccountXml = cleanIban
+    ? `
+        <ram:PayeePartyCreditorFinancialAccount>
+          <ram:IBANID>${xmlEscape(cleanIban)}</ram:IBANID>
+        </ram:PayeePartyCreditorFinancialAccount>${
+        cleanBic
+          ? `
+        <ram:PayeeSpecifiedCreditorFinancialInstitution>
+          <ram:BICID>${xmlEscape(cleanBic)}</ram:BICID>
+        </ram:PayeeSpecifiedCreditorFinancialInstitution>`
+          : ""
+      }`
+    : "";
   const paymentMeans = data.paymentMeansCode
     ? `
       <ram:SpecifiedTradeSettlementPaymentMeans>
-        <ram:TypeCode>${data.paymentMeansCode}</ram:TypeCode>
+        <ram:TypeCode>${data.paymentMeansCode}</ram:TypeCode>${payeeAccountXml}
       </ram:SpecifiedTradeSettlementPaymentMeans>`
     : "";
 

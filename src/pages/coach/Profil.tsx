@@ -26,6 +26,8 @@ const profileSchema = z.object({
   address: z.string().trim().max(500).optional(),
   siret: z.string().trim().max(20).optional(),
   phone: z.string().trim().max(20).optional(),
+  iban: z.string().trim().max(34).optional(),
+  bic: z.string().trim().max(11).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -48,6 +50,8 @@ export default function Profil() {
       address: "",
       siret: "",
       phone: "",
+      iban: "",
+      bic: "",
     },
   });
 
@@ -64,7 +68,7 @@ export default function Profil() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone")
+        .select("email, first_name, last_name, date_of_birth, gender, address, siret, phone, iban, bic")
         .eq("id", session.user.id)
         .single();
 
@@ -78,6 +82,8 @@ export default function Profil() {
           address: profile.address || "",
           siret: profile.siret || "",
           phone: profile.phone || "",
+          iban: (profile as any).iban || "",
+          bic: (profile as any).bic || "",
         });
       }
       setLoading(false);
@@ -99,8 +105,10 @@ export default function Profil() {
           address: data.address || null,
           siret: data.siret || null,
           phone: data.phone || null,
+          iban: data.iban ? data.iban.replace(/\s+/g, "").toUpperCase() : null,
+          bic: data.bic ? data.bic.replace(/\s+/g, "").toUpperCase() : null,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", userId);
 
       if (error) throw error;
@@ -354,6 +362,34 @@ export default function Profil() {
                     <FormLabel>Téléphone</FormLabel>
                     <FormControl>
                       <Input {...field} placeholder="06 12 34 56 78" type="tel" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="iban"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IBAN (pour Factur-X)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="FR76 1234 5678 9012 3456 7890 123" maxLength={34} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="bic"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>BIC / SWIFT (optionnel)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="BNPAFRPPXXX" maxLength={11} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

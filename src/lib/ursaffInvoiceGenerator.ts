@@ -16,6 +16,8 @@ export interface CoachIssuer {
   address?: string | null;
   siret?: string | null;
   phone?: string | null;
+  iban?: string | null;
+  bic?: string | null;
 }
 
 export interface InvoiceClientLine {
@@ -191,6 +193,10 @@ const buildSingleInvoicePdf = (params: {
     doc.text(`Date de règlement : ${format(new Date(client.payment_date), "dd/MM/yyyy")}`, margin, y);
     y += 4;
   }
+  if (client.payment_method === "virement" && coach.iban) {
+    doc.text(`IBAN : ${coach.iban}`, margin, y); y += 4;
+    if (coach.bic) { doc.text(`BIC : ${coach.bic}`, margin, y); y += 4; }
+  }
 
   y += 4;
 
@@ -313,6 +319,8 @@ export const generateMonthlyInvoicesZip = async (params: {
       vatExemptionReason: "TVA non applicable, art. 293 B du CGI",
       paymentMeansCode: client.payment_method === "especes" ? "10" : "30",
       paymentDate: client.payment_date ? new Date(client.payment_date) : undefined,
+      payeeIban: coach.iban || undefined,
+      payeeBic: coach.bic || undefined,
     };
 
     const facturXBytes = await embedFacturXIntoPdf(basePdfBytes, facturXData);
@@ -332,6 +340,8 @@ export const generateMonthlyInvoicesZip = async (params: {
       coach_siret: coach.siret || null,
       coach_phone: coach.phone || null,
       coach_email: coach.email || null,
+      coach_iban: coach.iban || null,
+      coach_bic: coach.bic || null,
       client_id: client.client_id || null,
       external_client_id: client.external_client_id || null,
       client_name: client.client_name,
@@ -342,7 +352,7 @@ export const generateMonthlyInvoicesZip = async (params: {
       payment_method: client.payment_method,
       payment_date: client.payment_date || null,
       status: "issued",
-    });
+    } as any);
     if (insertError) {
       console.error("[invoice insert]", insertError);
       throw new Error(`Erreur archivage facture ${invoiceNumber}: ${insertError.message}`);
