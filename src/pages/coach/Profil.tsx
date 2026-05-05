@@ -82,6 +82,8 @@ export default function Profil() {
           address: profile.address || "",
           siret: profile.siret || "",
           phone: profile.phone || "",
+          iban: (profile as any).iban || "",
+          bic: (profile as any).bic || "",
         });
       }
       setLoading(false);
