@@ -319,6 +319,8 @@ export const generateMonthlyInvoicesZip = async (params: {
       vatExemptionReason: "TVA non applicable, art. 293 B du CGI",
       paymentMeansCode: client.payment_method === "especes" ? "10" : "30",
       paymentDate: client.payment_date ? new Date(client.payment_date) : undefined,
+      payeeIban: coach.iban || undefined,
+      payeeBic: coach.bic || undefined,
     };
 
     const facturXBytes = await embedFacturXIntoPdf(basePdfBytes, facturXData);
