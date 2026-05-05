@@ -105,8 +105,10 @@ export default function Profil() {
           address: data.address || null,
           siret: data.siret || null,
           phone: data.phone || null,
+          iban: data.iban ? data.iban.replace(/\s+/g, "").toUpperCase() : null,
+          bic: data.bic ? data.bic.replace(/\s+/g, "").toUpperCase() : null,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq("id", userId);
 
       if (error) throw error;
