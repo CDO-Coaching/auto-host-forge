@@ -211,6 +211,7 @@ export default function Poids() {
                 <Input
                   id="weight"
                   type="number"
+                inputMode="decimal"
                   step="0.1"
                   min="0"
                   max="500"

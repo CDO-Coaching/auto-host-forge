@@ -178,6 +178,7 @@ export function MaxDialog({ open, onOpenChange, onSuccess, editMax, athleteId }:
               <Input
                 id="weight"
                 type="number"
+                inputMode="decimal"
                 step="0.5"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}

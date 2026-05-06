@@ -240,6 +240,7 @@ export function EditSessionDialog({
             <Input
               id="edit-session-rpe"
               type="number"
+                inputMode="decimal"
               min="1"
               max="10"
               placeholder="Ex: 7"
