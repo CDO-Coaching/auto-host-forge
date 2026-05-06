@@ -68,6 +68,7 @@ export default function ExerciceDetail() {
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
