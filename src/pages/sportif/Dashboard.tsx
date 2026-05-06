@@ -26,6 +26,7 @@ import {
   Meh,
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
+import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
 
 interface WeeklySessionInfo {
   total: number;
