@@ -648,16 +648,25 @@ export default function SupersetDetail() {
                                     </span>
                                   )}
                                   {serieData.charge && (
-                                    <span className="font-medium text-red-500">{serieData.charge}</span>
+                                    <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                                      <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                      {serieData.charge}{/^\d+(\.\d+)?$/.test(serieData.charge.trim()) ? " kg" : ""}
+                                    </span>
                                   )}
                                   {serieData.rpe && !isValidated && (
-                                    <span className="text-yellow-600">RPE {serieData.rpe}</span>
+                                    <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
+                                      <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serieData.rpe}/10
+                                    </span>
                                   )}
                                   {isValidated && validation.rpe !== null && (
-                                    <span className="text-green-600 font-medium">RPE {validation.rpe}</span>
+                                    <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 font-semibold">
+                                      <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
+                                    </span>
                                   )}
                                   {serieData.tempo && (
-                                    <span className="text-purple-500">T:{serieData.tempo}</span>
+                                    <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-600 font-medium">
+                                      <span className="text-[10px] uppercase opacity-70">Tempo</span>{serieData.tempo}
+                                    </span>
                                   )}
                                   {serieData.commentaire && (
                                     <span className="basis-full text-muted-foreground italic whitespace-pre-wrap break-words">"{serieData.commentaire}"</span>
