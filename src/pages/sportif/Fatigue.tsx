@@ -16,6 +16,8 @@ import { EditFatigueDialog } from "@/components/EditFatigueDialog";
 import { useToast } from "@/hooks/use-toast";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
+import { FatigueRadarCard } from "@/components/sportif/FatigueRadarCard";
+import { FatigueAITipCard } from "@/components/sportif/FatigueAITipCard";
 import { AthleteSfmsResults } from "@/components/AthleteSfmsResults";
 
 type ChartPeriod = "7d" | "1m" | "3m" | "6m";
