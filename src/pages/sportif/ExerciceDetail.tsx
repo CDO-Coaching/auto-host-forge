@@ -783,13 +783,26 @@ export default function ExerciceDetail() {
         {seriesData.length > 0 && (
           <Card className="border-2 border-primary/30">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Repeat className="h-5 w-5 text-primary" />
                   <p className="text-sm sm:text-base font-semibold">
                     Séries — {completedSets}/{seriesData.length}
                   </p>
                 </div>
+                <div className="flex items-center gap-1">
+                  <TempoExplanationDialog />
+                  <RPEExplanationDialog />
+                </div>
+              </div>
+              {/* Légende des codes couleurs */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Charge (kg)</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />RPE prévu</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-600" />RPE réalisé</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-purple-500" />Tempo</span>
+              </div>
+              <div className="flex items-center justify-end mb-2">
                 {completedSets > 0 && (
                   <Button 
                     variant="ghost" 
@@ -828,18 +841,25 @@ export default function ExerciceDetail() {
                             </span>
                           )}
                           {serie.charge && (
-                            <span className="font-medium">
-                              <span className="text-red-500">{serie.charge}</span>
+                            <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                              <span className="text-[10px] uppercase opacity-70">Charge</span>
+                              {serie.charge}{/^\d+(\.\d+)?$/.test(serie.charge.trim()) ? " kg" : ""}
                             </span>
                           )}
                           {serie.rpe && !isValidated && (
-                            <span className="text-yellow-600 text-xs">RPE {serie.rpe}</span>
+                            <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 text-xs font-medium">
+                              <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serie.rpe}/10
+                            </span>
                           )}
                           {isValidated && validation.rpe !== null && (
-                            <span className="text-green-600 text-xs font-medium">RPE {validation.rpe}</span>
+                            <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 text-xs font-semibold">
+                              <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
+                            </span>
                           )}
                           {serie.tempo && (
-                            <span className="text-purple-500 text-xs">T:{serie.tempo}</span>
+                            <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-600 text-xs font-medium">
+                              <span className="text-[10px] uppercase opacity-70">Tempo</span>{serie.tempo}
+                            </span>
                           )}
                           {serie.commentaire && (
                             <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{serie.commentaire}"</span>
