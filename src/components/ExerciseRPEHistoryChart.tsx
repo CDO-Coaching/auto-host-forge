@@ -21,11 +21,19 @@ interface ExerciseRPEData {
 
 interface ExerciseRPEHistoryChartProps {
   exerciseName: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }
 
-export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChartProps) {
+export function ExerciseRPEHistoryChart({ exerciseName, open: openProp, onOpenChange, hideTrigger }: ExerciseRPEHistoryChartProps) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    onOpenChange?.(v);
+    if (openProp === undefined) setInternalOpen(v);
+  };
   const [rpeHistory, setRpeHistory] = useState<ExerciseRPEData[]>([]);
   const [loading, setLoading] = useState(false);
 
