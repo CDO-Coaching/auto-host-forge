@@ -32,19 +32,19 @@ export function WelcomeBanner({ firstName, recoveryPercent }: Props) {
     const sinceISO = since.toISOString().split("T")[0];
 
     const [fatigueRes, sessionsRes, customRes] = await Promise.all([
-      supabase
-        .from("daily_fatigue_log" as any)
+      (supabase as any)
+        .from("daily_fatigue_log")
         .select("date")
         .eq("user_id", user.id)
         .gte("date", sinceISO),
-      supabase
+      (supabase as any)
         .from("training_sessions")
         .select("completed_at")
-        .eq("athlete_id" as any, user.id)
+        .eq("athlete_id", user.id)
         .not("completed_at", "is", null)
         .gte("completed_at", since.toISOString()),
-      supabase
-        .from("custom_sessions" as any)
+      (supabase as any)
+        .from("custom_sessions")
         .select("completed_at")
         .eq("user_id", user.id)
         .gte("completed_at", since.toISOString()),
