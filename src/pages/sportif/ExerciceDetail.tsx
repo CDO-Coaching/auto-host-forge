@@ -20,6 +20,8 @@ import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { SendVideoDialog } from "@/components/SendVideoDialog";
+import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
+import { BarChart3 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
