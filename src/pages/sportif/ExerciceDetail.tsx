@@ -732,7 +732,23 @@ export default function ExerciceDetail() {
           <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold flex-1 uppercase">{exercise.exercice}</h1>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="flex-1 text-left group"
+            title="Voir l'historique de cet exercice"
+          >
+            <h1 className="text-xl sm:text-2xl font-bold uppercase inline-flex items-center gap-2 group-hover:text-primary transition-colors">
+              <span>{exercise.exercice}</span>
+              <BarChart3 className="h-4 w-4 opacity-50 group-hover:opacity-100" />
+            </h1>
+          </button>
+          <ExerciseRPEHistoryChart
+            exerciseName={exercise.exercice}
+            open={historyOpen}
+            onOpenChange={setHistoryOpen}
+            hideTrigger
+          />
           {videoUrl && (
             <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
               🎥
