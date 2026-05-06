@@ -81,6 +81,15 @@ export function useUniversalTimer() {
 
   // Fonction pour jouer les sons
   const playSound = useCallback((soundType: string, ...args: any[]) => {
+    // Vibrate on key transitions (works even if sound disabled)
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        if (soundType === 'alert5') navigator.vibrate(80);
+        else if (soundType === 'victory') navigator.vibrate([120, 60, 120, 60, 200]);
+        else if (soundType === 'transition') navigator.vibrate(60);
+        else if (soundType === 'go') navigator.vibrate(150);
+      }
+    } catch {}
     if (!settings.soundEnabled || !soundSystemRef.current) return;
     
     try {
