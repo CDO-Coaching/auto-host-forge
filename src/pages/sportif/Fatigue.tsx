@@ -519,7 +519,12 @@ export default function Fatigue() {
               </Card>
             )}
 
-            <FatigueDetailedCharts logs={logs} />
+            <FatigueAITipCard logs={logs as any} />
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <FatigueRadarCard logs={logs as any} />
+              <FatigueDetailedCharts logs={logs} />
+            </div>
 
             <Card className="w-full">
               <CardHeader className="pb-3">
