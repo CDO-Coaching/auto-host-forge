@@ -26,6 +26,7 @@ import {
   Meh,
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
+import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
 
 interface WeeklySessionInfo {
   total: number;
@@ -337,9 +338,13 @@ export default function SportifDashboard() {
   const currentWeek = getWeekNumber(now);
   const currentYear = getWeekYear(now);
 
+  const recoveryPercentForBanner = fatigue.avgScore !== null ? getRecoveryPercent(fatigue.avgScore) : null;
+
   return (
     <div className="space-y-2 sm:space-y-4 pb-4">
       <AthleteSfmsRequestBanner />
+
+      <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
 
       <p className="text-xs sm:text-sm text-muted-foreground">
         Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}

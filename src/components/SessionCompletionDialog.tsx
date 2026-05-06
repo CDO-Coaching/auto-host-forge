@@ -249,6 +249,7 @@ export function SessionCompletionDialog({
             <Input
               id="session-rpe"
               type="number"
+                inputMode="decimal"
               min="1"
               max="10"
               placeholder="Ex: 7"

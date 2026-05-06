@@ -21,11 +21,19 @@ interface ExerciseRPEData {
 
 interface ExerciseRPEHistoryChartProps {
   exerciseName: string;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  hideTrigger?: boolean;
 }
 
-export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChartProps) {
+export function ExerciseRPEHistoryChart({ exerciseName, open: openProp, onOpenChange, hideTrigger }: ExerciseRPEHistoryChartProps) {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = (v: boolean) => {
+    onOpenChange?.(v);
+    if (openProp === undefined) setInternalOpen(v);
+  };
   const [rpeHistory, setRpeHistory] = useState<ExerciseRPEData[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -171,16 +179,18 @@ export function ExerciseRPEHistoryChart({ exerciseName }: ExerciseRPEHistoryChar
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-6 w-6"
-        onClick={() => setOpen(true)}
-        title="Voir l'historique des RPE pour cet exercice"
-      >
-        <BarChart3 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-      </Button>
+      {!hideTrigger && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
+          onClick={() => setOpen(true)}
+          title="Voir l'historique des RPE pour cet exercice"
+        >
+          <BarChart3 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+        </Button>
+      )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">

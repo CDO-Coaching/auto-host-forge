@@ -20,6 +20,8 @@ import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { SendVideoDialog } from "@/components/SendVideoDialog";
+import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
+import { BarChart3 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +68,7 @@ export default function ExerciceDetail() {
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
@@ -695,6 +698,20 @@ export default function ExerciceDetail() {
                   <span>Facile</span>
                   <span>Maximum</span>
                 </div>
+                <div className="flex flex-wrap justify-center gap-1.5 w-full">
+                  {[5, 6, 7, 8, 9, 10].map((v) => (
+                    <Button
+                      key={v}
+                      type="button"
+                      variant={Number(rpeInputValue) === v ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-9 px-0 text-sm"
+                      onClick={() => setRpeInputValue(String(v))}
+                    >
+                      {v}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -715,7 +732,23 @@ export default function ExerciceDetail() {
           <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 shrink-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold flex-1 uppercase">{exercise.exercice}</h1>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen(true)}
+            className="flex-1 text-left group"
+            title="Voir l'historique de cet exercice"
+          >
+            <h1 className="text-xl sm:text-2xl font-bold uppercase inline-flex items-center gap-2 group-hover:text-primary transition-colors">
+              <span>{exercise.exercice}</span>
+              <BarChart3 className="h-4 w-4 opacity-50 group-hover:opacity-100" />
+            </h1>
+          </button>
+          <ExerciseRPEHistoryChart
+            exerciseName={exercise.exercice}
+            open={historyOpen}
+            onOpenChange={setHistoryOpen}
+            hideTrigger
+          />
           {videoUrl && (
             <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
               🎥

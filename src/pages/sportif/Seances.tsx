@@ -314,6 +314,39 @@ export default function Seances() {
         </div>
       </div>
 
+      {/* Filtres rapides */}
+      {weeks.length > 1 && (() => {
+        const idx = weeks.findIndex((w) => w.id === selectedWeek?.id);
+        const current = weeks.find((w) => w.week_number === currentWeekNumber && w.year === currentYear);
+        const prev = idx >= 0 && idx + 1 < weeks.length ? weeks[idx + 1] : null;
+        const next = idx > 0 ? weeks[idx - 1] : null;
+        const chip = "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap";
+        const active = "bg-primary text-primary-foreground border-primary";
+        const inactive = "bg-background hover:bg-accent border-border text-foreground";
+        return (
+          <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
+            {prev && (
+              <button className={`${chip} ${inactive}`} onClick={() => handleWeekChange(prev.id)}>
+                ← S{prev.week_number}
+              </button>
+            )}
+            {current && (
+              <button
+                className={`${chip} ${selectedWeek?.id === current.id ? active : inactive}`}
+                onClick={() => handleWeekChange(current.id)}
+              >
+                Cette semaine
+              </button>
+            )}
+            {next && (
+              <button className={`${chip} ${inactive}`} onClick={() => handleWeekChange(next.id)}>
+                S{next.week_number} →
+              </button>
+            )}
+          </div>
+        );
+      })()}
+
       {!isCurrentWeekAvailable && weeks.length > 0 && (
         <Card className="border-orange-500 bg-orange-500/10">
           <CardContent className="p-4 sm:p-5">
