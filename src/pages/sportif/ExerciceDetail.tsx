@@ -695,6 +695,20 @@ export default function ExerciceDetail() {
                   <span>Facile</span>
                   <span>Maximum</span>
                 </div>
+                <div className="flex flex-wrap justify-center gap-1.5 w-full">
+                  {[5, 6, 7, 8, 9, 10].map((v) => (
+                    <Button
+                      key={v}
+                      type="button"
+                      variant={Number(rpeInputValue) === v ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 w-9 px-0 text-sm"
+                      onClick={() => setRpeInputValue(String(v))}
+                    >
+                      {v}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
