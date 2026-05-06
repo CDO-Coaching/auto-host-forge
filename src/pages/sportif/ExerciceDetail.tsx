@@ -783,13 +783,26 @@ export default function ExerciceDetail() {
         {seriesData.length > 0 && (
           <Card className="border-2 border-primary/30">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Repeat className="h-5 w-5 text-primary" />
                   <p className="text-sm sm:text-base font-semibold">
                     Séries — {completedSets}/{seriesData.length}
                   </p>
                 </div>
+                <div className="flex items-center gap-1">
+                  <TempoExplanationDialog />
+                  <RPEExplanationDialog />
+                </div>
+              </div>
+              {/* Légende des codes couleurs */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Charge (kg)</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />RPE prévu</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-600" />RPE réalisé</span>
+                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-purple-500" />Tempo</span>
+              </div>
+              <div className="flex items-center justify-end mb-2">
                 {completedSets > 0 && (
                   <Button 
                     variant="ghost" 
