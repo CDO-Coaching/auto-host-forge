@@ -27,6 +27,7 @@ interface CardioSessionRow {
   actualPaceDecimal: number | null; // min/km weighted
   actualHeartRate: number | null;
   hasActual: boolean;
+  isCustom: boolean;
 }
 
 export function CoachCardioSummaryCard({ athleteId }: Props) {
