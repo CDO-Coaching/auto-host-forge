@@ -8,6 +8,7 @@ import { getWeekYear } from "@/lib/weekUtils";
 import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
+import { CoachCardioSummaryCard } from "@/components/CoachCardioSummaryCard";
 
 interface CoachClientSummaryViewProps {
   athleteId: string;
