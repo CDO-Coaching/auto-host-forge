@@ -74,9 +74,36 @@ function extractRecup(text: string): string | null {
   return null;
 }
 
+/**
+ * Corrige les erreurs phonétiques courantes du Speech API fr-FR
+ * sur les termes anglais du fitness (mal transcrits en mots français).
+ */
+function fixSpeechMishearings(text: string): string {
+  return text
+    // "reps" / "rep" → souvent entendu comme "crêpe", "crèpe", "crepe", "crêpes"
+    .replace(/cr[eèêë]pes?/gi, "reps")
+    .replace(/kr[eèêë]pes?/gi, "reps")
+    // "squat" → parfois "scala", "scuat"
+    .replace(/\bscala\b/gi, "squat")
+    .replace(/\bscuat\b/gi, "squat")
+    // "deadlift" → "dead life", "dead lift" (garder comme tel, mais normaliser)
+    .replace(/\bdead\s+life\b/gi, "deadlift")
+    // "bench" → "banch", "bench press" bien géré
+    .replace(/\bbanch\b/gi, "bench")
+    // "RPE" → "areu pé", "erp", "arpé"
+    .replace(/\b(?:areu\s*pe|arp[eé]|erp)\b/gi, "rpe")
+    // "sets" → "cet", "sète"
+    .replace(/\bse?ttes?\b/gi, "sets")
+    .replace(/\bc[eè]ts?\b/gi, "sets")
+    // "tempo" → généralement bien reconnu
+    // "kg" → "kilo" bien reconnu
+    ;
+}
+
 /** Extrait les modifications depuis le texte transcrit */
 function extractChanges(text: string): VoiceChanges {
-  const t = normalize(text);
+  const corrected = fixSpeechMishearings(text);
+  const t = normalize(corrected);
   const changes: VoiceChanges = {};
 
   // CHARGE — "charge à 45", "45 kg", "45 kilos", "poids 45"
@@ -146,7 +173,8 @@ export function parseVoiceCommand(
 ): ParsedVoiceCommand | null {
   if (!transcript.trim() || exercises.length === 0) return null;
 
-  const normalizedTranscript = normalize(transcript);
+  const correctedTranscript = fixSpeechMishearings(transcript);
+  const normalizedTranscript = normalize(correctedTranscript);
 
   // Fuzzy search sur les noms d'exercices
   const fuse = new Fuse(exercises, {
@@ -164,7 +192,7 @@ export function parseVoiceCommand(
   const exercise = best.item;
   const score = 1 - (best.score ?? 1); // fuse: 0=perfect → on inverse pour avoir 1=perfect
 
-  const changes = extractChanges(transcript);
+  const changes = extractChanges(correctedTranscript);
   if (Object.keys(changes).length === 0) return null;
 
   return {
