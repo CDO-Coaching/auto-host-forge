@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer, CheckCircle } from "lucide-react";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
+import { AcwrDashboardCard } from "@/components/AcwrDashboardCard";
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours, addHours } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -71,6 +72,8 @@ export default function CoachDashboard() {
     fatigueAlerts: [],
   });
   const [loading, setLoading] = useState(true);
+  const [acwrAthleteIds, setAcwrAthleteIds] = useState<string[]>([]);
+  const [acwrProfileMap, setAcwrProfileMap] = useState<Map<string, { first_name: string; last_name: string }>>(new Map());
   const [selectedSession, setSelectedSession] = useState<{
     id: string;
     athleteId: string;
@@ -112,6 +115,10 @@ export default function CoachDashboard() {
           email: p.email || "",
         }));
       }
+
+      // Expose to ACWR card
+      setAcwrAthleteIds(athleteIds);
+      setAcwrProfileMap(new Map([...profileMap].map(([k, v]) => [k, { first_name: v.first_name, last_name: v.last_name }])));
 
       const now = new Date();
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -547,6 +554,11 @@ export default function CoachDashboard() {
       )}
 
       {/* Dernières activités */}
+      {/* ACWR Card */}
+      {acwrAthleteIds.length > 0 && (
+        <AcwrDashboardCard athleteIds={acwrAthleteIds} profileMap={acwrProfileMap} />
+      )}
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">

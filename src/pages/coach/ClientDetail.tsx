@@ -55,6 +55,8 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
+import { TrainingZonesCard } from "@/components/TrainingZonesCard";
+import { PerformanceTestsCard } from "@/components/PerformanceTestsCard";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachSfmsAlert } from "@/components/CoachSfmsAlert";
@@ -6334,9 +6336,14 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="max" className="space-y-4">
-          <CoachMaxesView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
+          <CoachMaxesView
+            athleteId={athleteId!}
+            athleteName={athlete.first_name || "l'athlète"}
+          />
+          <TrainingZonesCard athleteId={athleteId!} />
+          <PerformanceTestsCard
+            athleteId={athleteId!}
+            onVmaUpdated={(vma) => setAthleteVma(vma)}
           />
         </TabsContent>
 
