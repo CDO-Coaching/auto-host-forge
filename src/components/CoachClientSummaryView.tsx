@@ -491,6 +491,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
             <div className="border-t pt-3">{renderSessionCompact(previousWeekSessions, `S${previousWeekNumber} — précédente`, completedPrevious)}</div>
           </CardContent>
         </Card>
+        <CoachCardioSummaryCard athleteId={athleteId} />
       </div>
     </div>
 
