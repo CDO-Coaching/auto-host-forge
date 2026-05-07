@@ -132,7 +132,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
     }
 
     // Custom sessions (Perso) — fetch by date range of the 2 weeks
-    const today = new Date();
+    // (today already defined above)
     const startThis = startOfWeek(today, { weekStartsOn: 1 });
     const endThis = endOfWeek(today, { weekStartsOn: 1 });
     const startPrev = new Date(startThis); startPrev.setDate(startPrev.getDate() - 7);
