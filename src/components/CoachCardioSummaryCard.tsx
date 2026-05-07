@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
-import { fr } from "date-fns/locale";
 import { getWeekYear } from "@/lib/weekUtils";
 import { Activity, MapPin, Clock, Heart, Gauge } from "lucide-react";
 import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculations";
