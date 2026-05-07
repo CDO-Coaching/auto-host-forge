@@ -8,6 +8,7 @@ import { getWeekYear } from "@/lib/weekUtils";
 import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
+import { CoachCardioSummaryCard } from "@/components/CoachCardioSummaryCard";
 
 interface CoachClientSummaryViewProps {
   athleteId: string;
@@ -490,6 +491,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
             <div className="border-t pt-3">{renderSessionCompact(previousWeekSessions, `S${previousWeekNumber} — précédente`, completedPrevious)}</div>
           </CardContent>
         </Card>
+        <CoachCardioSummaryCard athleteId={athleteId} />
       </div>
     </div>
 
