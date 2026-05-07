@@ -74,6 +74,8 @@ import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager"
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
+import { VoiceCommandButton } from "@/components/VoiceCommandButton";
+import type { VoiceChanges } from "@/lib/parseVoiceCommand";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -2491,6 +2493,16 @@ export default function ClientDetail() {
     } else {
       setWeekToCopyData(null);
     }
+  };
+
+  const handleVoiceApply = (sessionId: number, exerciseId: number, changes: VoiceChanges) => {
+    const fields = Object.keys(changes) as (keyof VoiceChanges)[];
+    fields.forEach((field) => {
+      const value = changes[field];
+      if (value !== undefined) {
+        handleExerciseChange(sessionId, exerciseId, field as keyof Exercise, value);
+      }
+    });
   };
 
   const handleAddExercise = (sessionId: number) => {
@@ -5875,12 +5887,29 @@ export default function ClientDetail() {
                                   </div>
 
                                   {!isValidated && (
-                                    <div className="flex gap-2 flex-wrap">
+                                    <div className="flex gap-2 flex-wrap items-center relative">
                                       <Button onClick={() => handleAddExercise(session.id)} variant="outline" size="sm" className="text-xs sm:text-sm">
                                         <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                                         <span className="hidden sm:inline">Ajouter une ligne</span>
                                         <span className="sm:hidden">Ajouter</span>
                                       </Button>
+                                      {session.session_type === "renfo" && (sessionExercises[session.id] || []).length > 0 && (
+                                        <VoiceCommandButton
+                                          exercises={(sessionExercises[session.id] || []).map((ex) => ({
+                                            id: ex.id,
+                                            name: ex.exercice,
+                                            charge: ex.charge,
+                                            reps: ex.reps,
+                                            series: ex.series,
+                                            rpe: ex.rpe,
+                                            recuperation: ex.recuperation,
+                                            tempo: ex.tempo,
+                                          }))}
+                                          onApply={(exerciseId, changes) =>
+                                            handleVoiceApply(session.id, exerciseId, changes)
+                                          }
+                                        />
+                                      )}
                                       
                                       {/* Bouton pour importer un template renfo */}
                                       <Dialog 
