@@ -411,6 +411,9 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
           </CardContent>
         </Card>
 
+        {/* Cardio volume summary - placed right under fatigue chart */}
+        <CoachCardioSummaryCard athleteId={athleteId} />
+
         {/* Injury chart (conditional) */}
         {latestInjury && injuryPoints.length > 0 && (
           <Card className="overflow-hidden">
@@ -491,7 +494,6 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
             <div className="border-t pt-3">{renderSessionCompact(previousWeekSessions, `S${previousWeekNumber} — précédente`, completedPrevious)}</div>
           </CardContent>
         </Card>
-        <CoachCardioSummaryCard athleteId={athleteId} />
       </div>
     </div>
 
