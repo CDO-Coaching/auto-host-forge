@@ -136,7 +136,6 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
     const startThis = startOfWeek(today, { weekStartsOn: 1 });
     const endThis = endOfWeek(today, { weekStartsOn: 1 });
     const startPrev = new Date(startThis); startPrev.setDate(startPrev.getDate() - 7);
-    const endPrev = new Date(endThis); endPrev.setDate(endPrev.getDate() - 7);
 
     const { data: customData } = await supabase
       .from("custom_sessions")
