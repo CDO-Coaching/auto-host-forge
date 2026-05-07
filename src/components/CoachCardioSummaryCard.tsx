@@ -67,77 +67,117 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
       .eq("athlete_id", athleteId)
       .or(`and(week_number.eq.${w1},year.eq.${y1}),and(week_number.eq.${w0},year.eq.${y0})`);
 
-    if (!weeks || weeks.length === 0) {
-      setSessions([]);
-      setLoading(false);
-      return;
+    const weekMap = new Map((weeks || []).map((w: any) => [w.id, `S${w.week_number}`]));
+
+    let trainingRows: CardioSessionRow[] = [];
+    if (weeks && weeks.length > 0) {
+      const { data: sess } = await supabase
+        .from("training_sessions")
+        .select("id, name, session_type, completed_at, scheduled_date, week_id, cardio_total_distance_km, cardio_total_duration_minutes, cardio_average_intensity")
+        .in("week_id", weeks.map((w: any) => w.id))
+        .eq("session_type", "cardio");
+
+      if (sess && sess.length > 0) {
+        const sessionIds = sess.map((s: any) => s.id);
+        const { data: exos } = await supabase
+          .from("session_exercises")
+          .select("session_id, actual_distance_km, actual_duration_minutes, actual_pace_min_per_km, actual_avg_heart_rate")
+          .in("session_id", sessionIds);
+
+        const exoBySession = new Map<string, any[]>();
+        (exos || []).forEach((e: any) => {
+          const arr = exoBySession.get(e.session_id) || [];
+          arr.push(e);
+          exoBySession.set(e.session_id, arr);
+        });
+
+        trainingRows = sess.map((s: any) => {
+          const ex = exoBySession.get(s.id) || [];
+          let dist = 0, dur = 0;
+          let weightedPace = 0, paceDur = 0;
+          let weightedHR = 0, hrDur = 0;
+          let hasActual = false;
+          ex.forEach((e: any) => {
+            if (e.actual_distance_km) { dist += Number(e.actual_distance_km); hasActual = true; }
+            if (e.actual_duration_minutes) { dur += Number(e.actual_duration_minutes); hasActual = true; }
+            const p = parsePaceToDecimal(e.actual_pace_min_per_km);
+            if (p && e.actual_duration_minutes) {
+              weightedPace += p * Number(e.actual_duration_minutes);
+              paceDur += Number(e.actual_duration_minutes);
+            }
+            if (e.actual_avg_heart_rate && e.actual_duration_minutes) {
+              weightedHR += Number(e.actual_avg_heart_rate) * Number(e.actual_duration_minutes);
+              hrDur += Number(e.actual_duration_minutes);
+            }
+          });
+          return {
+            id: s.id,
+            name: s.name,
+            session_type: s.session_type,
+            completed_at: s.completed_at,
+            scheduled_date: s.scheduled_date,
+            cardio_total_distance_km: s.cardio_total_distance_km,
+            cardio_total_duration_minutes: s.cardio_total_duration_minutes,
+            cardio_average_intensity: s.cardio_average_intensity,
+            week_label: weekMap.get(s.week_id) || "",
+            actualDistanceKm: dist,
+            actualDurationMin: dur,
+            actualPaceDecimal: paceDur > 0 ? weightedPace / paceDur : null,
+            actualHeartRate: hrDur > 0 ? Math.round(weightedHR / hrDur) : null,
+            hasActual,
+            isCustom: false,
+          };
+        });
+      }
     }
 
-    const weekMap = new Map(weeks.map((w: any) => [w.id, `S${w.week_number}`]));
+    // Custom sessions (Perso) — fetch by date range of the 2 weeks
+    const today = new Date();
+    const startThis = startOfWeek(today, { weekStartsOn: 1 });
+    const endThis = endOfWeek(today, { weekStartsOn: 1 });
+    const startPrev = new Date(startThis); startPrev.setDate(startPrev.getDate() - 7);
+    const endPrev = new Date(endThis); endPrev.setDate(endPrev.getDate() - 7);
 
-    const { data: sess } = await supabase
-      .from("training_sessions")
-      .select("id, name, session_type, completed_at, scheduled_date, week_id, cardio_total_distance_km, cardio_total_duration_minutes, cardio_average_intensity")
-      .in("week_id", weeks.map((w: any) => w.id))
-      .eq("session_type", "cardio");
+    const { data: customData } = await supabase
+      .from("custom_sessions")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate")
+      .eq("user_id", athleteId)
+      .gte("completed_at", startPrev.toISOString())
+      .lte("completed_at", endThis.toISOString());
 
-    if (!sess || sess.length === 0) {
-      setSessions([]);
-      setLoading(false);
-      return;
-    }
-
-    const sessionIds = sess.map((s: any) => s.id);
-    const { data: exos } = await supabase
-      .from("session_exercises")
-      .select("session_id, actual_distance_km, actual_duration_minutes, actual_pace_min_per_km, actual_avg_heart_rate")
-      .in("session_id", sessionIds);
-
-    const exoBySession = new Map<string, any[]>();
-    (exos || []).forEach((e: any) => {
-      const arr = exoBySession.get(e.session_id) || [];
-      arr.push(e);
-      exoBySession.set(e.session_id, arr);
-    });
-
-    const rows: CardioSessionRow[] = sess.map((s: any) => {
-      const ex = exoBySession.get(s.id) || [];
-      let dist = 0, dur = 0;
-      let weightedPace = 0, paceDur = 0;
-      let weightedHR = 0, hrDur = 0;
-      let hasActual = false;
-      ex.forEach((e: any) => {
-        if (e.actual_distance_km) { dist += Number(e.actual_distance_km); hasActual = true; }
-        if (e.actual_duration_minutes) { dur += Number(e.actual_duration_minutes); hasActual = true; }
-        const p = parsePaceToDecimal(e.actual_pace_min_per_km);
-        if (p && e.actual_duration_minutes) {
-          weightedPace += p * Number(e.actual_duration_minutes);
-          paceDur += Number(e.actual_duration_minutes);
-        }
-        if (e.actual_avg_heart_rate && e.actual_duration_minutes) {
-          weightedHR += Number(e.actual_avg_heart_rate) * Number(e.actual_duration_minutes);
-          hrDur += Number(e.actual_duration_minutes);
-        }
+    const customRows: CardioSessionRow[] = (customData || [])
+      .filter((cs: any) => {
+        const d = cs.completed_at ? new Date(cs.completed_at) : null;
+        return d && d >= startPrev && d <= endThis;
+      })
+      // Only keep rows with cardio info (distance OR pace OR HR)
+      .filter((cs: any) => cs.distance_km || cs.avg_pace || cs.avg_heart_rate)
+      .map((cs: any) => {
+        const d = new Date(cs.completed_at);
+        const isCurrent = d >= startThis;
+        const dist = Number(cs.distance_km || 0);
+        const dur = Number(cs.duration_minutes || 0);
+        const paceDec = parsePaceToDecimal(cs.avg_pace);
+        return {
+          id: cs.id,
+          name: cs.session_name,
+          session_type: "perso",
+          completed_at: cs.completed_at,
+          scheduled_date: cs.scheduled_date,
+          cardio_total_distance_km: dist || null,
+          cardio_total_duration_minutes: dur || null,
+          cardio_average_intensity: null,
+          week_label: isCurrent ? `S${w1}` : `S${w0}`,
+          actualDistanceKm: dist,
+          actualDurationMin: dur,
+          actualPaceDecimal: paceDec,
+          actualHeartRate: cs.avg_heart_rate ? Number(cs.avg_heart_rate) : null,
+          hasActual: !!(dist || dur),
+          isCustom: true,
+        };
       });
-      return {
-        id: s.id,
-        name: s.name,
-        session_type: s.session_type,
-        completed_at: s.completed_at,
-        scheduled_date: s.scheduled_date,
-        cardio_total_distance_km: s.cardio_total_distance_km,
-        cardio_total_duration_minutes: s.cardio_total_duration_minutes,
-        cardio_average_intensity: s.cardio_average_intensity,
-        week_label: weekMap.get(s.week_id) || "",
-        actualDistanceKm: dist,
-        actualDurationMin: dur,
-        actualPaceDecimal: paceDur > 0 ? weightedPace / paceDur : null,
-        actualHeartRate: hrDur > 0 ? Math.round(weightedHR / hrDur) : null,
-        hasActual,
-      };
-    });
 
-    setSessions(rows);
+    setSessions([...trainingRows, ...customRows]);
     setLoading(false);
   };
 
