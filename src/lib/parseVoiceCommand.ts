@@ -164,6 +164,21 @@ function extractChanges(text: string): VoiceChanges {
 }
 
 /**
+ * Génère tous les n-grammes (1 à maxN mots) d'une phrase normalisée.
+ * Permet de trouver un nom d'exercice court au sein d'une longue phrase.
+ */
+function getNgrams(text: string, maxN = 5): string[] {
+  const words = text.split(/\s+/).filter((w) => w.length >= 2);
+  const ngrams: string[] = [];
+  for (let n = 1; n <= Math.min(maxN, words.length); n++) {
+    for (let i = 0; i <= words.length - n; i++) {
+      ngrams.push(words.slice(i, i + n).join(" "));
+    }
+  }
+  return ngrams;
+}
+
+/**
  * Parse une commande vocale et retourne les modifications à appliquer
  * sur les exercices de la session courante.
  */
@@ -176,30 +191,39 @@ export function parseVoiceCommand(
   const correctedTranscript = fixSpeechMishearings(transcript);
   const normalizedTranscript = normalize(correctedTranscript);
 
-  // Fuzzy search sur les noms d'exercices
+  // Fuzzy search : on teste chaque n-gramme de la phrase contre les noms d'exercices
+  // pour trouver le meilleur match même si la phrase est longue.
   const fuse = new Fuse(exercises, {
     keys: ["name"],
-    threshold: 0.5,            // tolérance: 0 = exact, 1 = tout accepter
+    threshold: 0.45,
     getFn: (obj, path) => normalize(obj[path as keyof ExerciseTarget] as string),
     includeScore: true,
     minMatchCharLength: 3,
   });
 
-  const results = fuse.search(normalizedTranscript);
-  if (results.length === 0) return null;
+  const ngrams = getNgrams(normalizedTranscript);
+  let bestMatch: { item: ExerciseTarget; score: number } | null = null;
 
-  const best = results[0];
-  const exercise = best.item;
-  const score = 1 - (best.score ?? 1); // fuse: 0=perfect → on inverse pour avoir 1=perfect
+  for (const ngram of ngrams) {
+    const results = fuse.search(ngram);
+    if (results.length > 0) {
+      const score = 1 - (results[0].score ?? 1);
+      if (!bestMatch || score > bestMatch.score) {
+        bestMatch = { item: results[0].item, score };
+      }
+    }
+  }
+
+  if (!bestMatch || bestMatch.score < 0.5) return null;
 
   const changes = extractChanges(correctedTranscript);
   if (Object.keys(changes).length === 0) return null;
 
   return {
-    exerciseId: exercise.id,
-    exerciseName: exercise.name,
+    exerciseId: bestMatch.item.id,
+    exerciseName: bestMatch.item.name,
     matchedFrom: transcript,
-    matchScore: score,
+    matchScore: bestMatch.score,
     changes,
     rawTranscript: transcript,
   };
