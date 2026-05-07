@@ -4,16 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Activity, TrendingUp, AlertTriangle, ChevronRight, RefreshCw } from "lucide-react";
+import { Activity, AlertTriangle, ChevronRight, RefreshCw } from "lucide-react";
 import { subDays, format, startOfDay } from "date-fns";
-import { fr } from "date-fns/locale";
 
 interface AthleteAcwr {
   athleteId: string;
   athleteName: string;
   acwr: number | null;
-  acuteLoad: number; // 7-day TRIMP sum
-  chronicLoad: number; // 28-day TRIMP / 4 (weekly average)
+  acuteLoad: number;
+  chronicLoad: number;
   sessionsLast7: number;
   sessionsLast28: number;
 }
@@ -23,41 +22,30 @@ interface AcwrDashboardCardProps {
   profileMap: Map<string, { first_name: string; last_name: string }>;
 }
 
-function acwrLabel(acwr: number | null): { label: string; color: string; bg: string; variant: "default" | "secondary" | "destructive" | "outline" } {
-  if (acwr === null) return { label: "Données manquantes", color: "text-muted-foreground", bg: "bg-muted/40", variant: "secondary" };
-  if (acwr < 0.8) return { label: "Sous-chargé", color: "text-blue-700", bg: "bg-blue-50", variant: "secondary" };
-  if (acwr <= 1.3) return { label: "Zone optimale", color: "text-green-700", bg: "bg-green-50", variant: "default" };
-  if (acwr <= 1.5) return { label: "Charge élevée", color: "text-orange-700", bg: "bg-orange-50", variant: "outline" };
-  return { label: "Zone danger !", color: "text-red-700", bg: "bg-red-50", variant: "destructive" };
+interface ZoneStyle {
+  label: string;
+  textColor: string;
+  barColor: string;
+  bg: string;
+  border: string;
 }
 
-function acwrBarColor(acwr: number | null): string {
-  if (acwr === null) return "bg-muted";
-  if (acwr < 0.8) return "bg-blue-400";
-  if (acwr <= 1.3) return "bg-green-500";
-  if (acwr <= 1.5) return "bg-orange-500";
-  return "bg-red-500";
+function getZone(acwr: number | null): ZoneStyle {
+  if (acwr === null) return { label: "Pas de données", textColor: "text-muted-foreground", barColor: "bg-muted", bg: "bg-secondary/30", border: "border-border/40" };
+  if (acwr < 0.8)    return { label: "Sous-chargé",    textColor: "text-blue-400",           barColor: "bg-blue-400",    bg: "bg-blue-400/10",    border: "border-blue-400/30" };
+  if (acwr <= 1.3)   return { label: "Zone optimale",  textColor: "text-emerald-400",         barColor: "bg-emerald-400", bg: "bg-emerald-400/10", border: "border-emerald-400/30" };
+  if (acwr <= 1.5)   return { label: "Charge élevée",  textColor: "text-orange-400",          barColor: "bg-orange-400",  bg: "bg-orange-400/10",  border: "border-orange-400/30" };
+  return               { label: "Zone danger !",        textColor: "text-red-400",             barColor: "bg-red-400",     bg: "bg-red-400/10",     border: "border-red-400/30" };
 }
 
-/**
- * ACWR = Acute:Chronic Workload Ratio
- * Acute  = sum of TRIMP (RPE × duration_minutes) over last 7 days
- * Chronic = (sum of TRIMP over last 28 days) / 4  (= average weekly load)
- *
- * If session has no RPE or no duration, we fall back to counting sessions
- * (each session = 60 TRIMP units as default).
- */
 export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardProps) {
   const navigate = useNavigate();
   const [athletes, setAthletes] = useState<AthleteAcwr[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (athleteIds.length > 0) {
-      loadAcwr();
-    } else {
-      setLoading(false);
-    }
+    if (athleteIds.length > 0) loadAcwr();
+    else setLoading(false);
   }, [athleteIds]);
 
   const loadAcwr = async () => {
@@ -66,91 +54,67 @@ export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardP
       const now = new Date();
       const day28Ago = format(subDays(now, 27), "yyyy-MM-dd");
 
-      // 1. Fetch all training sessions (from programming) completed in last 28 days
-      const { data: trainingSessions } = await supabase
-        .from("training_sessions")
-        .select("id, completed_at, session_rpe, duration_minutes, training_weeks!inner(athlete_id)")
-        .in("training_weeks.athlete_id", athleteIds)
-        .gte("completed_at", day28Ago + "T00:00:00")
-        .not("completed_at", "is", null);
+      const [{ data: trainingSessions }, { data: customSessions }] = await Promise.all([
+        supabase
+          .from("training_sessions")
+          .select("id, completed_at, session_rpe, duration_minutes, training_weeks!inner(athlete_id)")
+          .in("training_weeks.athlete_id", athleteIds)
+          .gte("completed_at", day28Ago + "T00:00:00")
+          .not("completed_at", "is", null),
+        (supabase.from("custom_sessions") as any)
+          .select("id, completed_at, session_rpe, duration_minutes, user_id")
+          .in("user_id", athleteIds)
+          .gte("completed_at", day28Ago + "T00:00:00")
+          .not("completed_at", "is", null),
+      ]);
 
-      // 2. Fetch custom sessions completed in last 28 days
-      const { data: customSessions } = await (supabase.from("custom_sessions") as any)
-        .select("id, completed_at, session_rpe, duration_minutes, user_id")
-        .in("user_id", athleteIds)
-        .gte("completed_at", day28Ago + "T00:00:00")
-        .not("completed_at", "is", null);
-
-      // Build per-athlete daily load map
       interface DayLoad { trimp: number; sessions: number }
-      const athleteLoadMap = new Map<string, Map<string, DayLoad>>();
+      const loadMap = new Map<string, Map<string, DayLoad>>();
 
-      const addLoad = (athleteId: string, dateStr: string, rpe: number | null, duration: number | null) => {
-        if (!athleteLoadMap.has(athleteId)) athleteLoadMap.set(athleteId, new Map());
-        const dayMap = athleteLoadMap.get(athleteId)!;
-        const existing = dayMap.get(dateStr) || { trimp: 0, sessions: 0 };
-        const trimp = (rpe && duration) ? rpe * duration : 60; // fallback 60 TRIMP units
-        dayMap.set(dateStr, { trimp: existing.trimp + trimp, sessions: existing.sessions + 1 });
+      const addLoad = (athleteId: string, dateStr: string, rpe: number | null, dur: number | null) => {
+        if (!loadMap.has(athleteId)) loadMap.set(athleteId, new Map());
+        const dm = loadMap.get(athleteId)!;
+        const prev = dm.get(dateStr) || { trimp: 0, sessions: 0 };
+        dm.set(dateStr, { trimp: prev.trimp + ((rpe && dur) ? rpe * dur : 60), sessions: prev.sessions + 1 });
       };
 
       (trainingSessions || []).forEach((s: any) => {
-        const athleteId = (s.training_weeks as any)?.athlete_id;
-        if (!athleteId) return;
-        const dateStr = format(new Date(s.completed_at), "yyyy-MM-dd");
-        addLoad(athleteId, dateStr, s.session_rpe, s.duration_minutes);
+        const id = (s.training_weeks as any)?.athlete_id;
+        if (id) addLoad(id, format(new Date(s.completed_at), "yyyy-MM-dd"), s.session_rpe, s.duration_minutes);
       });
-
       (customSessions || []).forEach((s: any) => {
-        const dateStr = format(new Date(s.completed_at), "yyyy-MM-dd");
-        addLoad(s.user_id, dateStr, s.session_rpe, s.duration_minutes);
+        addLoad(s.user_id, format(new Date(s.completed_at), "yyyy-MM-dd"), s.session_rpe, s.duration_minutes);
       });
 
-      // Compute ACWR per athlete
-      const today = now;
-      const day7Ago = subDays(today, 6);
+      const day7Ago = startOfDay(subDays(now, 6));
+      const day28AgoDate = startOfDay(subDays(now, 27));
 
       const result: AthleteAcwr[] = athleteIds.map((id) => {
         const profile = profileMap.get(id);
-        const dayMap = athleteLoadMap.get(id) || new Map();
-
-        let acute = 0;
-        let chronic = 0;
-        let sessions7 = 0;
-        let sessions28 = 0;
-
-        dayMap.forEach((dayLoad, dateStr) => {
+        const dm = loadMap.get(id) || new Map();
+        let acute = 0, chronic = 0, s7 = 0, s28 = 0;
+        dm.forEach((dl, dateStr) => {
           const d = new Date(dateStr + "T12:00:00");
-          if (d >= startOfDay(subDays(today, 27)) && d <= today) {
-            chronic += dayLoad.trimp;
-            sessions28 += dayLoad.sessions;
-          }
-          if (d >= startOfDay(day7Ago) && d <= today) {
-            acute += dayLoad.trimp;
-            sessions7 += dayLoad.sessions;
-          }
+          if (d >= day28AgoDate && d <= now) { chronic += dl.trimp; s28 += dl.sessions; }
+          if (d >= day7Ago && d <= now)      { acute += dl.trimp;   s7  += dl.sessions; }
         });
-
-        const weeklyAvg = chronic / 4;
-        const acwr = weeklyAvg > 0 ? Math.round((acute / weeklyAvg) * 100) / 100 : null;
-
+        const weekly = chronic / 4;
         return {
           athleteId: id,
           athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Athlète",
-          acwr,
+          acwr: weekly > 0 ? Math.round((acute / weekly) * 100) / 100 : null,
           acuteLoad: Math.round(acute),
-          chronicLoad: Math.round(weeklyAvg),
-          sessionsLast7: sessions7,
-          sessionsLast28: sessions28,
+          chronicLoad: Math.round(weekly),
+          sessionsLast7: s7,
+          sessionsLast28: s28,
         };
       });
 
-      // Sort: danger first, then by ACWR descending
       result.sort((a, b) => {
-        const aVal = a.acwr ?? -1;
-        const bVal = b.acwr ?? -1;
-        if (bVal > 1.5 && aVal <= 1.5) return 1;
-        if (aVal > 1.5 && bVal <= 1.5) return -1;
-        return bVal - aVal;
+        const av = a.acwr ?? -1, bv = b.acwr ?? -1;
+        if (bv > 1.5 && av <= 1.5) return 1;
+        if (av > 1.5 && bv <= 1.5) return -1;
+        return bv - av;
       });
 
       setAthletes(result);
@@ -180,9 +144,9 @@ export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardP
               </Badge>
             )}
             {highCount > 0 && dangerCount === 0 && (
-              <Badge variant="outline" className="h-5 text-[10px] border-orange-400 text-orange-700">
+              <span className="text-[10px] font-semibold text-orange-400 border border-orange-400/40 rounded-full px-1.5 py-0.5">
                 {highCount} élevé
-              </Badge>
+              </span>
             )}
           </CardTitle>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={loadAcwr}>
@@ -190,7 +154,7 @@ export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardP
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Ratio Charge Aiguë / Chronique (7j / moy. 28j). Optimal : 0,8 – 1,3
+          Ratio Charge Aiguë / Chronique (7j / moy. 28j) · Optimal : 0,8 – 1,3
         </p>
       </CardHeader>
       <CardContent>
@@ -201,45 +165,36 @@ export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardP
         ) : (
           <div className="space-y-2">
             {athletes.map((a) => {
-              const status = acwrLabel(a.acwr);
-              const barWidth = a.acwr !== null ? Math.min(Math.round((a.acwr / 2) * 100), 100) : 0;
+              const z = getZone(a.acwr);
+              const barW = a.acwr !== null ? Math.min(Math.round((a.acwr / 2) * 100), 100) : 0;
               return (
                 <div
                   key={a.athleteId}
-                  className={`rounded-lg border p-3 cursor-pointer hover:border-primary/40 transition-colors ${status.bg}`}
+                  className={`rounded-lg border ${z.border} ${z.bg} p-3 cursor-pointer hover:border-primary/40 transition-colors`}
                   onClick={() => navigate(`/coach/client/${a.athleteId}`)}
                 >
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-medium text-sm truncate">{a.athleteName}</span>
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${status.color}`}>
-                        {status.label}
+                      <span className="font-semibold text-sm text-foreground truncate">{a.athleteName}</span>
+                      <span className={`text-[10px] font-semibold shrink-0 ${z.textColor}`}>
+                        {z.label}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-lg font-bold ${status.color}`}>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`text-lg font-bold ${z.textColor}`}>
                         {a.acwr !== null ? a.acwr.toFixed(2) : "—"}
                       </span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
                     </div>
                   </div>
-                  {/* ACWR bar */}
-                  <div className="relative h-1.5 rounded-full bg-muted/60 overflow-hidden">
-                    {/* Optimal zone indicator */}
-                    <div
-                      className="absolute top-0 h-full bg-green-200/50"
-                      style={{ left: "40%", width: "25%" }}
-                    />
+                  {/* Progress bar */}
+                  <div className="relative h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                    <div className="absolute top-0 left-[40%] h-full w-px bg-emerald-400/50" />
+                    <div className="absolute top-0 left-[65%] h-full w-px bg-orange-400/50" />
+                    <div className="absolute top-0 left-[75%] h-full w-px bg-red-400/50" />
                     {a.acwr !== null && (
-                      <div
-                        className={`h-full rounded-full transition-all ${acwrBarColor(a.acwr)}`}
-                        style={{ width: `${barWidth}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all ${z.barColor}`} style={{ width: `${barW}%` }} />
                     )}
-                    {/* Zone marker at 0.8 and 1.3 */}
-                    <div className="absolute top-0 left-[40%] h-full w-px bg-green-400/60" />
-                    <div className="absolute top-0 left-[65%] h-full w-px bg-orange-400/60" />
-                    <div className="absolute top-0 left-[75%] h-full w-px bg-red-400/60" />
                   </div>
                   <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
                     <span>{a.sessionsLast7} séance(s) / 7j</span>
@@ -248,7 +203,7 @@ export function AcwrDashboardCard({ athleteIds, profileMap }: AcwrDashboardCardP
                 </div>
               );
             })}
-            <p className="text-[10px] text-muted-foreground pt-1 text-center">
+            <p className="text-[10px] text-muted-foreground text-center pt-1">
               Charge = RPE × durée (ou 60 pts/séance si non renseigné)
             </p>
           </div>
