@@ -11,7 +11,7 @@ export interface LibraryExercise {
 
 export interface SessionExercise {
   id: number;
-  name: string;   // nom actuel dans la séance (ex: "Zercher Squat")
+  name: string;
   charge: string;
   reps: string;
   series: string;
@@ -20,23 +20,20 @@ export interface SessionExercise {
   tempo: string;
 }
 
-// ─── Cache bibliothèque (chargée une seule fois par session navigateur) ───────
+// ─── Cache bibliothèque ───────────────────────────────────────────────────────
 
 let libraryCache: LibraryExercise[] | null = null;
 
 export async function getExerciseLibrary(): Promise<LibraryExercise[]> {
   if (libraryCache) return libraryCache;
-
   const { data, error } = await supabase
     .from("exercise_library")
-    .select("id, name, muscle_principal")
+    .select("id, name")
     .order("name");
-
   if (error || !data) {
     console.warn("[groqVoiceCommand] Impossible de charger la bibliothèque:", error);
     return [];
   }
-
   libraryCache = data;
   return data;
 }
@@ -50,9 +47,7 @@ function buildSystemPrompt(
   library: LibraryExercise[],
   sessionExercises: SessionExercise[],
 ): string {
-  // Noms uniquement, séparés par des virgules → beaucoup plus compact
-  const libraryList = library.map((e) => e.name).join(", ");
-
+  // Liste de la séance : IDs + noms (source de vérité pour modify/delete)
   const sessionList = sessionExercises
     .map((e) => {
       const vals = [
@@ -60,65 +55,44 @@ function buildSystemPrompt(
         e.reps && `reps:${e.reps}`,
         e.series && `séries:${e.series}`,
         e.rpe && `rpe:${e.rpe}`,
-      ]
-        .filter(Boolean)
-        .join(", ");
-      return `- id:${e.id} "${e.name}"${vals ? ` (${vals})` : ""}`;
+      ].filter(Boolean).join(", ");
+      return `id:${e.id} "${e.name}"${vals ? ` (${vals})` : ""}`;
     })
-    .join("\n");
+    .join(" | ");
 
-  return `Tu es un assistant coach sportif francophone. Un coach dicte des modifications pour une séance de renforcement musculaire.
+  // Bibliothèque : noms uniquement, séparés par virgules (compact)
+  const libraryNames = library.map((e) => e.name).join(", ");
 
-BIBLIOTHÈQUE D'EXERCICES DISPONIBLE:
-${libraryList || "(vide)"}
+  return `Coach sportif. Analyse la commande vocale et retourne uniquement du JSON.
 
-EXERCICES ACTUELS DE LA SÉANCE (avec leurs IDs):
-${sessionList || "(aucun exercice pour l'instant)"}
+SÉANCE (IDs pour modify/delete): ${sessionList || "vide"}
+BIBLIOTHÈQUE (pour add): ${libraryNames || "vide"}
 
-Ta tâche: analyser la commande vocale du coach et retourner un tableau JSON d'actions.
-
-FORMAT DE RÉPONSE (JSON uniquement, sans markdown ni explication):
+JSON à retourner:
 [
-  {
-    "type": "modify",
-    "exerciseId": 3,
-    "exerciseName": "Zercher Squat",
-    "changes": { "charge": "80", "reps": "8", "series": "4", "rpe": "7", "recuperation": "2:00", "tempo": "301" }
-  },
-  {
-    "type": "delete",
-    "exerciseId": 5,
-    "exerciseName": "Bench Press"
-  },
-  {
-    "type": "add",
-    "exerciseId": null,
-    "exerciseName": "Romanian Deadlift",
-    "changes": { "series": "3", "reps": "10", "charge": "60" }
-  }
+  {"type":"modify","exerciseId":ID_ENTIER,"exerciseName":"NOM_EXACT_SÉANCE","changes":{"charge":"80","reps":"8","series":"4","rpe":"7","recuperation":"1:30","tempo":"301"}},
+  {"type":"delete","exerciseId":ID_ENTIER,"exerciseName":"NOM_EXACT_SÉANCE"},
+  {"type":"add","exerciseId":null,"exerciseName":"NOM_EXACT_BIBLIOTHÈQUE","changes":{"series":"3","reps":"10"}}
 ]
 
-RÈGLES:
-- "type" vaut "modify", "add" ou "delete"
-- Pour "modify": exerciseId = l'ID de l'exercice dans la séance (nombre entier)
-- Pour "delete": exerciseId = l'ID dans la séance, pas de champ "changes"
-- Pour "add": exerciseId = null, exerciseName = nom exact de la bibliothèque si correspondance, sinon nom dicté mis en forme
-- Dans "changes": uniquement les champs mentionnés (charge, reps, series, rpe, recuperation, tempo) — toutes des strings
-- La récupération est au format "mm:ss" (ex: "1:30", "2:00", "0:45")
-- Gère les erreurs phonétiques et le langage naturel: "squat devant" = "Zercher Squat", "squat roumain" = "Romanian Deadlift", "soulevé de terre" = "Deadlift", "développé couché" = "Bench Press", etc.
-- Si l'exercice est dans la séance, utilise son exerciseId. Sinon, c'est un "add".
-- Retourne UNIQUEMENT du JSON valide.`;
+RÈGLES ABSOLUES:
+1. modify/delete: exerciseId = l'ID exact de la SÉANCE. exerciseName = le nom exact de la SÉANCE. INTERDIT d'inventer.
+2. add: exerciseName = nom le plus proche dans la BIBLIOTHÈQUE. Si absent, utilise le mot dicté.
+3. changes: seulement les champs cités. Toutes valeurs en string. recuperation en "mm:ss".
+4. Correspondances phonétiques/sémantiques: "squat devant"→Zercher Squat, "squat roumain"→Romanian Deadlift, "développé couché"→Bench Press, "soulevé de terre"→Deadlift, "tirage"→Row, etc.
+5. Retourne UNIQUEMENT le JSON, sans texte autour.`;
 }
 
 /**
  * Envoie la transcription à Groq et retourne les commandes parsées.
+ * Post-traitement : vérifie que les exerciseId de modify/delete existent bien en séance.
  */
 export async function parseWithGroq(
   transcript: string,
   sessionExercises: SessionExercise[],
 ): Promise<VoiceCommand[]> {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) throw new Error("Clé Groq manquante (VITE_GROQ_API_KEY)");
+  if (!apiKey) throw new Error("Clé Groq manquante — redémarre le serveur local");
 
   const library = await getExerciseLibrary();
   const systemPrompt = buildSystemPrompt(library, sessionExercises);
@@ -136,7 +110,7 @@ export async function parseWithGroq(
         { role: "user", content: transcript },
       ],
       temperature: 0,
-      max_tokens: 1024,
+      max_tokens: 512,
     }),
   });
 
@@ -148,9 +122,8 @@ export async function parseWithGroq(
   const data = await response.json();
   const content: string = data.choices?.[0]?.message?.content ?? "";
 
-  // Extraire le JSON (au cas où il y aurait du texte autour)
   const jsonMatch = content.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("Réponse Groq invalide: pas de JSON trouvé");
+  if (!jsonMatch) throw new Error("Réponse Groq invalide — pas de JSON trouvé");
 
   const raw: Array<{
     type: string;
@@ -159,19 +132,36 @@ export async function parseWithGroq(
     changes?: Record<string, string>;
   }> = JSON.parse(jsonMatch[0]);
 
-  // Normaliser en VoiceCommand[]
+  const sessionIds = new Set(sessionExercises.map((e) => e.id));
+
   return raw
     .filter((r) => ["modify", "add", "delete"].includes(r.type))
     .map((r) => {
+      // Sécurité : pour modify/delete, vérifie que l'ID existe vraiment dans la séance
+      let exerciseId: number | undefined = undefined;
+      if (r.exerciseId != null && (r.type === "modify" || r.type === "delete")) {
+        if (sessionIds.has(Number(r.exerciseId))) {
+          exerciseId = Number(r.exerciseId);
+        } else {
+          // L'ID inventé par le LLM → cherche par nom dans la séance
+          const byName = sessionExercises.find(
+            (e) => e.name.toLowerCase() === (r.exerciseName ?? "").toLowerCase(),
+          );
+          if (byName) exerciseId = byName.id;
+          else return null; // impossible à résoudre → on ignore
+        }
+      }
+
       const cmd: VoiceCommand = {
         type: r.type as VoiceCommand["type"],
         exerciseName: r.exerciseName ?? "Exercice",
         matchScore: 1,
       };
-      if (r.exerciseId != null) cmd.exerciseId = r.exerciseId;
+      if (exerciseId != null) cmd.exerciseId = exerciseId;
       if (r.changes && Object.keys(r.changes).length > 0) {
         cmd.changes = r.changes as VoiceChanges;
       }
       return cmd;
-    });
+    })
+    .filter((c): c is VoiceCommand => c !== null);
 }
