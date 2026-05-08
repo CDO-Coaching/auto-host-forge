@@ -14,13 +14,16 @@ interface UseVoiceCommandReturn {
 }
 
 export function useVoiceCommand(
-  onResult: (finalTranscript: string) => void
+  onResult: (finalTranscript: string) => void,
 ): UseVoiceCommandReturn {
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+
   const recognitionRef = useRef<any>(null);
+  // Accumule tous les segments finaux depuis le début de l'enregistrement
+  const accumulatedRef = useRef<string>("");
 
   const SpeechRecognition =
     typeof window !== "undefined"
@@ -34,9 +37,18 @@ export function useVoiceCommand(
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
-    setState("idle");
+
+    const final = accumulatedRef.current.trim();
     setInterimTranscript("");
-  }, []);
+
+    if (final) {
+      setState("processing");
+      setTranscript(final);
+      onResult(final);
+    } else {
+      setState("idle");
+    }
+  }, [onResult]);
 
   const startListening = useCallback(() => {
     if (!SpeechRecognition) {
@@ -47,12 +59,13 @@ export function useVoiceCommand(
     setError(null);
     setTranscript("");
     setInterimTranscript("");
+    accumulatedRef.current = "";
 
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
 
     recognition.lang = "fr-FR";
-    recognition.continuous = false;
+    recognition.continuous = true;      // ← ne s'arrête pas aux silences
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
@@ -60,47 +73,54 @@ export function useVoiceCommand(
 
     recognition.onresult = (event: any) => {
       let interim = "";
-      let final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) final += t;
-        else interim += t;
+        if (event.results[i].isFinal) {
+          // Ajouter au transcript accumulé
+          accumulatedRef.current += (accumulatedRef.current ? " " : "") + t.trim();
+        } else {
+          interim += t;
+        }
       }
-      if (interim) setInterimTranscript(interim);
-      if (final) {
-        setTranscript(final);
-        setInterimTranscript("");
-        setState("processing");
-        onResult(final);
-      }
+      // Afficher : tout ce qui est déjà confirmé + ce qui est en cours
+      const display = [accumulatedRef.current, interim].filter(Boolean).join(" ");
+      setInterimTranscript(display);
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error === "no-speech") {
-        setError("Aucune parole détectée — réessaie");
-      } else if (event.error === "not-allowed") {
+      // En mode continu, "no-speech" est normal (silences) → on ignore
+      if (event.error === "no-speech") return;
+      if (event.error === "not-allowed") {
         setError("Micro non autorisé — autorise l'accès dans ton navigateur");
+        setState("idle");
       } else {
         setError(`Erreur : ${event.error}`);
+        setState("idle");
       }
-      setState("idle");
     };
 
     recognition.onend = () => {
-      if (state === "listening") setState("idle");
-      setInterimTranscript("");
+      // En mode continu, le navigateur peut couper après un long silence
+      // → relancer automatiquement si on est toujours en mode "listening"
+      if (recognitionRef.current) {
+        try { recognitionRef.current.start(); } catch (_) {}
+      }
     };
 
     recognition.start();
-  }, [SpeechRecognition, onResult]);
+  }, [SpeechRecognition]);
 
   const reset = useCallback(() => {
-    stopListening();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+    accumulatedRef.current = "";
     setTranscript("");
     setInterimTranscript("");
     setError(null);
     setState("idle");
-  }, [stopListening]);
+  }, []);
 
   return {
     state,
