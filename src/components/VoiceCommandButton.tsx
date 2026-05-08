@@ -8,24 +8,23 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Check, X, AlertCircle, Loader2, Plus, Trash2, Pencil } from "lucide-react";
-import { useVoiceCommand } from "@/hooks/useVoiceCommand";
 import {
-  parseVoiceCommands,
-  type ExerciseTarget,
-  type VoiceChanges,
-  type VoiceCommand,
-} from "@/lib/parseVoiceCommand";
+  Mic,
+  MicOff,
+  Check,
+  X,
+  AlertCircle,
+  Loader2,
+  Plus,
+  Trash2,
+  Pencil,
+} from "lucide-react";
+import { useVoiceCommand } from "@/hooks/useVoiceCommand";
+import { parseWithGroq, type SessionExercise } from "@/lib/groqVoiceCommand";
+import type { VoiceChanges, VoiceCommand } from "@/lib/parseVoiceCommand";
 import { toast } from "sonner";
 
-interface Exercise extends ExerciseTarget {
-  charge: string;
-  reps: string;
-  series: string;
-  rpe: string;
-  recuperation: string;
-  tempo: string;
-}
+interface Exercise extends SessionExercise {}
 
 interface VoiceCommandButtonProps {
   exercises: Exercise[];
@@ -83,18 +82,33 @@ function CommandCard({
   const changes = cmd.changes ?? {};
   const hasChanges = Object.keys(changes).length > 0;
 
-  const typeConfig = isDelete
-    ? { icon: <Trash2 className="h-3.5 w-3.5" />, color: "text-red-400", bg: "bg-red-400/10 border-red-400/30", label: "Supprimer" }
+  const cfg = isDelete
+    ? {
+        icon: <Trash2 className="h-3.5 w-3.5" />,
+        color: "text-red-400",
+        bg: "bg-red-400/10 border-red-400/30",
+        label: "Supprimer",
+      }
     : isAdd
-    ? { icon: <Plus className="h-3.5 w-3.5" />, color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/30", label: "Ajouter" }
-    : { icon: <Pencil className="h-3.5 w-3.5" />, color: "text-primary", bg: "bg-secondary/30 border-border/40", label: "Modifier" };
+    ? {
+        icon: <Plus className="h-3.5 w-3.5" />,
+        color: "text-emerald-400",
+        bg: "bg-emerald-400/10 border-emerald-400/30",
+        label: "Ajouter",
+      }
+    : {
+        icon: <Pencil className="h-3.5 w-3.5" />,
+        color: "text-primary",
+        bg: "bg-secondary/30 border-border/40",
+        label: "Modifier",
+      };
 
   return (
-    <div className={`rounded-lg border ${typeConfig.bg} p-2.5 space-y-1.5`}>
-      <div className="flex items-center gap-1.5">
-        <span className={typeConfig.color}>{typeConfig.icon}</span>
-        <span className={`text-[10px] font-semibold uppercase tracking-wide ${typeConfig.color}`}>
-          {typeConfig.label}
+    <div className={`rounded-lg border ${cfg.bg} p-2.5 space-y-1.5`}>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className={cfg.color}>{cfg.icon}</span>
+        <span className={`text-[10px] font-semibold uppercase tracking-wide ${cfg.color}`}>
+          {cfg.label}
         </span>
         <Badge variant="secondary" className="text-xs font-medium ml-1">
           {cmd.exerciseName}
@@ -111,7 +125,7 @@ function CommandCard({
             <ChangeRow
               key={field}
               field={field}
-              oldValue={exercise ? (exercise as any)[field] ?? "" : ""}
+              oldValue={exercise ? ((exercise as any)[field] ?? "") : ""}
               newValue={value}
             />
           ))}
@@ -136,24 +150,40 @@ export function VoiceCommandButton({
     commands: VoiceCommand[];
     transcript: string;
   } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleResult = useCallback(
-    (transcript: string) => {
-      const targets: ExerciseTarget[] = exercises.map((e) => ({ id: e.id, name: e.name }));
-      const parsed = parseVoiceCommands(transcript, targets);
-
-      if (!parsed || parsed.commands.length === 0) {
-        toast.error("Commande non comprise. Mentionne l'exercice et ce que tu veux changer.");
-        return;
+    async (transcript: string) => {
+      setIsAnalyzing(true);
+      setError(null);
+      try {
+        const commands = await parseWithGroq(transcript, exercises);
+        if (commands.length === 0) {
+          toast.error("Aucune action détectée. Réessaie en mentionnant un exercice.");
+          return;
+        }
+        setPreview({ commands, transcript });
+      } catch (e: any) {
+        console.error("[VoiceCommand] Groq error:", e);
+        setError("Erreur d'analyse — vérifie ta connexion");
+        toast.error("Impossible d'analyser la commande vocale");
+      } finally {
+        setIsAnalyzing(false);
       }
-
-      setPreview({ commands: parsed.commands, transcript });
     },
     [exercises],
   );
 
-  const { state, interimTranscript, error, isSupported, startListening, stopListening, reset } =
-    useVoiceCommand(handleResult);
+  const {
+    state,
+    interimTranscript,
+    error: micError,
+    isSupported,
+    startListening,
+    stopListening,
+    reset,
+  } = useVoiceCommand(handleResult);
 
   const handleConfirm = () => {
     if (!preview) return;
@@ -161,13 +191,13 @@ export function VoiceCommandButton({
     let modified = 0, added = 0, deleted = 0;
 
     for (const cmd of preview.commands) {
-      if (cmd.type === "modify" && cmd.exerciseId && cmd.changes) {
+      if (cmd.type === "modify" && cmd.exerciseId != null && cmd.changes) {
         onApply(cmd.exerciseId, cmd.changes);
         modified++;
       } else if (cmd.type === "add") {
         onAddExercise(cmd.exerciseName, cmd.changes ?? {});
         added++;
-      } else if (cmd.type === "delete" && cmd.exerciseId) {
+      } else if (cmd.type === "delete" && cmd.exerciseId != null) {
         onDeleteExercise(cmd.exerciseId);
         deleted++;
       }
@@ -191,7 +221,9 @@ export function VoiceCommandButton({
   if (!isSupported) return null;
 
   const isListening = state === "listening";
-  const isProcessing = state === "processing" && !preview;
+  const isBusy = (state === "processing" && !preview) || isAnalyzing;
+
+  const displayError = micError || error;
 
   return (
     <>
@@ -206,17 +238,17 @@ export function VoiceCommandButton({
             : "border-border/60"
         }`}
         onClick={isListening ? stopListening : startListening}
-        disabled={disabled || isProcessing}
+        disabled={disabled || isBusy}
         title="Modifier par la voix"
       >
-        {isProcessing ? (
+        {isBusy ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : isListening ? (
           <MicOff className="h-3.5 w-3.5" />
         ) : (
           <Mic className="h-3.5 w-3.5" />
         )}
-        {isListening ? "Stop" : "Vocal"}
+        {isBusy ? "Analyse…" : isListening ? "Stop" : "Vocal"}
       </Button>
 
       {/* Live transcript bubble */}
@@ -227,10 +259,10 @@ export function VoiceCommandButton({
       )}
 
       {/* Error */}
-      {error && (
+      {displayError && (
         <div className="flex items-center gap-1.5 text-xs text-destructive">
           <AlertCircle className="h-3.5 w-3.5" />
-          {error}
+          {displayError}
         </div>
       )}
 
@@ -257,14 +289,12 @@ export function VoiceCommandButton({
                 <p className="text-sm italic text-foreground">« {preview.transcript} »</p>
               </div>
 
-              {/* Nombre de commandes */}
               {preview.commands.length > 1 && (
                 <p className="text-xs text-muted-foreground">
                   {preview.commands.length} actions détectées :
                 </p>
               )}
 
-              {/* Une card par commande */}
               <div className="space-y-2">
                 {preview.commands.map((cmd, i) => {
                   const ex = exercises.find((e) => e.id === cmd.exerciseId);
