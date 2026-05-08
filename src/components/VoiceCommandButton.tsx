@@ -165,9 +165,10 @@ export function VoiceCommandButton({
         }
         setPreview({ commands, transcript });
       } catch (e: any) {
-        console.error("[VoiceCommand] Groq error:", e);
-        setError("Erreur d'analyse — vérifie ta connexion");
-        toast.error("Impossible d'analyser la commande vocale");
+        const msg = e?.message ?? String(e);
+        console.error("[VoiceCommand] Groq error:", msg);
+        setError(msg.length < 80 ? msg : "Erreur d'analyse — voir la console");
+        toast.error(`Vocal: ${msg.slice(0, 120)}`);
       } finally {
         setIsAnalyzing(false);
       }
