@@ -2506,11 +2506,12 @@ export default function ClientDetail() {
       const updated = exercises.map((ex) => {
         if (ex.id !== exerciseId) return ex;
 
-        // 1. Appliquer les changements globaux
+        // 1. Appliquer les changements globaux sur la ligne principale
         let updatedEx: Exercise = { ...ex, ...changes };
 
-        // 2. Si le nombre de séries change, régénérer le détail des séries
+        // 2. Propager les changements globaux sur les série_details existantes
         if (changes.series) {
+          // Nombre de séries modifié → régénérer tout le détail
           const count = parseInt(changes.series) || 0;
           if (count > 0) {
             updatedEx.serie_details = Array.from({ length: count }, () => ({
@@ -2522,9 +2523,19 @@ export default function ClientDetail() {
               recuperation: updatedEx.recuperation ?? "",
             }));
           }
+        } else if (updatedEx.serie_details && updatedEx.serie_details.length > 0) {
+          // Autres champs modifiés → propager sur chaque série existante
+          const fieldsChanged = Object.keys(changes) as (keyof VoiceChanges)[];
+          updatedEx.serie_details = updatedEx.serie_details.map((sd) => {
+            const patched = { ...sd };
+            fieldsChanged.forEach((f) => {
+              if (changes[f] !== undefined) (patched as any)[f] = changes[f];
+            });
+            return patched;
+          });
         }
 
-        // 3. Appliquer les exceptions par série (atomique, après régénération)
+        // 3. Appliquer les exceptions par série (atomique, après propagation globale)
         if (seriesOverrides && updatedEx.serie_details && updatedEx.serie_details.length > 0) {
           const details = [...updatedEx.serie_details];
           Object.entries(seriesOverrides).forEach(([serieNumStr, override]) => {
