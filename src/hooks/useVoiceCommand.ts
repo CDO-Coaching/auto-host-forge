@@ -22,8 +22,9 @@ export function useVoiceCommand(
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
-  // Accumule tous les segments finaux depuis le début de l'enregistrement
   const accumulatedRef = useRef<string>("");
+  // Flag explicite : true = arrêt volontaire, false = arrêt inattendu (silence long)
+  const isManualStopRef = useRef<boolean>(false);
 
   const SpeechRecognition =
     typeof window !== "undefined"
@@ -32,11 +33,13 @@ export function useVoiceCommand(
 
   const isSupported = !!SpeechRecognition;
 
+  /** Arrête l'enregistrement et envoie le transcript accumulé */
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
+    isManualStopRef.current = true; // ← marquer AVANT stop() pour que onend ne relance pas
+
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) rec.stop();
 
     const final = accumulatedRef.current.trim();
     setInterimTranscript("");
@@ -60,12 +63,13 @@ export function useVoiceCommand(
     setTranscript("");
     setInterimTranscript("");
     accumulatedRef.current = "";
+    isManualStopRef.current = false; // ← reset du flag à chaque nouveau démarrage
 
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
 
     recognition.lang = "fr-FR";
-    recognition.continuous = true;      // ← ne s'arrête pas aux silences
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
 
@@ -76,33 +80,29 @@ export function useVoiceCommand(
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          // Ajouter au transcript accumulé
           accumulatedRef.current += (accumulatedRef.current ? " " : "") + t.trim();
         } else {
           interim += t;
         }
       }
-      // Afficher : tout ce qui est déjà confirmé + ce qui est en cours
       const display = [accumulatedRef.current, interim].filter(Boolean).join(" ");
       setInterimTranscript(display);
     };
 
     recognition.onerror = (event: any) => {
-      // En mode continu, "no-speech" est normal (silences) → on ignore
-      if (event.error === "no-speech") return;
+      if (event.error === "no-speech") return; // silences normaux en mode continu
       if (event.error === "not-allowed") {
         setError("Micro non autorisé — autorise l'accès dans ton navigateur");
-        setState("idle");
       } else {
-        setError(`Erreur : ${event.error}`);
-        setState("idle");
+        setError(`Erreur micro : ${event.error}`);
       }
+      setState("idle");
+      recognitionRef.current = null;
     };
 
     recognition.onend = () => {
-      // En mode continu, le navigateur peut couper après un long silence
-      // → relancer automatiquement si on est toujours en mode "listening"
-      if (recognitionRef.current) {
+      // Relancer seulement si l'arrêt n'était PAS volontaire (ex: silence Chrome)
+      if (!isManualStopRef.current && recognitionRef.current) {
         try { recognitionRef.current.start(); } catch (_) {}
       }
     };
@@ -111,10 +111,11 @@ export function useVoiceCommand(
   }, [SpeechRecognition]);
 
   const reset = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
+    isManualStopRef.current = true;
+    const rec = recognitionRef.current;
+    recognitionRef.current = null;
+    if (rec) rec.stop();
+
     accumulatedRef.current = "";
     setTranscript("");
     setInterimTranscript("");
@@ -122,14 +123,5 @@ export function useVoiceCommand(
     setState("idle");
   }, []);
 
-  return {
-    state,
-    transcript,
-    interimTranscript,
-    error,
-    isSupported,
-    startListening,
-    stopListening,
-    reset,
-  };
+  return { state, transcript, interimTranscript, error, isSupported, startListening, stopListening, reset };
 }
