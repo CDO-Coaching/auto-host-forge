@@ -2505,6 +2505,27 @@ export default function ClientDetail() {
     });
   };
 
+  const handleVoiceAddExercise = (sessionId: number, name: string, changes: VoiceChanges) => {
+    const currentExercises = sessionExercises[sessionId] || [];
+    const maxId = currentExercises.reduce((max, ex) => Math.max(max, ex.id), 0);
+    const newId = maxId + 1;
+    const newExercise: Exercise = {
+      id: newId,
+      exercice: name,
+      charge: changes.charge ?? "",
+      reps: changes.reps ?? "",
+      series: changes.series ?? "",
+      rpe: changes.rpe ?? "",
+      recuperation: changes.recuperation ?? "",
+      tempo: changes.tempo ?? "",
+      commentaire: "",
+    };
+    setSessionExercises((prev) => ({
+      ...prev,
+      [sessionId]: [...(prev[sessionId] || []), newExercise],
+    }));
+  };
+
   const handleAddExercise = (sessionId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const session = sessions.find((s) => s.id === sessionId);
@@ -5893,7 +5914,7 @@ export default function ClientDetail() {
                                         <span className="hidden sm:inline">Ajouter une ligne</span>
                                         <span className="sm:hidden">Ajouter</span>
                                       </Button>
-                                      {session.session_type === "renfo" && (sessionExercises[session.id] || []).length > 0 && (
+                                      {session.session_type === "renfo" && (
                                         <VoiceCommandButton
                                           exercises={(sessionExercises[session.id] || []).map((ex) => ({
                                             id: ex.id,
@@ -5907,6 +5928,12 @@ export default function ClientDetail() {
                                           }))}
                                           onApply={(exerciseId, changes) =>
                                             handleVoiceApply(session.id, exerciseId, changes)
+                                          }
+                                          onAddExercise={(name, changes) =>
+                                            handleVoiceAddExercise(session.id, name, changes)
+                                          }
+                                          onDeleteExercise={(exerciseId) =>
+                                            handleDeleteExercise(session.id, exerciseId)
                                           }
                                         />
                                       )}

@@ -14,14 +14,32 @@ export interface VoiceChanges {
   tempo?: string;
 }
 
+export type VoiceCommandType = "modify" | "add" | "delete";
+
+export interface VoiceCommand {
+  type: VoiceCommandType;
+  exerciseId?: number;    // pour modify / delete (exercice existant)
+  exerciseName: string;   // nom matché ou nom dicté pour un add nouveau
+  changes?: VoiceChanges; // pour modify / add
+  matchScore: number;
+}
+
+export interface ParsedVoiceCommands {
+  commands: VoiceCommand[];
+  rawTranscript: string;
+}
+
+// ─── Ancienne interface (rétro-compatibilité) ────────────────────────────────
 export interface ParsedVoiceCommand {
   exerciseId: number;
-  exerciseName: string;         // nom trouvé dans la session
-  matchedFrom: string;          // ce que le coach a dit
-  matchScore: number;           // 0-1, 1 = parfait
+  exerciseName: string;
+  matchedFrom: string;
+  matchScore: number;
   changes: VoiceChanges;
   rawTranscript: string;
 }
+
+// ─── Utilitaires ─────────────────────────────────────────────────────────────
 
 /** Supprime les accents et met en minuscules */
 function normalize(s: string): string {
@@ -34,197 +52,308 @@ function normalize(s: string): string {
 }
 
 /**
- * Extrait un nombre depuis un texte (accepte virgule ou point comme séparateur décimal)
+ * Corrige les erreurs phonétiques courantes du Speech API fr-FR
+ * sur les termes anglais du fitness (mal transcrits en mots français).
  */
-function extractNumber(s: string): string | null {
-  const m = s.match(/(\d+(?:[,\.]\d+)?)/);
-  if (!m) return null;
-  return m[1].replace(",", ".");
+function fixSpeechMishearings(text: string): string {
+  return text
+    .replace(/cr[eèêë]pes?/gi, "reps")
+    .replace(/kr[eèêë]pes?/gi, "reps")
+    .replace(/\bscala\b/gi, "squat")
+    .replace(/\bscuat\b/gi, "squat")
+    .replace(/\bdead\s+life\b/gi, "deadlift")
+    .replace(/\bbanch\b/gi, "bench")
+    .replace(/\b(?:areu\s*pe|arp[eé]|erp)\b/gi, "rpe")
+    .replace(/\bse?ttes?\b/gi, "sets")
+    .replace(/\bc[eè]ts?\b/gi, "sets");
 }
 
 /**
- * Extrait un temps de récupération (ex: "1 minute 30", "90 secondes", "1:30", "2 minutes")
+ * Extrait un temps de récupération
  */
 function extractRecup(text: string): string | null {
-  // Format mm:ss
   const mmss = text.match(/(\d+):(\d{2})/);
   if (mmss) return `${mmss[1]}:${mmss[2]}`;
 
-  // X minute(s) Y seconde(s)
   const minSec = text.match(/(\d+)\s*min(?:utes?)?\s*(?:et\s*)?(\d+)\s*sec(?:ondes?)?/);
   if (minSec) {
     const total = parseInt(minSec[1]) * 60 + parseInt(minSec[2]);
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
   }
 
-  // X minutes
   const min = text.match(/(\d+)\s*min(?:utes?)?(?!\s*\d)/);
-  if (min) {
-    const m = parseInt(min[1]);
-    return `${m}:00`;
-  }
+  if (min) return `${parseInt(min[1])}:00`;
 
-  // X secondes
   const sec = text.match(/(\d+)\s*sec(?:ondes?)?/);
   if (sec) {
     const s = parseInt(sec[1]);
-    return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `0:${String(s).padStart(2, "0")}`;
+    return s >= 60
+      ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`
+      : `0:${String(s).padStart(2, "0")}`;
   }
 
   return null;
 }
 
-/**
- * Corrige les erreurs phonétiques courantes du Speech API fr-FR
- * sur les termes anglais du fitness (mal transcrits en mots français).
- */
-function fixSpeechMishearings(text: string): string {
-  return text
-    // "reps" / "rep" → souvent entendu comme "crêpe", "crèpe", "crepe", "crêpes"
-    .replace(/cr[eèêë]pes?/gi, "reps")
-    .replace(/kr[eèêë]pes?/gi, "reps")
-    // "squat" → parfois "scala", "scuat"
-    .replace(/\bscala\b/gi, "squat")
-    .replace(/\bscuat\b/gi, "squat")
-    // "deadlift" → "dead life", "dead lift" (garder comme tel, mais normaliser)
-    .replace(/\bdead\s+life\b/gi, "deadlift")
-    // "bench" → "banch", "bench press" bien géré
-    .replace(/\bbanch\b/gi, "bench")
-    // "RPE" → "areu pé", "erp", "arpé"
-    .replace(/\b(?:areu\s*pe|arp[eé]|erp)\b/gi, "rpe")
-    // "sets" → "cet", "sète"
-    .replace(/\bse?ttes?\b/gi, "sets")
-    .replace(/\bc[eè]ts?\b/gi, "sets")
-    // "tempo" → généralement bien reconnu
-    // "kg" → "kilo" bien reconnu
-    ;
-}
-
-/** Extrait les modifications depuis le texte transcrit */
+/** Extrait les modifications de valeurs depuis un segment de texte (déjà normalisé) */
 function extractChanges(text: string): VoiceChanges {
-  const corrected = fixSpeechMishearings(text);
-  const t = normalize(corrected);
+  const t = normalize(fixSpeechMishearings(text));
   const changes: VoiceChanges = {};
 
-  // CHARGE — "charge à 45", "45 kg", "45 kilos", "poids 45"
-  const chargePatterns = [
-    /(?:charge|poids|kg|kilos?|kilogrammes?)\s*(?:a|à|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
+  // CHARGE
+  for (const p of [
+    /(?:charge|poids|kg|kilos?|kilogrammes?)\s*(?:a|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
     /(\d+(?:[,\.]\d+)?)\s*(?:kg|kilos?|kilogrammes?)/,
-    /(?:mets?|passe[sz]?|change[sz]?)\s+(?:la\s+charge|le\s+poids)\s+(?:a|à|de)?\s*(\d+(?:[,\.]\d+)?)/,
-  ];
-  for (const p of chargePatterns) {
+    /(?:mets?|passe[sz]?|change[sz]?)\s+(?:la\s+charge|le\s+poids)\s+(?:a|de)?\s*(\d+(?:[,\.]\d+)?)/,
+  ]) {
     const m = t.match(p);
     if (m) { changes.charge = m[1].replace(",", "."); break; }
   }
 
-  // REPS — "12 reps", "12 répétitions", "12 fois"
-  const repsPatterns = [
+  // REPS
+  for (const p of [
     /(\d+)\s*(?:reps?|repetitions?|repet(?:itions?)?|fois)/,
-    /(?:reps?|repetitions?|fois)\s*(?:a|à|de|:)?\s*(\d+)/,
-  ];
-  for (const p of repsPatterns) {
+    /(?:reps?|repetitions?|fois)\s*(?:a|de|:)?\s*(\d+)/,
+  ]) {
     const m = t.match(p);
     if (m) { changes.reps = m[1]; break; }
   }
 
-  // SÉRIES — "4 séries", "4 sets"
-  const seriesPatterns = [
+  // SÉRIES
+  for (const p of [
     /(\d+)\s*(?:series?|sets?)/,
-    /(?:series?|sets?)\s*(?:a|à|de|:)?\s*(\d+)/,
-  ];
-  for (const p of seriesPatterns) {
+    /(?:series?|sets?)\s*(?:a|de|:)?\s*(\d+)/,
+  ]) {
     const m = t.match(p);
     if (m) { changes.series = m[1]; break; }
   }
 
-  // RPE — "rpe 7", "rpe à 7", "intensite 8"
-  const rpePatterns = [
-    /rpe\s*(?:a|à|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
-    /intensite\s*(?:a|à|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
-  ];
-  for (const p of rpePatterns) {
+  // RPE
+  for (const p of [
+    /rpe\s*(?:a|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
+    /intensite\s*(?:a|de|:)?\s*(\d+(?:[,\.]\d+)?)/,
+  ]) {
     const m = t.match(p);
     if (m) { changes.rpe = m[1].replace(",", "."); break; }
   }
 
-  // TEMPO — "tempo 3 0 1", "tempo 301", "tempo 3-0-1"
+  // TEMPO
   const tempoM = t.match(/tempo\s*:?\s*([\d][\d\s\-\.]{1,8}[\d])/);
   if (tempoM) changes.tempo = tempoM[1].replace(/[\s\-\.]/g, "");
 
-  // RÉCUPÉRATION — "récup 1 minute 30", "90 secondes de repos"
-  const recupWindow = t.match(
-    /(?:recup(?:eration)?|repos|rest)\s*(?:de\s*|:?\s*)([\d][\d\s:m-]+(?:sec(?:ondes?)?|min(?:utes?)?|:\d+)?)/
+  // RÉCUPÉRATION
+  const recupW = t.match(
+    /(?:recup(?:eration)?|repos|rest)\s*(?:de\s*|:?\s*)([\d][\d\s:m-]+(?:sec(?:ondes?)?|min(?:utes?)?|:\d+)?)/,
   );
-  if (recupWindow) {
-    const r = extractRecup(recupWindow[0]);
+  if (recupW) {
+    const r = extractRecup(recupW[0]);
     if (r) changes.recuperation = r;
   }
 
   return changes;
 }
 
-/**
- * Génère tous les n-grammes (1 à maxN mots) d'une phrase normalisée.
- * Permet de trouver un nom d'exercice court au sein d'une longue phrase.
- */
-function getNgrams(text: string, maxN = 5): string[] {
-  const words = text.split(/\s+/).filter((w) => w.length >= 2);
-  const ngrams: string[] = [];
-  for (let n = 1; n <= Math.min(maxN, words.length); n++) {
-    for (let i = 0; i <= words.length - n; i++) {
-      ngrams.push(words.slice(i, i + n).join(" "));
-    }
+// ─── Verbes d'action ─────────────────────────────────────────────────────────
+
+const ADD_VERBS = new Set([
+  "ajoute", "rajoute", "ajouter", "rajouter", "ajoutes", "rajoutes",
+  "nouvelle", "nouveau", "cree", "insere", "creer", "inserer", "ajouter",
+]);
+const DELETE_VERBS = new Set([
+  "supprime", "supprimes", "supprimez", "enleve", "enleves", "enlevez",
+  "retire", "retires", "retirez", "efface", "effaces", "effacez",
+  "supprimer", "enlever", "retirer", "effacer",
+]);
+const STOP_WORDS = new Set([
+  "le", "la", "les", "un", "une", "des", "du", "de", "l", "d",
+  "pour", "au", "aux", "et", "ou", "en", "sur", "avec", "par",
+]);
+
+function detectVerbType(words: string[], beforeIdx: number): VoiceCommandType {
+  const lookback = words.slice(Math.max(0, beforeIdx - 6), beforeIdx);
+  for (const w of lookback) {
+    if (ADD_VERBS.has(w)) return "add";
+    if (DELETE_VERBS.has(w)) return "delete";
   }
-  return ngrams;
+  return "modify";
 }
 
-/**
- * Parse une commande vocale et retourne les modifications à appliquer
- * sur les exercices de la session courante.
- */
-export function parseVoiceCommand(
-  transcript: string,
-  exercises: ExerciseTarget[]
-): ParsedVoiceCommand | null {
-  if (!transcript.trim() || exercises.length === 0) return null;
+// ─── Recherche fuzzy multi-n-grammes ─────────────────────────────────────────
 
-  const correctedTranscript = fixSpeechMishearings(transcript);
-  const normalizedTranscript = normalize(correctedTranscript);
-
-  // Fuzzy search : on teste chaque n-gramme de la phrase contre les noms d'exercices
-  // pour trouver le meilleur match même si la phrase est longue.
-  const fuse = new Fuse(exercises, {
+function buildFuse(exercises: ExerciseTarget[]): Fuse<ExerciseTarget> {
+  return new Fuse(exercises, {
     keys: ["name"],
     threshold: 0.45,
     getFn: (obj, path) => normalize(obj[path as keyof ExerciseTarget] as string),
     includeScore: true,
     minMatchCharLength: 3,
   });
+}
 
-  const ngrams = getNgrams(normalizedTranscript);
-  let bestMatch: { item: ExerciseTarget; score: number } | null = null;
+interface Mention {
+  exercise: ExerciseTarget;
+  wordStart: number;
+  wordEnd: number;
+  score: number;
+}
 
-  for (const ngram of ngrams) {
-    const results = fuse.search(ngram);
-    if (results.length > 0) {
-      const score = 1 - (results[0].score ?? 1);
-      if (!bestMatch || score > bestMatch.score) {
-        bestMatch = { item: results[0].item, score };
+/**
+ * Trouve toutes les occurrences d'exercices connus dans le tableau de mots,
+ * sans chevauchement, en prenant les meilleurs scores.
+ */
+function findExerciseMentions(words: string[], fuse: Fuse<ExerciseTarget>): Mention[] {
+  const candidates: Mention[] = [];
+
+  for (let start = 0; start < words.length; start++) {
+    for (let len = 1; len <= Math.min(5, words.length - start); len++) {
+      const ngram = words.slice(start, start + len).join(" ");
+      if (ngram.length < 3) continue;
+      const results = fuse.search(ngram);
+      if (results.length > 0) {
+        const score = 1 - (results[0].score ?? 1);
+        if (score >= 0.5) {
+          candidates.push({ exercise: results[0].item, wordStart: start, wordEnd: start + len, score });
+        }
       }
     }
   }
 
-  if (!bestMatch || bestMatch.score < 0.5) return null;
+  // Tri par score décroissant, sélection sans chevauchement
+  candidates.sort((a, b) => b.score - a.score);
+  const covered = new Set<number>();
+  const mentions: Mention[] = [];
 
-  const changes = extractChanges(correctedTranscript);
-  if (Object.keys(changes).length === 0) return null;
+  for (const c of candidates) {
+    const overlaps = Array.from({ length: c.wordEnd - c.wordStart }, (_, i) => c.wordStart + i).some(
+      (i) => covered.has(i),
+    );
+    if (!overlaps) {
+      mentions.push(c);
+      for (let i = c.wordStart; i < c.wordEnd; i++) covered.add(i);
+    }
+  }
 
+  return mentions.sort((a, b) => a.wordStart - b.wordStart);
+}
+
+// ─── Parser principal ─────────────────────────────────────────────────────────
+
+/**
+ * Parse une ou plusieurs commandes vocales en une seule dictée.
+ * Supporte : modifier un exercice, en ajouter un, en supprimer un.
+ *
+ * Exemples :
+ *  "Squat charge à 80 et 12 reps, supprime le deadlift, ajoute rowing 3 séries"
+ */
+export function parseVoiceCommands(
+  transcript: string,
+  exercises: ExerciseTarget[],
+): ParsedVoiceCommands | null {
+  if (!transcript.trim() || exercises.length === 0) return null;
+
+  const corrected = fixSpeechMishearings(transcript);
+  const words = normalize(corrected).split(/\s+/).filter((w) => w.length > 0);
+
+  const fuse = buildFuse(exercises);
+  const mentions = findExerciseMentions(words, fuse);
+  const commands: VoiceCommand[] = [];
+
+  // Indices de mots couverts par un "add verb + mention" (pour exclure des add-inconnus)
+  const coveredAddVerbIndices = new Set<number>();
+
+  // ── Traitement des exercices connus trouvés ───────────────────────────────
+  for (let i = 0; i < mentions.length; i++) {
+    const m = mentions[i];
+    const verb = detectVerbType(words, m.wordStart);
+
+    // Marquer les add-verbes liés à cette mention comme couverts
+    if (verb === "add") {
+      for (let k = Math.max(0, m.wordStart - 6); k < m.wordStart; k++) {
+        if (ADD_VERBS.has(words[k])) coveredAddVerbIndices.add(k);
+      }
+    }
+
+    // Segment de valeurs = mots après le nom jusqu'au prochain exercice (ou fin)
+    const segEnd = mentions[i + 1]?.wordStart ?? words.length;
+    const segText = words.slice(m.wordEnd, segEnd).join(" ");
+
+    if (verb === "delete") {
+      commands.push({
+        type: "delete",
+        exerciseId: m.exercise.id,
+        exerciseName: m.exercise.name,
+        matchScore: m.score,
+      });
+    } else {
+      // "add" connu ou "modify"
+      const changes = extractChanges(segText);
+      if (verb === "modify" && Object.keys(changes).length === 0) continue; // rien à faire
+      commands.push({
+        type: verb,
+        exerciseId: verb === "modify" ? m.exercise.id : undefined,
+        exerciseName: m.exercise.name,
+        changes,
+        matchScore: m.score,
+      });
+    }
+  }
+
+  // ── Ajout d'exercices inconnus ("ajoute rowing ...") ─────────────────────
+  // On cherche les verbes "ajoute" non couverts par une mention connue
+  for (let wi = 0; wi < words.length; wi++) {
+    if (!ADD_VERBS.has(words[wi]) || coveredAddVerbIndices.has(wi)) continue;
+
+    // Cherche le nom : premiers mots non-stopword après le verbe
+    const nameWords: string[] = [];
+    let j = wi + 1;
+    while (j < words.length && nameWords.length < 3) {
+      const w = words[j];
+      // Stoppe si on rencontre un verbe d'action ou un chiffre (début des valeurs)
+      if (ADD_VERBS.has(w) || DELETE_VERBS.has(w) || /^\d/.test(w)) break;
+      if (!STOP_WORDS.has(w)) nameWords.push(w);
+      j++;
+    }
+
+    if (nameWords.length === 0) continue;
+
+    // Si ces mots matchent un exercice connu → déjà traité, on passe
+    const testNgram = nameWords.join(" ");
+    const testResults = fuse.search(testNgram);
+    if (testResults.length > 0 && 1 - (testResults[0].score ?? 1) >= 0.5) continue;
+
+    // Exercice inconnu → ajout libre
+    const spokenName = nameWords.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const segEnd = mentions.find((m) => m.wordStart > wi)?.wordStart ?? words.length;
+    const segText = words.slice(j, segEnd).join(" ");
+    const changes = extractChanges(segText);
+
+    commands.push({
+      type: "add",
+      exerciseName: spokenName,
+      changes,
+      matchScore: 1,
+    });
+  }
+
+  if (commands.length === 0) return null;
+  return { commands, rawTranscript: transcript };
+}
+
+// ─── Rétro-compatibilité (ancienne API) ──────────────────────────────────────
+export function parseVoiceCommand(
+  transcript: string,
+  exercises: ExerciseTarget[],
+): ParsedVoiceCommand | null {
+  const result = parseVoiceCommands(transcript, exercises);
+  if (!result) return null;
+  const cmd = result.commands.find((c) => c.type === "modify" && c.exerciseId && c.changes);
+  if (!cmd || !cmd.exerciseId || !cmd.changes) return null;
   return {
-    exerciseId: bestMatch.item.id,
-    exerciseName: bestMatch.item.name,
+    exerciseId: cmd.exerciseId,
+    exerciseName: cmd.exerciseName,
     matchedFrom: transcript,
-    matchScore: bestMatch.score,
-    changes,
+    matchScore: cmd.matchScore,
+    changes: cmd.changes,
     rawTranscript: transcript,
   };
 }
