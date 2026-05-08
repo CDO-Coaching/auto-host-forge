@@ -196,18 +196,62 @@ export function VoiceCommandButton({ exercises, onApply, onAddExercise, onDelete
             ? "bg-red-500 hover:bg-red-600 border-red-500 text-white animate-pulse"
             : "border-border/60"
         }`}
-        onClick={isListening ? stopListening : startListening}
-        disabled={disabled || isBusy || !!editState || !!preview}
+        onClick={startListening}
+        disabled={disabled || isBusy || isListening || !!editState || !!preview}
         title="Commande vocale"
       >
-        {isListening ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
-        {isListening ? "Stop" : "Vocal"}
+        {isListening ? (
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+          </span>
+        ) : (
+          <Mic className="h-3.5 w-3.5" />
+        )}
+        {isListening ? "En cours…" : "Vocal"}
       </Button>
 
-      {/* ── Bulle transcript temps réel ──────────────────────────────── */}
-      {isListening && interimTranscript && (
-        <div className="absolute z-10 mt-8 left-0 right-0 mx-4 bg-card border border-primary/30 rounded-lg px-3 py-2 text-sm text-muted-foreground shadow-lg">
-          <span className="text-primary">🎤</span> {interimTranscript}…
+      {/* ── Panneau flottant (fixe, visible en scroll) ───────────────── */}
+      {isListening && (
+        <div className="fixed bottom-6 right-6 z-50 w-80 max-w-[calc(100vw-3rem)] bg-card border border-red-500/40 rounded-2xl shadow-2xl shadow-black/40 overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-2 px-3 py-2 bg-red-500/10 border-b border-red-500/20">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wide">Enregistrement</span>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={stopListening}
+              className="h-7 px-3 text-xs bg-red-500 hover:bg-red-600 text-white border-0 gap-1.5"
+            >
+              <MicOff className="h-3.5 w-3.5" />
+              Stop
+            </Button>
+          </div>
+
+          {/* Transcript */}
+          <div className="px-3 py-2.5 min-h-[56px] max-h-36 overflow-y-auto">
+            {interimTranscript ? (
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                {interimTranscript}
+                <span className="inline-block w-0.5 h-3.5 bg-primary ml-0.5 animate-pulse align-middle" />
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">Parle… je t'écoute</p>
+            )}
+          </div>
+
+          {/* Hint */}
+          <div className="px-3 pb-2">
+            <p className="text-[10px] text-muted-foreground/60">
+              Prends ton temps — clique Stop quand tu as fini
+            </p>
+          </div>
         </div>
       )}
 
