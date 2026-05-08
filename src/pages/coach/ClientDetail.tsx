@@ -2495,13 +2495,50 @@ export default function ClientDetail() {
     }
   };
 
-  const handleVoiceApply = (sessionId: number, exerciseId: number, changes: VoiceChanges) => {
-    const fields = Object.keys(changes) as (keyof VoiceChanges)[];
-    fields.forEach((field) => {
-      const value = changes[field];
-      if (value !== undefined) {
-        handleExerciseChange(sessionId, exerciseId, field as keyof Exercise, value);
-      }
+  const handleVoiceApply = (
+    sessionId: number,
+    exerciseId: number,
+    changes: VoiceChanges,
+    seriesOverrides?: Record<number, Partial<VoiceChanges>>,
+  ) => {
+    setSessionExercises((prev) => {
+      const exercises = prev[sessionId] || [];
+      const updated = exercises.map((ex) => {
+        if (ex.id !== exerciseId) return ex;
+
+        // 1. Appliquer les changements globaux
+        let updatedEx: Exercise = { ...ex, ...changes };
+
+        // 2. Si le nombre de séries change, régénérer le détail des séries
+        if (changes.series) {
+          const count = parseInt(changes.series) || 0;
+          if (count > 0) {
+            updatedEx.serie_details = Array.from({ length: count }, () => ({
+              reps: updatedEx.reps ?? "",
+              charge: updatedEx.charge ?? "",
+              rpe: updatedEx.rpe ?? "",
+              tempo: updatedEx.tempo ?? "",
+              commentaire: updatedEx.commentaire ?? "",
+              recuperation: updatedEx.recuperation ?? "",
+            }));
+          }
+        }
+
+        // 3. Appliquer les exceptions par série (atomique, après régénération)
+        if (seriesOverrides && updatedEx.serie_details && updatedEx.serie_details.length > 0) {
+          const details = [...updatedEx.serie_details];
+          Object.entries(seriesOverrides).forEach(([serieNumStr, override]) => {
+            const idx = parseInt(serieNumStr) - 1; // base 1 → base 0
+            if (details[idx]) {
+              details[idx] = { ...details[idx], ...override };
+            }
+          });
+          updatedEx = { ...updatedEx, serie_details: details };
+        }
+
+        return updatedEx;
+      });
+      return { ...prev, [sessionId]: updated };
     });
   };
 
@@ -5926,8 +5963,8 @@ export default function ClientDetail() {
                                             recuperation: ex.recuperation,
                                             tempo: ex.tempo,
                                           }))}
-                                          onApply={(exerciseId, changes) =>
-                                            handleVoiceApply(session.id, exerciseId, changes)
+                                          onApply={(exerciseId, changes, seriesOverrides) =>
+                                            handleVoiceApply(session.id, exerciseId, changes, seriesOverrides)
                                           }
                                           onAddExercise={(name, changes) =>
                                             handleVoiceAddExercise(session.id, name, changes)

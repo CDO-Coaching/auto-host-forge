@@ -6,7 +6,6 @@ import type { VoiceCommand, VoiceChanges } from "./parseVoiceCommand";
 export interface LibraryExercise {
   id: string;
   name: string;
-  muscle_principal?: string | null;
 }
 
 export interface SessionExercise {
@@ -19,6 +18,28 @@ export interface SessionExercise {
   recuperation: string;
   tempo: string;
 }
+
+// ─── Valeurs exactes de récupération (correspondant au Select de l'UI) ────────
+
+export const RECUP_OPTIONS: { value: string; label: string; seconds: number }[] = [
+  { value: "0s",      label: "Aucune",       seconds: 0   },
+  { value: "30s",     label: "30 secondes",  seconds: 30  },
+  { value: "35s",     label: "35 secondes",  seconds: 35  },
+  { value: "40s",     label: "40 secondes",  seconds: 40  },
+  { value: "45s",     label: "45 secondes",  seconds: 45  },
+  { value: "50s",     label: "50 secondes",  seconds: 50  },
+  { value: "55s",     label: "55 secondes",  seconds: 55  },
+  { value: "1min",    label: "1 minute",     seconds: 60  },
+  { value: "1min30s", label: "1 min 30 sec", seconds: 90  },
+  { value: "2min",    label: "2 minutes",    seconds: 120 },
+  { value: "2min30s", label: "2 min 30 sec", seconds: 150 },
+  { value: "3min",    label: "3 minutes",    seconds: 180 },
+  { value: "3min30s", label: "3 min 30 sec", seconds: 210 },
+  { value: "4min",    label: "4 minutes",    seconds: 240 },
+  { value: "4min30s", label: "4 min 30 sec", seconds: 270 },
+  { value: "5min",    label: "5 minutes",    seconds: 300 },
+  { value: "emom",    label: "EMOM",         seconds: -1  },
+];
 
 // ─── Cache bibliothèque ───────────────────────────────────────────────────────
 
@@ -43,11 +64,12 @@ export async function getExerciseLibrary(): Promise<LibraryExercise[]> {
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
+const RECUP_VALUES_STR = RECUP_OPTIONS.map((o) => `"${o.value}"=${o.label}`).join(", ");
+
 function buildSystemPrompt(
   library: LibraryExercise[],
   sessionExercises: SessionExercise[],
 ): string {
-  // Liste de la séance : IDs + noms (source de vérité pour modify/delete)
   const sessionList = sessionExercises
     .map((e) => {
       const vals = [
@@ -55,12 +77,12 @@ function buildSystemPrompt(
         e.reps && `reps:${e.reps}`,
         e.series && `séries:${e.series}`,
         e.rpe && `rpe:${e.rpe}`,
+        e.recuperation && `recup:${e.recuperation}`,
       ].filter(Boolean).join(", ");
       return `id:${e.id} "${e.name}"${vals ? ` (${vals})` : ""}`;
     })
     .join(" | ");
 
-  // Bibliothèque : noms uniquement, séparés par virgules (compact)
   const libraryNames = library.map((e) => e.name).join(", ");
 
   return `Coach sportif. Analyse la commande vocale et retourne uniquement du JSON.
@@ -70,22 +92,27 @@ BIBLIOTHÈQUE (pour add): ${libraryNames || "vide"}
 
 JSON à retourner:
 [
-  {"type":"modify","exerciseId":ID_ENTIER,"exerciseName":"NOM_EXACT_SÉANCE","changes":{"charge":"80","reps":"8","series":"4","rpe":"7","recuperation":"1:30","tempo":"301"}},
-  {"type":"delete","exerciseId":ID_ENTIER,"exerciseName":"NOM_EXACT_SÉANCE"},
-  {"type":"add","exerciseId":null,"exerciseName":"NOM_EXACT_BIBLIOTHÈQUE","changes":{"series":"3","reps":"10"}}
+  {"type":"modify","exerciseId":3,"exerciseName":"Back Squat","changes":{"charge":"80","reps":"4","series":"3","rpe":"7","recuperation":"2min","tempo":"301"},"seriesOverrides":{"2":{"reps":"5","charge":"85"}}},
+  {"type":"delete","exerciseId":5,"exerciseName":"Bench Press"},
+  {"type":"add","exerciseId":null,"exerciseName":"Romanian Deadlift","changes":{"series":"3","reps":"10","charge":"60","recuperation":"1min30s"}}
 ]
 
 RÈGLES ABSOLUES:
-1. modify/delete: exerciseId = l'ID exact de la SÉANCE. exerciseName = le nom exact de la SÉANCE. INTERDIT d'inventer.
-2. add: exerciseName = nom le plus proche dans la BIBLIOTHÈQUE. Si absent, utilise le mot dicté.
-3. changes: seulement les champs cités. Toutes valeurs en string. recuperation en "mm:ss".
-4. Correspondances phonétiques/sémantiques: "squat devant"→Zercher Squat, "squat roumain"→Romanian Deadlift, "développé couché"→Bench Press, "soulevé de terre"→Deadlift, "tirage"→Row, etc.
-5. Retourne UNIQUEMENT le JSON, sans texte autour.`;
+1. modify/delete: exerciseId = ID exact de la SÉANCE. exerciseName = nom exact de la SÉANCE. INTERDIT d'inventer.
+2. add: exerciseId = null. exerciseName = nom le plus proche dans la BIBLIOTHÈQUE (ou mot dicté si absent).
+3. changes: seulement les champs cités (charge, reps, series, rpe, recuperation, tempo). Toutes valeurs en string.
+4. recuperation: utilise UNIQUEMENT ces valeurs exactes: ${RECUP_VALUES_STR}.
+   "1 minute" → "1min", "1 minute 30" → "1min30s", "2 minutes" → "2min", "90 secondes" → "1min30s", "30 secondes" → "30s", etc.
+5. seriesOverrides (OPTIONNEL): objet dont les clés sont les numéros de séries (entiers, 1=première série).
+   Utilise UNIQUEMENT si le coach demande des exceptions pour des séries spécifiques.
+   Ex: "4 reps sauf la série 2 à 5 reps" → changes:{reps:"4"}, seriesOverrides:{"2":{reps:"5"}}
+   Ex: "3 séries: série 1 à 100kg, série 2 à 110kg, série 3 à 120kg" → seriesOverrides:{"1":{charge:"100"},"2":{charge:"110"},"3":{charge:"120"}}
+6. Correspondances phonétiques/sémantiques: "squat devant"→Zercher Squat, "squat roumain"→Romanian Deadlift, "développé couché"→Bench Press, "soulevé de terre"→Deadlift, etc.
+7. Retourne UNIQUEMENT le JSON, sans texte autour.`;
 }
 
 /**
  * Envoie la transcription à Groq et retourne les commandes parsées.
- * Post-traitement : vérifie que les exerciseId de modify/delete existent bien en séance.
  */
 export async function parseWithGroq(
   transcript: string,
@@ -110,7 +137,7 @@ export async function parseWithGroq(
         { role: "user", content: transcript },
       ],
       temperature: 0,
-      max_tokens: 512,
+      max_tokens: 768,
     }),
   });
 
@@ -130,26 +157,60 @@ export async function parseWithGroq(
     exerciseId?: number | null;
     exerciseName?: string;
     changes?: Record<string, string>;
+    seriesOverrides?: Record<string, Record<string, string>>;
   }> = JSON.parse(jsonMatch[0]);
 
   const sessionIds = new Set(sessionExercises.map((e) => e.id));
+  const validRecupValues = new Set(RECUP_OPTIONS.map((o) => o.value));
 
   return raw
     .filter((r) => ["modify", "add", "delete"].includes(r.type))
     .map((r) => {
-      // Sécurité : pour modify/delete, vérifie que l'ID existe vraiment dans la séance
-      let exerciseId: number | undefined = undefined;
+      // Vérification exerciseId pour modify/delete
+      let exerciseId: number | undefined;
       if (r.exerciseId != null && (r.type === "modify" || r.type === "delete")) {
         if (sessionIds.has(Number(r.exerciseId))) {
           exerciseId = Number(r.exerciseId);
         } else {
-          // L'ID inventé par le LLM → cherche par nom dans la séance
           const byName = sessionExercises.find(
             (e) => e.name.toLowerCase() === (r.exerciseName ?? "").toLowerCase(),
           );
           if (byName) exerciseId = byName.id;
-          else return null; // impossible à résoudre → on ignore
+          else return null;
         }
+      }
+
+      // Nettoyage des changes : valider recuperation
+      const changes: VoiceChanges = {};
+      if (r.changes) {
+        for (const [k, v] of Object.entries(r.changes)) {
+          if (k === "recuperation") {
+            if (validRecupValues.has(v)) (changes as any)[k] = v;
+            // sinon on ignore la valeur invalide
+          } else {
+            (changes as any)[k] = v;
+          }
+        }
+      }
+
+      // Nettoyage des seriesOverrides
+      let seriesOverrides: Record<number, Partial<VoiceChanges>> | undefined;
+      if (r.seriesOverrides && Object.keys(r.seriesOverrides).length > 0) {
+        seriesOverrides = {};
+        for (const [serieNumStr, overrideRaw] of Object.entries(r.seriesOverrides)) {
+          const serieNum = parseInt(serieNumStr);
+          if (isNaN(serieNum) || serieNum < 1) continue;
+          const override: Partial<VoiceChanges> = {};
+          for (const [k, v] of Object.entries(overrideRaw)) {
+            if (k === "recuperation") {
+              if (validRecupValues.has(v)) (override as any)[k] = v;
+            } else {
+              (override as any)[k] = v;
+            }
+          }
+          if (Object.keys(override).length > 0) seriesOverrides[serieNum] = override;
+        }
+        if (Object.keys(seriesOverrides).length === 0) seriesOverrides = undefined;
       }
 
       const cmd: VoiceCommand = {
@@ -158,9 +219,8 @@ export async function parseWithGroq(
         matchScore: 1,
       };
       if (exerciseId != null) cmd.exerciseId = exerciseId;
-      if (r.changes && Object.keys(r.changes).length > 0) {
-        cmd.changes = r.changes as VoiceChanges;
-      }
+      if (Object.keys(changes).length > 0) cmd.changes = changes;
+      if (seriesOverrides) cmd.seriesOverrides = seriesOverrides;
       return cmd;
     })
     .filter((c): c is VoiceCommand => c !== null);

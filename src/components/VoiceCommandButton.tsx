@@ -31,7 +31,7 @@ interface Exercise extends SessionExercise {}
 
 interface VoiceCommandButtonProps {
   exercises: Exercise[];
-  onApply: (exerciseId: number, changes: VoiceChanges) => void;
+  onApply: (exerciseId: number, changes: VoiceChanges, seriesOverrides?: Record<number, Partial<VoiceChanges>>) => void;
   onAddExercise: (name: string, changes: VoiceChanges) => void;
   onDeleteExercise: (exerciseId: number) => void;
   disabled?: boolean;
@@ -92,7 +92,22 @@ function CommandCard({ cmd, exercise }: { cmd: VoiceCommand; exercise?: Exercise
           ))}
         </div>
       )}
-      {!isDelete && !hasChanges && <p className="text-xs text-muted-foreground italic">Aucune valeur précisée.</p>}
+      {!isDelete && cmd.seriesOverrides && Object.keys(cmd.seriesOverrides).length > 0 && (
+        <div className="rounded border border-primary/20 bg-primary/5 px-2 py-1 space-y-0.5">
+          <p className="text-[10px] font-semibold text-primary/70 uppercase tracking-wide mb-1">Exceptions par série</p>
+          {Object.entries(cmd.seriesOverrides)
+            .sort(([a], [b]) => Number(a) - Number(b))
+            .map(([serieNum, override]) => (
+              <div key={serieNum} className="flex items-center gap-2 text-xs">
+                <span className="text-muted-foreground shrink-0">Série {serieNum} :</span>
+                <span className="text-primary font-medium">
+                  {Object.entries(override).map(([f, v]) => `${FIELD_LABELS[f as keyof VoiceChanges] ?? f} → ${v}`).join(", ")}
+                </span>
+              </div>
+            ))}
+        </div>
+      )}
+      {!isDelete && !hasChanges && !cmd.seriesOverrides && <p className="text-xs text-muted-foreground italic">Aucune valeur précisée.</p>}
     </div>
   );
 }
@@ -143,7 +158,7 @@ export function VoiceCommandButton({ exercises, onApply, onAddExercise, onDelete
     if (!preview) return;
     let modified = 0, added = 0, deleted = 0;
     for (const cmd of preview.commands) {
-      if (cmd.type === "modify" && cmd.exerciseId != null && cmd.changes) { onApply(cmd.exerciseId, cmd.changes); modified++; }
+      if (cmd.type === "modify" && cmd.exerciseId != null && cmd.changes) { onApply(cmd.exerciseId, cmd.changes, cmd.seriesOverrides); modified++; }
       else if (cmd.type === "add") { onAddExercise(cmd.exerciseName, cmd.changes ?? {}); added++; }
       else if (cmd.type === "delete" && cmd.exerciseId != null) { onDeleteExercise(cmd.exerciseId); deleted++; }
     }

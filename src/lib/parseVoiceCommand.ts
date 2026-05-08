@@ -20,7 +20,10 @@ export interface VoiceCommand {
   type: VoiceCommandType;
   exerciseId?: number;    // pour modify / delete (exercice existant)
   exerciseName: string;   // nom matché ou nom dicté pour un add nouveau
-  changes?: VoiceChanges; // pour modify / add
+  changes?: VoiceChanges; // pour modify / add (valeurs globales)
+  /** Modifications spécifiques à certaines séries (clé = numéro de série, base 1).
+   *  Ex: { 2: { reps: "5" } } → la série 2 aura 5 reps au lieu de la valeur globale. */
+  seriesOverrides?: Record<number, Partial<VoiceChanges>>;
   matchScore: number;
 }
 
