@@ -44,15 +44,14 @@ export async function getExerciseLibrary(): Promise<LibraryExercise[]> {
 // ─── Appel Groq ──────────────────────────────────────────────────────────────
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.1-8b-instant"; // rapide + gratuit
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 function buildSystemPrompt(
   library: LibraryExercise[],
   sessionExercises: SessionExercise[],
 ): string {
-  const libraryList = library
-    .map((e) => `- "${e.name}"${e.muscle_principal ? ` (${e.muscle_principal})` : ""}`)
-    .join("\n");
+  // Noms uniquement, séparés par des virgules → beaucoup plus compact
+  const libraryList = library.map((e) => e.name).join(", ");
 
   const sessionList = sessionExercises
     .map((e) => {
