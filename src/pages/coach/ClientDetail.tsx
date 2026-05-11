@@ -4030,6 +4030,9 @@ export default function ClientDetail() {
                 handleExerciseChange(sessionId, exerciseId, field as keyof Exercise, value)
               }
               onSave={handleValidate}
+              hasPreviousWeeks={historicalWeeks.length > 0}
+              onCopyPreviousWeek={handleCopyPreviousWeek}
+              onOpenCopyDialog={() => setShowCopyDialog(true)}
             />
           </div>
 

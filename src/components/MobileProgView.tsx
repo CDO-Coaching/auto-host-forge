@@ -10,7 +10,7 @@ import { formatWeekRange } from "@/lib/weekUtils";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -54,6 +54,9 @@ interface MobileProgViewProps {
   onExerciseChange: (sessionId: number, exerciseId: number, field: string, value: string) => void;
   onSave: () => void;
   isSaving?: boolean;
+  hasPreviousWeeks?: boolean;
+  onCopyPreviousWeek?: () => void;
+  onOpenCopyDialog?: () => void;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -363,6 +366,7 @@ export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSave, isSaving,
+  hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog,
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
@@ -403,6 +407,30 @@ export function MobileProgView({
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+
+      {/* ── Copier une semaine précédente ───────────────────────────────── */}
+      {!isValidated && hasPreviousWeeks && (
+        <div className="flex gap-2 mb-1">
+          {onCopyPreviousWeek && (
+            <button
+              onClick={onCopyPreviousWeek}
+              className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs text-muted-foreground active:bg-muted transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Copier précédente
+            </button>
+          )}
+          {onOpenCopyDialog && (
+            <button
+              onClick={onOpenCopyDialog}
+              className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs text-muted-foreground active:bg-muted transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Autre semaine
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Liste des séances ───────────────────────────────────────────── */}
       <div className="space-y-3 flex-1">
