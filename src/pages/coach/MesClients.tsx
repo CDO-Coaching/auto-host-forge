@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, ArrowUp, ArrowDown, CreditCard, UserX, MapPin } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, Pin, CreditCard, UserX, MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,7 @@ interface AthleteRelationship {
   athlete: Athlete;
   weeksAheadCount?: number; // 0 = semaine courante seulement, 1 = +1 semaine d'avance, etc.
   display_order?: number;
+  priority_week?: string | null; // format "YYYY-WNN", prioritaire pour cette semaine
   client_address?: string | null;
   client_phone?: string | null;
 }
@@ -69,7 +70,6 @@ export default function MesClients() {
   const [contactPhone, setContactPhone] = useState("");
   const [showPauseDialog, setShowPauseDialog] = useState(false);
   const [selectedAthleteForPause, setSelectedAthleteForPause] = useState<AthleteRelationship | null>(null);
-  const [isSavingOrder, setIsSavingOrder] = useState(false);
   const { statuses: subscriptionStatuses } = useAthleteSubscriptionStatus(profile?.id);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function MesClients() {
         .order("requested_at", { ascending: false }),
       supabase
         .from("coach_athlete_relationships")
-        .select("id, athlete_id, status, requested_at, display_order, client_address, client_phone")
+        .select("id, athlete_id, status, requested_at, display_order, priority_week, client_address, client_phone")
         .eq("coach_id", profile.id)
         .eq("status", "approved")
         .order("display_order", { ascending: true })
@@ -511,53 +511,64 @@ export default function MesClients() {
     });
   };
 
-  // Fonction pour déplacer un athlète vers le haut ou le bas dans la liste
-  const moveAthlete = async (athleteId: string, direction: 'up' | 'down') => {
-    const currentList = [...approvedAthletes];
-    const currentIndex = currentList.findIndex(a => a.athlete_id === athleteId);
-    if (currentIndex === -1) return;
-    
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= currentList.length) return;
-    
-    // Swap
-    [currentList[currentIndex], currentList[targetIndex]] = [currentList[targetIndex], currentList[currentIndex]];
-    
-    // Update display_order for all
-    const updatedList = currentList.map((a, i) => ({ ...a, display_order: i }));
-    setApprovedAthletes(updatedList);
-    
-    // Persist to DB
-    setIsSavingOrder(true);
-    try {
-      const updates = updatedList.map((a, i) =>
-        supabase
-          .from("coach_athlete_relationships")
-          .update({ display_order: i } as any)
-          .eq("id", a.id)
+  // Retourne la clé de semaine courante ex: "2026-W19"
+  const getCurrentWeekKey = () => {
+    const now = new Date();
+    const week = getWeekNumber(now);
+    const year = getWeekYear(now);
+    return `${year}-W${String(week).padStart(2, "0")}`;
+  };
+
+  // Épingler / désépingler un athlète en prioritaire pour la semaine en cours
+  const togglePriority = async (relationship: AthleteRelationship) => {
+    const weekKey = getCurrentWeekKey();
+    const isAlreadyPriority = relationship.priority_week === weekKey;
+    const newValue = isAlreadyPriority ? null : weekKey;
+
+    // Mise à jour locale immédiate
+    setApprovedAthletes((prev) =>
+      prev.map((a) =>
+        a.id === relationship.id ? { ...a, priority_week: newValue } : a
+      )
+    );
+
+    // Persist en base
+    const { error } = await supabase
+      .from("coach_athlete_relationships")
+      .update({ priority_week: newValue } as any)
+      .eq("id", relationship.id);
+
+    if (error) {
+      console.error("Error saving priority:", error);
+      toast.error("Erreur lors de la sauvegarde");
+      // Rollback
+      setApprovedAthletes((prev) =>
+        prev.map((a) =>
+          a.id === relationship.id ? { ...a, priority_week: relationship.priority_week } : a
+        )
       );
-      await Promise.all(updates);
-    } catch (error) {
-      console.error("Error saving order:", error);
-      toast.error("Erreur lors de la sauvegarde de l'ordre");
-    } finally {
-      setIsSavingOrder(false);
+    } else {
+      toast.success(newValue ? "Athlète épinglé en priorité cette semaine" : "Priorité retirée");
     }
   };
 
   // Trier les athlètes approuvés :
-  // 1. Non validés (weeksAheadCount undefined ou < 0) en haut
-  // 2. Juste validés (weeksAheadCount === 0) au milieu
-  // 3. Validés +1, +2… en bas (tri croissant par weeksAheadCount)
+  // 0. Prioritaires de la semaine en cours → tout en haut
+  // 1. Non validés (weeksAheadCount undefined ou < 0)
+  // 2. Juste validés (weeksAheadCount === 0)
+  // 3. Validés +1, +2… (tri croissant par weeksAheadCount)
   // Au sein de chaque groupe, tri par display_order
+  const currentWeekKey = getCurrentWeekKey();
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
+    const aPriority = a.priority_week === currentWeekKey ? 0 : 1;
+    const bPriority = b.priority_week === currentWeekKey ? 0 : 1;
+    if (aPriority !== bPriority) return aPriority - bPriority;
+
     const aWeeks = a.weeksAheadCount ?? -1;
     const bWeeks = b.weeksAheadCount ?? -1;
-    // Non validés en haut (weeksAheadCount < 0)
     const aGroup = aWeeks < 0 ? 0 : 1;
     const bGroup = bWeeks < 0 ? 0 : 1;
     if (aGroup !== bGroup) return aGroup - bGroup;
-    // Dans le groupe validé, tri par weeksAheadCount croissant (juste validé avant +1, +2…)
     if (aGroup === 1 && aWeeks !== bWeeks) return aWeeks - bWeeks;
     return (a.display_order ?? 0) - (b.display_order ?? 0);
   });
@@ -767,35 +778,24 @@ export default function MesClients() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-                        {/* Boutons de réordonnancement */}
-                        <div className="flex gap-0.5">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveAthlete(relationship.athlete_id, 'up');
-                            }}
-                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === 0}
-                            className="h-6 w-6 p-0 hover:bg-primary/10"
-                            title="Monter"
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveAthlete(relationship.athlete_id, 'down');
-                            }}
-                            disabled={isSavingOrder || filteredApproved.findIndex(a => a.athlete_id === relationship.athlete_id) === filteredApproved.length - 1}
-                            className="h-6 w-6 p-0 hover:bg-primary/10"
-                            title="Descendre"
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
+                        {/* Bouton priorité semaine */}
+                        {(() => {
+                          const isPriority = relationship.priority_week === currentWeekKey;
+                          return (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePriority(relationship);
+                              }}
+                              className={`h-6 w-6 p-0 transition-colors ${isPriority ? "text-amber-400 hover:text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}
+                              title={isPriority ? "Retirer la priorité cette semaine" : "Épingler en priorité cette semaine"}
+                            >
+                              <Pin className={`h-3.5 w-3.5 ${isPriority ? "fill-amber-400" : ""}`} />
+                            </Button>
+                          );
+                        })()}
                         <Button
                           size="sm"
                           variant="ghost"
