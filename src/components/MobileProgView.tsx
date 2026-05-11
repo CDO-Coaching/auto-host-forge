@@ -45,12 +45,21 @@ interface WeekOption {
   monday: Date;
 }
 
+interface LibraryExercise {
+  id: string;
+  name: string;
+  muscle_principal?: string | null;
+  muscles_second?: string[] | null;
+  [key: string]: unknown;
+}
+
 interface MobileProgViewProps {
   sessions: Session[];
   sessionExercises: Record<number, Exercise[]>;
   selectedWeekToProgram: { week: number; year: number };
   availableWeeks: WeekOption[];
   isValidated: boolean;
+  libraryExercises: LibraryExercise[];
   onWeekChange: (week: number, year: number) => void;
   onCreateSession: (type: "renfo" | "cardio" | "recup") => void;
   onDeleteSession: (sessionId: number, e: React.MouseEvent) => void;
@@ -113,11 +122,12 @@ function Stepper({ label, value, onChange, step = 1, min = 0, max }: {
 // ─── Éditeur inline exercice renfo (pas de Sheet imbriqué) ────────────────────
 
 function RenfoExerciseRow({
-  exercise, sessionId, isValidated, onChange, onDelete,
+  exercise, sessionId, isValidated, libraryExercises, onChange, onDelete,
 }: {
   exercise: Exercise;
   sessionId: number;
   isValidated: boolean;
+  libraryExercises: LibraryExercise[];
   onChange: (field: string, value: string) => void;
   onDelete: () => void;
 }) {
@@ -167,6 +177,7 @@ function RenfoExerciseRow({
             <ExerciseCombobox
               value={exercise.exercice}
               onChange={(v) => onChange("exercice", v)}
+              exercises={libraryExercises}
               disabled={isValidated}
             />
           </div>
@@ -216,13 +227,14 @@ function RenfoExerciseRow({
 // ─── Sous-composant : carte session ──────────────────────────────────────────
 
 function SessionCard({
-  session, exercises, isValidated, athleteVma,
+  session, exercises, isValidated, athleteVma, libraryExercises,
   onDelete, onAddExercise, onDeleteExercise, onExerciseChange,
 }: {
   session: Session;
   exercises: Exercise[];
   isValidated: boolean;
   athleteVma?: number | null;
+  libraryExercises: LibraryExercise[];
   onDelete: (e: React.MouseEvent) => void;
   onAddExercise: () => void;
   onDeleteExercise: (exerciseId: number) => void;
@@ -331,6 +343,7 @@ function SessionCard({
                         exercise={ex}
                         sessionId={session.id}
                         isValidated={isValidated}
+                        libraryExercises={libraryExercises}
                         onChange={(field, value) => onExerciseChange(ex.id, field, value)}
                         onDelete={() => onDeleteExercise(ex.id)}
                       />
@@ -408,7 +421,7 @@ function SessionCard({
 
 export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
-  isValidated, onWeekChange, onCreateSession, onDeleteSession,
+  isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSave, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
 }: MobileProgViewProps) {
@@ -496,6 +509,7 @@ export function MobileProgView({
               exercises={sessionExercises[session.id] || []}
               isValidated={isValidated}
               athleteVma={athleteVma}
+              libraryExercises={libraryExercises}
               onDelete={(e) => onDeleteSession(session.id, e)}
               onAddExercise={() => onAddExercise(session.id)}
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}

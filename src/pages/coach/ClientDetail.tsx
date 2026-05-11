@@ -4021,6 +4021,7 @@ export default function ClientDetail() {
               selectedWeekToProgram={selectedWeekToProgram}
               availableWeeks={availableWeeks}
               isValidated={isValidated}
+              libraryExercises={libraryExercises as any}
               onWeekChange={(week, year) => setSelectedWeekToProgram({ week, year })}
               onCreateSession={handleCreateSessionByType}
               onDeleteSession={handleDeleteSession}
