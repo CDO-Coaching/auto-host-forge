@@ -27,6 +27,7 @@ import {
   Video,
   X,
   ChevronDown,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -320,6 +321,52 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             {fb.sportif_comment && <span className="italic">"{fb.sportif_comment}"</span>}
           </div>
         )}
+      </div>
+    );
+  };
+
+  // ── Series stepper — preserves per-serie edits ────────────────────────────
+  const SeriesStepper = ({
+    sessionId,
+    exercise,
+    compact = false,
+  }: {
+    sessionId: number;
+    exercise: Exercise;
+    compact?: boolean;
+  }) => {
+    const count = parseInt(exercise.series) || 0;
+    const btnCls = compact
+      ? "h-6 w-6 p-0 rounded-sm"
+      : "h-7 w-7 p-0";
+    const spanCls = compact
+      ? "text-xs font-semibold w-5 text-center tabular-nums"
+      : "text-sm font-semibold w-6 text-center tabular-nums";
+    return (
+      <div className="flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="sm"
+          className={btnCls}
+          disabled={isValidated || count <= 1}
+          onClick={() =>
+            onExerciseChange(sessionId, exercise.id, "series", String(Math.max(1, count - 1)))
+          }
+        >
+          <Minus className="h-3 w-3" />
+        </Button>
+        <span className={spanCls}>{count > 0 ? count : "—"}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={btnCls}
+          disabled={isValidated || count >= 10}
+          onClick={() =>
+            onExerciseChange(sessionId, exercise.id, "series", String(count + 1))
+          }
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
       </div>
     );
   };
@@ -886,7 +933,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       <TableCell>
                                         <div>
                                           <label className="text-xs text-muted-foreground mb-1 block">Séries communes</label>
-                                          <Input value={exercise.series} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value)} placeholder="ex: 3" disabled={isValidated} className="bg-background font-semibold" />
+                                          <SeriesStepper sessionId={selectedSession.id} exercise={exercise} compact />
                                         </div>
                                       </TableCell>
                                       <TableCell colSpan={2} />
@@ -1089,7 +1136,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         <Input value={exercise.commentaire} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "commentaire", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "commentaire")} placeholder="Notes..." disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="commentaire" />
                                       </TableCell>
                                       <TableCell>
-                                        <Input value={exercise.series} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "series")} placeholder="3" disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="series" />
+                                        <SeriesStepper sessionId={selectedSession.id} exercise={exercise} />
                                       </TableCell>
                                       <TableCell className="text-center">
                                         <Checkbox checked={exercise.request_video || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_video", c === true)} disabled={isValidated} title="Demander une vidéo" />

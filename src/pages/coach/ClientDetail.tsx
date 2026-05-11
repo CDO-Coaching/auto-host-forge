@@ -2692,42 +2692,52 @@ export default function ClientDetail() {
       const currentExercises = prev[sessionId] || [];
       
       if (field === "series" && typeof value === "string") {
-        const seriesCount = parseInt(value) || 0;
+        const newCount = parseInt(value) || 0;
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
-        
-        // Auto-generate serie_details: regenerate ALL series from the main line values
-        // (discards previously copied/edited per-series values to give a clean slate)
-        const generateSerieDetails = (ex: Exercise, count: number): SerieDetail[] => {
+
+        // Smart resize: preserve existing per-serie edits.
+        // Increasing → append copies of the last serie (or main-line defaults).
+        // Decreasing → slice from the end.
+        const smartResizeSeries = (ex: Exercise, count: number): SerieDetail[] => {
+          const existing = getSerieDetailsArray(ex.serie_details);
           if (count <= 0) return [];
-          return Array.from({ length: count }, () => ({
-            reps: ex.reps ?? "",
-            charge: ex.charge ?? "",
-            rpe: ex.rpe ?? "",
-            tempo: ex.tempo ?? "",
-            commentaire: ex.commentaire ?? "",
-            recuperation: ex.recuperation ?? "",
-          }));
+          if (count === existing.length) return existing;
+          if (count > existing.length) {
+            const lastSerie: SerieDetail = existing[existing.length - 1] ?? {
+              reps: ex.reps ?? "",
+              charge: ex.charge ?? "",
+              rpe: ex.rpe ?? "",
+              tempo: ex.tempo ?? "",
+              commentaire: ex.commentaire ?? "",
+              recuperation: ex.recuperation ?? "",
+            };
+            return [
+              ...existing,
+              ...Array.from({ length: count - existing.length }, () => ({ ...lastSerie })),
+            ];
+          }
+          return existing.slice(0, count);
         };
 
-        // Auto-collapse series details when generated
-        if (seriesCount > 1) {
+        // Auto-collapse when more than 1 serie
+        if (newCount > 1) {
           setCollapsedSeriesExercises(prev => ({ ...prev, [exerciseId]: true }));
         }
 
         if (currentExercise?.super_set_group) {
           const updatedExercises = currentExercises.map((ex) => {
             if (ex.super_set_group === currentExercise.super_set_group) {
-              if (seriesCount > 1) setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: true }));
-              return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
+              if (newCount > 1) setCollapsedSeriesExercises(prev => ({ ...prev, [ex.id]: true }));
+              return { ...ex, series: value, serie_details: smartResizeSeries(ex, newCount) };
             }
-            return ex.id === exerciseId ? { ...ex, [field]: value, serie_details: generateSerieDetails(ex, seriesCount) } : ex;
+            return ex.id === exerciseId ? { ...ex, series: value, serie_details: smartResizeSeries(ex, newCount) } : ex;
           });
           return { ...prev, [sessionId]: updatedExercises };
         }
 
         const updatedExercises = currentExercises.map((ex) => {
           if (ex.id === exerciseId) {
-            return { ...ex, series: value, serie_details: generateSerieDetails(ex, seriesCount) };
+            return { ...ex, series: value, serie_details: smartResizeSeries(ex, newCount) };
           }
           return ex;
         });
