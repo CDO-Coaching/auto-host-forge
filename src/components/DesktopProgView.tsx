@@ -952,6 +952,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                           >
                                             <TableCell>
                                               <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-muted-foreground/35 font-mono w-4 shrink-0 select-none text-center">{i + exIndex + 1}</span>
                                                 {!isValidated && <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />}
                                                 <div className="flex-1" data-session={selectedSession.id} data-exercise={ex.id} data-field="exercice">
                                                   <ExerciseCombobox
@@ -1077,6 +1078,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     >
                                       <TableCell>
                                         <div className="flex items-center gap-2">
+                                          <span className="text-[10px] text-muted-foreground/35 font-mono w-4 shrink-0 select-none text-center">{i + 1}</span>
                                           {!isValidated && <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />}
                                           <div className="flex-1" data-session={selectedSession.id} data-exercise={exercise.id} data-field="exercice">
                                             <ExerciseCombobox
