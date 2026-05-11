@@ -78,6 +78,7 @@ import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
 import type { VoiceChanges } from "@/lib/parseVoiceCommand";
+import { MobileProgView } from "@/components/MobileProgView";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -1216,6 +1217,34 @@ export default function ClientDetail() {
 
     setNewSessionType("renfo"); // Reset to default
     setShowTemplateSelector(false);
+    toast.success(`Séance créée`);
+  };
+
+  /** Wrapper for mobile UX — accepts session type directly */
+  const handleCreateSessionByType = (type: "renfo" | "cardio" | "recup") => {
+    setNewSessionType(type);
+    const nextSessionNumber = sessions.length + 1;
+    const sessionName = type === "cardio"
+      ? `Cardio ${nextSessionNumber}`
+      : type === "recup"
+      ? `Récup/Mobilité ${nextSessionNumber}`
+      : `Séance ${nextSessionNumber}`;
+
+    const newSession: Session = { id: nextSessionNumber, name: sessionName, isExpanded: false, session_type: type };
+    const updatedSessions = [...sessions, newSession];
+    setSessions(updatedSessions);
+
+    if (type === "cardio") {
+      setSessionExercises((prev) => ({
+        ...prev,
+        [nextSessionNumber]: [{ id: 1, exercice: "Séance Cardio", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "", cardio_sport: selectedCardioSport, cardio_content: "", cardio_pace: "" }],
+      }));
+    } else if (type === "recup") {
+      setSessionExercises((prev) => ({
+        ...prev,
+        [nextSessionNumber]: [{ id: 1, exercice: "", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "" }],
+      }));
+    }
     toast.success(`Séance créée`);
   };
 
@@ -3984,6 +4013,28 @@ export default function ClientDetail() {
             );
           })()}
 
+          {/* ── Vue mobile (uniquement < sm) ─────────────────────────── */}
+          <div className="sm:hidden">
+            <MobileProgView
+              sessions={sessions}
+              sessionExercises={sessionExercises}
+              selectedWeekToProgram={selectedWeekToProgram}
+              availableWeeks={availableWeeks}
+              isValidated={isValidated}
+              onWeekChange={(week, year) => setSelectedWeekToProgram({ week, year })}
+              onCreateSession={handleCreateSessionByType}
+              onDeleteSession={handleDeleteSession}
+              onAddExercise={handleAddExercise}
+              onDeleteExercise={handleDeleteExercise}
+              onExerciseChange={(sessionId, exerciseId, field, value) =>
+                handleExerciseChange(sessionId, exerciseId, field as keyof Exercise, value)
+              }
+              onSave={handleValidate}
+            />
+          </div>
+
+          {/* ── Vue desktop (masquée < sm) ────────────────────────────── */}
+          <div className="hidden sm:block">
           <Card>
             <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
               <div className="flex items-center justify-between gap-2">
@@ -6512,6 +6563,7 @@ export default function ClientDetail() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>{/* end hidden sm:block */}
         </TabsContent>
 
         <TabsContent value="efforts" className="space-y-4">
