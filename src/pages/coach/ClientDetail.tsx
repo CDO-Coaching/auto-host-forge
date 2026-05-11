@@ -70,6 +70,7 @@ import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView, getPhase } from "@/components/CoachObjectivesView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
@@ -195,6 +196,8 @@ export default function ClientDetail() {
   const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   const [athleteMacrocycles, setAthleteMacrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; sport?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
+  const [deleteCycleConfirm, setDeleteCycleConfirm] = useState<{ table: "mesocycles" | "microcycles"; id: string; name: string } | null>(null);
+  const [isDeletingCycle, setIsDeletingCycle] = useState(false);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [showRunningSheet, setShowRunningSheet] = useState(false);
@@ -3880,75 +3883,103 @@ export default function ClientDetail() {
           {/* ── Bannière de phase active (masquée si gate actif) ─────── */}
           {(() => {
             const today = new Date();
-            const hasActiveMacro = athleteMacrocycles.some(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
-            if (!hasActiveMacro) return null;
-            const activeMicro = athleteMicrocycles.find(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
-            const activeMeso = athleteMesocycles.find(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
-            const activeMacros = athleteMacrocycles.filter(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
-            const displayCycle = activeMicro ?? activeMeso;
-            if (!displayCycle && activeMacros.length === 0) return null;
-            const phase = getPhase(displayCycle?.phase_type ?? activeMacros[0]?.phase_type);
-            const isDecharge = phase.value === "decharge" || phase.value === "transition";
+            const isActive = (c: { start_date: string; end_date: string }) =>
+              today >= new Date(c.start_date) && today <= new Date(c.end_date);
+            const activeMacros = athleteMacrocycles.filter(isActive);
+            if (activeMacros.length === 0) return null;
+            const activeMesos = athleteMesocycles.filter(isActive);
+            const activeMicros = athleteMicrocycles.filter(isActive);
+            if (activeMesos.length === 0 && activeMicros.length === 0) return null;
+
             return (
-              <div
-                className="rounded-xl border px-4 py-3 space-y-2"
-                style={{ borderColor: `${phase.color}40`, backgroundColor: `${phase.color}0d` }}
-              >
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-base">{phase.emoji}</span>
-                  <span className="font-semibold text-sm" style={{ color: phase.color }}>Phase {phase.label}</span>
-                  {displayCycle && <span className="text-xs text-muted-foreground">· {displayCycle.name}</span>}
+              <div className="rounded-xl border border-border/40 overflow-hidden">
+                {/* En-tête avec macros actifs */}
+                <div className="px-4 py-2.5 bg-secondary/30 flex items-center gap-2 flex-wrap border-b border-border/30">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phase actuelle</span>
                   {activeMacros.map(mac => (
                     <span key={mac.id} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
                       {mac.name}{mac.sport ? ` · ${mac.sport}` : ""}
                     </span>
                   ))}
                 </div>
-                {displayCycle?.objective && (
-                  <p className="text-xs text-muted-foreground italic">{displayCycle.objective}</p>
-                )}
-                <div className="flex items-center gap-6 flex-wrap">
-                  {displayCycle?.volume_target != null && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground w-16">Volume</span>
-                      <div className="flex gap-1">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (displayCycle.volume_target ?? 3) ? phase.color : "#e5e7eb" }} />
-                        ))}
+
+                {/* Liste des mésocycles actifs */}
+                <div className="divide-y divide-border/20">
+                  {activeMesos.map((meso) => {
+                    const phase = getPhase(meso.phase_type);
+                    return (
+                      <div key={meso.id} className="px-4 py-3 flex items-start gap-3" style={{ borderLeft: `3px solid ${phase.color}` }}>
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm">{phase.emoji}</span>
+                            <span className="font-medium text-sm">{meso.name}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${phase.color}20`, color: phase.color }}>
+                              {phase.label}
+                            </span>
+                          </div>
+                          {meso.objective && <p className="text-xs text-muted-foreground italic">{meso.objective}</p>}
+                          <div className="flex items-center gap-4 flex-wrap">
+                            {meso.volume_target != null && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-muted-foreground w-14">Volume</span>
+                                <div className="flex gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (meso.volume_target ?? 3) ? phase.color : "#e5e7eb" }} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {meso.intensity_target != null && (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-muted-foreground w-14">Intensité</span>
+                                <div className="flex gap-1">
+                                  {Array.from({ length: 5 }, (_, i) => (
+                                    <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (meso.intensity_target ?? 3) ? phase.color : "#e5e7eb" }} />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          {(phase.value === "decharge" || phase.value === "transition") && (
+                            <p className="text-xs font-medium" style={{ color: phase.color }}>💡 Phase de récupération — Réduis la charge.</p>
+                          )}
+                          {phase.value === "realisation" && (
+                            <p className="text-xs font-medium" style={{ color: phase.color }}>🎯 Intensité max, volume réduit. Priorité aux performances.</p>
+                          )}
+                          {phase.value === "competition" && (
+                            <p className="text-xs font-medium" style={{ color: phase.color }}>🏆 Maintien de la forme, pas de nouveaux stimuli.</p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
+                          onClick={() => setDeleteCycleConfirm({ table: "mesocycles", id: meso.id, name: meso.name })}
+                          title="Supprimer ce mésocycle"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
-                    </div>
-                  )}
-                  {displayCycle?.intensity_target != null && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs text-muted-foreground w-16">Intensité</span>
-                      <div className="flex gap-1">
-                        {Array.from({ length: 5 }, (_, i) => (
-                          <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (displayCycle.intensity_target ?? 3) ? phase.color : "#e5e7eb" }} />
-                        ))}
+                    );
+                  })}
+                  {activeMicros.map((micro) => {
+                    const phase = getPhase(micro.phase_type);
+                    return (
+                      <div key={micro.id} className="px-4 py-2.5 flex items-center gap-3 bg-secondary/10" style={{ borderLeft: `3px solid ${phase.color}80` }}>
+                        <span className="text-xs text-muted-foreground flex-1">{phase.emoji} {micro.name} <span className="opacity-60">· Microcycle</span></span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => setDeleteCycleConfirm({ table: "microcycles", id: micro.id, name: micro.name })}
+                          title="Supprimer ce microcycle"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-                {isDecharge && (
-                  <p className="text-xs font-medium" style={{ color: phase.color }}>
-                    💡 Phase de récupération — Réduis la charge et privilégie la qualité d'exécution.
-                  </p>
-                )}
-                {phase.value === "realisation" && (
-                  <p className="text-xs font-medium" style={{ color: phase.color }}>
-                    🎯 Phase de réalisation — Intensité maximale, volume réduit. Priorité aux performances.
-                  </p>
-                )}
-                {phase.value === "competition" && (
-                  <p className="text-xs font-medium" style={{ color: phase.color }}>
-                    🏆 Phase de compétition — Maintien de la forme, pas de nouveaux stimuli.
-                  </p>
-                )}
-                {displayCycle?.coach_note && (
-                  <p className="text-xs text-muted-foreground border-t border-border/30 pt-2 mt-1">
-                    📝 {displayCycle.coach_note}
-                  </p>
-                )}
               </div>
             );
           })()}
@@ -7783,6 +7814,47 @@ export default function ClientDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog confirmation suppression mésocycle / microcycle ───── */}
+      <AlertDialog open={!!deleteCycleConfirm} onOpenChange={(open) => { if (!open) setDeleteCycleConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce {deleteCycleConfirm?.table === "mesocycles" ? "mésocycle" : "microcycle"} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium">« {deleteCycleConfirm?.name} »</span> sera définitivement supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingCycle}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingCycle}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!deleteCycleConfirm) return;
+                setIsDeletingCycle(true);
+                try {
+                  const { error } = await supabase.from(deleteCycleConfirm.table).delete().eq("id", deleteCycleConfirm.id);
+                  if (error) throw error;
+                  // Mise à jour locale
+                  if (deleteCycleConfirm.table === "mesocycles") {
+                    setAthleteMesocycles(prev => prev.filter(m => m.id !== deleteCycleConfirm.id));
+                  } else {
+                    setAthleteMicrocycles(prev => prev.filter(m => m.id !== deleteCycleConfirm.id));
+                  }
+                  toast.success("Cycle supprimé");
+                  setDeleteCycleConfirm(null);
+                } catch {
+                  toast.error("Erreur lors de la suppression");
+                } finally {
+                  setIsDeletingCycle(false);
+                }
+              }}
+            >
+              {isDeletingCycle ? "Suppression…" : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
