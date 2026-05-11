@@ -11,9 +11,10 @@ import { fr } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { differenceInDays, differenceInWeeks } from "date-fns";
 import {
   Layers, Layers2, CalendarIcon, ChevronRight,
-  CheckCircle2, ArrowRight, SkipForward,
+  CheckCircle2, ArrowRight, SkipForward, Plus,
 } from "lucide-react";
 import { PHASE_TYPES, getPhase } from "@/components/CoachObjectivesView";
 
@@ -27,6 +28,14 @@ interface CycleSetupGateProps {
 }
 
 type Step = "macro" | "meso" | "done";
+
+interface SavedMeso {
+  name: string;
+  phase_type: string;
+  color: string;
+  start_date: string; // yyyy-MM-dd
+  end_date: string;   // yyyy-MM-dd
+}
 
 // Macrocycle : juste un conteneur nommé, pas de phase
 interface MacroFormData {
@@ -279,8 +288,24 @@ export function CycleSetupGate({
   const [mesoForm, setMesoForm] = useState<MesoFormData>(defaultMesoForm("accumulation", 4));
   const [isSaving, setIsSaving] = useState(false);
   const [createdMacroId, setCreatedMacroId] = useState<string | null>(null);
+  const [macroEndDate, setMacroEndDate] = useState<Date | null>(null);
+  const [savedMesos, setSavedMesos] = useState<SavedMeso[]>([]);
+  const [nextMesoStart, setNextMesoStart] = useState<Date>(new Date());
+  const [mesoIndex, setMesoIndex] = useState(0); // 0 = premier (obligatoire)
 
-  const saveMacro = async (): Promise<string | null> => {
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  const getRemainingWeeks = (from: Date, macroEnd: Date) => {
+    const days = differenceInDays(macroEnd, from);
+    return Math.max(0, Math.floor(days / 7));
+  };
+
+  const getRemainingDays = (from: Date, macroEnd: Date) =>
+    Math.max(0, differenceInDays(macroEnd, from));
+
+  // ── Sauvegarde macro ────────────────────────────────────────────────────────
+
+  const saveMacro = async (): Promise<{ id: string; endDate: Date } | null> => {
     if (!macroForm.name.trim()) { toast.error("Donne un nom au macrocycle"); return null; }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
@@ -289,23 +314,25 @@ export function CycleSetupGate({
       athlete_id: athleteId, coach_id: user.id,
       name: macroForm.name,
       sport: macroForm.sport || null,
-      color: "#6B7280", // couleur neutre — le macro n'a pas de phase
+      color: "#6B7280",
       start_date: format(macroForm.start_date, "yyyy-MM-dd"),
       end_date: format(endDate, "yyyy-MM-dd"),
       objective: macroForm.objective || null,
       updated_at: new Date().toISOString(),
     }).select("id").single();
     if (error) { console.error(error); return null; }
-    return data?.id ?? null;
+    return { id: data?.id, endDate };
   };
 
-  const saveMeso = async (macroId: string | null) => {
-    if (!mesoForm.name.trim()) return;
+  // ── Sauvegarde méso ─────────────────────────────────────────────────────────
+
+  const saveMeso = async (macroId: string): Promise<SavedMeso | null> => {
+    if (!mesoForm.name.trim()) return null;
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) return null;
     const phase = getPhase(mesoForm.phase_type);
     const endDate = addDays(addWeeks(mesoForm.start_date, mesoForm.weeks), -1);
-    await supabase.from("mesocycles").insert({
+    const { error } = await supabase.from("mesocycles").insert({
       athlete_id: athleteId, coach_id: user.id,
       name: mesoForm.name, phase_type: mesoForm.phase_type,
       color: phase.color, macrocycle_id: macroId,
@@ -315,42 +342,96 @@ export function CycleSetupGate({
       objective: mesoForm.objective || null,
       updated_at: new Date().toISOString(),
     });
+    if (error) { console.error(error); return null; }
+    return {
+      name: mesoForm.name, phase_type: mesoForm.phase_type,
+      color: phase.color,
+      start_date: format(mesoForm.start_date, "yyyy-MM-dd"),
+      end_date: format(endDate, "yyyy-MM-dd"),
+    };
   };
 
-  const handleNextStep = async () => {
-    if (step === "macro") {
-      if (!macroForm.name.trim()) { toast.error("Donne un nom au macrocycle pour continuer"); return; }
-      setIsSaving(true);
-      try {
-        const id = await saveMacro();
-        if (!id) { toast.error("Erreur lors de la création du macrocycle"); return; }
-        setCreatedMacroId(id);
-        // Pré-remplir le mésocycle avec les mêmes dates que le macro
-        setMesoForm(defaultMesoForm("accumulation", Math.min(macroForm.weeks, 4)));
-        setStep("meso");
-      } catch { toast.error("Erreur lors de la création"); }
-      finally { setIsSaving(false); }
-    } else if (step === "meso") {
-      setIsSaving(true);
-      try {
-        if (mesoForm.name.trim()) await saveMeso(createdMacroId);
-        setStep("done");
-        setTimeout(() => onComplete(), 800);
-      } catch { toast.error("Erreur lors de la création du mésocycle"); }
-      finally { setIsSaving(false); }
-    }
-  };
+  // ── Fin du wizard ───────────────────────────────────────────────────────────
 
-  const handleSkipMeso = async () => {
+  const finish = () => {
     setStep("done");
-    setTimeout(() => onComplete(), 800);
+    setTimeout(() => onComplete(), 900);
   };
+
+  // ── Étape macro → méso 1 ───────────────────────────────────────────────────
+
+  const handleMacroNext = async () => {
+    if (!macroForm.name.trim()) { toast.error("Donne un nom au macrocycle pour continuer"); return; }
+    setIsSaving(true);
+    try {
+      const result = await saveMacro();
+      if (!result) { toast.error("Erreur lors de la création du macrocycle"); return; }
+      setCreatedMacroId(result.id);
+      setMacroEndDate(result.endDate);
+      // Pré-remplir le 1er méso : commence au début du macro, durée max 4 sem
+      const remWeeks = getRemainingWeeks(macroForm.start_date, result.endDate);
+      setNextMesoStart(macroForm.start_date);
+      setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4)));
+      setMesoIndex(0);
+      setStep("meso");
+    } catch { toast.error("Erreur lors de la création"); }
+    finally { setIsSaving(false); }
+  };
+
+  // ── Enregistrer méso et proposer le suivant ────────────────────────────────
+
+  const handleMesoSave = async () => {
+    if (!mesoForm.name.trim()) { toast.error("Donne un nom au mésocycle"); return; }
+    if (!createdMacroId || !macroEndDate) return;
+    setIsSaving(true);
+    try {
+      const saved = await saveMeso(createdMacroId);
+      if (!saved) { toast.error("Erreur lors de la création du mésocycle"); return; }
+      const newSaved = [...savedMesos, saved];
+      setSavedMesos(newSaved);
+
+      // Calculer la date de début du prochain méso
+      const nextStart = addDays(new Date(saved.end_date), 1);
+      const remDays = getRemainingDays(nextStart, macroEndDate);
+      const remWeeks = Math.floor(remDays / 7);
+
+      if (remWeeks < 1) {
+        // Plus de place dans le macro → on termine
+        finish();
+      } else {
+        // Proposer un nouveau méso
+        setNextMesoStart(nextStart);
+        setMesoIndex(mesoIndex + 1);
+        setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4)));
+      }
+    } catch { toast.error("Erreur lors de la création du mésocycle"); }
+    finally { setIsSaving(false); }
+  };
+
+  // ── Passer ce méso (et tous les suivants) ──────────────────────────────────
+
+  const handleSkipRest = () => finish();
 
   // ── Rendu ──────────────────────────────────────────────────────────────────
 
-  const stepIndex = step === "macro" ? 0 : 1;
-  // Le macro n'a pas de phase → on utilise la phase du méso pour la couleur des dots
   const phase = getPhase(mesoForm.phase_type);
+
+  // Barre de progression du macro (jours remplis / total)
+  const macroTotalDays = macroEndDate
+    ? differenceInDays(macroEndDate, macroForm.start_date) + 1
+    : 1;
+
+  const filledDays = savedMesos.reduce((acc, m) => {
+    return acc + differenceInDays(new Date(m.end_date), new Date(m.start_date)) + 1;
+  }, 0);
+
+  const currentMesoPreviewDays = step === "meso"
+    ? differenceInDays(addDays(addWeeks(mesoForm.start_date, mesoForm.weeks), -1), mesoForm.start_date) + 1
+    : 0;
+
+  const remainingWeeksLabel = macroEndDate
+    ? getRemainingWeeks(nextMesoStart, macroEndDate)
+    : 0;
 
   return (
     <Dialog open modal>
@@ -369,39 +450,75 @@ export function CycleSetupGate({
               </DialogTitle>
             </div>
           ) : (
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                {/* Fil d'étapes */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                  <span className={cn("flex items-center gap-1", stepIndex === 0 ? "text-primary font-semibold" : "opacity-50")}>
-                    <Layers className="h-3.5 w-3.5" /> Macrocycle
-                  </span>
-                  <ChevronRight className="h-3.5 w-3.5 opacity-40" />
-                  <span className={cn("flex items-center gap-1", stepIndex === 1 ? "text-primary font-semibold" : "opacity-50")}>
-                    <Layers2 className="h-3.5 w-3.5" /> Mésocycle
-                  </span>
-                </div>
+            <div className="space-y-3">
+              {/* Fil d'étapes */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className={cn("flex items-center gap-1", step === "macro" ? "text-primary font-semibold" : "opacity-50")}>
+                  <Layers className="h-3.5 w-3.5" /> Macrocycle
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-40" />
+                <span className={cn("flex items-center gap-1", step === "meso" ? "text-primary font-semibold" : "opacity-50")}>
+                  <Layers2 className="h-3.5 w-3.5" />
+                  {mesoIndex === 0 ? "1ère phase" : `Phase ${mesoIndex + 1}`}
+                </span>
+              </div>
+
+              <div>
                 <DialogTitle className="text-base font-semibold">
                   {step === "macro"
                     ? `Définis le macrocycle de ${athleteName}`
-                    : `Définis le mésocycle de ${athleteName}`}
+                    : mesoIndex === 0
+                      ? `1ère phase — obligatoire`
+                      : `Phase ${mesoIndex + 1} (optionnelle)`}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="mt-0.5">
                   {step === "macro"
-                    ? "Aucun cycle actif n'est planifié pour cette période. Crée un macrocycle avant de programmer les séances."
-                    : "Ajoute un mésocycle pour affiner la programmation à l'intérieur du macrocycle."}
+                    ? "Aucun cycle actif n'est planifié. Crée un macrocycle (la grande période) avant de programmer."
+                    : mesoIndex === 0
+                      ? "Définis la première phase de travail à l'intérieur du macrocycle."
+                      : `Il reste ${remainingWeeksLabel} semaine${remainingWeeksLabel > 1 ? "s" : ""} dans le macrocycle. Ajoute une phase ou termine.`}
                 </DialogDescription>
               </div>
-              {/* Progress dots */}
-              <div className="flex gap-2 shrink-0 pt-1">
-                {[0, 1].map((i) => (
-                  <div
-                    key={i}
-                    className="h-2 w-2 rounded-full transition-all duration-300"
-                    style={{ backgroundColor: i <= stepIndex ? phase.color : "#e5e7eb" }}
-                  />
-                ))}
-              </div>
+
+              {/* Barre de progression du macro */}
+              {step === "meso" && macroEndDate && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>{format(macroForm.start_date, "d MMM yyyy", { locale: fr })}</span>
+                    <span>{format(macroEndDate, "d MMM yyyy", { locale: fr })}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden flex">
+                    {/* Mésocycles déjà enregistrés */}
+                    {savedMesos.map((m, i) => {
+                      const mDays = differenceInDays(new Date(m.end_date), new Date(m.start_date)) + 1;
+                      const pct = (mDays / macroTotalDays) * 100;
+                      return (
+                        <div
+                          key={i}
+                          className="h-full shrink-0"
+                          style={{ width: `${pct}%`, backgroundColor: m.color }}
+                          title={m.name}
+                        />
+                      );
+                    })}
+                    {/* Preview du méso en cours */}
+                    {currentMesoPreviewDays > 0 && (
+                      <div
+                        className="h-full shrink-0 opacity-50"
+                        style={{
+                          width: `${Math.min((currentMesoPreviewDays / macroTotalDays) * 100, 100 - (filledDays / macroTotalDays) * 100)}%`,
+                          backgroundColor: phase.color,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    {savedMesos.length} phase{savedMesos.length > 1 ? "s" : ""} planifiée{savedMesos.length > 1 ? "s" : ""}
+                    {" · "}
+                    {remainingWeeksLabel} sem. restantes
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </DialogHeader>
@@ -412,7 +529,14 @@ export function CycleSetupGate({
             {step === "macro" ? (
               <MacroForm form={macroForm} onChange={setMacroForm} />
             ) : (
-              <MesoForm form={mesoForm} onChange={setMesoForm} />
+              <MesoForm form={mesoForm} onChange={(f) => {
+                // Clamp la durée pour ne pas dépasser la fin du macro
+                if (macroEndDate) {
+                  const maxWeeks = getRemainingWeeks(f.start_date, macroEndDate);
+                  if (f.weeks > maxWeeks && maxWeeks > 0) f = { ...f, weeks: maxWeeks };
+                }
+                setMesoForm(f);
+              }} />
             )}
           </div>
         )}
@@ -420,15 +544,16 @@ export function CycleSetupGate({
         {/* Footer */}
         {step !== "done" && (
           <div className="px-6 py-4 border-t border-border/40 bg-card/50 flex items-center justify-between gap-3 flex-wrap shrink-0">
-            <div className="flex items-center gap-3">
-              {step === "meso" && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Passer (seulement à partir du 2e méso) */}
+              {step === "meso" && mesoIndex > 0 && (
                 <button
                   type="button"
-                  onClick={handleSkipMeso}
+                  onClick={handleSkipRest}
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <SkipForward className="h-3.5 w-3.5" />
-                  Passer le mésocycle
+                  Terminer sans ajouter
                 </button>
               )}
               {onNavigateToObjectives && (
@@ -441,18 +566,19 @@ export function CycleSetupGate({
                 </button>
               )}
             </div>
+
             <Button
-              onClick={handleNextStep}
-              disabled={isSaving || (step === "macro" && !macroForm.name.trim())}
+              onClick={step === "macro" ? handleMacroNext : handleMesoSave}
+              disabled={isSaving || (step === "macro" && !macroForm.name.trim()) || (step === "meso" && !mesoForm.name.trim())}
               className="gap-2"
-              style={{ backgroundColor: phase.color, borderColor: phase.color }}
+              style={step === "meso" ? { backgroundColor: phase.color, borderColor: phase.color } : {}}
             >
-              {isSaving ? (
-                "Enregistrement…"
-              ) : step === "macro" ? (
-                <><ArrowRight className="h-4 w-4" /> Créer et continuer</>
-              ) : (
+              {isSaving ? "Enregistrement…" : step === "macro" ? (
+                <><ArrowRight className="h-4 w-4" /> Créer et définir les phases</>
+              ) : macroEndDate && getRemainingWeeks(addDays(addWeeks(mesoForm.start_date, mesoForm.weeks), 0), macroEndDate) < 1 ? (
                 <><CheckCircle2 className="h-4 w-4" /> Créer et programmer</>
+              ) : (
+                <><Plus className="h-4 w-4" /> Ajouter cette phase</>
               )}
             </Button>
           </div>
