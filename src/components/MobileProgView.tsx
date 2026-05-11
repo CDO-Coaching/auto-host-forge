@@ -11,7 +11,7 @@ import { formatWeekRange } from "@/lib/weekUtils";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -53,6 +53,12 @@ interface LibraryExercise {
   [key: string]: unknown;
 }
 
+interface ExerciseFeedback {
+  sportif_rpe?: string | null;
+  sportif_comment?: string | null;
+  skipped?: boolean;
+}
+
 interface MobileProgViewProps {
   sessions: Session[];
   sessionExercises: Record<number, Exercise[]>;
@@ -72,6 +78,9 @@ interface MobileProgViewProps {
   onCopyPreviousWeek?: () => void;
   onOpenCopyDialog?: () => void;
   athleteVma?: number | null;
+  copiedWeekFeedback?: Record<string, ExerciseFeedback>;
+  onShowFeedback?: () => void;
+  hasFeedback?: boolean;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -129,12 +138,13 @@ function Stepper({ label, value, onChange, step = 1, min = 0, max, freeText = fa
 // ─── Éditeur inline exercice renfo (pas de Sheet imbriqué) ────────────────────
 
 function RenfoExerciseRow({
-  exercise, sessionId, isValidated, libraryExercises, onChange, onDelete,
+  exercise, sessionId, isValidated, libraryExercises, feedback, onChange, onDelete,
 }: {
   exercise: Exercise;
   sessionId: number;
   isValidated: boolean;
   libraryExercises: LibraryExercise[];
+  feedback?: ExerciseFeedback | null;
   onChange: (field: string, value: string) => void;
   onDelete: () => void;
 }) {
@@ -155,10 +165,22 @@ function RenfoExerciseRow({
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-sm truncate">
+          <p className={cn("font-medium text-sm truncate", feedback?.skipped && "line-through text-muted-foreground")}>
             {exercise.exercice || <span className="text-muted-foreground italic">Sans nom</span>}
           </p>
           {summary && <p className="text-xs text-muted-foreground mt-0.5">{summary}</p>}
+          {feedback && (
+            <div className="mt-1 text-[10px] bg-primary/10 border-l-2 border-primary/50 rounded-r px-1.5 py-0.5">
+              {feedback.skipped ? (
+                <span className="text-destructive font-medium">⚠️ Non fait</span>
+              ) : (
+                <span className="text-muted-foreground">
+                  {feedback.sportif_rpe && <span>RPE réel: <b className="text-foreground">{feedback.sportif_rpe}</b> </span>}
+                  {feedback.sportif_comment && <span className="italic">"{feedback.sportif_comment}"</span>}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         {!isValidated && (
           <button
@@ -234,7 +256,7 @@ function RenfoExerciseRow({
 // ─── Sous-composant : carte session ──────────────────────────────────────────
 
 function SessionCard({
-  session, exercises, isValidated, athleteVma, libraryExercises,
+  session, exercises, isValidated, athleteVma, libraryExercises, copiedWeekFeedback,
   onDelete, onAddExercise, onDeleteExercise, onExerciseChange,
 }: {
   session: Session;
@@ -242,6 +264,7 @@ function SessionCard({
   isValidated: boolean;
   athleteVma?: number | null;
   libraryExercises: LibraryExercise[];
+  copiedWeekFeedback?: Record<string, ExerciseFeedback>;
   onDelete: (e: React.MouseEvent) => void;
   onAddExercise: () => void;
   onDeleteExercise: (exerciseId: number) => void;
@@ -351,6 +374,7 @@ function SessionCard({
                         sessionId={session.id}
                         isValidated={isValidated}
                         libraryExercises={libraryExercises}
+                        feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
                         onChange={(field, value) => onExerciseChange(ex.id, field, value)}
                         onDelete={() => onDeleteExercise(ex.id)}
                       />
@@ -431,6 +455,7 @@ export function MobileProgView({
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSave, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
+  copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
@@ -471,6 +496,17 @@ export function MobileProgView({
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+
+      {/* ── Retours athlète (semaine copiée) ─────────────────────────── */}
+      {hasFeedback && onShowFeedback && (
+        <button
+          onClick={onShowFeedback}
+          className="w-full mb-2 h-9 rounded-xl border border-primary/40 bg-primary/10 flex items-center justify-center gap-1.5 text-xs text-primary active:bg-primary/20 transition-colors"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          Voir les retours de l'athlète
+        </button>
+      )}
 
       {/* ── Copier une semaine précédente ───────────────────────────────── */}
       {!isValidated && hasPreviousWeeks && (
@@ -517,6 +553,7 @@ export function MobileProgView({
               isValidated={isValidated}
               athleteVma={athleteVma}
               libraryExercises={libraryExercises}
+              copiedWeekFeedback={copiedWeekFeedback}
               onDelete={(e) => onDeleteSession(session.id, e)}
               onAddExercise={() => onAddExercise(session.id)}
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}

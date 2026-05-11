@@ -4035,6 +4035,9 @@ export default function ClientDetail() {
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
               athleteVma={athleteVma}
+              copiedWeekFeedback={copiedWeekFeedback}
+              hasFeedback={lastWeekData != null}
+              onShowFeedback={() => setShowFeedbackSheet(true)}
             />
           </div>
 
