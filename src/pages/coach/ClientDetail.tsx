@@ -418,6 +418,7 @@ export default function ClientDetail() {
         if (parsed.sessions) setSessions(parsed.sessions);
         if (parsed.sessionExercises) setSessionExercises(parsed.sessionExercises);
         if (parsed.selectedWeekToProgram) setSelectedWeekToProgram(parsed.selectedWeekToProgram);
+        if (parsed.copiedWeekFeedback) setCopiedWeekFeedback(parsed.copiedWeekFeedback);
       } catch (error) {
         console.error("Erreur lors de la restauration des données:", error);
       }
@@ -431,10 +432,11 @@ export default function ClientDetail() {
         sessions,
         sessionExercises,
         selectedWeekToProgram,
+        copiedWeekFeedback,
       };
       localStorage.setItem(`coach-programming-${athleteId}`, JSON.stringify(dataToSave));
     }
-  }, [sessions, sessionExercises, selectedWeekToProgram, athleteId]);
+  }, [sessions, sessionExercises, selectedWeekToProgram, copiedWeekFeedback, athleteId]);
 
   const loadSessionTemplates = async () => {
     const { data, error } = await supabase
