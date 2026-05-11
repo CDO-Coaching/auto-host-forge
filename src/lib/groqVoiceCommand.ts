@@ -71,7 +71,7 @@ function buildSystemPrompt(
   sessionExercises: SessionExercise[],
 ): string {
   const sessionList = sessionExercises
-    .map((e) => {
+    .map((e, idx) => {
       const vals = [
         e.charge && `charge:${e.charge}kg`,
         e.reps && `reps:${e.reps}`,
@@ -79,7 +79,7 @@ function buildSystemPrompt(
         e.rpe && `rpe:${e.rpe}`,
         e.recuperation && `recup:${e.recuperation}`,
       ].filter(Boolean).join(", ");
-      return `id:${e.id} "${e.name}"${vals ? ` (${vals})` : ""}`;
+      return `#${idx + 1} id:${e.id} "${e.name}"${vals ? ` (${vals})` : ""}`;
     })
     .join(" | ");
 
@@ -108,7 +108,8 @@ RÈGLES ABSOLUES:
    Ex: "4 reps sauf la série 2 à 5 reps" → changes:{reps:"4"}, seriesOverrides:{"2":{reps:"5"}}
    Ex: "3 séries: série 1 à 100kg, série 2 à 110kg, série 3 à 120kg" → seriesOverrides:{"1":{charge:"100"},"2":{charge:"110"},"3":{charge:"120"}}
 6. Correspondances phonétiques/sémantiques: "squat devant"→Zercher Squat, "squat roumain"→Romanian Deadlift, "développé couché"→Bench Press, "soulevé de terre"→Deadlift, etc.
-7. Retourne UNIQUEMENT le JSON, sans texte autour.`;
+7. Références positionnelles: "exercice 1", "exercice numéro 1", "le premier", "1er", "l'exo 1" → exercice #1 de la SÉANCE. "exercice 2", "deuxième", "2ème", "le second" → #2. "exercice 3", "troisième", "3ème" → #3. Etc. Utilise l'id et le nom exacts de l'exercice à cette position.
+8. Retourne UNIQUEMENT le JSON, sans texte autour.`;
 }
 
 /**

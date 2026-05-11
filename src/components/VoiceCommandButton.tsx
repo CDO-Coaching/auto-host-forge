@@ -65,7 +65,7 @@ function ChangeRow({ field, oldValue, newValue }: { field: string; oldValue: str
   );
 }
 
-function CommandCard({ cmd, exercise }: { cmd: VoiceCommand; exercise?: Exercise }) {
+function CommandCard({ cmd, exercise, exerciseIndex }: { cmd: VoiceCommand; exercise?: Exercise; exerciseIndex?: number }) {
   const isDelete = cmd.type === "delete";
   const isAdd = cmd.type === "add";
   const changes = cmd.changes ?? {};
@@ -82,6 +82,11 @@ function CommandCard({ cmd, exercise }: { cmd: VoiceCommand; exercise?: Exercise
       <div className="flex items-center gap-2 flex-wrap">
         <span className={cfg.color}>{cfg.icon}</span>
         <span className={`text-xs font-semibold uppercase tracking-wide ${cfg.color}`}>{cfg.label}</span>
+        {exerciseIndex != null && (
+          <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground px-1.5">
+            #{exerciseIndex + 1}
+          </Badge>
+        )}
         <Badge variant="secondary" className="text-xs font-medium">{cmd.exerciseName}</Badge>
       </div>
       {isDelete && <p className="text-xs text-muted-foreground italic">Cette ligne sera supprimée.</p>}
@@ -412,8 +417,11 @@ export function VoiceCommandButton({ exercises, onApply, onAddExercise, onDelete
 
               <div className="space-y-2">
                 {preview.commands.map((cmd, i) => {
-                  const ex = exercises.find((e) => e.id === cmd.exerciseId);
-                  return <CommandCard key={i} cmd={cmd} exercise={ex} />;
+                  const exIdx = cmd.exerciseId != null
+                    ? exercises.findIndex((e) => e.id === cmd.exerciseId)
+                    : -1;
+                  const ex = exIdx >= 0 ? exercises[exIdx] : undefined;
+                  return <CommandCard key={i} cmd={cmd} exercise={ex} exerciseIndex={exIdx >= 0 ? exIdx : undefined} />;
                 })}
               </div>
             </div>
