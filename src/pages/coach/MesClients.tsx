@@ -289,12 +289,10 @@ export default function MesClients() {
         return;
       }
 
-      // Mettre à jour approved = true dans user_profiles
+      // Mettre à jour approved = true via RPC sécurisée (H-6)
       if (relationship) {
         const { error: profileError } = await supabase
-          .from("user_profiles")
-          .update({ approved: true })
-          .eq("id", relationship.athlete_id);
+          .rpc("approve_athlete", { p_athlete_id: relationship.athlete_id, p_approved: true });
 
         if (profileError) {
           console.error("Erreur mise à jour profil:", profileError);
@@ -337,11 +335,9 @@ export default function MesClients() {
         return;
       }
 
-      // Mettre à jour approved = false dans user_profiles
+      // Mettre à jour approved = false via RPC sécurisée (H-6)
       const { error: profileError } = await supabase
-        .from("user_profiles")
-        .update({ approved: false })
-        .eq("id", selectedAthleteForPause.athlete_id);
+        .rpc("approve_athlete", { p_athlete_id: selectedAthleteForPause.athlete_id, p_approved: false });
 
       if (profileError) {
         console.error("Erreur mise à jour profil:", profileError);

@@ -18,18 +18,52 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const resendApiKey = Deno.env.get("RESEND_API_KEY") ?? "";
   const coachEmail = Deno.env.get("COACH_EMAIL") ?? "";
+
+  // ── Auth guard: require a valid user JWT ──────────────────────────────────
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    logStep("Unauthorized: missing Authorization header");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
+  // Verify JWT using the anon client (honours RLS)
+  const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+  if (authError || !user) {
+    logStep("Unauthorized: invalid token", { error: authError?.message });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    logStep("Function started");
+    logStep("Function started", { userId: user.id });
 
     const { subscriptionId, athleteId, productName, amount, paidAt } = await req.json();
-    
+
     if (!subscriptionId || !athleteId || !productName) {
       throw new Error("Missing required fields: subscriptionId, athleteId, productName");
+    }
+
+    // Ensure the caller can only generate their own invoice
+    if (user.id !== athleteId) {
+      logStep("Forbidden: athleteId mismatch", { userId: user.id, athleteId });
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403,
+      });
     }
 
     logStep("Received params", { subscriptionId, athleteId, productName, amount });

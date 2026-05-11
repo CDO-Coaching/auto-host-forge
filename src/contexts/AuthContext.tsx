@@ -25,6 +25,30 @@ export const useAuth = () => {
 // Backup key for persisting session tokens independently of Supabase JS internal storage
 const SESSION_BACKUP_KEY = "cdo-session-backup";
 
+// Returns true when the error signals that the refresh token is genuinely invalid
+// (expired, revoked, or not found) — as opposed to a transient network/server error.
+// In these cases we must NOT keep retrying; we clear the backup and sign the user out.
+const isHardAuthError = (err: unknown): boolean => {
+  if (!err || typeof err !== "object") return false;
+  const e = err as Record<string, unknown>;
+  // @supabase/supabase-js sets __isAuthError = true on AuthApiError
+  if (e.__isAuthError === true) return true;
+  // HTTP status codes that mean "token is definitively invalid"
+  if (typeof e.status === "number" && [400, 401, 403].includes(e.status)) return true;
+  // Message-based heuristics
+  if (typeof e.message === "string") {
+    const msg = (e.message as string).toLowerCase();
+    if (
+      msg.includes("invalid refresh token") ||
+      msg.includes("refresh token not found") ||
+      msg.includes("token has expired") ||
+      msg.includes("user not found") ||
+      msg.includes("invalid token")
+    ) return true;
+  }
+  return false;
+};
+
 const saveSessionBackup = (s: Session) => {
   try {
     localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
@@ -89,7 +113,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             });
           }
 
-          const { data } = await supabase.auth.refreshSession();
+          const { data, error } = await supabase.auth.refreshSession();
+
+          // Hard auth error: token truly invalid/revoked — stop retrying immediately
+          if (error && isHardAuthError(error)) {
+            console.warn("[Auth] Hard auth error during retry — stopping, clearing session", error.message);
+            clearSessionBackup();
+            if (isMounted.current) {
+              setSession(null);
+              setUser(null);
+            }
+            isRetrying.current = false;
+            return;
+          }
+
           if (isMounted.current && data.session) {
             setSession(data.session);
             setUser(data.session.user);
@@ -99,10 +136,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log("[Auth] Refresh retry succeeded ✓");
             return;
           }
-          // No session returned — keep retrying
+          // No session, no hard error (transient) — keep retrying
           scheduleNext();
-        } catch {
-          // Server still down — keep retrying
+        } catch (err) {
+          // Hard auth error thrown (not returned) — stop retrying
+          if (isHardAuthError(err)) {
+            console.warn("[Auth] Hard auth error (thrown) during retry — stopping, clearing session");
+            clearSessionBackup();
+            if (isMounted.current) {
+              setSession(null);
+              setUser(null);
+            }
+            isRetrying.current = false;
+            return;
+          }
+          // Transient network/server error — keep retrying
           scheduleNext();
         }
       }, delay);
@@ -206,7 +254,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const refreshInterval = setInterval(async () => {
       if (!isMounted.current || isRetrying.current) return;
       try {
-        const { data } = await supabase.auth.refreshSession();
+        const { data, error } = await supabase.auth.refreshSession();
+        // Hard auth error: token truly invalid — clear session, do NOT retry
+        if (error && isHardAuthError(error)) {
+          console.warn("[Auth] Hard auth error in proactive refresh — clearing session", error.message);
+          clearSessionBackup();
+          if (isMounted.current) { setSession(null); setUser(null); }
+          return;
+        }
         if (isMounted.current && data.session) {
           refreshRetryCount.current = 0;
           isRetrying.current = false;
@@ -218,7 +273,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUser(data.session.user);
           saveSessionBackup(data.session);
         }
-      } catch {
+      } catch (err) {
+        if (isHardAuthError(err)) {
+          console.warn("[Auth] Hard auth error (thrown) in proactive refresh — clearing session");
+          clearSessionBackup();
+          if (isMounted.current) { setSession(null); setUser(null); }
+          return;
+        }
         if (isMounted.current) retryRefresh();
       }
     }, 10 * 60 * 1000);

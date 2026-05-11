@@ -17,6 +17,25 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ── Cron secret guard: only pg_cron (with correct token) may call this ───
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret) {
+    console.error("CRON_SECRET env var not configured");
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+    console.error("Unauthorized: missing or invalid cron token");
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   try {
     // Create Supabase admin client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
