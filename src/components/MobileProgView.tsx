@@ -23,6 +23,15 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
 }
 
+interface SerieDetail {
+  reps: string;
+  charge: string;
+  rpe: string;
+  tempo: string;
+  commentaire: string;
+  recuperation?: string;
+}
+
 interface Exercise {
   id: number;
   exercice: string;
@@ -36,6 +45,7 @@ interface Exercise {
   cardio_sport?: "course" | "natation" | "velo" | "yoga" | "hiit" | "";
   cardio_content?: string;
   cardio_pace?: string;
+  serie_details?: SerieDetail[] | string;
   [key: string]: unknown;
 }
 
@@ -72,6 +82,7 @@ interface MobileProgViewProps {
   onAddExercise: (sessionId: number) => void;
   onDeleteExercise: (sessionId: number, exerciseId: number) => void;
   onExerciseChange: (sessionId: number, exerciseId: number, field: string, value: string) => void;
+  onSerieDetailChange: (sessionId: number, exerciseId: number, serieIndex: number, field: string, value: string) => void;
   onSave: () => void;
   isSaving?: boolean;
   hasPreviousWeeks?: boolean;
@@ -81,6 +92,12 @@ interface MobileProgViewProps {
   copiedWeekFeedback?: Record<string, ExerciseFeedback>;
   onShowFeedback?: () => void;
   hasFeedback?: boolean;
+}
+
+function getSerieDetailsArray(value: SerieDetail[] | string | undefined): SerieDetail[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try { const p = JSON.parse(value as string); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -138,7 +155,7 @@ function Stepper({ label, value, onChange, step = 1, min = 0, max, freeText = fa
 // ─── Éditeur inline exercice renfo (pas de Sheet imbriqué) ────────────────────
 
 function RenfoExerciseRow({
-  exercise, sessionId, isValidated, libraryExercises, feedback, onChange, onDelete,
+  exercise, sessionId, isValidated, libraryExercises, feedback, onChange, onSerieDetailChange, onDelete,
 }: {
   exercise: Exercise;
   sessionId: number;
@@ -146,6 +163,7 @@ function RenfoExerciseRow({
   libraryExercises: LibraryExercise[];
   feedback?: ExerciseFeedback | null;
   onChange: (field: string, value: string) => void;
+  onSerieDetailChange: (serieIndex: number, field: string, value: string) => void;
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -241,7 +259,92 @@ function RenfoExerciseRow({
               placeholder="Ex: 3010" className="h-11 text-center font-mono" disabled={isValidated} />
           </div>
 
-          {/* Commentaire */}
+          {/* ── Séries individualisées ──────────────────────────── */}
+          {(() => {
+            const details = getSerieDetailsArray(exercise.serie_details);
+            if (details.length < 2) return null;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-border/60" />
+                  <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                    Séries individuelles
+                  </span>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                <div className="space-y-3">
+                  {details.map((serie, si) => (
+                    <div key={si} className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
+                      <p className="text-xs font-bold text-primary">Série {si + 1}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Reps</label>
+                          <Input
+                            type="text"
+                            value={serie.reps || ""}
+                            onChange={(e) => onSerieDetailChange(si, "reps", e.target.value)}
+                            placeholder={exercise.reps || "—"}
+                            className="h-10 text-center text-sm font-semibold"
+                            disabled={isValidated}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Charge</label>
+                          <Input
+                            type="text"
+                            value={serie.charge || ""}
+                            onChange={(e) => onSerieDetailChange(si, "charge", e.target.value)}
+                            placeholder={exercise.charge || "kg"}
+                            className="h-10 text-center text-sm font-semibold"
+                            disabled={isValidated}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">RPE</label>
+                          <Input
+                            type="text"
+                            value={serie.rpe || ""}
+                            onChange={(e) => onSerieDetailChange(si, "rpe", e.target.value)}
+                            placeholder={exercise.rpe || "—"}
+                            className="h-10 text-center text-sm font-semibold"
+                            disabled={isValidated}
+                          />
+                        </div>
+                      </div>
+                      {(serie.tempo !== undefined || serie.commentaire !== undefined) && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tempo</label>
+                            <Input
+                              type="text"
+                              value={serie.tempo || ""}
+                              onChange={(e) => onSerieDetailChange(si, "tempo", e.target.value)}
+                              placeholder="3010"
+                              className="h-9 text-center text-xs font-mono"
+                              disabled={isValidated}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Note</label>
+                            <Input
+                              type="text"
+                              value={serie.commentaire || ""}
+                              onChange={(e) => onSerieDetailChange(si, "commentaire", e.target.value)}
+                              placeholder="…"
+                              className="h-9 text-xs"
+                              disabled={isValidated}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Commentaire global */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
             <Input value={exercise.commentaire} onChange={(e) => onChange("commentaire", e.target.value)}
@@ -257,7 +360,7 @@ function RenfoExerciseRow({
 
 function SessionCard({
   session, exercises, isValidated, athleteVma, libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -269,6 +372,7 @@ function SessionCard({
   onAddExercise: () => void;
   onDeleteExercise: (exerciseId: number) => void;
   onExerciseChange: (exerciseId: number, field: string, value: string) => void;
+  onSerieDetailChange: (exerciseId: number, serieIndex: number, field: string, value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
@@ -376,6 +480,7 @@ function SessionCard({
                         libraryExercises={libraryExercises}
                         feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
                         onChange={(field, value) => onExerciseChange(ex.id, field, value)}
+                        onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
                         onDelete={() => onDeleteExercise(ex.id)}
                       />
                     ))}
@@ -453,7 +558,7 @@ function SessionCard({
 export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
-  onAddExercise, onDeleteExercise, onExerciseChange, onSave, isSaving,
+  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onSave, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
@@ -554,6 +659,7 @@ export function MobileProgView({
               athleteVma={athleteVma}
               libraryExercises={libraryExercises}
               copiedWeekFeedback={copiedWeekFeedback}
+              onSerieDetailChange={(exId, si, field, value) => onSerieDetailChange(session.id, exId, si, field, value)}
               onDelete={(e) => onDeleteSession(session.id, e)}
               onAddExercise={() => onAddExercise(session.id)}
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}

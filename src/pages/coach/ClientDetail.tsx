@@ -4032,6 +4032,9 @@ export default function ClientDetail() {
               onExerciseChange={(sessionId, exerciseId, field, value) =>
                 handleExerciseChange(sessionId, exerciseId, field as keyof Exercise, value)
               }
+              onSerieDetailChange={(sessionId, exerciseId, serieIndex, field, value) =>
+                handleSerieDetailChange(sessionId, exerciseId, serieIndex, field as keyof SerieDetail, value)
+              }
               onSave={handleValidate}
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
