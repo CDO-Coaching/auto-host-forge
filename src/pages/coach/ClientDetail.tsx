@@ -4033,6 +4033,7 @@ export default function ClientDetail() {
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
+              athleteVma={athleteVma}
             />
           </div>
 

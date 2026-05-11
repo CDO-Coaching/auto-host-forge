@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
+import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
 import { cn } from "@/lib/utils";
@@ -32,6 +33,10 @@ interface Exercise {
   rpe: string;
   tempo: string;
   commentaire: string;
+  cardio_sport?: "course" | "natation" | "velo" | "yoga" | "hiit" | "";
+  cardio_content?: string;
+  cardio_pace?: string;
+  [key: string]: unknown;
 }
 
 interface WeekOption {
@@ -57,6 +62,7 @@ interface MobileProgViewProps {
   hasPreviousWeeks?: boolean;
   onCopyPreviousWeek?: () => void;
   onOpenCopyDialog?: () => void;
+  athleteVma?: number | null;
 }
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -67,33 +73,69 @@ const SESSION_TYPE_CONFIG = {
   recup: { label: "Récup", color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Zap, createLabel: "Récupération", emoji: "💆" },
 } as const;
 
-// ─── Sous-composant : ligne d'exercice éditable ───────────────────────────────
+// ─── Stepper +/- réutilisable ─────────────────────────────────────────────────
 
-function ExerciseEditor({
-  exercise, sessionId, sessionType, isValidated, onChange, onDelete,
+function Stepper({ label, value, onChange, step = 1, min = 0, max }: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  step?: number;
+  min?: number;
+  max?: number;
+}) {
+  const dec = () => {
+    const cur = parseFloat(value) || 0;
+    const next = Math.max(min, cur - step);
+    onChange(String(next % 1 === 0 ? next : next.toFixed(1)));
+  };
+  const inc = () => {
+    const cur = parseFloat(value) || 0;
+    const next = max != null ? Math.min(max, cur + step) : cur + step;
+    onChange(String(next % 1 === 0 ? next : next.toFixed(1)));
+  };
+  return (
+    <div className="space-y-1.5">
+      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
+      <div className="flex items-center gap-2">
+        <button type="button"
+          className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+          onClick={dec}>−</button>
+        <Input type="number" value={value} onChange={(e) => onChange(e.target.value)}
+          className="flex-1 h-11 text-center text-base font-semibold" />
+        <button type="button"
+          className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+          onClick={inc}>+</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Éditeur inline exercice renfo (pas de Sheet imbriqué) ────────────────────
+
+function RenfoExerciseRow({
+  exercise, sessionId, isValidated, onChange, onDelete,
 }: {
   exercise: Exercise;
   sessionId: number;
-  sessionType: "renfo" | "cardio" | "recup";
   isValidated: boolean;
   onChange: (field: string, value: string) => void;
   onDelete: () => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const summary = [
-    exercise.series && `${exercise.series} séries`,
-    exercise.reps && `× ${exercise.reps}`,
-    exercise.charge && `@ ${exercise.charge}kg`,
+    exercise.series && `${exercise.series}×`,
+    exercise.reps && `${exercise.reps} reps`,
+    exercise.charge && `${exercise.charge}kg`,
     exercise.rpe && `RPE ${exercise.rpe}`,
-  ].filter(Boolean).join(" ");
+  ].filter(Boolean).join(" · ");
 
   return (
-    <>
-      {/* Ligne résumé — tap pour ouvrir l'éditeur */}
+    <div className="border-b border-border/30 last:border-0">
+      {/* En-tête de l'exercice — tap pour expand */}
       <div
-        className="flex items-center gap-3 px-4 py-3 active:bg-muted/50 transition-colors"
-        onClick={() => !isValidated && setOpen(true)}
+        className="flex items-center gap-3 px-4 py-3 active:bg-muted/40 transition-colors cursor-pointer"
+        onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">
@@ -104,146 +146,83 @@ function ExerciseEditor({
         {!isValidated && (
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            className="p-2 text-muted-foreground active:text-destructive shrink-0"
           >
             <Trash2 className="h-4 w-4" />
           </button>
         )}
-        {!isValidated && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+        {expanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
       </div>
 
-      {/* Sheet d'édition des paramètres */}
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="h-[85dvh] flex flex-col p-0 rounded-t-2xl">
-          <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40 shrink-0">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-base">Modifier l'exercice</SheetTitle>
-              <button onClick={() => setOpen(false)} className="p-1 text-muted-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </SheetHeader>
+      {/* Contenu inline */}
+      {expanded && (
+        <div className="px-4 pb-5 space-y-4 bg-muted/20">
+          {/* Nom */}
+          <div className="space-y-1.5 pt-2">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Exercice</label>
+            <ExerciseCombobox
+              value={exercise.exercice}
+              onChange={(v) => onChange("exercice", v)}
+              disabled={isValidated}
+            />
+          </div>
 
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
-            {/* Nom */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Exercice</label>
-              {sessionType === "renfo" ? (
-                <ExerciseCombobox
-                  value={exercise.exercice}
-                  onChange={(v) => onChange("exercice", v)}
-                  disabled={isValidated}
-                />
-              ) : (
-                <Input value={exercise.exercice} onChange={(e) => onChange("exercice", e.target.value)} className="h-11" />
-              )}
-            </div>
+          {/* Steppers 2 colonnes */}
+          <div className="grid grid-cols-2 gap-3">
+            <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
+            <Stepper label="Reps" value={exercise.reps} onChange={(v) => onChange("reps", v)} step={1} min={1} />
+            <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} />
+            <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />
+          </div>
 
-            {sessionType === "renfo" && (
-              <>
-                {/* Séries / Reps / Charge / RPE — gros +/- */}
-                {[
-                  { field: "series", label: "Séries", placeholder: "3", step: 1, min: 1 },
-                  { field: "reps", label: "Reps", placeholder: "10", step: 1, min: 1 },
-                  { field: "charge", label: "Charge (kg)", placeholder: "0", step: 2.5, min: 0 },
-                  { field: "rpe", label: "RPE", placeholder: "7", step: 0.5, min: 1, max: 10 },
-                ].map(({ field, label, placeholder, step, min, max }) => (
-                  <div key={field} className="space-y-2">
-                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</label>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        className="h-12 w-12 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                        onClick={() => {
-                          const cur = parseFloat(exercise[field as keyof Exercise] as string) || 0;
-                          const next = Math.max(min ?? 0, cur - step);
-                          onChange(field, String(next % 1 === 0 ? next : next.toFixed(1)));
-                        }}
-                      >−</button>
-                      <Input
-                        type="number"
-                        value={exercise[field as keyof Exercise] as string}
-                        onChange={(e) => onChange(field, e.target.value)}
-                        placeholder={placeholder}
-                        className="flex-1 h-12 text-center text-lg font-semibold"
-                        disabled={isValidated}
-                      />
-                      <button
-                        type="button"
-                        className="h-12 w-12 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                        onClick={() => {
-                          const cur = parseFloat(exercise[field as keyof Exercise] as string) || 0;
-                          const next = max != null ? Math.min(max, cur + step) : cur + step;
-                          onChange(field, String(next % 1 === 0 ? next : next.toFixed(1)));
-                        }}
-                      >+</button>
-                    </div>
-                  </div>
+          {/* Récupération */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Récupération</label>
+            <Select value={exercise.recuperation || "0s"} onValueChange={(v) => onChange("recuperation", v)} disabled={isValidated}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="Récupération" />
+              </SelectTrigger>
+              <SelectContent>
+                {RECUP_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
-
-                {/* Récupération */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Récupération</label>
-                  <Select value={exercise.recuperation || "0s"} onValueChange={(v) => onChange("recuperation", v)} disabled={isValidated}>
-                    <SelectTrigger className="h-12">
-                      <SelectValue placeholder="Récupération" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RECUP_OPTIONS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Tempo */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tempo</label>
-                  <Input
-                    value={exercise.tempo}
-                    onChange={(e) => onChange("tempo", e.target.value)}
-                    placeholder="Ex: 3010"
-                    className="h-12 text-center font-mono text-base"
-                    disabled={isValidated}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Commentaire */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Note / Commentaire</label>
-              <Input
-                value={exercise.commentaire}
-                onChange={(e) => onChange("commentaire", e.target.value)}
-                placeholder="Consignes pour l'athlète…"
-                className="h-12"
-                disabled={isValidated}
-              />
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
-          {/* Footer */}
-          <div className="px-5 py-4 border-t border-border/40 shrink-0">
-            <Button className="w-full h-12 text-base" onClick={() => setOpen(false)}>
-              Valider
-            </Button>
+          {/* Tempo */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Tempo</label>
+            <Input value={exercise.tempo} onChange={(e) => onChange("tempo", e.target.value)}
+              placeholder="Ex: 3010" className="h-11 text-center font-mono" disabled={isValidated} />
           </div>
-        </SheetContent>
-      </Sheet>
-    </>
+
+          {/* Commentaire */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
+            <Input value={exercise.commentaire} onChange={(e) => onChange("commentaire", e.target.value)}
+              placeholder="Consignes…" className="h-11" disabled={isValidated} />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 // ─── Sous-composant : carte session ──────────────────────────────────────────
 
 function SessionCard({
-  session, exercises, isValidated,
+  session, exercises, isValidated, athleteVma,
   onDelete, onAddExercise, onDeleteExercise, onExerciseChange,
 }: {
   session: Session;
   exercises: Exercise[];
   isValidated: boolean;
+  athleteVma?: number | null;
   onDelete: (e: React.MouseEvent) => void;
   onAddExercise: () => void;
   onDeleteExercise: (exerciseId: number) => void;
@@ -251,6 +230,14 @@ function SessionCard({
 }) {
   const [open, setOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
+
+  // Données cardio du premier exercice
+  const cardioExercise = exercises[0];
+  const cardioData: CardioData = (() => {
+    if (!cardioExercise?.cardio_content) return { steps: [], blocks: [] };
+    try { return JSON.parse(cardioExercise.cardio_content); } catch { return { steps: [], blocks: [] }; }
+  })();
+  const cardioSport = (cardioExercise?.cardio_sport as "course" | "velo" | "natation" | undefined) || "course";
 
   return (
     <>
@@ -276,15 +263,15 @@ function SessionCard({
           {!isValidated && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-              className="p-2 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+              className="p-2 text-muted-foreground active:text-destructive transition-colors shrink-0"
             >
               <Trash2 className="h-4 w-4" />
             </button>
           )}
         </div>
 
-        {/* Preview des 2 premiers exercices */}
-        {exercises.length > 0 && (
+        {/* Preview des 2 premiers exercices (renfo) */}
+        {session.session_type === "renfo" && exercises.length > 0 && (
           <div className="mt-3 space-y-1">
             {exercises.slice(0, 2).map((ex) => (
               <div key={ex.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
@@ -300,9 +287,18 @@ function SessionCard({
             )}
           </div>
         )}
+
+        {/* Preview cardio */}
+        {session.session_type === "cardio" && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            {cardioData.steps.length > 0
+              ? `${cardioData.steps.length} étape${cardioData.steps.length > 1 ? "s" : ""}`
+              : cardioExercise?.commentaire || "Tap pour configurer"}
+          </p>
+        )}
       </div>
 
-      {/* Sheet détail session */}
+      {/* ── Sheet détail session ─────────────────────────────────────── */}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="h-[92dvh] flex flex-col p-0 rounded-t-2xl">
           <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40 shrink-0">
@@ -317,38 +313,86 @@ function SessionCard({
             </div>
           </SheetHeader>
 
-          {/* Liste exercices */}
           <div className="flex-1 overflow-y-auto">
-            {exercises.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground px-6">
-                <Dumbbell className="h-10 w-10 opacity-30" />
-                <p className="text-sm text-center">Aucun exercice — ajoute le premier ci-dessous.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border/30">
-                {exercises.map((ex) => (
-                  <ExerciseEditor
-                    key={ex.id}
-                    exercise={ex}
-                    sessionId={session.id}
-                    sessionType={session.session_type}
-                    isValidated={isValidated}
-                    onChange={(field, value) => onExerciseChange(ex.id, field, value)}
-                    onDelete={() => onDeleteExercise(ex.id)}
+
+            {/* ─── Renfo : liste d'exercices inline ─── */}
+            {session.session_type === "renfo" && (
+              <>
+                {exercises.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground px-6">
+                    <Dumbbell className="h-8 w-8 opacity-30" />
+                    <p className="text-sm text-center">Aucun exercice — ajoute le premier ci-dessous.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {exercises.map((ex) => (
+                      <RenfoExerciseRow
+                        key={ex.id}
+                        exercise={ex}
+                        sessionId={session.id}
+                        isValidated={isValidated}
+                        onChange={(field, value) => onExerciseChange(ex.id, field, value)}
+                        onDelete={() => onDeleteExercise(ex.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ─── Cardio : CardioStepBuilder complet ─── */}
+            {session.session_type === "cardio" && (
+              <div className="px-4 py-4 space-y-4">
+                <CardioStepBuilder
+                  steps={cardioData.steps}
+                  blocks={cardioData.blocks}
+                  onChange={(newData: CardioData) => {
+                    if (cardioExercise) {
+                      onExerciseChange(cardioExercise.id, "cardio_content", JSON.stringify(newData));
+                    }
+                  }}
+                  athleteVma={athleteVma}
+                  disabled={isValidated}
+                  sportType={cardioSport !== "yoga" && cardioSport !== "hiit" ? cardioSport : "course"}
+                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
+                  <Input
+                    value={cardioExercise?.commentaire || ""}
+                    onChange={(e) => cardioExercise && onExerciseChange(cardioExercise.id, "commentaire", e.target.value)}
+                    placeholder="Consignes pour l'athlète…"
+                    className="h-11"
+                    disabled={isValidated}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* ─── Récup ─── */}
+            {session.session_type === "recup" && (
+              <div className="px-4 py-4 space-y-4">
+                {exercises.map((ex) => (
+                  <div key={ex.id} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Activité</label>
+                      <Input value={ex.exercice} onChange={(e) => onExerciseChange(ex.id, "exercice", e.target.value)}
+                        placeholder="Ex: Étirements, Yoga…" className="h-11" disabled={isValidated} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
+                      <Input value={ex.commentaire} onChange={(e) => onExerciseChange(ex.id, "commentaire", e.target.value)}
+                        placeholder="Consignes…" className="h-11" disabled={isValidated} />
+                    </div>
+                  </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Footer : ajouter exercice */}
-          {!isValidated && (
+          {/* Footer : ajouter exercice (renfo uniquement) */}
+          {!isValidated && session.session_type === "renfo" && (
             <div className="px-5 py-4 border-t border-border/40 shrink-0">
-              <Button
-                className="w-full h-12 text-base gap-2"
-                variant="outline"
-                onClick={onAddExercise}
-              >
+              <Button className="w-full h-12 text-base gap-2" variant="outline" onClick={onAddExercise}>
                 <Plus className="h-5 w-5" />
                 Ajouter un exercice
               </Button>
@@ -366,7 +410,7 @@ export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSave, isSaving,
-  hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog,
+  hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
@@ -381,7 +425,7 @@ export function MobileProgView({
     <div className="flex flex-col min-h-0">
 
       {/* ── Navigation semaine ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-3">
         <button
           onClick={() => prevWeek && onWeekChange(prevWeek.week, prevWeek.year)}
           disabled={!prevWeek}
@@ -410,7 +454,7 @@ export function MobileProgView({
 
       {/* ── Copier une semaine précédente ───────────────────────────────── */}
       {!isValidated && hasPreviousWeeks && (
-        <div className="flex gap-2 mb-1">
+        <div className="flex gap-2 mb-3">
           {onCopyPreviousWeek && (
             <button
               onClick={onCopyPreviousWeek}
@@ -451,6 +495,7 @@ export function MobileProgView({
               session={session}
               exercises={sessionExercises[session.id] || []}
               isValidated={isValidated}
+              athleteVma={athleteVma}
               onDelete={(e) => onDeleteSession(session.id, e)}
               onAddExercise={() => onAddExercise(session.id)}
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}
