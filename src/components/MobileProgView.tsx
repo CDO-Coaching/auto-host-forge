@@ -84,16 +84,19 @@ const SESSION_TYPE_CONFIG = {
 
 // ─── Stepper +/- réutilisable ─────────────────────────────────────────────────
 
-function Stepper({ label, value, onChange, step = 1, min = 0, max }: {
+function Stepper({ label, value, onChange, step = 1, min = 0, max, freeText = false }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   step?: number;
   min?: number;
   max?: number;
+  /** Si true : input texte libre, les boutons +/- incrémentent seulement si la valeur est numérique */
+  freeText?: boolean;
 }) {
   const dec = () => {
-    const cur = parseFloat(value) || 0;
+    const cur = parseFloat(value);
+    if (isNaN(cur)) return;
     const next = Math.max(min, cur - step);
     onChange(String(next % 1 === 0 ? next : next.toFixed(1)));
   };
@@ -109,8 +112,12 @@ function Stepper({ label, value, onChange, step = 1, min = 0, max }: {
         <button type="button"
           className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
           onClick={dec}>−</button>
-        <Input type="number" value={value} onChange={(e) => onChange(e.target.value)}
-          className="flex-1 h-11 text-center text-base font-semibold" />
+        <Input
+          type={freeText ? "text" : "number"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 h-11 text-center text-base font-semibold"
+        />
         <button type="button"
           className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
           onClick={inc}>+</button>
@@ -185,7 +192,7 @@ function RenfoExerciseRow({
           {/* Steppers 2 colonnes */}
           <div className="grid grid-cols-2 gap-3">
             <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
-            <Stepper label="Reps" value={exercise.reps} onChange={(v) => onChange("reps", v)} step={1} min={1} />
+            <Stepper label="Reps" value={exercise.reps} onChange={(v) => onChange("reps", v)} step={1} min={1} freeText />
             <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} />
             <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />
           </div>
