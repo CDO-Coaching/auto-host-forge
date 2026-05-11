@@ -142,14 +142,15 @@ export default function DashboardCoach() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 app-header">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              <SidebarTrigger className="hidden sm:flex" />
+              {/* Burger mobile + trigger desktop */}
+              <SidebarTrigger />
               <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
             <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">
               Prêt à accompagner tes athlètes aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-bottom-nav app-container max-w-full overflow-x-hidden">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 app-container max-w-full overflow-x-hidden">
             {birthdayAthletes.length > 0 && (
               <div className="mb-4 sm:mb-6">
                 <CoachBirthdayAlert
@@ -191,7 +192,7 @@ export default function DashboardCoach() {
               <Route path="/profil" element={<Profil />} />
             </Routes>
           </main>
-          <CoachBottomNav />
+          {/* CoachBottomNav supprimé — navigation via burger en haut */}
         </div>
       </div>
     </SidebarProvider>
