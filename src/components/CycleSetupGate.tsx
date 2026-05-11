@@ -61,11 +61,11 @@ const defaultMacroForm = (defaultWeeks = 24): MacroFormData => ({
   name: "", sport: "", start_date: new Date(), weeks: defaultWeeks, objective: "",
 });
 
-const defaultMesoForm = (defaultPhase = "accumulation", defaultWeeks = 4): MesoFormData => {
+const defaultMesoForm = (defaultPhase = "accumulation", defaultWeeks = 4, startDate?: Date): MesoFormData => {
   const phase = getPhase(defaultPhase);
   return {
     name: "", phase_type: defaultPhase,
-    start_date: new Date(), weeks: defaultWeeks,
+    start_date: startDate ?? new Date(), weeks: defaultWeeks,
     volume_target: phase.defaultVolume, intensity_target: phase.defaultIntensity,
     objective: "",
   };
@@ -371,7 +371,7 @@ export function CycleSetupGate({
       // Pré-remplir le 1er méso : commence au début du macro, durée max 4 sem
       const remWeeks = getRemainingWeeks(macroForm.start_date, result.endDate);
       setNextMesoStart(macroForm.start_date);
-      setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4)));
+      setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4), macroForm.start_date));
       setMesoIndex(0);
       setStep("meso");
     } catch { toast.error("Erreur lors de la création"); }
@@ -399,10 +399,10 @@ export function CycleSetupGate({
         // Plus de place dans le macro → on termine
         finish();
       } else {
-        // Proposer un nouveau méso
+        // Proposer un nouveau méso, début = lendemain du méso précédent
         setNextMesoStart(nextStart);
         setMesoIndex(mesoIndex + 1);
-        setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4)));
+        setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4), nextStart));
       }
     } catch { toast.error("Erreur lors de la création du mésocycle"); }
     finally { setIsSaving(false); }
