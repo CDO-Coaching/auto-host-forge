@@ -5,12 +5,19 @@ export type VoiceState = "idle" | "listening" | "processing";
 interface UseVoiceCommandReturn {
   state: VoiceState;
   transcript: string;
-  interimTranscript: string;
+  /** Texte confirmé (finalisé par la reconnaissance) — éditable via updateAccumulated */
+  accumulated: string;
+  /** Texte en cours de reconnaissance (non finalisé) */
+  interimHint: string;
   error: string | null;
   isSupported: boolean;
   startListening: () => void;
   stopListening: () => void;
+  /** Permet d'éditer manuellement le texte accumulé pendant l'enregistrement */
+  updateAccumulated: (text: string) => void;
   reset: () => void;
+  // Kept for backward compat
+  interimTranscript: string;
 }
 
 export function useVoiceCommand(
@@ -18,12 +25,12 @@ export function useVoiceCommand(
 ): UseVoiceCommandReturn {
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
-  const [interimTranscript, setInterimTranscript] = useState("");
+  const [accumulated, setAccumulated] = useState("");
+  const [interimHint, setInterimHint] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
   const accumulatedRef = useRef<string>("");
-  // Flag explicite : true = arrêt volontaire, false = arrêt inattendu (silence long)
   const isManualStopRef = useRef<boolean>(false);
 
   const SpeechRecognition =
@@ -33,16 +40,19 @@ export function useVoiceCommand(
 
   const isSupported = !!SpeechRecognition;
 
-  /** Arrête l'enregistrement et envoie le transcript accumulé */
-  const stopListening = useCallback(() => {
-    isManualStopRef.current = true; // ← marquer AVANT stop() pour que onend ne relance pas
+  const updateAccumulated = useCallback((text: string) => {
+    accumulatedRef.current = text;
+    setAccumulated(text);
+  }, []);
 
+  const stopListening = useCallback(() => {
+    isManualStopRef.current = true;
     const rec = recognitionRef.current;
     recognitionRef.current = null;
     if (rec) rec.stop();
 
     const final = accumulatedRef.current.trim();
-    setInterimTranscript("");
+    setInterimHint("");
 
     if (final) {
       setState("processing");
@@ -61,9 +71,10 @@ export function useVoiceCommand(
 
     setError(null);
     setTranscript("");
-    setInterimTranscript("");
+    setAccumulated("");
+    setInterimHint("");
     accumulatedRef.current = "";
-    isManualStopRef.current = false; // ← reset du flag à chaque nouveau démarrage
+    isManualStopRef.current = false;
 
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
@@ -81,16 +92,16 @@ export function useVoiceCommand(
         const t = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
           accumulatedRef.current += (accumulatedRef.current ? " " : "") + t.trim();
+          setAccumulated(accumulatedRef.current);
         } else {
           interim += t;
         }
       }
-      const display = [accumulatedRef.current, interim].filter(Boolean).join(" ");
-      setInterimTranscript(display);
+      setInterimHint(interim);
     };
 
     recognition.onerror = (event: any) => {
-      if (event.error === "no-speech") return; // silences normaux en mode continu
+      if (event.error === "no-speech") return;
       if (event.error === "not-allowed") {
         setError("Micro non autorisé — autorise l'accès dans ton navigateur");
       } else {
@@ -101,7 +112,6 @@ export function useVoiceCommand(
     };
 
     recognition.onend = () => {
-      // Relancer seulement si l'arrêt n'était PAS volontaire (ex: silence Chrome)
       if (!isManualStopRef.current && recognitionRef.current) {
         try { recognitionRef.current.start(); } catch (_) {}
       }
@@ -118,10 +128,18 @@ export function useVoiceCommand(
 
     accumulatedRef.current = "";
     setTranscript("");
-    setInterimTranscript("");
+    setAccumulated("");
+    setInterimHint("");
     setError(null);
     setState("idle");
   }, []);
 
-  return { state, transcript, interimTranscript, error, isSupported, startListening, stopListening, reset };
+  // interimTranscript kept for backward compat (accumulated + hint)
+  const interimTranscript = [accumulated, interimHint].filter(Boolean).join(" ");
+
+  return {
+    state, transcript, accumulated, interimHint,
+    interimTranscript, error, isSupported,
+    startListening, stopListening, updateAccumulated, reset,
+  };
 }

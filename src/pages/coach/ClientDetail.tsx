@@ -68,7 +68,8 @@ import { CoachSwimmingView } from "@/components/CoachSwimmingView";
 import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
-import { CoachObjectivesView } from "@/components/CoachObjectivesView";
+import { CoachObjectivesView, getPhase } from "@/components/CoachObjectivesView";
+import { CycleSetupGate } from "@/components/CycleSetupGate";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
@@ -191,9 +192,9 @@ export default function ClientDetail() {
   const [showDeleteWeekDialog, setShowDeleteWeekDialog] = useState(false);
   const [athleteObjectives, setAthleteObjectives] = useState<any>({});
   const [athleteMilestones, setAthleteMilestones] = useState<any[]>([]);
-  const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
-  const [athleteMacrocycles, setAthleteMacrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
-  const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string }>>([]);
+  const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
+  const [athleteMacrocycles, setAthleteMacrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; sport?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
+  const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [showRunningSheet, setShowRunningSheet] = useState(false);
@@ -2501,13 +2502,24 @@ export default function ClientDetail() {
     changes: VoiceChanges,
     seriesOverrides?: Record<number, Partial<VoiceChanges>>,
   ) => {
+    console.log("[VoiceApply] called", { sessionId, exerciseId, changes, seriesOverrides });
     setSessionExercises((prev) => {
+      try {
       const exercises = prev[sessionId] || [];
       const updated = exercises.map((ex) => {
         if (ex.id !== exerciseId) return ex;
 
+        console.log("[VoiceApply] found exercise", ex.id, "recuperation:", ex.recuperation, "serie_details type:", typeof ex.serie_details, "is array:", Array.isArray(ex.serie_details), "length:", Array.isArray(ex.serie_details) ? ex.serie_details.length : typeof ex.serie_details === "string" ? `string(${ex.serie_details.length})` : "n/a");
+
+        // 0. Si serie_details est une string JSON, la parser d'abord
+        let parsedSerieDetails = ex.serie_details;
+        if (typeof ex.serie_details === "string") {
+          try { parsedSerieDetails = JSON.parse(ex.serie_details as any); } catch (e) { parsedSerieDetails = undefined; }
+        }
+        const parsedEx = { ...ex, serie_details: parsedSerieDetails };
+
         // 1. Appliquer les changements globaux sur la ligne principale
-        let updatedEx: Exercise = { ...ex, ...changes };
+        let updatedEx: Exercise = { ...parsedEx, ...changes };
 
         // 2. Propager les changements globaux sur les série_details existantes
         if (changes.series) {
@@ -2547,9 +2559,14 @@ export default function ClientDetail() {
           updatedEx = { ...updatedEx, serie_details: details };
         }
 
+        console.log("[VoiceApply] result recuperation:", updatedEx.recuperation, "serie_details recuperation:", Array.isArray(updatedEx.serie_details) ? updatedEx.serie_details.map(s => s.recuperation) : "n/a");
         return updatedEx;
       });
       return { ...prev, [sessionId]: updated };
+      } catch (err) {
+        console.error("[VoiceApply] ERREUR dans setSessionExercises:", err);
+        return prev;
+      }
     });
   };
 
@@ -3811,24 +3828,130 @@ export default function ClientDetail() {
             </div>
           </div>
 
+          {/* ── Gate cycles : bloque si aucun macrocycle actif ──────── */}
+          {(() => {
+            const today = new Date();
+            const hasActiveMacro = athleteMacrocycles.some(
+              (c) => today >= new Date(c.start_date) && today <= new Date(c.end_date)
+            );
+            console.log("[CycleGate] macrocycles:", athleteMacrocycles.length, "hasActiveMacro:", hasActiveMacro, athleteMacrocycles.map(c => `${c.name} (${c.start_date}→${c.end_date})`));
+            if (!hasActiveMacro) {
+              return (
+                <CycleSetupGate
+                  athleteId={athleteId!}
+                  athleteName={athlete?.first_name || "l'athlète"}
+                  onComplete={async () => {
+                    // Recharger les cycles après création
+                    const [macroRes, mesoRes, microRes] = await Promise.all([
+                      supabase.from("macrocycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
+                      supabase.from("mesocycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
+                      supabase.from("microcycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
+                    ]);
+                    if (macroRes.data) setAthleteMacrocycles(macroRes.data as any);
+                    if (mesoRes.data) setAthleteMesocycles(mesoRes.data as any);
+                    if (microRes.data) setAthleteMicrocycles(microRes.data as any);
+                  }}
+                  onNavigateToObjectives={() => setActiveTab("objectifs")}
+                />
+              );
+            }
+            return null;
+          })()}
+
           {/* Alerte de fatigue */}
           {athlete && (
-            <CoachFatigueAlert 
-              athleteId={athleteId!} 
+            <CoachFatigueAlert
+              athleteId={athleteId!}
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
           )}
 
           {/* Alerte objectif atteint */}
           {athlete && (
-            <CoachObjectiveAlert 
-              athleteId={athleteId!} 
+            <CoachObjectiveAlert
+              athleteId={athleteId!}
               athleteName={athlete.first_name || "l'athlète"}
               onNavigateToObjectives={() => setActiveTab("objectifs")}
             />
           )}
 
 
+
+          {/* ── Bannière de phase active (masquée si gate actif) ─────── */}
+          {(() => {
+            const today = new Date();
+            const hasActiveMacro = athleteMacrocycles.some(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
+            if (!hasActiveMacro) return null;
+            const activeMicro = athleteMicrocycles.find(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
+            const activeMeso = athleteMesocycles.find(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
+            const activeMacros = athleteMacrocycles.filter(c => today >= new Date(c.start_date) && today <= new Date(c.end_date));
+            const displayCycle = activeMicro ?? activeMeso;
+            if (!displayCycle && activeMacros.length === 0) return null;
+            const phase = getPhase(displayCycle?.phase_type ?? activeMacros[0]?.phase_type);
+            const isDecharge = phase.value === "decharge" || phase.value === "transition";
+            return (
+              <div
+                className="rounded-xl border px-4 py-3 space-y-2"
+                style={{ borderColor: `${phase.color}40`, backgroundColor: `${phase.color}0d` }}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base">{phase.emoji}</span>
+                  <span className="font-semibold text-sm" style={{ color: phase.color }}>Phase {phase.label}</span>
+                  {displayCycle && <span className="text-xs text-muted-foreground">· {displayCycle.name}</span>}
+                  {activeMacros.map(mac => (
+                    <span key={mac.id} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                      {mac.name}{mac.sport ? ` · ${mac.sport}` : ""}
+                    </span>
+                  ))}
+                </div>
+                {displayCycle?.objective && (
+                  <p className="text-xs text-muted-foreground italic">{displayCycle.objective}</p>
+                )}
+                <div className="flex items-center gap-6 flex-wrap">
+                  {displayCycle?.volume_target != null && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground w-16">Volume</span>
+                      <div className="flex gap-1">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (displayCycle.volume_target ?? 3) ? phase.color : "#e5e7eb" }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {displayCycle?.intensity_target != null && (
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground w-16">Intensité</span>
+                      <div className="flex gap-1">
+                        {Array.from({ length: 5 }, (_, i) => (
+                          <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (displayCycle.intensity_target ?? 3) ? phase.color : "#e5e7eb" }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {isDecharge && (
+                  <p className="text-xs font-medium" style={{ color: phase.color }}>
+                    💡 Phase de récupération — Réduis la charge et privilégie la qualité d'exécution.
+                  </p>
+                )}
+                {phase.value === "realisation" && (
+                  <p className="text-xs font-medium" style={{ color: phase.color }}>
+                    🎯 Phase de réalisation — Intensité maximale, volume réduit. Priorité aux performances.
+                  </p>
+                )}
+                {phase.value === "competition" && (
+                  <p className="text-xs font-medium" style={{ color: phase.color }}>
+                    🏆 Phase de compétition — Maintien de la forme, pas de nouveaux stimuli.
+                  </p>
+                )}
+                {displayCycle?.coach_note && (
+                  <p className="text-xs text-muted-foreground border-t border-border/30 pt-2 mt-1">
+                    📝 {displayCycle.coach_note}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <Card>
             <CardHeader className="py-2 sm:py-3 px-2 sm:px-4">
@@ -5294,7 +5417,24 @@ export default function ClientDetail() {
                                                                         })()}
                                                                       </span>
                                                                     </TableCell>
-                                                                    <TableCell></TableCell>
+                                                                    <TableCell className="py-1">
+                                                                      <Select
+                                                                        value={serie.recuperation || ex.recuperation || ""}
+                                                                        onValueChange={(val) => handleSerieDetailChange(session.id, ex.id, si, "recuperation", val)}
+                                                                        disabled={isValidated}
+                                                                      >
+                                                                        <SelectTrigger className="h-7 text-xs">
+                                                                          <SelectValue placeholder="Récup" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                          {recuperationOptions.map((option) => (
+                                                                            <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                              {option.label}
+                                                                            </SelectItem>
+                                                                          ))}
+                                                                        </SelectContent>
+                                                                      </Select>
+                                                                    </TableCell>
                                                                     <TableCell className="py-1">
                                                                       <Input
                                                                         value={serie.reps}
@@ -5371,24 +5511,7 @@ export default function ClientDetail() {
                                                                         data-serie-field="commentaire"
                                                                       />
                                                                     </TableCell>
-                                                                    <TableCell className="py-1">
-                                                                      <Select
-                                                                        value={serie.recuperation || ex.recuperation || ""}
-                                                                        onValueChange={(val) => handleSerieDetailChange(session.id, ex.id, si, "recuperation", val)}
-                                                                        disabled={isValidated}
-                                                                      >
-                                                                        <SelectTrigger className="h-7 text-xs">
-                                                                          <SelectValue placeholder="Récup" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                          {recuperationOptions.map((option) => (
-                                                                            <SelectItem key={option.value} value={option.value} className="text-xs">
-                                                                              {option.label}
-                                                                            </SelectItem>
-                                                                          ))}
-                                                                        </SelectContent>
-                                                                      </Select>
-                                                                    </TableCell>
+                                                                    <TableCell></TableCell>
                                                                     <TableCell></TableCell>
                                                                     <TableCell></TableCell>
                                                                   </TableRow>
@@ -5814,7 +5937,24 @@ export default function ClientDetail() {
                                                                 })()}
                                                               </span>
                                                             </TableCell>
-                                                            <TableCell></TableCell>
+                                                            <TableCell className="py-1">
+                                                              <Select
+                                                                value={serie.recuperation || exercise.recuperation || ""}
+                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
+                                                                disabled={isValidated}
+                                                              >
+                                                                <SelectTrigger className="h-7 text-xs">
+                                                                  <SelectValue placeholder="Récup" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                  {recuperationOptions.map((option) => (
+                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
+                                                                      {option.label}
+                                                                    </SelectItem>
+                                                                  ))}
+                                                                </SelectContent>
+                                                              </Select>
+                                                            </TableCell>
                                                             <TableCell className="py-1">
                                                               <Input
                                                                 value={serie.reps}
@@ -5891,24 +6031,7 @@ export default function ClientDetail() {
                                                                 data-serie-field="commentaire"
                                                               />
                                                             </TableCell>
-                                                            <TableCell className="py-1">
-                                                              <Select
-                                                                value={serie.recuperation || exercise.recuperation || ""}
-                                                                onValueChange={(val) => handleSerieDetailChange(session.id, exercise.id, si, "recuperation", val)}
-                                                                disabled={isValidated}
-                                                              >
-                                                                <SelectTrigger className="h-7 text-xs">
-                                                                  <SelectValue placeholder="Récup" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                  {recuperationOptions.map((option) => (
-                                                                    <SelectItem key={option.value} value={option.value} className="text-xs">
-                                                                      {option.label}
-                                                                    </SelectItem>
-                                                                  ))}
-                                                                </SelectContent>
-                                                              </Select>
-                                                            </TableCell>
+                                                            <TableCell></TableCell>
                                                             <TableCell></TableCell>
                                                             <TableCell></TableCell>
                                                           </TableRow>
@@ -5962,29 +6085,27 @@ export default function ClientDetail() {
                                         <span className="hidden sm:inline">Ajouter une ligne</span>
                                         <span className="sm:hidden">Ajouter</span>
                                       </Button>
-                                      {session.session_type === "renfo" && (
-                                        <VoiceCommandButton
-                                          exercises={(sessionExercises[session.id] || []).map((ex) => ({
-                                            id: ex.id,
-                                            name: ex.exercice,
-                                            charge: ex.charge,
-                                            reps: ex.reps,
-                                            series: ex.series,
-                                            rpe: ex.rpe,
-                                            recuperation: ex.recuperation,
-                                            tempo: ex.tempo,
-                                          }))}
-                                          onApply={(exerciseId, changes, seriesOverrides) =>
-                                            handleVoiceApply(session.id, exerciseId, changes, seriesOverrides)
-                                          }
-                                          onAddExercise={(name, changes) =>
-                                            handleVoiceAddExercise(session.id, name, changes)
-                                          }
-                                          onDeleteExercise={(exerciseId) =>
-                                            handleDeleteExercise(session.id, exerciseId)
-                                          }
-                                        />
-                                      )}
+                                      <VoiceCommandButton
+                                        exercises={(sessionExercises[session.id] || []).map((ex) => ({
+                                          id: ex.id,
+                                          name: ex.exercice,
+                                          charge: ex.charge,
+                                          reps: ex.reps,
+                                          series: ex.series,
+                                          rpe: ex.rpe,
+                                          recuperation: ex.recuperation,
+                                          tempo: ex.tempo,
+                                        }))}
+                                        onApply={(exerciseId, changes, seriesOverrides) =>
+                                          handleVoiceApply(session.id, exerciseId, changes, seriesOverrides)
+                                        }
+                                        onAddExercise={(name, changes) =>
+                                          handleVoiceAddExercise(session.id, name, changes)
+                                        }
+                                        onDeleteExercise={(exerciseId) =>
+                                          handleDeleteExercise(session.id, exerciseId)
+                                        }
+                                      />
                                       
                                       {/* Bouton pour importer un template renfo */}
                                       <Dialog 
@@ -6163,6 +6284,7 @@ export default function ClientDetail() {
                   </div>
                 </div>
               )}
+
             </CardContent>
           </Card>
 
