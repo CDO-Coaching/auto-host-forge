@@ -87,10 +87,10 @@ All colors MUST be HSL.
     overscroll-behavior-y: none;
   }
 
-  /* Safe area insets for mobile notches */
+  /* Safe area insets — uniquement les côtés sur le body.
+     Le padding-top est géré par .app-header (sticky) pour éviter
+     la double zone noire en haut sur iOS. */
   body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
   }
