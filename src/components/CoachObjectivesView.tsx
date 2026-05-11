@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO, addWeeks, addDays } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -216,6 +217,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Confirmation suppression cycle
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: CycleType; id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Collapsed groups
   const [collapsedMacros, setCollapsedMacros] = useState<Set<string>>(new Set());
@@ -435,12 +440,26 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     } catch (e) { console.error(e); toast.error("Erreur lors de l'enregistrement"); }
   };
 
-  const handleDeleteCycle = async (type: CycleType, id: string) => {
-    if (!confirm(`Supprimer ce ${getCycleLabel(type).toLowerCase()} ?`)) return;
-    const tableName = type === "macro" ? "macrocycles" : type === "meso" ? "mesocycles" : "microcycles";
-    await supabase.from(tableName).delete().eq("id", id);
-    toast.success(`${getCycleLabel(type)} supprimé`);
-    await loadAll();
+  const handleDeleteCycle = (type: CycleType, id: string, name: string) => {
+    setDeleteConfirm({ type, id, name });
+  };
+
+  const confirmDeleteCycle = async () => {
+    if (!deleteConfirm) return;
+    setIsDeleting(true);
+    try {
+      const { type, id } = deleteConfirm;
+      const tableName = type === "macro" ? "macrocycles" : type === "meso" ? "mesocycles" : "microcycles";
+      const { error } = await supabase.from(tableName).delete().eq("id", id);
+      if (error) throw error;
+      toast.success(`${getCycleLabel(type)} supprimé`);
+      setDeleteConfirm(null);
+      await loadAll();
+    } catch {
+      toast.error("Erreur lors de la suppression");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleSaveNote = async (type: CycleType, cycleId: string) => {
@@ -546,7 +565,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleOpenCycleDialog(type, cycle)}>
                 <Pencil className="h-3.5 w-3.5" />
               </Button>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteCycle(type, cycle.id)}>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleDeleteCycle(type, cycle.id, cycle.name)}>
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1209,6 +1228,33 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog de confirmation suppression cycle ─────────────────────── */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce {deleteConfirm ? getCycleLabel(deleteConfirm.type).toLowerCase() : ""} ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <span className="font-medium">« {deleteConfirm?.name} »</span> sera définitivement supprimé.
+              {deleteConfirm?.type === "macro" && (
+                <span className="block mt-1 text-destructive">
+                  Attention : les mésocycles et microcycles liés ne seront pas supprimés automatiquement.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteCycle}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Suppression…" : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
