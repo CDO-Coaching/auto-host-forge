@@ -382,13 +382,14 @@ export function CycleSetupGate({
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  // +1 pour comptage inclusif (from et macroEnd sont tous les deux inclus)
   const getRemainingWeeks = (from: Date, macroEnd: Date) => {
-    const days = differenceInDays(macroEnd, from);
+    const days = differenceInDays(macroEnd, from) + 1;
     return Math.max(0, Math.floor(days / 7));
   };
 
   const getRemainingDays = (from: Date, macroEnd: Date) =>
-    Math.max(0, differenceInDays(macroEnd, from));
+    Math.max(0, differenceInDays(macroEnd, from) + 1);
 
   // ── Sauvegarde macro ────────────────────────────────────────────────────────
 
