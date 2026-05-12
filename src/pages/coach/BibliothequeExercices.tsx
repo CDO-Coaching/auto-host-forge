@@ -54,8 +54,6 @@ function getMissingFields(ex: Exercise): MissingField[] {
   if (!ex.muscle_principal) missing.push({ key: "muscle_principal", label: "Muscle principal", required: true });
   if (!ex.category)         missing.push({ key: "category",         label: "Catégorie",        required: false });
   if (!ex.video_url)        missing.push({ key: "video_url",        label: "Vidéo YouTube",    required: false });
-  if (!ex.equipment)        missing.push({ key: "equipment",        label: "Équipement",        required: false });
-  if (!ex.description)      missing.push({ key: "description",      label: "Description",       required: false });
   return missing;
 }
 
