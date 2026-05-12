@@ -348,17 +348,42 @@ export function DesktopProgView(props: DesktopProgViewProps) {
       : "h-7 w-7 p-0";
     const spanCls = compact
       ? "text-xs font-semibold w-5 text-center tabular-nums"
-      : "text-sm font-semibold w-6 text-center tabular-nums";
+      : "text-sm font-semibold w-6 text-center tabular-nums select-none";
+
+    const decrement = () => {
+      if (!isValidated && count > 1)
+        onExerciseChange(sessionId, exercise.id, "series", String(count - 1));
+    };
+    const increment = () => {
+      if (!isValidated && count < 10)
+        onExerciseChange(sessionId, exercise.id, "series", String(count + 1));
+    };
+
     return (
-      <div className="flex items-center gap-0.5">
+      <div
+        className="flex items-center gap-0.5"
+        /* Keyboard navigation: arrows change value, Enter creates next exercise */
+        tabIndex={isValidated ? -1 : 0}
+        data-session={sessionId}
+        data-exercise={exercise.id}
+        data-field="series"
+        onKeyDown={(e) => {
+          if (isValidated) return;
+          if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); increment(); }
+          else if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); decrement(); }
+          else if (e.key === "Enter") { e.preventDefault(); onAddExercise(sessionId); }
+        }}
+        onFocus={(e) => e.currentTarget.style.outline = "2px solid hsl(var(--ring))"}
+        onBlur={(e) => e.currentTarget.style.outline = ""}
+        style={{ borderRadius: "6px" }}
+      >
         <Button
           variant="ghost"
           size="sm"
           className={btnCls}
           disabled={isValidated || count <= 1}
-          onClick={() =>
-            onExerciseChange(sessionId, exercise.id, "series", String(Math.max(1, count - 1)))
-          }
+          tabIndex={-1}
+          onClick={decrement}
         >
           <Minus className="h-3 w-3" />
         </Button>
@@ -368,9 +393,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
           size="sm"
           className={btnCls}
           disabled={isValidated || count >= 10}
-          onClick={() =>
-            onExerciseChange(sessionId, exercise.id, "series", String(count + 1))
-          }
+          tabIndex={-1}
+          onClick={increment}
         >
           <Plus className="h-3 w-3" />
         </Button>
