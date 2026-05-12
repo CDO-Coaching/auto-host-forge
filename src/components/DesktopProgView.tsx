@@ -28,6 +28,8 @@ import {
   X,
   ChevronDown,
   Minus,
+  Link2,
+  Unlink2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -221,6 +223,9 @@ export interface DesktopProgViewProps {
   // Récup options
   recuperationOptions: Array<{ value: string; label: string }>;
 
+  // Super-set
+  onToggleSuperSet: (sessionId: number, exerciseId: number) => void;
+
   // Methodology dialog
   onCancelMethodology: () => void;
   loadMethodologiesForAssignment: () => void;
@@ -260,6 +265,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     cycleInfo, persistentMethodology, persistentMaxes,
     lastWeekData, setShowFeedbackSheet,
     athleteMilestones, recuperationOptions,
+    onToggleSuperSet,
     onCancelMethodology, loadMethodologiesForAssignment, setShowMethodologyDialog,
     setSelectedMethodologyId, setSelectedMethodologyWeek,
     setSelectedMethodologyCycle, setMethodologyStep, setMethodologyMaxes,
@@ -910,6 +916,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             <TableHead className="min-w-[120px]">Comm.</TableHead>
                             <TableHead className="min-w-[60px]">Séries</TableHead>
                             <TableHead className="w-[40px] text-center"><Video className="h-4 w-4 mx-auto" /></TableHead>
+                            <TableHead className="w-[32px]" />
                             <TableHead className="w-[40px]" />
                           </TableRow>
                         </TableHeader>
@@ -1062,7 +1069,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                   </TableCell>
                                                   <TableCell className="py-1"><Input value={serie.tempo} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "tempo", e.target.value)} placeholder={ex.tempo || "tempo"} disabled={isValidated} className="h-7 text-xs" /></TableCell>
                                                   <TableCell className="py-1"><Input value={serie.commentaire} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "commentaire", e.target.value)} placeholder="..." disabled={isValidated} className="h-7 text-xs" /></TableCell>
-                                                  <TableCell colSpan={3} />
+                                                  <TableCell colSpan={4} />
                                                 </TableRow>
                                               ))}
                                             </>
@@ -1157,6 +1164,19 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       <TableCell className="text-center">
                                         <Checkbox checked={exercise.request_video || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_video", c === true)} disabled={isValidated} title="Demander une vidéo" />
                                       </TableCell>
+                                      <TableCell className="text-center">
+                                        {!isValidated && i < exercises.length - 1 && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={`h-7 w-7 p-0 ${exercise.super_set_group ? "text-primary" : "text-muted-foreground/40 hover:text-primary"}`}
+                                            onClick={() => onToggleSuperSet(selectedSession.id, exercise.id)}
+                                            title={exercise.super_set_group ? "Retirer du super-set" : "Créer un super-set avec l'exercice suivant"}
+                                          >
+                                            {exercise.super_set_group ? <Unlink2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
+                                          </Button>
+                                        )}
+                                      </TableCell>
                                       <TableCell>
                                         {!isValidated && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => onDeleteExercise(selectedSession.id, exercise.id)}><X className="h-4 w-4" /></Button>}
                                       </TableCell>
@@ -1211,7 +1231,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               </TableCell>
                                               <TableCell className="py-1"><Input value={serie.tempo} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "tempo", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "tempo")} placeholder={exercise.tempo || "tempo"} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="tempo" /></TableCell>
                                               <TableCell className="py-1"><Input value={serie.commentaire} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "commentaire", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "commentaire")} placeholder="..." disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="commentaire" /></TableCell>
-                                              <TableCell colSpan={3} />
+                                              <TableCell colSpan={4} />
                                             </TableRow>
                                           );
                                         })}

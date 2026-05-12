@@ -4256,6 +4256,7 @@ export default function ClientDetail() {
               setSelectedMethodologyCycle={setSelectedMethodologyCycle}
               setMethodologyStep={setMethodologyStep}
               setMethodologyMaxes={setMethodologyMaxes}
+              onToggleSuperSet={handleToggleSuperSet}
               onCancelMethodology={handleCancelMethodology}
             />
 
