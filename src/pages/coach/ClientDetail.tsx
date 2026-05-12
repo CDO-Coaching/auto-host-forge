@@ -166,7 +166,7 @@ export default function ClientDetail() {
   const [isValidated, setIsValidated] = useState(false);
   const [sessionExercises, setSessionExercises] = useState<Record<number, Exercise[]>>({});
   const [undoStack, setUndoStack] = useState<Array<{ sessions: Session[]; sessionExercises: Record<number, Exercise[]> }>>([]);
-  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; unilateral?: boolean; category?: string }>>([]);
+  const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null; unilateral?: boolean; category?: string }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
@@ -2643,6 +2643,13 @@ export default function ClientDetail() {
     }));
   };
 
+  const handleExerciseCreated = (ex: { id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }) => {
+    setLibraryExercises((prev) => {
+      if (prev.some((e) => e.id === ex.id)) return prev;
+      return [...prev, ex].sort((a, b) => a.name.localeCompare(b.name));
+    });
+  };
+
   const handleAddExercise = (sessionId: number) => {
     const currentExercises = sessionExercises[sessionId] || [];
     const session = sessions.find((s) => s.id === sessionId);
@@ -4256,6 +4263,7 @@ export default function ClientDetail() {
               setSelectedMethodologyCycle={setSelectedMethodologyCycle}
               setMethodologyStep={setMethodologyStep}
               setMethodologyMaxes={setMethodologyMaxes}
+              onExerciseCreated={handleExerciseCreated}
               onToggleSuperSet={handleToggleSuperSet}
               onCancelMethodology={handleCancelMethodology}
             />

@@ -291,6 +291,9 @@ export interface DesktopProgViewProps {
   // Récup options
   recuperationOptions: Array<{ value: string; label: string }>;
 
+  // Exercise creation
+  onExerciseCreated: (ex: { id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }) => void;
+
   // Super-set
   onToggleSuperSet: (sessionId: number, exerciseId: number) => void;
 
@@ -333,6 +336,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     cycleInfo, persistentMethodology, persistentMaxes,
     lastWeekData, setShowFeedbackSheet,
     athleteMilestones, recuperationOptions,
+    onExerciseCreated,
     onToggleSuperSet,
     onCancelMethodology, loadMethodologiesForAssignment, setShowMethodologyDialog,
     setSelectedMethodologyId, setSelectedMethodologyWeek,
@@ -897,6 +901,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     onChange={(v) => onExerciseChange(selectedSession.id, exercise.id, "exercice", v)}
                                     exercises={libraryExercises.filter((ex) => ex.category === "mobilité-souplesse" || ex.category === "massage")}
                                     disabled={isValidated}
+                                    onExerciseCreated={onExerciseCreated}
                                   />
                                 </div>
                               </TableCell>
@@ -1011,6 +1016,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                     disabled={isValidated}
                                                     autoOpen={autoOpenExercise?.sessionId === selectedSession.id && autoOpenExercise?.exerciseId === ex.id}
                                                     onAutoOpenHandled={() => setAutoOpenExercise(null)}
+                                                    onExerciseCreated={onExerciseCreated}
                                                   />
                                                   <FeedbackBadge sessionId={selectedSession.id} exerciceName={ex.exercice} />
                                                 </div>
@@ -1137,6 +1143,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               disabled={isValidated}
                                               autoOpen={autoOpenExercise?.sessionId === selectedSession.id && autoOpenExercise?.exerciseId === exercise.id}
                                               onAutoOpenHandled={() => setAutoOpenExercise(null)}
+                                              onExerciseCreated={onExerciseCreated}
                                             />
                                             <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} />
                                           </div>
