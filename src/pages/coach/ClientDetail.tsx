@@ -2660,7 +2660,7 @@ export default function ClientDetail() {
     const newExercise: Exercise = {
       id: newExerciseId,
       exercice: isCardio ? "Séance Cardio" : "",
-      recuperation: "",
+      recuperation: isCardio ? "" : "1min30s",
       reps: "",
       series: "",
       charge: "",
