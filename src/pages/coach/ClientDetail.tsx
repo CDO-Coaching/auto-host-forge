@@ -2674,9 +2674,29 @@ export default function ClientDetail() {
     }, 200);
   };
 
+  /** Normalise un nom d'exercice pour la comparaison (minuscules + accents + espaces) */
+  const normExName = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
   /**
-   * Estime le RPE à partir de la charge et des répétitions, en utilisant
-   * la formule inverse de Brzycki : RPE = reps + (charge × 36 / 1RM) - 27
+   * Retourne le 1RM de référence pour un exercice donné.
+   * Priorité : maxes méthodologie (persistentMaxes) > 1RM perso (athleteMaxes).
+   * La comparaison est insensible à la casse et aux accents.
+   */
+  const getMax1RM = (exerciseName: string): number | null => {
+    const normName = normExName(exerciseName);
+    const methEntry = Object.values(persistentMaxes).find(
+      (m) => normExName(m.exercise_name) === normName,
+    );
+    if (methEntry && methEntry.reference_max > 0) return methEntry.reference_max;
+    const athMax = athleteMaxes[exerciseName] ?? null;
+    return athMax && athMax > 0 ? athMax : null;
+  };
+
+  /**
+   * Estime le RPE à partir de la charge et des répétitions.
+   * Utilise la formule inverse d'Epley (plus précise sur 1-5 reps) :
+   *   RPE = 10 - (1RM/charge - 1) × 30 + reps
    * Retourne null si les données sont insuffisantes ou si aucun 1RM n'est connu.
    */
   const estimateRpe = (charge: string, reps: string, exerciseName: string): string | null => {
@@ -2686,14 +2706,11 @@ export default function ClientDetail() {
     const n = parseInt(reps);
     if (!w || !n || isNaN(w) || isNaN(n) || w <= 0 || n <= 0) return null;
 
-    const methEntry = Object.values(persistentMaxes).find(
-      (m) => m.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
-    );
-    const max1RM = methEntry?.reference_max ?? athleteMaxes[exerciseName] ?? null;
-    if (!max1RM || max1RM <= 0) return null;
+    const max1RM = getMax1RM(exerciseName);
+    if (!max1RM) return null;
 
-    // Inverse Brzycki
-    const rawRpe = n + (w * 36) / max1RM - 27;
+    // Inverse Epley : plus fiable sur les faibles répétitions (1-5)
+    const rawRpe = 10 - (max1RM / w - 1) * 30 + n;
     const clamped = Math.max(1, Math.min(10, rawRpe));
     // Arrondi à 0.5 près
     return (Math.round(clamped * 2) / 2).toString();
@@ -2708,12 +2725,8 @@ export default function ClientDetail() {
     const pctMatch = rawValue.match(/^(\d+(?:\.\d+)?)\s*%$/);
     if (!pctMatch) return rawValue;
     const pct = parseFloat(pctMatch[1]);
-    // 1. Maxes méthodologie
-    const methEntry = Object.values(persistentMaxes).find(
-      (m) => m.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
-    );
-    const max = methEntry?.reference_max ?? athleteMaxes[exerciseName] ?? null;
-    if (!max || max <= 0) return rawValue; // pas de max connu → garde le %
+    const max = getMax1RM(exerciseName);
+    if (!max) return rawValue; // pas de max connu → garde le %
     return String(Math.round((pct * max) / 100));
   };
 
