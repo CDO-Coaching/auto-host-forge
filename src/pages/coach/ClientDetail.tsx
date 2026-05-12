@@ -1251,6 +1251,23 @@ export default function ClientDetail() {
     toast.success(`Séance créée`);
   };
 
+  const handleCancelMethodology = async () => {
+    if (!persistentActiveAssignment?.id) return;
+    try {
+      await supabase
+        .from("athlete_methodology_assignments")
+        .update({ status: "cancelled" })
+        .eq("id", persistentActiveAssignment.id);
+    } catch { /* best-effort */ }
+    // Clear local state
+    setPersistentActiveAssignment(null);
+    setPersistentMethodology(null);
+    setPersistentMaxes({});
+    // Clear localStorage cache
+    try { localStorage.removeItem(`coach-active-methodology-${athleteId}`); } catch { /* ignore */ }
+    toast.success("Méthodologie retirée");
+  };
+
   const loadMethodologiesForAssignment = async () => {
     setLoadingMethodologies(true);
     try {
@@ -4232,6 +4249,7 @@ export default function ClientDetail() {
               setSelectedMethodologyCycle={setSelectedMethodologyCycle}
               setMethodologyStep={setMethodologyStep}
               setMethodologyMaxes={setMethodologyMaxes}
+              onCancelMethodology={handleCancelMethodology}
             />
 
           {/* Dialog méthodologie */}

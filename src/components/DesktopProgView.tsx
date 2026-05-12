@@ -222,6 +222,7 @@ export interface DesktopProgViewProps {
   recuperationOptions: Array<{ value: string; label: string }>;
 
   // Methodology dialog
+  onCancelMethodology: () => void;
   loadMethodologiesForAssignment: () => void;
   setShowMethodologyDialog: (v: boolean) => void;
   setSelectedMethodologyId: (v: string) => void;
@@ -259,7 +260,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     cycleInfo, persistentMethodology, persistentMaxes,
     lastWeekData, setShowFeedbackSheet,
     athleteMilestones, recuperationOptions,
-    loadMethodologiesForAssignment, setShowMethodologyDialog,
+    onCancelMethodology, loadMethodologiesForAssignment, setShowMethodologyDialog,
     setSelectedMethodologyId, setSelectedMethodologyWeek,
     setSelectedMethodologyCycle, setMethodologyStep, setMethodologyMaxes,
   } = props;
@@ -392,9 +393,22 @@ export function DesktopProgView(props: DesktopProgViewProps) {
 
         {/* Cycle badge */}
         {cycleInfo && (
-          <Badge variant="outline" className="text-[10px] border-primary/50 text-primary font-medium">
-            {persistentMethodology?.name} — C{cycleInfo.cycleNum} · S{cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
-          </Badge>
+          <div className="flex items-center gap-1">
+            <Badge variant="outline" className="text-[10px] border-primary/50 text-primary font-medium">
+              {persistentMethodology?.name} — C{cycleInfo.cycleNum} · S{cycleInfo.weekInCycle}/{cycleInfo.weeksPerCycle}
+            </Badge>
+            {!isValidated && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 w-5 p-0 text-muted-foreground/50 hover:text-destructive"
+                onClick={onCancelMethodology}
+                title="Retirer la méthodologie"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         )}
 
         <div className="flex-1" />
