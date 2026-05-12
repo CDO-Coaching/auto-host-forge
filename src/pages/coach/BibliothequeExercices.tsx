@@ -3,7 +3,7 @@ import { PENDING_COMPLETION_KEY } from "@/components/ExerciseCombobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Dumbbell, ExternalLink, Pencil } from "lucide-react";
+import { Plus, Search, Dumbbell, ExternalLink, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -67,6 +67,7 @@ export default function BibliothequeExercices() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Exercise | null>(null);
   const pendingHandled = useRef(false);
   const [newExercise, setNewExercise] = useState({
     name: "",
@@ -249,6 +250,18 @@ export default function BibliothequeExercices() {
   const openEditDialog = (exercise: Exercise) => {
     setEditingExercise({...exercise});
     setEditDialogOpen(true);
+  };
+
+  const handleDeleteExercise = async () => {
+    if (!deleteConfirm) return;
+    const { error } = await supabase.from("exercise_library").delete().eq("id", deleteConfirm.id);
+    if (error) {
+      toast.error("Erreur lors de la suppression");
+    } else {
+      toast.success(`"${deleteConfirm.name}" supprimé`);
+      setDeleteConfirm(null);
+      loadExercises();
+    }
   };
 
   const toggleSecondaryMuscle = (muscle: string, isEditing: boolean = false) => {
@@ -524,6 +537,14 @@ export default function BibliothequeExercices() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setDeleteConfirm(exercise)}
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                   {exercise.category && (
@@ -608,6 +629,14 @@ export default function BibliothequeExercices() {
                           onClick={() => openEditDialog(exercise)}
                         >
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(exercise)}
+                          className="text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </TableCell>
@@ -772,6 +801,25 @@ export default function BibliothequeExercices() {
               </Button>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmation de suppression */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer l'exercice ?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">"{deleteConfirm?.name}"</span> sera définitivement supprimé de la bibliothèque. Cette action est irréversible.
+          </p>
+          <div className="flex gap-2 justify-end mt-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDeleteExercise}>
+              <Trash2 className="h-4 w-4 mr-2" />
+              Supprimer
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
