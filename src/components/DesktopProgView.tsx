@@ -383,6 +383,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
           className={btnCls}
           disabled={isValidated || count <= 1}
           tabIndex={-1}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={decrement}
         >
           <Minus className="h-3 w-3" />
@@ -394,6 +395,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
           className={btnCls}
           disabled={isValidated || count >= 10}
           tabIndex={-1}
+          onMouseDown={(e) => e.preventDefault()}
           onClick={increment}
         >
           <Plus className="h-3 w-3" />
