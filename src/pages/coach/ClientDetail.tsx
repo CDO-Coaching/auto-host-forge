@@ -2675,6 +2675,31 @@ export default function ClientDetail() {
   };
 
   /**
+   * Estime le RPE à partir de la charge et des répétitions, en utilisant
+   * la formule inverse de Brzycki : RPE = reps + (charge × 36 / 1RM) - 27
+   * Retourne null si les données sont insuffisantes ou si aucun 1RM n'est connu.
+   */
+  const estimateRpe = (charge: string, reps: string, exerciseName: string): string | null => {
+    // Ne pas calculer si la charge est encore un % non résolu
+    if (!charge || charge.includes("%")) return null;
+    const w = parseFloat(charge);
+    const n = parseInt(reps);
+    if (!w || !n || isNaN(w) || isNaN(n) || w <= 0 || n <= 0) return null;
+
+    const methEntry = Object.values(persistentMaxes).find(
+      (m) => m.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
+    );
+    const max1RM = methEntry?.reference_max ?? athleteMaxes[exerciseName] ?? null;
+    if (!max1RM || max1RM <= 0) return null;
+
+    // Inverse Brzycki
+    const rawRpe = n + (w * 36) / max1RM - 27;
+    const clamped = Math.max(1, Math.min(10, rawRpe));
+    // Arrondi à 0.5 près
+    return (Math.round(clamped * 2) / 2).toString();
+  };
+
+  /**
    * Résout "78%" en kg si un max est connu pour cet exercice.
    * Priorité : maxes méthodologie (persistentMaxes) > 1RM perso (athleteMaxes).
    * Retourne la valeur inchangée si pas de max ou si la valeur n'est pas un %.
@@ -2768,7 +2793,18 @@ export default function ClientDetail() {
             field === "charge" && typeof value === "string"
               ? resolvePercentCharge(value, ex.exercice)
               : value;
-          return { ...ex, [field]: finalValue, ...extraUpdates };
+
+          const update: Partial<Exercise> = { [field]: finalValue, ...extraUpdates };
+
+          // Auto-estimate RPE when charge or reps changes (only if a 1RM is known)
+          if (field === "charge" || field === "reps") {
+            const newCharge = field === "charge" ? (finalValue as string) : ex.charge;
+            const newReps   = field === "reps"   ? (value as string)      : ex.reps;
+            const estimated = estimateRpe(newCharge, newReps, ex.exercice);
+            if (estimated !== null) update.rpe = estimated;
+          }
+
+          return { ...ex, ...update };
         }
         return ex;
       });
@@ -2827,7 +2863,18 @@ export default function ClientDetail() {
             field === "charge"
               ? resolvePercentCharge(value, ex.exercice)
               : value;
-          details[serieIndex] = { ...details[serieIndex], [field]: finalValue };
+
+          const serieUpdate: Partial<SerieDetail> = { [field]: finalValue };
+
+          // Auto-estimate RPE per-serie when charge or reps changes
+          if (field === "charge" || field === "reps") {
+            const newCharge = field === "charge" ? finalValue : (details[serieIndex].charge || ex.charge);
+            const newReps   = field === "reps"   ? finalValue : (details[serieIndex].reps   || ex.reps);
+            const estimated = estimateRpe(newCharge, newReps, ex.exercice);
+            if (estimated !== null) serieUpdate.rpe = estimated;
+          }
+
+          details[serieIndex] = { ...details[serieIndex], ...serieUpdate };
         }
         return { ...ex, serie_details: details };
       });
