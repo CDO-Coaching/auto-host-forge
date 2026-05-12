@@ -97,6 +97,74 @@ interface Exercise {
   request_video?: boolean;
   serie_details?: SerieDetail[] | string;
 }
+// ── SeriesStepper — defined at module level so React identity is stable ───────
+interface StepperProps {
+  sessionId: number;
+  exercise: Exercise;
+  compact?: boolean;
+  isValidated: boolean;
+  onExerciseChange: (sessionId: number, exerciseId: number, field: string, value: string) => void;
+  onAddExercise: (sessionId: number) => void;
+}
+
+function SeriesStepper({
+  sessionId, exercise, compact = false,
+  isValidated, onExerciseChange, onAddExercise,
+}: StepperProps) {
+  const count = parseInt(exercise.series) || 0;
+  const btnCls = compact ? "h-6 w-6 p-0 rounded-sm" : "h-7 w-7 p-0";
+  const spanCls = compact
+    ? "text-xs font-semibold w-5 text-center tabular-nums"
+    : "text-sm font-semibold w-6 text-center tabular-nums select-none";
+
+  const decrement = () => {
+    if (!isValidated && count > 1)
+      onExerciseChange(sessionId, exercise.id, "series", String(count - 1));
+  };
+  const increment = () => {
+    if (!isValidated && count < 10)
+      onExerciseChange(sessionId, exercise.id, "series", String(count + 1));
+  };
+
+  return (
+    <div
+      className="flex items-center gap-0.5 rounded-md"
+      tabIndex={isValidated ? -1 : 0}
+      data-session={sessionId}
+      data-exercise={exercise.id}
+      data-field="series"
+      onKeyDown={(e) => {
+        if (isValidated) return;
+        if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); increment(); }
+        else if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); decrement(); }
+        else if (e.key === "Enter") { e.preventDefault(); onAddExercise(sessionId); }
+      }}
+      onFocus={(e) => { e.currentTarget.style.outline = "2px solid hsl(var(--ring))"; e.currentTarget.style.outlineOffset = "2px"; }}
+      onBlur={(e) => { e.currentTarget.style.outline = ""; e.currentTarget.style.outlineOffset = ""; }}
+    >
+      <Button
+        variant="ghost" size="sm" className={btnCls}
+        disabled={isValidated || count <= 1}
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={decrement}
+      >
+        <Minus className="h-3 w-3" />
+      </Button>
+      <span className={spanCls}>{count > 0 ? count : "—"}</span>
+      <Button
+        variant="ghost" size="sm" className={btnCls}
+        disabled={isValidated || count >= 10}
+        tabIndex={-1}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={increment}
+      >
+        <Plus className="h-3 w-3" />
+      </Button>
+    </div>
+  );
+}
+
 interface Session {
   id: number;
   name: string;
@@ -328,78 +396,6 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             {fb.sportif_comment && <span className="italic">"{fb.sportif_comment}"</span>}
           </div>
         )}
-      </div>
-    );
-  };
-
-  // ── Series stepper — preserves per-serie edits ────────────────────────────
-  const SeriesStepper = ({
-    sessionId,
-    exercise,
-    compact = false,
-  }: {
-    sessionId: number;
-    exercise: Exercise;
-    compact?: boolean;
-  }) => {
-    const count = parseInt(exercise.series) || 0;
-    const btnCls = compact
-      ? "h-6 w-6 p-0 rounded-sm"
-      : "h-7 w-7 p-0";
-    const spanCls = compact
-      ? "text-xs font-semibold w-5 text-center tabular-nums"
-      : "text-sm font-semibold w-6 text-center tabular-nums select-none";
-
-    const decrement = () => {
-      if (!isValidated && count > 1)
-        onExerciseChange(sessionId, exercise.id, "series", String(count - 1));
-    };
-    const increment = () => {
-      if (!isValidated && count < 10)
-        onExerciseChange(sessionId, exercise.id, "series", String(count + 1));
-    };
-
-    return (
-      <div
-        className="flex items-center gap-0.5"
-        /* Keyboard navigation: arrows change value, Enter creates next exercise */
-        tabIndex={isValidated ? -1 : 0}
-        data-session={sessionId}
-        data-exercise={exercise.id}
-        data-field="series"
-        onKeyDown={(e) => {
-          if (isValidated) return;
-          if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); increment(); }
-          else if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); decrement(); }
-          else if (e.key === "Enter") { e.preventDefault(); onAddExercise(sessionId); }
-        }}
-        onFocus={(e) => e.currentTarget.style.outline = "2px solid hsl(var(--ring))"}
-        onBlur={(e) => e.currentTarget.style.outline = ""}
-        style={{ borderRadius: "6px" }}
-      >
-        <Button
-          variant="ghost"
-          size="sm"
-          className={btnCls}
-          disabled={isValidated || count <= 1}
-          tabIndex={-1}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={decrement}
-        >
-          <Minus className="h-3 w-3" />
-        </Button>
-        <span className={spanCls}>{count > 0 ? count : "—"}</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className={btnCls}
-          disabled={isValidated || count >= 10}
-          tabIndex={-1}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={increment}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
       </div>
     );
   };
@@ -980,7 +976,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       <TableCell>
                                         <div>
                                           <label className="text-xs text-muted-foreground mb-1 block">Séries communes</label>
-                                          <SeriesStepper sessionId={selectedSession.id} exercise={exercise} compact />
+                                          <SeriesStepper sessionId={selectedSession.id} exercise={exercise} compact isValidated={isValidated} onExerciseChange={onExerciseChange} onAddExercise={onAddExercise} />
                                         </div>
                                       </TableCell>
                                       <TableCell colSpan={2} />
@@ -1185,7 +1181,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         <Input value={exercise.commentaire} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "commentaire", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "commentaire")} placeholder="Notes..." disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="commentaire" />
                                       </TableCell>
                                       <TableCell>
-                                        <SeriesStepper sessionId={selectedSession.id} exercise={exercise} />
+                                        <SeriesStepper sessionId={selectedSession.id} exercise={exercise} isValidated={isValidated} onExerciseChange={onExerciseChange} onAddExercise={onAddExercise} />
                                       </TableCell>
                                       <TableCell className="text-center">
                                         <Checkbox checked={exercise.request_video || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_video", c === true)} disabled={isValidated} title="Demander une vidéo" />
