@@ -3275,8 +3275,8 @@ export default function ClientDetail() {
     if (e.key === "Enter") {
       e.preventDefault();
 
-      if (field === "series") {
-        // Séries est la dernière colonne, Entrée crée une nouvelle ligne
+      if (field === "series" || field === "commentaire") {
+        // Commentaire et séries sont les derniers champs — Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
       } else {
         // Pour les autres champs, passer au champ suivant
