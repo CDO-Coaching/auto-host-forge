@@ -2674,6 +2674,24 @@ export default function ClientDetail() {
     }, 200);
   };
 
+  /**
+   * Résout "78%" en kg si un max est connu pour cet exercice.
+   * Priorité : maxes méthodologie (persistentMaxes) > 1RM perso (athleteMaxes).
+   * Retourne la valeur inchangée si pas de max ou si la valeur n'est pas un %.
+   */
+  const resolvePercentCharge = (rawValue: string, exerciseName: string): string => {
+    const pctMatch = rawValue.match(/^(\d+(?:\.\d+)?)\s*%$/);
+    if (!pctMatch) return rawValue;
+    const pct = parseFloat(pctMatch[1]);
+    // 1. Maxes méthodologie
+    const methEntry = Object.values(persistentMaxes).find(
+      (m) => m.exercise_name.toLowerCase() === exerciseName.toLowerCase(),
+    );
+    const max = methEntry?.reference_max ?? athleteMaxes[exerciseName] ?? null;
+    if (!max || max <= 0) return rawValue; // pas de max connu → garde le %
+    return String(Math.round((pct * max) / 100));
+  };
+
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
     // Determine extra updates synchronously (unilateral check)
     let extraUpdates: Partial<Exercise> = {};
@@ -2746,7 +2764,11 @@ export default function ClientDetail() {
 
       const updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId) {
-          return { ...ex, [field]: value, ...extraUpdates };
+          const finalValue =
+            field === "charge" && typeof value === "string"
+              ? resolvePercentCharge(value, ex.exercice)
+              : value;
+          return { ...ex, [field]: finalValue, ...extraUpdates };
         }
         return ex;
       });
@@ -2801,7 +2823,11 @@ export default function ClientDetail() {
         if (ex.id !== exerciseId) return ex;
         const details = [...(ex.serie_details || [])];
         if (details[serieIndex]) {
-          details[serieIndex] = { ...details[serieIndex], [field]: value };
+          const finalValue =
+            field === "charge"
+              ? resolvePercentCharge(value, ex.exercice)
+              : value;
+          details[serieIndex] = { ...details[serieIndex], [field]: finalValue };
         }
         return { ...ex, serie_details: details };
       });
