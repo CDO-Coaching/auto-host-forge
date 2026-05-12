@@ -2706,7 +2706,11 @@ export default function ClientDetail() {
       (m) => normExName(m.exercise_name) === normName,
     );
     if (methEntry && methEntry.reference_max > 0) return methEntry.reference_max;
-    const athMax = athleteMaxes[exerciseName] ?? null;
+    // Cherche dans les maxes perso en ignorant casse et accents
+    const athEntry = Object.entries(athleteMaxes).find(
+      ([name]) => normExName(name) === normName,
+    );
+    const athMax = athEntry?.[1] ?? null;
     return athMax && athMax > 0 ? athMax : null;
   };
 
@@ -2726,9 +2730,12 @@ export default function ClientDetail() {
     const max1RM = getMax1RM(exerciseName);
     if (!max1RM) return null;
 
-    // Inverse Epley : plus fiable sur les faibles répétitions (1-5)
+    // Inverse Epley : RIR = (1RM/w - 1)×30 - n  →  RPE = 10 - RIR
     const rawRpe = 10 - (max1RM / w - 1) * 30 + n;
-    const clamped = Math.max(1, Math.min(10, rawRpe));
+    // Seuil minimal : ne pas auto-remplir pour les charges légères (RPE < 5)
+    // car l'estimation est peu fiable et inutile pour les échauffements.
+    if (rawRpe < 5) return null;
+    const clamped = Math.max(5, Math.min(10, rawRpe));
     // Arrondi à 0.5 près
     return (Math.round(clamped * 2) / 2).toString();
   };
