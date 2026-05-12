@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { PENDING_COMPLETION_KEY } from "@/components/ExerciseCombobox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,6 +67,7 @@ export default function BibliothequeExercices() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const pendingHandled = useRef(false);
   const [newExercise, setNewExercise] = useState({
     name: "",
     category: "",
@@ -97,7 +99,23 @@ export default function BibliothequeExercices() {
       toast.error("Erreur lors du chargement des exercices");
       console.error(error);
     } else {
-      setExercises(data || []);
+      const list = data || [];
+      setExercises(list);
+
+      // Open edit dialog for exercises created on the fly that need completion
+      if (!pendingHandled.current) {
+        try {
+          const pending: string[] = JSON.parse(localStorage.getItem(PENDING_COMPLETION_KEY) ?? "[]");
+          if (pending.length > 0) {
+            const target = list.find((ex) => ex.id === pending[0]);
+            if (target) {
+              pendingHandled.current = true;
+              localStorage.setItem(PENDING_COMPLETION_KEY, JSON.stringify(pending.slice(1)));
+              setTimeout(() => { setEditingExercise(target); setEditDialogOpen(true); }, 300);
+            }
+          }
+        } catch {}
+      }
     }
     setLoading(false);
   };

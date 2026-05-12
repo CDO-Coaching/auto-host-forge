@@ -19,6 +19,15 @@ import { toast } from "sonner";
 const RECENT_KEY = "exercise-recent";
 const RECENT_MAX = 8;
 
+// Exercises created on the fly that need completion in BibliothequeExercices
+export const PENDING_COMPLETION_KEY = "exercises-pending-completion";
+export function pushPendingCompletion(id: string) {
+  try {
+    const existing: string[] = JSON.parse(localStorage.getItem(PENDING_COMPLETION_KEY) ?? "[]");
+    if (!existing.includes(id)) localStorage.setItem(PENDING_COMPLETION_KEY, JSON.stringify([...existing, id]));
+  } catch {}
+}
+
 function getRecent(): string[] {
   try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); } catch { return []; }
 }
@@ -124,8 +133,9 @@ export function ExerciseCombobox({
         .single();
       if (error) throw error;
       onExerciseCreated?.(data as LibraryExercise);
+      pushPendingCompletion(data.id);
       handleSelect(data.name);
-      toast.success(`"${data.name}" ajouté à la bibliothèque`);
+      toast.success(`"${data.name}" ajouté — complète la fiche dans la Bibliothèque`);
     } catch {
       toast.error("Impossible de créer l'exercice");
     } finally {
