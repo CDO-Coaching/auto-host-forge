@@ -4099,6 +4099,20 @@ export default function ClientDetail() {
                 <div className="divide-y divide-border/20">
                   {activeMesos.map((meso) => {
                     const phase = getPhase(meso.phase_type);
+                    // Week position in phase
+                    const mesoStart = new Date(meso.start_date);
+                    const mesoEnd   = new Date(meso.end_date);
+                    const totalMesoDays = Math.round((mesoEnd.getTime() - mesoStart.getTime()) / 86400000) + 1;
+                    const totalMesoWeeks = Math.max(1, Math.ceil(totalMesoDays / 7));
+                    const daysSinceStart = Math.max(0, Math.floor((today.getTime() - mesoStart.getTime()) / 86400000));
+                    const currentMesoWeek = Math.min(Math.floor(daysSinceStart / 7) + 1, totalMesoWeeks);
+                    // Next upcoming milestone
+                    const nextMilestone = athleteMilestones
+                      .filter(m => !m.completed && new Date(m.target_date) >= today)
+                      .sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime())[0];
+                    const daysToMilestone = nextMilestone
+                      ? Math.ceil((new Date(nextMilestone.target_date).getTime() - today.getTime()) / 86400000)
+                      : null;
                     return (
                       <div key={meso.id} className="px-4 py-3 flex items-start gap-3" style={{ borderLeft: `3px solid ${phase.color}` }}>
                         <div className="flex-1 min-w-0 space-y-1.5">
@@ -4108,6 +4122,12 @@ export default function ClientDetail() {
                             <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${phase.color}20`, color: phase.color }}>
                               {phase.label}
                             </span>
+                            <span className="text-xs text-muted-foreground">Sem. {currentMesoWeek}/{totalMesoWeeks}</span>
+                            {daysToMilestone !== null && (
+                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium">
+                                {daysToMilestone === 0 ? "Objectif aujourd'hui" : daysToMilestone === 1 ? "Objectif demain" : `J-${daysToMilestone} · ${nextMilestone.label}`}
+                              </span>
+                            )}
                           </div>
                           {meso.objective && <p className="text-xs text-muted-foreground italic">{meso.objective}</p>}
                           <div className="flex items-center gap-4 flex-wrap">
