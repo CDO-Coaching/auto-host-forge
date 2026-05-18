@@ -112,6 +112,11 @@ export function CardioStepBuilder({
 }: CardioStepBuilderProps) {
   const [blocks, setBlocks] = useState<CardioBlock[]>(initialBlocks);
   const [selectedSteps, setSelectedSteps] = useState<number[]>([]);
+
+  // Sync internal blocks state when the prop changes (e.g. after week copy or DB load)
+  useEffect(() => {
+    setBlocks(initialBlocks);
+  }, [JSON.stringify(initialBlocks)]);
   const [draggedStepId, setDraggedStepId] = useState<number | null>(null);
 
   // Calcule l'allure en min/km à partir du pourcentage de VMA
