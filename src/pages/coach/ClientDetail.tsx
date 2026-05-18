@@ -2861,9 +2861,9 @@ export default function ClientDetail() {
           }
 
           // Propagate main-line value changes to all serie_details.
-          // Skipped for commentaire/tempo which are intentionally per-serie.
+          // Skipped for tempo which is intentionally per-serie.
           if (
-            (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation") &&
+            (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation" || field === "commentaire") &&
             typeof finalValue === "string"
           ) {
             const details = getSerieDetailsArray(ex.serie_details);
