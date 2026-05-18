@@ -391,6 +391,24 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     return null;
   };
 
+  const sessionDistance = (s: Session) => {
+    if (s.session_type !== "cardio") return null;
+    const exs = sessionExercises[s.id] ?? [];
+    let totalKm = 0;
+    for (const ex of exs) {
+      if (!ex.cardio_content) continue;
+      try {
+        const parsed = JSON.parse(ex.cardio_content);
+        const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+        totalKm += calculateCardioMetrics(data, athleteVma).totalDistanceKm;
+      } catch { /* ignore */ }
+    }
+    if (totalKm <= 0) return null;
+    return totalKm >= 1
+      ? `${totalKm.toFixed(1)} km`
+      : `${Math.round(totalKm * 1000)} m`;
+  };
+
   // ── Inline feedback display (closure over copiedWeekFeedback) ─────────────
   const FeedbackBadge = ({ sessionId, exerciceName }: { sessionId: number; exerciceName: string }) => {
     const fb = getExerciseFeedback(sessionId, exerciceName);
@@ -593,6 +611,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[calc(100vh-360px)] pr-0.5 smooth-scroll">
               {sessions.map((session) => {
                 const dur = sessionDuration(session);
+                const dist = sessionDistance(session);
                 const exs = sessionExercises[session.id] ?? [];
                 const exCount = exs.length;
                 const isSelected = expandedSessionId === session.id;
@@ -674,7 +693,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             {sessionTypeLabel(session.session_type)}
                           </Badge>
                           <span className="text-[9px] text-muted-foreground">
-                            {exCount} ex{dur ? ` · ${dur}` : ""}
+                            {exCount} ex{dur ? ` · ${dur}` : ""}{dist ? ` · ${dist}` : ""}
                           </span>
                         </div>
                       </div>

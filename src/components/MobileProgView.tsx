@@ -8,6 +8,7 @@ import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
+import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardioCalculations";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
@@ -385,6 +386,28 @@ function SessionCard({
   })();
   const cardioSport = (cardioExercise?.cardio_sport as "course" | "velo" | "natation" | undefined) || "course";
 
+  // Distance & durée pour séances cardio
+  const cardioStats = (() => {
+    if (session.session_type !== "cardio") return null;
+    let totalKm = 0;
+    let totalSec = 0;
+    for (const ex of exercises) {
+      if (!(ex as any).cardio_content) continue;
+      try {
+        const parsed = JSON.parse((ex as any).cardio_content);
+        const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+        const m = calculateCardioMetrics(data, athleteVma);
+        totalKm += m.totalDistanceKm;
+        totalSec += m.totalDurationMinutes * 60;
+      } catch { /* ignore */ }
+    }
+    if (totalKm <= 0 && totalSec <= 0) return null;
+    return {
+      dist: totalKm >= 1 ? `${totalKm.toFixed(1)} km` : totalKm > 0 ? `${Math.round(totalKm * 1000)} m` : null,
+      dur: totalSec > 0 ? formatCardioSessionDuration(Math.round(totalSec)) : null,
+    };
+  })();
+
   // Completion status from athlete data (direct exercise fields)
   const completionStatus: "none" | "partial" | "full" = (() => {
     if (exercises.length === 0) return "none";
@@ -436,7 +459,11 @@ function SessionCard({
             </div>
             <p className="text-sm text-muted-foreground">
               {exercises.length > 0
-                ? `${exercises.length} exercice${exercises.length > 1 ? "s" : ""}`
+                ? [
+                    `${exercises.length} exercice${exercises.length > 1 ? "s" : ""}`,
+                    cardioStats?.dist,
+                    cardioStats?.dur,
+                  ].filter(Boolean).join(" · ")
                 : "Vide — tap pour ajouter"}
             </p>
           </div>
