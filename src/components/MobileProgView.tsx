@@ -385,6 +385,31 @@ function SessionCard({
   })();
   const cardioSport = (cardioExercise?.cardio_sport as "course" | "velo" | "natation" | undefined) || "course";
 
+  // Completion status from feedback
+  const completionStatus: "none" | "partial" | "full" = (() => {
+    if (exercises.length === 0) return "none";
+    const doneCount = exercises.filter((ex) => {
+      const fb = copiedWeekFeedback?.[`${session.id}-${ex.exercice}`];
+      return (
+        fb?.skipped === true ||
+        (fb?.sportif_rpe != null && fb.sportif_rpe !== "") ||
+        (ex as any).skipped === true ||
+        (ex as any).actual_distance_km != null ||
+        (ex as any).actual_duration_minutes != null
+      );
+    }).length;
+    if (doneCount === 0) return "none";
+    if (doneCount === exercises.length) return "full";
+    return "partial";
+  })();
+
+  const statusDot =
+    completionStatus === "full"
+      ? "bg-emerald-500"
+      : completionStatus === "partial"
+      ? "bg-amber-400"
+      : "bg-muted-foreground/30";
+
   return (
     <>
       {/* Carte tap pour ouvrir */}
@@ -395,6 +420,17 @@ function SessionCard({
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
+              {/* Completion dot */}
+              <div
+                className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${statusDot}`}
+                title={
+                  completionStatus === "full"
+                    ? "Séance terminée"
+                    : completionStatus === "partial"
+                    ? "Séance partiellement faite"
+                    : "Non effectuée"
+                }
+              />
               <span className="text-base font-bold">{session.name}</span>
               <Badge variant="outline" className={cn("text-xs", cfg.color)}>
                 {cfg.emoji} {cfg.label}

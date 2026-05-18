@@ -593,8 +593,35 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[calc(100vh-360px)] pr-0.5 smooth-scroll">
               {sessions.map((session) => {
                 const dur = sessionDuration(session);
-                const exCount = sessionExercises[session.id]?.length ?? 0;
+                const exs = sessionExercises[session.id] ?? [];
+                const exCount = exs.length;
                 const isSelected = expandedSessionId === session.id;
+
+                // Completion status from feedback data
+                const completionStatus: "none" | "partial" | "full" = (() => {
+                  if (exCount === 0) return "none";
+                  const doneCount = exs.filter((ex) => {
+                    const fb = copiedWeekFeedback[`${session.id}-${ex.exercice}`];
+                    return (
+                      fb?.skipped === true ||
+                      (fb?.sportif_rpe != null && fb.sportif_rpe !== "") ||
+                      ex.skipped ||
+                      (ex as any).actual_distance_km != null ||
+                      (ex as any).actual_duration_minutes != null
+                    );
+                  }).length;
+                  if (doneCount === 0) return "none";
+                  if (doneCount === exCount) return "full";
+                  return "partial";
+                })();
+
+                const statusDot =
+                  completionStatus === "full"
+                    ? "bg-emerald-500"
+                    : completionStatus === "partial"
+                    ? "bg-amber-400"
+                    : "bg-muted-foreground/30";
+
                 return (
                   <div
                     key={session.id}
@@ -610,6 +637,17 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                     onDrop={(e) => onSessionDrop(e, session.id)}
                   >
                     <div className="flex items-start gap-1.5">
+                      {/* Completion dot */}
+                      <div
+                        className={`w-2 h-2 rounded-full flex-shrink-0 mt-1.5 ${statusDot}`}
+                        title={
+                          completionStatus === "full"
+                            ? "Séance terminée"
+                            : completionStatus === "partial"
+                            ? "Séance partiellement faite"
+                            : "Non effectuée"
+                        }
+                      />
                       {!isValidated && (
                         <GripVertical className="h-3.5 w-3.5 mt-1 text-muted-foreground cursor-grab flex-shrink-0" />
                       )}
