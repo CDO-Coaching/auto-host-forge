@@ -34,6 +34,7 @@ import {
   CreditCard,
   Footprints,
   BookOpen,
+  Bot,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -80,6 +81,7 @@ import { VoiceCommandButton } from "@/components/VoiceCommandButton";
 import type { VoiceChanges } from "@/lib/parseVoiceCommand";
 import { MobileProgView } from "@/components/MobileProgView";
 import { DesktopProgView } from "@/components/DesktopProgView";
+import { CoachCardioAIChat, type AIChatContext } from "@/components/CoachCardioAIChat";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -206,6 +208,7 @@ export default function ClientDetail() {
   const [showExerciseProgressSheet, setShowExerciseProgressSheet] = useState(false);
   const [showRunningSheet, setShowRunningSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
+  const [showCardioAIChat, setShowCardioAIChat] = useState(false);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
@@ -4187,6 +4190,18 @@ export default function ClientDetail() {
                 </SheetContent>
               </Sheet>
             )}
+
+            {/* Bouton IA Cardio */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
+              onClick={() => setShowCardioAIChat(true)}
+            >
+              <Bot className="h-4 w-4 mr-1 text-primary" />
+              <span className="text-xs">IA Cardio</span>
+            </Button>
+
             </div>
           </div>
 
@@ -4675,6 +4690,65 @@ export default function ClientDetail() {
             </DialogContent>
           </Dialog>
           </div>{/* end hidden sm:block */}
+
+          {/* ── IA Cardio chat panel ────────────────────────────────── */}
+          {(() => {
+            const today = new Date();
+            // Find active mesocycle for context
+            const activeMeso = athleteMesocycles.find(
+              (m) => today >= new Date(m.start_date) && today <= new Date(m.end_date)
+            );
+
+            const aiChatContext: AIChatContext = {
+              athleteName: `${athlete?.first_name || ""} ${athlete?.last_name || ""}`.trim() || "l'athlète",
+              athleteVma: athleteVma ?? undefined,
+              selectedWeek: selectedWeekToProgram,
+              mesocycleName: activeMeso?.name,
+              phaseType: activeMeso?.phase_type,
+              sessions: sessions.map((s) => {
+                const exs = sessionExercises[s.id] || [];
+                let cardioSummary: string | undefined;
+                if (s.session_type === "cardio" && exs.length > 0) {
+                  let totalKm = 0;
+                  let totalSec = 0;
+                  const intensities: number[] = [];
+                  for (const ex of exs) {
+                    if (!(ex as any).cardio_content) continue;
+                    try {
+                      const parsed = JSON.parse((ex as any).cardio_content);
+                      const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+                      const m = calculateCardioMetrics(data, athleteVma);
+                      totalKm += m.totalDistanceKm;
+                      totalSec += m.totalDurationMinutes * 60;
+                      if (m.averageIntensity) intensities.push(m.averageIntensity);
+                    } catch { /* ignore */ }
+                  }
+                  const parts: string[] = [];
+                  if (totalKm > 0) parts.push(totalKm >= 1 ? `${totalKm.toFixed(1)} km` : `${Math.round(totalKm * 1000)} m`);
+                  if (totalSec > 0) parts.push(formatCardioSessionDuration(Math.round(totalSec)));
+                  if (intensities.length > 0) {
+                    const avg = Math.round(intensities.reduce((a, b) => a + b, 0) / intensities.length);
+                    parts.push(`~${avg}% VMA`);
+                  }
+                  cardioSummary = parts.join(" · ");
+                }
+                return {
+                  name: s.name,
+                  type: s.session_type,
+                  exerciseCount: exs.length,
+                  cardioSummary,
+                };
+              }),
+            };
+
+            return (
+              <CoachCardioAIChat
+                open={showCardioAIChat}
+                onOpenChange={setShowCardioAIChat}
+                context={aiChatContext}
+              />
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="efforts" className="space-y-4">
