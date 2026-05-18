@@ -2860,24 +2860,15 @@ export default function ClientDetail() {
             if (estimated !== null) update.rpe = estimated;
           }
 
-          // Propagate main-line value changes to serie_details:
-          // Only update a serie field if it was empty OR matched the old main-line value
-          // (i.e. not individually customised). Skipped for commentaire/tempo.
+          // Propagate main-line value changes to all serie_details.
+          // Skipped for commentaire/tempo which are intentionally per-serie.
           if (
             (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation") &&
             typeof finalValue === "string"
           ) {
             const details = getSerieDetailsArray(ex.serie_details);
             if (details.length > 0) {
-              const oldMainValue = ex[field as keyof Exercise] as string ?? "";
-              const propagatedDetails = details.map((s) => {
-                const serieVal = s[field as keyof SerieDetail] ?? "";
-                if (serieVal === "" || serieVal === oldMainValue) {
-                  return { ...s, [field]: finalValue };
-                }
-                return s;
-              });
-              update.serie_details = propagatedDetails;
+              update.serie_details = details.map((s) => ({ ...s, [field]: finalValue }));
             }
           }
 
