@@ -385,19 +385,17 @@ function SessionCard({
   })();
   const cardioSport = (cardioExercise?.cardio_sport as "course" | "velo" | "natation" | undefined) || "course";
 
-  // Completion status from feedback
+  // Completion status from athlete data (direct exercise fields)
   const completionStatus: "none" | "partial" | "full" = (() => {
     if (exercises.length === 0) return "none";
-    const doneCount = exercises.filter((ex) => {
-      const fb = copiedWeekFeedback?.[`${session.id}-${ex.exercice}`];
-      return (
-        fb?.skipped === true ||
-        (fb?.sportif_rpe != null && fb.sportif_rpe !== "") ||
-        (ex as any).skipped === true ||
-        (ex as any).actual_distance_km != null ||
-        (ex as any).actual_duration_minutes != null
-      );
-    }).length;
+    const doneCount = exercises.filter((ex: any) =>
+      ex.skipped === true ||
+      ex.sportif_rpe != null ||
+      ex.actual_distance_km != null ||
+      ex.actual_duration_minutes != null ||
+      ex.actual_pace_min_per_km != null ||
+      ex.actual_avg_heart_rate != null
+    ).length;
     if (doneCount === 0) return "none";
     if (doneCount === exercises.length) return "full";
     return "partial";

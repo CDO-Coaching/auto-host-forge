@@ -597,19 +597,17 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                 const exCount = exs.length;
                 const isSelected = expandedSessionId === session.id;
 
-                // Completion status from feedback data
+                // Completion status from athlete data (direct exercise fields)
                 const completionStatus: "none" | "partial" | "full" = (() => {
                   if (exCount === 0) return "none";
-                  const doneCount = exs.filter((ex) => {
-                    const fb = copiedWeekFeedback[`${session.id}-${ex.exercice}`];
-                    return (
-                      fb?.skipped === true ||
-                      (fb?.sportif_rpe != null && fb.sportif_rpe !== "") ||
-                      ex.skipped ||
-                      (ex as any).actual_distance_km != null ||
-                      (ex as any).actual_duration_minutes != null
-                    );
-                  }).length;
+                  const doneCount = exs.filter((ex: any) =>
+                    ex.skipped === true ||
+                    ex.sportif_rpe != null ||
+                    ex.actual_distance_km != null ||
+                    ex.actual_duration_minutes != null ||
+                    ex.actual_pace_min_per_km != null ||
+                    ex.actual_avg_heart_rate != null
+                  ).length;
                   if (doneCount === 0) return "none";
                   if (doneCount === exCount) return "full";
                   return "partial";
