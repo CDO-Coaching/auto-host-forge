@@ -626,6 +626,33 @@ export default function ClientDetail() {
 
       setSessions(newSessions);
       setSessionExercises(newExercises);
+
+      // Populate copiedWeekFeedback from DB exercise feedback fields
+      const feedbackMap: Record<string, {
+        sportif_rpe?: string | null;
+        sportif_comment?: string | null;
+        skipped?: boolean;
+        serie_rpe_details?: { rpe: number | null }[] | null;
+      }> = {};
+      sessionsData.forEach((s, sessionIdx) => {
+        const sessionId = sessionIdx + 1;
+        (s.session_exercises || []).forEach((ex: any) => {
+          const hasFeedback =
+            ex.sportif_rpe != null ||
+            ex.sportif_comment != null ||
+            ex.skipped === true ||
+            (ex.serie_rpe_details && ex.serie_rpe_details.length > 0);
+          if (hasFeedback && ex.exercice) {
+            feedbackMap[`${sessionId}-${ex.exercice}`] = {
+              sportif_rpe: ex.sportif_rpe ?? null,
+              sportif_comment: ex.sportif_comment ?? null,
+              skipped: ex.skipped ?? false,
+              serie_rpe_details: ex.serie_rpe_details ?? null,
+            };
+          }
+        });
+      });
+      setCopiedWeekFeedback(feedbackMap);
     } catch (err) {
       console.error("Erreur chargement semaine:", err);
     } finally {
