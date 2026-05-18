@@ -269,6 +269,10 @@ export interface DesktopProgViewProps {
   handleCopyPreviousWeek: () => void;
   setShowCopyDialog: (v: boolean) => void;
 
+  // All training weeks (for visual indicators)
+  allTrainingWeeks?: Array<{ week_number: number; year: number; validated: boolean }>;
+  isLoadingWeek?: boolean;
+
   // Multi-week
   multiWeekMode: boolean;
   multiWeekCurrent: number;
@@ -341,6 +345,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     onCancelMethodology, loadMethodologiesForAssignment, setShowMethodologyDialog,
     setSelectedMethodologyId, setSelectedMethodologyWeek,
     setSelectedMethodologyCycle, setMethodologyStep, setMethodologyMaxes,
+    allTrainingWeeks = [], isLoadingWeek = false,
   } = props;
 
   const selectedSession = sessions.find((s) => s.id === expandedSessionId) ?? null;
@@ -415,9 +420,20 @@ export function DesktopProgView(props: DesktopProgViewProps) {
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={goToPrevWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-semibold min-w-[180px] text-center">
-            S.{selectedWeek.week} {weekMonday ? `— ${formatWeekRange(weekMonday)}` : `/ ${selectedWeek.year}`}
-          </span>
+          <div className="flex flex-col items-center min-w-[180px]">
+            <span className="text-sm font-semibold">
+              S.{selectedWeek.week} {weekMonday ? `— ${formatWeekRange(weekMonday)}` : `/ ${selectedWeek.year}`}
+            </span>
+            {(() => {
+              const dbWeek = allTrainingWeeks.find(
+                (w) => w.week_number === selectedWeek.week && w.year === selectedWeek.year
+              );
+              if (isLoadingWeek) return <span className="text-[10px] text-muted-foreground animate-pulse">Chargement…</span>;
+              if (dbWeek?.validated) return <span className="text-[10px] text-emerald-600 font-medium">✓ Validée</span>;
+              if (dbWeek) return <span className="text-[10px] text-amber-500 font-medium">● En cours</span>;
+              return <span className="text-[10px] text-muted-foreground">Vide</span>;
+            })()}
+          </div>
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={goToNextWeek}>
             <ChevronRight className="h-4 w-4" />
           </Button>

@@ -51,12 +51,40 @@ export function getNextWeeks(count: number = 12) {
     const targetDate = addWeeks(mondayOfCurrentWeek, i);
     const weekNum = getWeekNumber(targetDate);
     const year = getWeekYear(targetDate); // Utilise l'année ISO de la semaine
-    weeks.push({ 
-      week: weekNum, 
-      year, 
+    weeks.push({
+      week: weekNum,
+      year,
       date: targetDate,
       monday: getMondayOfWeek(targetDate),
       sunday: getSundayOfWeek(targetDate)
+    });
+  }
+
+  return weeks;
+}
+
+/**
+ * Génère une plage de semaines couvrant pastWeeks semaines passées et futureWeeks semaines futures
+ * @param pastWeeks Nombre de semaines passées à inclure
+ * @param futureWeeks Nombre de semaines futures à inclure
+ * @returns Liste ordonnée des semaines (passé → futur) avec numéro, année et date
+ */
+export function getWeeksRange(pastWeeks: number = 52, futureWeeks: number = 12) {
+  const weeks = [];
+  const today = new Date();
+  const mondayOfCurrentWeek = getMondayOfWeek(today);
+  const total = pastWeeks + futureWeeks + 1; // +1 for current week
+
+  for (let i = -pastWeeks; i <= futureWeeks; i++) {
+    const targetDate = addWeeks(mondayOfCurrentWeek, i);
+    const weekNum = getWeekNumber(targetDate);
+    const year = getWeekYear(targetDate);
+    weeks.push({
+      week: weekNum,
+      year,
+      date: targetDate,
+      monday: getMondayOfWeek(targetDate),
+      sunday: getSundayOfWeek(targetDate),
     });
   }
 

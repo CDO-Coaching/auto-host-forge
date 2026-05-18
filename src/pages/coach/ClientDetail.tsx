@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,7 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
-import { getWeekNumber, getNextWeeks, formatWeekRange, getWeekYear } from "@/lib/weekUtils";
+import { getWeekNumber, getNextWeeks, getWeeksRange, formatWeekRange, getWeekYear } from "@/lib/weekUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -168,9 +168,11 @@ export default function ClientDetail() {
   const [undoStack, setUndoStack] = useState<Array<{ sessions: Session[]; sessionExercises: Record<number, Exercise[]> }>>([]);
   const [libraryExercises, setLibraryExercises] = useState<Array<{ id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null; unilateral?: boolean; category?: string }>>([]);
   const [historicalWeeks, setHistoricalWeeks] = useState<any[]>([]);
+  const [allTrainingWeeks, setAllTrainingWeeks] = useState<any[]>([]); // all weeks (validated or not)
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
   const [customSessions, setCustomSessions] = useState<any[]>([]);
+  const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
@@ -245,7 +247,39 @@ export default function ClientDetail() {
   const [pendingCopyData, setPendingCopyData] = useState<any>(null);
 
   const currentWeekNumber = getWeekNumber(new Date());
-  const availableWeeks = getNextWeeks(12);
+
+  // Build available weeks: all weeks from earliest known training week (or 52 past) up to 12 future
+  const availableWeeks = useMemo(() => {
+    const baseRange = getWeeksRange(52, 12);
+    if (allTrainingWeeks.length === 0) return baseRange;
+
+    // Find the earliest week in the DB
+    const earliestDbYear = Math.min(...allTrainingWeeks.map((w: any) => w.year));
+    const earliestDbWeek = Math.min(
+      ...allTrainingWeeks.filter((w: any) => w.year === earliestDbYear).map((w: any) => w.week_number)
+    );
+
+    // Check if baseRange already covers it
+    const firstInBase = baseRange[0];
+    if (
+      earliestDbYear > firstInBase.year ||
+      (earliestDbYear === firstInBase.year && earliestDbWeek >= firstInBase.week)
+    ) {
+      return baseRange;
+    }
+
+    // Calculate how many more past weeks we need
+    const today = new Date();
+    const currentWeek = getWeekNumber(today);
+    const currentYear = getWeekYear(today);
+
+    // Approximate weeks difference (conservative)
+    const yearDiff = currentYear - earliestDbYear;
+    const weekDiff = currentWeek - earliestDbWeek;
+    const totalPastWeeks = yearDiff * 52 + weekDiff + 4; // +4 buffer
+
+    return getWeeksRange(Math.max(52, totalPastWeeks), 12);
+  }, [allTrainingWeeks]);
 
   // Compute which methodology cycle week the selected programming week corresponds to
   const getMethodologyCycleInfo = () => {
@@ -402,6 +436,7 @@ export default function ClientDetail() {
     loadAthleteData();
     loadLibraryExercises();
     loadHistoricalWeeks();
+    loadAllTrainingWeeks();
     loadAthleteMaxes();
     loadCustomSessions();
     loadLastWeekFeedback();
@@ -410,34 +445,15 @@ export default function ClientDetail() {
     loadHeaderInjury();
     loadSessionTemplates();
     loadPersistentActiveAssignment();
-    
-    // Restaurer les données sauvegardées localement
-    const savedData = localStorage.getItem(`coach-programming-${athleteId}`);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.sessions) setSessions(parsed.sessions);
-        if (parsed.sessionExercises) setSessionExercises(parsed.sessionExercises);
-        if (parsed.selectedWeekToProgram) setSelectedWeekToProgram(parsed.selectedWeekToProgram);
-        if (parsed.copiedWeekFeedback) setCopiedWeekFeedback(parsed.copiedWeekFeedback);
-      } catch (error) {
-        console.error("Erreur lors de la restauration des données:", error);
-      }
-    }
   }, [athleteId]);
 
-  // Sauvegarder automatiquement les données localement
+  // When selected week changes, load its data from DB
   useEffect(() => {
-    if (athleteId && (sessions.length > 0 || Object.keys(sessionExercises).length > 0)) {
-      const dataToSave = {
-        sessions,
-        sessionExercises,
-        selectedWeekToProgram,
-        copiedWeekFeedback,
-      };
-      localStorage.setItem(`coach-programming-${athleteId}`, JSON.stringify(dataToSave));
-    }
-  }, [sessions, sessionExercises, selectedWeekToProgram, copiedWeekFeedback, athleteId]);
+    if (!athleteId || !selectedWeekToProgram) return;
+    loadWeekFromDB(selectedWeekToProgram.week, selectedWeekToProgram.year);
+  }, [selectedWeekToProgram.week, selectedWeekToProgram.year, athleteId]);
+
+  // Note: sessions are now loaded from DB on week change; localStorage save is disabled
 
   const loadSessionTemplates = async () => {
     const { data, error } = await supabase
@@ -484,6 +500,136 @@ export default function ClientDetail() {
         return true;
       });
       setHistoricalWeeks(unique);
+    }
+  };
+
+  const loadAllTrainingWeeks = async () => {
+    if (!athleteId) return;
+
+    const { data, error } = await supabase
+      .from("training_weeks")
+      .select("id, week_number, year, validated, validated_at, created_at")
+      .eq("athlete_id", athleteId)
+      .order("year", { ascending: false })
+      .order("week_number", { ascending: false });
+
+    if (error) {
+      console.error("Erreur lors du chargement des semaines:", error);
+      return;
+    }
+
+    // Deduplicate: keep only the latest entry per (week_number, year)
+    const seen = new Set<string>();
+    const unique = (data || []).filter((w: any) => {
+      const key = `${w.year}-${w.week_number}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    setAllTrainingWeeks(unique);
+  };
+
+  // Load sessions from DB for a given week (used for past or navigated weeks)
+  const loadWeekFromDB = async (week: number, year: number) => {
+    if (!athleteId) return;
+    setIsLoadingWeek(true);
+    try {
+      // Find the training_week record
+      const { data: weekRecords } = await supabase
+        .from("training_weeks")
+        .select("*")
+        .eq("athlete_id", athleteId)
+        .eq("week_number", week)
+        .eq("year", year)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const weekRecord = weekRecords?.[0] ?? null;
+
+      if (!weekRecord) {
+        // No data for this week → clear sessions
+        setSessions([]);
+        setSessionExercises({});
+        setIsValidated(false);
+        return;
+      }
+
+      setIsValidated(!!weekRecord.validated);
+
+      // Load sessions for this week
+      const { data: sessionsData, error } = await supabase
+        .from("training_sessions")
+        .select("*, session_exercises (*)")
+        .eq("week_id", weekRecord.id)
+        .order("session_number");
+
+      if (error) throw error;
+
+      if (!sessionsData || sessionsData.length === 0) {
+        setSessions([]);
+        setSessionExercises({});
+        return;
+      }
+
+      const newSessions: Session[] = sessionsData.map((s, idx) => {
+        let sessionType = s.session_type;
+        if (!sessionType && s.session_exercises?.length > 0) {
+          sessionType = s.session_exercises.some(
+            (ex: any) => ex.cardio_sport || ex.cardio_content || ex.cardio_pace
+          ) ? "cardio" : "renfo";
+        }
+        return {
+          id: idx + 1,
+          name: s.name,
+          isExpanded: false,
+          session_type: sessionType || "renfo",
+        };
+      });
+
+      const newExercises: Record<number, Exercise[]> = {};
+      sessionsData.forEach((s, sessionIdx) => {
+        const sessionId = sessionIdx + 1;
+        if (s.session_exercises) {
+          newExercises[sessionId] = s.session_exercises
+            .sort((a: any, b: any) => a.exercise_order - b.exercise_order)
+            .map((ex: any) => ({
+              id: ex.id,
+              exercice: ex.exercice || "",
+              series: ex.series || "",
+              reps: ex.reps || "",
+              charge: ex.charge || "",
+              rpe: ex.rpe || "",
+              recuperation: ex.recuperation || "",
+              tempo: ex.tempo || "",
+              commentaire: ex.commentaire || "",
+              exercise_order: ex.exercise_order || 0,
+              superset_group: ex.superset_group || null,
+              serie_details: ex.serie_details || null,
+              sportif_rpe: ex.sportif_rpe || null,
+              sportif_comment: ex.sportif_comment || null,
+              skipped: ex.skipped || false,
+              exercise_library_id: ex.exercise_library_id || null,
+              cardio_sport: ex.cardio_sport || null,
+              cardio_content: ex.cardio_content || null,
+              cardio_pace: ex.cardio_pace || null,
+              cardio_duration: ex.cardio_duration || null,
+              cardio_distance: ex.cardio_distance || null,
+              cardio_avg_heart_rate: ex.cardio_avg_heart_rate || null,
+              actual_distance_km: ex.actual_distance_km || null,
+              actual_duration_minutes: ex.actual_duration_minutes || null,
+              actual_pace_min_per_km: ex.actual_pace_min_per_km || null,
+              actual_avg_heart_rate: ex.actual_avg_heart_rate || null,
+              serie_rpe_details: ex.serie_rpe_details || null,
+            }));
+        }
+      });
+
+      setSessions(newSessions);
+      setSessionExercises(newExercises);
+    } catch (err) {
+      console.error("Erreur chargement semaine:", err);
+    } finally {
+      setIsLoadingWeek(false);
     }
   };
 
@@ -801,17 +947,16 @@ export default function ClientDetail() {
   };
 
   const handleDeleteWeek = async () => {
-    if (!selectedHistoricalWeek || !athleteId) return;
+    if (!selectedWeekToProgram || !athleteId) return;
 
     try {
       // Supprimer toutes les semaines correspondant au même couple (athlete_id, week_number, year)
-      // (utile si des doublons ont été créés)
       const { data: weeksToDelete, error: weeksError } = await supabase
         .from("training_weeks")
         .select("id")
         .eq("athlete_id", athleteId)
-        .eq("week_number", selectedHistoricalWeek.week_number)
-        .eq("year", selectedHistoricalWeek.year);
+        .eq("week_number", selectedWeekToProgram.week)
+        .eq("year", selectedWeekToProgram.year);
 
       if (weeksError) throw weeksError;
 
@@ -861,22 +1006,16 @@ export default function ClientDetail() {
 
       toast.success("Semaine supprimée définitivement");
 
-      // Retirer immédiatement de la liste (UX + évite les effets de cache)
-      setHistoricalWeeks((prev) =>
-        prev.filter(
-          (w) => !(w.week_number === selectedHistoricalWeek.week_number && w.year === selectedHistoricalWeek.year),
-        ),
-      );
-
-      // Réinitialiser l'état
-      setSelectedHistoricalWeek(null);
-      setHistoricalSessions([]);
-      setIsEditingHistorical(false);
+      // Clear local state
+      setSessions([]);
+      setSessionExercises({});
+      setIsValidated(false);
       setShowDeleteWeekDialog(false);
 
-      // Recharger l'historique (petit délai pour laisser la suppression se propager)
+      // Recharger les semaines disponibles
       await new Promise((r) => setTimeout(r, 250));
       await loadHistoricalWeeks();
+      await loadAllTrainingWeeks();
     } catch (error) {
       console.error("Erreur lors de la suppression:", error);
       toast.error("Erreur lors de la suppression de la semaine");
@@ -2070,6 +2209,7 @@ export default function ClientDetail() {
       }
 
       toast.success(`Semaine S${selectedWeekToProgram.week} validée et envoyée au sportif !`);
+      setIsValidated(true);
 
       // Multi-week mode: advance to next week keeping sessions
       if (multiWeekMode && multiWeekCurrent < multiWeekTotal) {
@@ -2103,8 +2243,9 @@ export default function ClientDetail() {
         localStorage.removeItem(`coach-programming-${athleteId}`);
       }
 
-      // Recharger l'historique et les retours
+      // Recharger l'historique, les retours, et les semaines disponibles
       await loadHistoricalWeeks();
+      await loadAllTrainingWeeks();
       await loadCustomSessions();
       await loadLastWeekFeedback();
     } catch (error) {
@@ -3521,7 +3662,6 @@ export default function ClientDetail() {
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
               <TabsTrigger value="methodologies" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Méthodo</TabsTrigger>
-              <TabsTrigger value="historique" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Historique</TabsTrigger>
               <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
             </TabsList>
           </div>
@@ -4310,6 +4450,8 @@ export default function ClientDetail() {
               onExerciseCreated={handleExerciseCreated}
               onToggleSuperSet={handleToggleSuperSet}
               onCancelMethodology={handleCancelMethodology}
+              allTrainingWeeks={allTrainingWeeks}
+              isLoadingWeek={isLoadingWeek}
             />
 
           {/* Dialog méthodologie */}
@@ -4624,1038 +4766,6 @@ export default function ClientDetail() {
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
           />
-        </TabsContent>
-
-        <TabsContent value="historique" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Historique des semaines d'entraînement</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {historicalWeeks.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">
-                  Aucune semaine d'entraînement validée pour le moment.
-                </p>
-              ) : (
-                <>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Sélectionner une semaine</label>
-                    <select
-                      className="w-full p-2 border rounded-md bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                      value={selectedHistoricalWeek?.id || ""}
-                      onChange={(e) => handleSelectHistoricalWeek(e.target.value)}
-                    >
-                      <option value="">-- Choisir une semaine --</option>
-                      {historicalWeeks.map((week) => (
-                        <option key={week.id} value={week.id}>
-                          Semaine {week.week_number} - {week.year} (validée le{" "}
-                          {new Date(week.validated_at).toLocaleDateString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {selectedHistoricalWeek && (
-                    <div className="space-y-4">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-3 sm:p-4 bg-muted/50 rounded-lg">
-                        <div className="space-y-1 sm:space-y-2">
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                            <h3 className="font-semibold text-sm sm:text-base">
-                              Semaine {selectedHistoricalWeek.week_number} - {selectedHistoricalWeek.year}
-                            </h3>
-                            {(() => {
-                              const weekSessions = historicalSessions.filter((s: any) => s.week_id === selectedHistoricalWeek.id);
-                              if (weekSessions.length === 0) return null;
-                              
-                              let totalSessionCount = weekSessions.length;
-                              let completedSessionCount = 0;
-                              
-                              weekSessions.forEach((s: any) => {
-                                const exercises = s.session_exercises || [];
-                                
-                                // Pour les sessions Récup/Mobilité
-                                if (s.session_type === "recup") {
-                                  if (s.duration_minutes !== null && s.duration_minutes !== undefined) {
-                                    completedSessionCount++;
-                                  }
-                                  return;
-                                }
-                                
-                                // Pour les autres séances: vérifier si tous les exercices sont complétés (avec RPE, données cardio, ou skipped)
-                                if (exercises.length > 0) {
-                                  const allCompleted = exercises.every((ex: any) => 
-                                    ex.sportif_rpe !== null || 
-                                    ex.actual_distance_km !== null || 
-                                    ex.actual_duration_minutes !== null || 
-                                    ex.actual_pace_min_per_km !== null || 
-                                    ex.actual_avg_heart_rate !== null ||
-                                    ex.skipped === true
-                                  );
-                                  if (allCompleted) {
-                                    completedSessionCount++;
-                                  }
-                                }
-                              });
-                              
-                              if (completedSessionCount === 0) {
-                                return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
-                              } else if (completedSessionCount === totalSessionCount) {
-                                return <Badge className="bg-green-600 text-white text-xs">Semaine terminée</Badge>;
-                              } else {
-                                return <Badge className="bg-orange-500 text-white text-xs">En cours ({completedSessionCount}/{totalSessionCount})</Badge>;
-                              }
-                            })()}
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground">
-                            Validée le {new Date(selectedHistoricalWeek.validated_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {!isEditingHistorical ? (
-                            <Button onClick={handleStartEditingHistorical} variant="outline" size="sm" className="text-xs sm:text-sm">
-                              Modifier
-                            </Button>
-                          ) : (
-                            <>
-                              <Button onClick={handleSaveHistoricalChanges} variant="default" size="sm" className="text-xs sm:text-sm">
-                                <Check className="h-4 w-4 mr-1 sm:mr-2" />
-                                Enregistrer
-                              </Button>
-                              <Button onClick={handleCancelEditingHistorical} variant="outline" size="sm" className="text-xs sm:text-sm">
-                                Annuler
-                              </Button>
-                              <Button onClick={() => setShowDeleteWeekDialog(true)} variant="destructive" size="sm" className="text-xs sm:text-sm">
-                                <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
-                                <span className="hidden sm:inline">Supprimer la semaine</span>
-                                <span className="sm:hidden">Supprimer</span>
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {isEditingHistorical && (
-                          <Card className="bg-primary/5 border-primary/20">
-                            <CardContent className="pt-4">
-                              <div className="space-y-3">
-                                <div className="flex flex-wrap gap-2">
-                                  <Button
-                                    variant={newHistoricalSessionType === "renfo" ? "default" : "outline"}
-                                    onClick={() => setNewHistoricalSessionType("renfo")}
-                                    size="sm"
-                                    className="text-xs sm:text-sm"
-                                  >
-                                    Renfo
-                                  </Button>
-                                  <Button
-                                    variant={newHistoricalSessionType === "cardio" ? "default" : "outline"}
-                                    onClick={() => setNewHistoricalSessionType("cardio")}
-                                    size="sm"
-                                    className="text-xs sm:text-sm"
-                                  >
-                                    Cardio
-                                  </Button>
-                                  <Button
-                                    variant={newHistoricalSessionType === "recup" ? "default" : "outline"}
-                                    onClick={() => setNewHistoricalSessionType("recup")}
-                                    size="sm"
-                                    className="text-xs sm:text-sm"
-                                  >
-                                    Récup
-                                  </Button>
-                                </div>
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                  <Input
-                                    placeholder="Nom de la séance"
-                                    value={newHistoricalSessionName}
-                                    onChange={(e) => setNewHistoricalSessionName(e.target.value)}
-                                    onKeyPress={(e) => e.key === "Enter" && handleAddHistoricalSession()}
-                                    className="flex-1"
-                                  />
-                                  <Button onClick={handleAddHistoricalSession} size="sm" className="w-full sm:w-auto">
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Ajouter séance
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-
-                        {historicalSessions.map((session) => (
-                          <div key={session.id} className="border rounded-lg">
-                            <div
-                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/50 transition-colors gap-2"
-                              onClick={() => toggleHistoricalSession(session.id)}
-                            >
-                              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                                {expandedHistoricalSessionId === session.id ? (
-                                  <ChevronDown className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
-                                )}
-                                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                                  <span className="font-medium text-sm sm:text-base">{session.name}</span>
-                                  {session.session_type === "renfo" && session.session_exercises?.length > 0 && (
-                                    <span className="text-xs sm:text-sm text-muted-foreground">
-                                      ({formatSessionDuration(calculateSessionDuration(session.session_exercises))})
-                                    </span>
-                                  )}
-                                </div>
-                                <Badge variant={session.session_type === "cardio" ? "secondary" : session.session_type === "recup" ? "outline" : "outline"} className="text-xs">
-                                  {session.session_type === "cardio" ? "Cardio" : session.session_type === "recup" ? "Récup" : "Renfo"}
-                                </Badge>
-                                {(() => {
-                                  const exercises = session.session_exercises || [];
-                                  if (exercises.length === 0) return null;
-                                  
-                                  // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
-                                  if (session.session_type === "recup") {
-                                    if (session.duration_minutes !== null && session.duration_minutes !== undefined) {
-                                      return <Badge className="bg-green-600 text-white text-xs">Terminée</Badge>;
-                                    }
-                                    return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
-                                  }
-                                  
-                                  // Pour les autres séances: compter les exercices avec feedback
-                                  const completedCount = exercises.filter((ex: any) => 
-                                    ex.sportif_rpe !== null || 
-                                    ex.actual_distance_km !== null || 
-                                    ex.actual_duration_minutes !== null || 
-                                    ex.actual_pace_min_per_km !== null || 
-                                    ex.actual_avg_heart_rate !== null
-                                  ).length;
-                                  const skippedCount = exercises.filter((ex: any) => 
-                                    ex.skipped === true && 
-                                    !ex.sportif_rpe && 
-                                    !ex.actual_distance_km && 
-                                    !ex.actual_duration_minutes &&
-                                    !ex.actual_pace_min_per_km &&
-                                    !ex.actual_avg_heart_rate
-                                  ).length;
-                                  const totalWithFeedback = completedCount + skippedCount;
-                                  
-                                  if (totalWithFeedback === 0) {
-                                    return <Badge variant="outline" className="text-muted-foreground text-xs">Non commencée</Badge>;
-                                  } else if (totalWithFeedback === exercises.length) {
-                                    if (skippedCount > 0) {
-                                      return <Badge className="bg-orange-600 text-white text-xs">Terminée ({skippedCount} non fait{skippedCount > 1 ? 's' : ''})</Badge>;
-                                    }
-                                    return <Badge className="bg-green-600 text-white text-xs">Terminée</Badge>;
-                                  } else {
-                                    return <Badge className="bg-orange-500 text-white text-xs">En cours ({totalWithFeedback}/{exercises.length})</Badge>;
-                                  }
-                                })()}
-                              </div>
-                              <div className="flex items-center gap-2 justify-end">
-                                <Badge variant="outline" className="text-xs">{session.session_exercises?.length || 0} ex.</Badge>
-                                {session.duration_minutes && (
-                                  <Badge variant="secondary" className="text-xs">{session.duration_minutes} min</Badge>
-                                )}
-                                {isEditingHistorical && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteHistoricalSession(session.id);
-                                    }}
-                                    className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-
-                            {expandedHistoricalSessionId === session.id && (
-                              <div className="border-t p-3 sm:p-4 bg-muted/20">
-                                {/* Info de la séance */}
-                                <div className="flex flex-col sm:flex-row sm:gap-6 gap-2 mb-4 p-2 sm:p-3 bg-background rounded-md text-sm">
-                                  {session.completed_at && (
-                                    <div>
-                                      <span className="text-xs sm:text-sm text-muted-foreground">Date: </span>
-                                      <span className="font-medium text-xs sm:text-sm">
-                                        {new Date(session.completed_at).toLocaleDateString()} à{" "}
-                                        {new Date(session.completed_at).toLocaleTimeString()}
-                                      </span>
-                                    </div>
-                                  )}
-                                  {session.duration_minutes && (
-                                    <div>
-                                      <span className="text-xs sm:text-sm text-muted-foreground">Durée: </span>
-                                      <span className="font-medium text-xs sm:text-sm">{session.duration_minutes} min</span>
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="overflow-x-auto -mx-3 px-3 sm:mx-0 sm:px-0">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow>
-                                        {session.session_type === "recup" ? (
-                                          <>
-                                            <TableHead className="text-xs">Exercice</TableHead>
-                                            <TableHead className="text-xs">Durée/Reps</TableHead>
-                                            <TableHead className="text-xs">Comm.</TableHead>
-                                            {isEditingHistorical && <TableHead className="w-[40px]"></TableHead>}
-                                          </>
-                                        ) : (
-                                          <>
-                                            <TableHead className="text-xs min-w-[100px]">Exercice</TableHead>
-                                            <TableHead className="text-xs min-w-[60px]">Récup</TableHead>
-                                            <TableHead className="text-xs min-w-[60px]">Reps</TableHead>
-                                            <TableHead className="text-xs min-w-[50px]">Séries</TableHead>
-                                            <TableHead className="text-xs min-w-[60px]">Charge</TableHead>
-                                            <TableHead className="text-xs min-w-[50px]">RPE</TableHead>
-                                            <TableHead className="text-xs min-w-[60px]">Ressenti</TableHead>
-                                            <TableHead className="text-xs min-w-[60px]">Tempo</TableHead>
-                                            <TableHead className="text-xs min-w-[80px]">Comm.</TableHead>
-                                            <TableHead className="text-xs min-w-[80px]">Retour</TableHead>
-                                            <TableHead className="text-xs min-w-[50px]">Vidéo</TableHead>
-                                            {isEditingHistorical && <TableHead className="w-[40px]"></TableHead>}
-                                          </>
-                                        )}
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {editedHistoricalExercises[session.id] &&
-                                      editedHistoricalExercises[session.id].length > 0 ? (
-                                        (() => {
-                                          const exercises = editedHistoricalExercises[session.id];
-                                          const renderedSupersetHeaders = new Set<string>();
-                                          
-                                          return exercises.map((exercise: any, exIndex: number) => {
-                                          const isCardioExercise = exercise.cardio_sport || exercise.cardio_content;
-                                          const isRecupSession = session.session_type === "recup";
-                                          
-                                          // Superset grouping logic
-                                          const supersetGroup = exercise.super_set_group;
-                                          const isInSuperset = !!supersetGroup;
-                                          const showSupersetHeader = isInSuperset && !renderedSupersetHeaders.has(supersetGroup);
-                                          if (showSupersetHeader) renderedSupersetHeaders.add(supersetGroup);
-                                          
-                                          // Check if this is the last exercise in its superset group
-                                          const isLastInSuperset = isInSuperset && (
-                                            exIndex === exercises.length - 1 || 
-                                            exercises[exIndex + 1]?.super_set_group !== supersetGroup
-                                          );
-                                          
-                                          const supersetExercises = isInSuperset 
-                                            ? exercises.filter((ex: any) => ex.super_set_group === supersetGroup) 
-                                            : [];
-                                          
-                                          if (isRecupSession) {
-                                            // Affichage simplifié pour séances récup/mobilité
-                                            return (
-                                              <TableRow key={exercise.id}>
-                                                <TableCell>
-                                                  {isEditingHistorical ? (
-                                                    <ExerciseCombobox
-                                                      value={exercise.exercice}
-                                                      onChange={(value) =>
-                                                        handleHistoricalExerciseChange(
-                                                          session.id,
-                                                          exercise.id,
-                                                          "exercice",
-                                                          value,
-                                                        )
-                                                      }
-                                                      exercises={libraryExercises.filter(
-                                                        (ex) => ex.category === "mobilité-souplesse" || ex.category === "massage"
-                                                      )}
-                                                    />
-                                                  ) : (
-                                                    <span className="font-medium">{exercise.exercice}</span>
-                                                  )}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {isEditingHistorical ? (
-                                                    <Input
-                                                      value={exercise.reps}
-                                                      onChange={(e) =>
-                                                        handleHistoricalExerciseChange(
-                                                          session.id,
-                                                          exercise.id,
-                                                          "reps",
-                                                          e.target.value,
-                                                        )
-                                                      }
-                                                      placeholder="ex: 3x30sec"
-                                                    />
-                                                  ) : (
-                                                    exercise.reps || "-"
-                                                  )}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {isEditingHistorical ? (
-                                                    <Input
-                                                      value={exercise.commentaire}
-                                                      onChange={(e) =>
-                                                        handleHistoricalExerciseChange(
-                                                          session.id,
-                                                          exercise.id,
-                                                          "commentaire",
-                                                          e.target.value,
-                                                        )
-                                                      }
-                                                      placeholder="Notes..."
-                                                    />
-                                                  ) : (
-                                                    exercise.commentaire || "-"
-                                                  )}
-                                                </TableCell>
-                                                {isEditingHistorical && (
-                                                  <TableCell>
-                                                    <Button
-                                                      variant="ghost"
-                                                      size="sm"
-                                                      onClick={() => handleDeleteHistoricalExercise(exercise.id)}
-                                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                    >
-                                                      <Trash2 className="h-4 w-4" />
-                                                    </Button>
-                                                  </TableCell>
-                                                )}
-                                              </TableRow>
-                                            );
-                                          }
-                                          
-                                          if (isCardioExercise) {
-                                            // Affichage pour exercices cardio
-                                            let cardioData: CardioData = { steps: [], blocks: [] };
-                                            try {
-                                              const parsed = exercise.cardio_content ? JSON.parse(exercise.cardio_content) : { steps: [], blocks: [] };
-                                              cardioData = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
-                                            } catch (e) {
-                                              console.error("Error parsing cardio content:", e);
-                                            }
-
-                                            const estimatedDuration = calculateCardioSessionDuration(cardioData, athleteVma);
-
-                                            return (
-                                              <TableRow key={exercise.id}>
-                                                <TableCell colSpan={isEditingHistorical ? 11 : 10}>
-                                                  <div className="space-y-3 p-3 bg-muted/30 rounded-md">
-                                                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                                                      <span className="font-medium text-lg">{exercise.exercice}</span>
-                                                      {exercise.cardio_sport && (
-                                                        <Badge variant="outline" className="capitalize">
-                                                          {exercise.cardio_sport}
-                                                        </Badge>
-                                                      )}
-                                                      {estimatedDuration > 0 && (
-                                                        <Badge variant="secondary" className="text-xs">
-                                                          Durée estimée: {formatCardioSessionDuration(estimatedDuration)}
-                                                        </Badge>
-                                                      )}
-                                                    </div>
-                                                    
-                                                    {isEditingHistorical ? (
-                                                      // Mode édition avec CardioStepBuilder
-                                                      <>
-                                                        <CardioStepBuilder
-                                                          steps={cardioData.steps}
-                                                          blocks={cardioData.blocks}
-                                                          onChange={(newCardioData) => {
-                                                            handleHistoricalExerciseChange(
-                                                              session.id,
-                                                              exercise.id,
-                                                              "cardio_content",
-                                                              JSON.stringify(newCardioData),
-                                                            );
-                                                          }}
-                                                          athleteVma={athleteVma}
-                                                          sportType={(exercise.cardio_sport === "velo" || exercise.cardio_sport === "natation" || exercise.cardio_sport === "course") ? exercise.cardio_sport : "course"}
-                                                        />
-                                                        
-                                                        <div className="space-y-2 mt-3">
-                                                          <label className="text-sm font-medium">Commentaire</label>
-                                                          <Textarea
-                                                            value={exercise.commentaire || ""}
-                                                            onChange={(e) =>
-                                                              handleHistoricalExerciseChange(
-                                                                session.id,
-                                                                exercise.id,
-                                                                "commentaire",
-                                                                e.target.value,
-                                                              )
-                                                            }
-                                                            placeholder="Ajouter un commentaire pour cette séance..."
-                                                            className="min-h-[80px]"
-                                                          />
-                                                        </div>
-                                                      </>
-                                                    ) : (
-                                                      // Mode lecture seule
-                                                      cardioData.steps.length > 0 ? (
-                                                        <div className="space-y-3">
-                                                          {/* Afficher les blocs et étapes dans l'ordre */}
-                                                          <div className="space-y-2">
-                                                            {(() => {
-                                                              const displayedBlocks = new Set();
-                                                              return cardioData.steps.map((step, stepIdx) => {
-                                                                // Si le step est dans un bloc
-                                                                if (step.block_id) {
-                                                                  // Si on a déjà affiché ce bloc, on le saute
-                                                                  if (displayedBlocks.has(step.block_id)) {
-                                                                    return null;
-                                                                  }
-                                                                  
-                                                                  // Sinon, on affiche le bloc entier
-                                                                  displayedBlocks.add(step.block_id);
-                                                                  const block = cardioData.blocks.find(b => b.id === step.block_id);
-                                                                  if (!block) return null;
-                                                                  
-                                                                  const blockSteps = cardioData.steps.filter(s => s.block_id === step.block_id);
-                                                                  return (
-                                                                    <div key={`block-${step.block_id}`} className="p-3 bg-primary/10 rounded-md border border-primary/20">
-                                                                      <div className="flex items-center gap-2 mb-2">
-                                                                        <Badge className="bg-primary">Bloc répété</Badge>
-                                                                        <span className="text-sm font-medium">{block.repetitions}x</span>
-                                                                      </div>
-                                                                      <div className="space-y-1 ml-4">
-                                                                        {blockSteps.map((blockStep, blockStepIdx) => {
-                                                                          const pace = calculatePace(blockStep.vma_percentage, athleteVma);
-                                                                          return (
-                                                                            <div key={blockStepIdx} className="flex items-center gap-3 text-sm p-1.5 bg-background/50 rounded">
-                                                                              <span className="text-muted-foreground">#{blockStepIdx + 1}</span>
-                                                                              <span className="capitalize">{blockStep.movement_type}</span>
-                                                                              {blockStep.effort_type === "duration" && blockStep.duration && (
-                                                                                <span>{formatCardioTime(blockStep.duration)}</span>
-                                                                              )}
-                                                                              {blockStep.effort_type === "distance" && blockStep.distance && (
-                                                                                <span>{formatCardioDistance(blockStep.distance)}</span>
-                                                                              )}
-                                                                              {pace && (
-                                                                                <span className="text-primary font-medium">{pace}</span>
-                                                                              )}
-                                                                              {blockStep.target_heart_rate && (
-                                                                                <span className="text-orange-600">FC: {blockStep.target_heart_rate}</span>
-                                                                              )}
-                                                                            </div>
-                                                                          );
-                                                                        })}
-                                                                      </div>
-                                                                    </div>
-                                                                  );
-                                                                }
-                                                                
-                                                                // Sinon, c'est une étape individuelle
-                                                                const pace = calculatePace(step.vma_percentage, athleteVma);
-                                                                return (
-                                                                  <div key={stepIdx} className="flex items-center gap-4 text-sm p-2 bg-background rounded border">
-                                                                    <span className="font-medium text-muted-foreground">Étape {stepIdx + 1}:</span>
-                                                                    <span className="capitalize">{step.movement_type}</span>
-                                                                    {step.effort_type === "duration" && step.duration && (
-                                                                      <span>{formatCardioTime(step.duration)}</span>
-                                                                    )}
-                                                                    {step.effort_type === "distance" && step.distance && (
-                                                                      <span>{formatCardioDistance(step.distance)}</span>
-                                                                    )}
-                                                                    {pace && (
-                                                                      <span className="text-primary font-medium">{pace}</span>
-                                                                    )}
-                                                                    {step.target_heart_rate && (
-                                                                      <span className="text-orange-600">FC: {step.target_heart_rate}</span>
-                                                                    )}
-                                                                  </div>
-                                                                );
-                                                              });
-                                                            })()}
-                                                          </div>
-                                                        </div>
-                                                      ) : (
-                                                        <p className="text-sm text-muted-foreground">Aucune donnée cardio enregistrée</p>
-                                                      )
-                                                     )}
-                                                     
-                                                     {/* Commentaire du coach pour la séance cardio */}
-                                                     {exercise.commentaire && (
-                                                       <div className="bg-background p-3 rounded-md border">
-                                                         <span className="text-sm font-medium text-muted-foreground">Commentaire du coach: </span>
-                                                         <p className="text-sm mt-1">{exercise.commentaire}</p>
-                                                       </div>
-                                                     )}
-                                                     
-                                                     <div className="space-y-2 pt-2 border-t">
-                                                       {/* Afficher les données réelles en priorité */}
-                                                       {(exercise.sportif_rpe || exercise.actual_distance_km || exercise.actual_duration_minutes || exercise.actual_pace_min_per_km || exercise.actual_avg_heart_rate) ? (
-                                                         <>
-                                                           <div className="flex gap-4 flex-wrap">
-                                                             {exercise.sportif_rpe && (
-                                                               <div>
-                                                                 <span className="text-sm text-muted-foreground">RPE ressenti: </span>
-                                                                 <span className="font-medium text-primary">{exercise.sportif_rpe}</span>
-                                                               </div>
-                                                             )}
-                                                             {exercise.sportif_comment && (
-                                                               <div>
-                                                                 <span className="text-sm text-muted-foreground">Retour: </span>
-                                                                 <span className="text-sm">{exercise.sportif_comment}</span>
-                                                               </div>
-                                                             )}
-                                                           </div>
-                                                           
-                                                           {/* Données réelles saisies par le sportif */}
-                                                           {(exercise.actual_distance_km || exercise.actual_duration_minutes || exercise.actual_pace_min_per_km || exercise.actual_avg_heart_rate) && (
-                                                             <div className="bg-green-50 dark:bg-green-950/20 p-3 rounded-md border border-green-200 dark:border-green-800">
-                                                               <div className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">Données réelles de la séance</div>
-                                                                <div className="flex gap-4 flex-wrap text-sm">
-                                                                  {exercise.actual_distance_km && (
-                                                                    <div>
-                                                                      <span className="text-muted-foreground">Distance: </span>
-                                                                      <span className="font-medium text-green-900 dark:text-green-100">{exercise.actual_distance_km} km</span>
-                                                                    </div>
-                                                                  )}
-                                                                  {exercise.actual_duration_minutes && (
-                                                                    <div>
-                                                                      <span className="text-muted-foreground">Durée: </span>
-                                                                      <span className="font-medium text-green-900 dark:text-green-100">{exercise.actual_duration_minutes} min</span>
-                                                                    </div>
-                                                                  )}
-                                                                  {exercise.actual_pace_min_per_km && (
-                                                                    <div>
-                                                                      <span className="text-muted-foreground">Allure: </span>
-                                                                      <span className="font-medium text-green-900 dark:text-green-100">{formatPaceFromDecimal(parsePaceToDecimal(exercise.actual_pace_min_per_km)) || exercise.actual_pace_min_per_km}</span>
-                                                                    </div>
-                                                                  )}
-                                                                  {exercise.actual_avg_heart_rate && (
-                                                                    <div>
-                                                                      <span className="text-muted-foreground">FC moy: </span>
-                                                                      <span className="font-medium text-green-900 dark:text-green-100">{exercise.actual_avg_heart_rate} bpm</span>
-                                                                    </div>
-                                                                  )}
-                                                                </div>
-                                                             </div>
-                                                           )}
-                                                         </>
-                                                       ) : exercise.skipped ? (
-                                                         <div className="flex items-center gap-2">
-                                                           <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                                             Exercice non fait
-                                                           </Badge>
-                                                         </div>
-                                                       ) : null}
-                                                     </div>
-                                                  </div>
-                                                </TableCell>
-                                              </TableRow>
-                                            );
-                                          }
-
-                                          // Affichage standard pour exercices renfo
-                                          const renfoRows = [];
-                                          
-                                          // Add superset header row
-                                          if (showSupersetHeader) {
-                                            renfoRows.push(
-                                              <TableRow key={`superset-header-${supersetGroup}`} className="bg-primary/5 border-l-2 border-l-primary">
-                                                <TableCell colSpan={isEditingHistorical ? 12 : 11}>
-                                                  <div className="flex items-center gap-2 py-1">
-                                                    <Badge className="bg-primary text-primary-foreground text-xs">Superset</Badge>
-                                                    <span className="text-xs text-muted-foreground">
-                                                      {supersetExercises.length} exercices · {supersetExercises[0]?.series || "?"} séries
-                                                    </span>
-                                                  </div>
-                                                </TableCell>
-                                              </TableRow>
-                                            );
-                                          }
-                                          
-                                          renfoRows.push(
-                                            <TableRow key={exercise.id} className={isInSuperset ? "border-l-2 border-l-primary bg-primary/[0.02]" : ""}>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <ExerciseCombobox
-                                                    value={exercise.exercice}
-                                                    onChange={(value) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "exercice",
-                                                        value,
-                                                      )
-                                                    }
-                                                    exercises={libraryExercises}
-                                                  />
-                                                ) : (
-                                                  <span className="font-medium">{exercise.exercice}</span>
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Select
-                                                    value={exercise.recuperation}
-                                                    onValueChange={(value) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "recuperation",
-                                                        value,
-                                                      )
-                                                    }
-                                                  >
-                                                    <SelectTrigger>
-                                                      <SelectValue placeholder="Récup" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                      {recuperationOptions.map((option) => (
-                                                        <SelectItem key={option.value} value={option.value}>
-                                                          {option.label}
-                                                        </SelectItem>
-                                                      ))}
-                                                    </SelectContent>
-                                                  </Select>
-                                                ) : (
-                                                  exercise.recuperation || "-"
-                                                )}
-                                              </TableCell>
-                                                            <TableCell>
-                                                              <div className="space-y-2">
-                                                                {isEditingHistorical ? (
-                                                                  <>
-                                                                    <Input
-                                                                      value={exercise.reps}
-                                                                      onChange={(e) =>
-                                                                        handleHistoricalExerciseChange(
-                                                                          session.id,
-                                                                          exercise.id,
-                                                                          "reps",
-                                                                          e.target.value,
-                                                                        )
-                                                                      }
-                                                                      placeholder={exercise.is_duration ? "ex: 20 (sec)" : "ex: 10"}
-                                                                    />
-                                                                    <div className="flex items-center space-x-2">
-                                                                      <Checkbox
-                                                                        id={`historical-is-duration-${session.id}-${exercise.id}`}
-                                                                        checked={exercise.is_duration || false}
-                                                                        onCheckedChange={(checked) =>
-                                                                          handleHistoricalExerciseChange(
-                                                                            session.id,
-                                                                            exercise.id,
-                                                                            "is_duration",
-                                                                            checked as boolean
-                                                                          )
-                                                                        }
-                                                                      />
-                                                                      <label
-                                                                        htmlFor={`historical-is-duration-${session.id}-${exercise.id}`}
-                                                                        className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
-                                                                      >
-                                                                        durée (sec)
-                                                                      </label>
-                                                                    </div>
-                                                                    {exercise.is_unilateral && (
-                                                                      <div className="flex items-center space-x-2">
-                                                                        <Checkbox
-                                                                          id={`historical-per-side-${session.id}-${exercise.id}`}
-                                                                          checked={exercise.per_side || false}
-                                                                          onCheckedChange={(checked) =>
-                                                                            handleHistoricalExerciseChange(
-                                                                              session.id,
-                                                                              exercise.id,
-                                                                              "per_side",
-                                                                              checked as boolean
-                                                                            )
-                                                                          }
-                                                                        />
-                                                                        <label
-                                                                          htmlFor={`historical-per-side-${session.id}-${exercise.id}`}
-                                                                          className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-50 cursor-pointer"
-                                                                        >
-                                                                          par côté
-                                                                        </label>
-                                                                      </div>
-                                                                    )}
-                                                                  </>
-                                                                ) : (
-                                                                  <div className="space-y-1">
-                                                                    <div>{exercise.reps || "-"}{exercise.is_duration ? "s" : ""}</div>
-                                                                    {exercise.is_duration && (
-                                                                      <Badge variant="secondary" className="text-xs">
-                                                                        durée
-                                                                      </Badge>
-                                                                    )}
-                                                                    {exercise.per_side && (
-                                                                      <Badge variant="secondary" className="text-xs">
-                                                                        par côté
-                                                                      </Badge>
-                                                                    )}
-                                                                  </div>
-                                                                )}
-                                                              </div>
-                                                            </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.series}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "series",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 3"
-                                                  />
-                                                ) : (
-                                                  exercise.series || "-"
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.charge}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "charge",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 80kg"
-                                                  />
-                                                ) : (
-                                                  exercise.charge || "-"
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.rpe}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "rpe",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 7"
-                                                  />
-                                                ) : (
-                                                  exercise.rpe || "-"
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                <div className="space-y-1">
-                                                  {exercise.skipped ? (
-                                                    <Badge variant="outline" className="text-orange-600 border-orange-600">
-                                                      Non fait
-                                                    </Badge>
-                                                  ) : (
-                                                    <>
-                                                      <div
-                                                        className={
-                                                          exercise.sportif_rpe
-                                                            ? "font-medium text-primary"
-                                                            : "text-muted-foreground"
-                                                        }
-                                                      >
-                                                        {exercise.sportif_rpe || "-"}
-                                                      </div>
-                                                      {exercise.sportif_feedback_at && (
-                                                        <div className="text-xs text-muted-foreground">
-                                                          {new Date(exercise.sportif_feedback_at).toLocaleDateString()}
-                                                        </div>
-                                                      )}
-                                                    </>
-                                                  )}
-                                                </div>
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.tempo}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "tempo",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="ex: 3010"
-                                                  />
-                                                ) : (
-                                                  exercise.tempo || "-"
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <Input
-                                                    value={exercise.commentaire}
-                                                    onChange={(e) =>
-                                                      handleHistoricalExerciseChange(
-                                                        session.id,
-                                                        exercise.id,
-                                                        "commentaire",
-                                                        e.target.value,
-                                                      )
-                                                    }
-                                                    placeholder="Notes..."
-                                                  />
-                                                ) : (
-                                                  exercise.commentaire || "-"
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {exercise.sportif_comment ? (
-                                                  <div className="max-w-xs">
-                                                    <p className="text-sm whitespace-pre-wrap">
-                                                      {exercise.sportif_comment}
-                                                    </p>
-                                                  </div>
-                                                ) : (
-                                                  <span className="text-muted-foreground">-</span>
-                                                )}
-                                              </TableCell>
-                                              <TableCell>
-                                                {isEditingHistorical ? (
-                                                  <div className="flex items-center justify-center">
-                                                    <Checkbox
-                                                      id={`historical-request-video-${session.id}-${exercise.id}`}
-                                                      checked={exercise.request_video || false}
-                                                      onCheckedChange={(checked) =>
-                                                        handleHistoricalExerciseChange(
-                                                          session.id,
-                                                          exercise.id,
-                                                          "request_video",
-                                                          checked as boolean
-                                                        )
-                                                      }
-                                                    />
-                                                  </div>
-                                                ) : (
-                                                  exercise.request_video ? (
-                                                    <Video className="h-4 w-4 text-primary" />
-                                                  ) : (
-                                                    <span className="text-muted-foreground">-</span>
-                                                  )
-                                                )}
-                                              </TableCell>
-                                              {isEditingHistorical && (
-                                                <TableCell>
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDeleteHistoricalExercise(exercise.id)}
-                                                    className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                                  >
-                                                    <X className="h-4 w-4" />
-                                                  </Button>
-                                                </TableCell>
-                                              )}
-                                            </TableRow>
-                                          );
-                                          
-                                          // Add a spacer row after the last exercise in a superset
-                                          if (isLastInSuperset) {
-                                            renfoRows.push(
-                                              <TableRow key={`superset-spacer-${supersetGroup}`} className="h-1 bg-transparent">
-                                                <TableCell colSpan={isEditingHistorical ? 12 : 11} className="p-0" />
-                                              </TableRow>
-                                            );
-                                          }
-                                          
-                                          return renfoRows;
-                                        });
-                                        })()
-                                      ) : (
-                                        <TableRow>
-                                          <TableCell
-                                            colSpan={isEditingHistorical ? 12 : 11}
-                                            className="text-center text-muted-foreground"
-                                          >
-                                            Aucun exercice
-                                          </TableCell>
-                                        </TableRow>
-                                      )}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-
-                                {isEditingHistorical && (
-                                  <div className="mt-3">
-                                    <Button
-                                      onClick={() => handleAddHistoricalExercise(session.id)}
-                                      variant="outline"
-                                      size="sm"
-                                    >
-                                      <Plus className="h-4 w-4 mr-2" />
-                                      Ajouter un exercice
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-
-                        {/* Séances perso */}
-                        {customSessions.filter(cs => {
-                          const sessionDate = new Date(cs.completed_at);
-                          const weekStart = new Date(selectedHistoricalWeek.year, 0, 1 + (selectedHistoricalWeek.week_number - 1) * 7);
-                          const weekEnd = new Date(weekStart);
-                          weekEnd.setDate(weekStart.getDate() + 6);
-                          return sessionDate >= weekStart && sessionDate <= weekEnd;
-                        }).length > 0 && (
-                          <div className="mt-6">
-                            <h4 className="font-semibold mb-3 text-lg">Séances perso</h4>
-                            <div className="space-y-3">
-                              {customSessions
-                                .filter(cs => {
-                                  const sessionDate = new Date(cs.completed_at);
-                                  const weekStart = new Date(selectedHistoricalWeek.year, 0, 1 + (selectedHistoricalWeek.week_number - 1) * 7);
-                                  const weekEnd = new Date(weekStart);
-                                  weekEnd.setDate(weekStart.getDate() + 6);
-                                  return sessionDate >= weekStart && sessionDate <= weekEnd;
-                                })
-                                .map((customSession) => (
-                                  <Card key={customSession.id} className="border-primary/30 bg-primary/5">
-                                    <CardContent className="p-4">
-                                      <div className="flex items-start justify-between mb-2">
-                                        <div className="flex-1">
-                                          <div className="flex items-center gap-2 mb-1">
-                                            <h5 className="font-semibold">{customSession.session_name}</h5>
-                                            <Badge variant="secondary">Perso</Badge>
-                                          </div>
-                                          <p className="text-sm text-muted-foreground">
-                                            Durée: {customSession.duration_minutes} min
-                                          </p>
-                                          <p className="text-xs text-muted-foreground">
-                                            {new Date(customSession.completed_at).toLocaleDateString('fr-FR', {
-                                              weekday: 'long',
-                                              year: 'numeric',
-                                              month: 'long',
-                                              day: 'numeric',
-                                            })}
-                                          </p>
-                                        </div>
-                                      </div>
-                                      {customSession.description && (
-                                        <p className="text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
-                                          {customSession.description}
-                                        </p>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="paiements" className="space-y-4">
