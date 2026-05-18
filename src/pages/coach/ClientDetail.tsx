@@ -209,6 +209,7 @@ export default function ClientDetail() {
   const [showRunningSheet, setShowRunningSheet] = useState(false);
   const [showNotesSheet, setShowNotesSheet] = useState(false);
   const [showCardioAIChat, setShowCardioAIChat] = useState(false);
+  const [recentCardioHistory, setRecentCardioHistory] = useState<import("@/components/CoachCardioAIChat").AIChatWeekHistory[]>([]);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
@@ -530,6 +531,86 @@ export default function ClientDetail() {
       return true;
     });
     setAllTrainingWeeks(unique);
+  };
+
+  // Load the last 8 weeks of cardio data for AI context
+  const loadRecentCardioHistory = async () => {
+    if (!athleteId) return;
+    try {
+      // Get last 8 training_weeks (most recent first)
+      const { data: weeksData, error: weeksError } = await supabase
+        .from("training_weeks")
+        .select("id, week_number, year")
+        .eq("athlete_id", athleteId)
+        .order("year", { ascending: false })
+        .order("week_number", { ascending: false })
+        .limit(16); // fetch more to deduplicate
+
+      if (weeksError || !weeksData) return;
+
+      // Deduplicate
+      const seen = new Set<string>();
+      const uniqueWeeks = weeksData.filter((w: any) => {
+        const key = `${w.year}-${w.week_number}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 8);
+
+      if (uniqueWeeks.length === 0) return;
+
+      const weekIds = uniqueWeeks.map((w: any) => w.id);
+
+      // Load cardio sessions + exercises for those weeks
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from("training_sessions")
+        .select("week_id, session_type, session_exercises(*)")
+        .in("week_id", weekIds)
+        .eq("session_type", "cardio");
+
+      if (sessionsError) return;
+
+      // Aggregate per week
+      const weekMap: Record<string, { totalKm: number; totalMinutes: number; intensities: number[]; sessionCount: number }> = {};
+      for (const w of uniqueWeeks) {
+        weekMap[w.id] = { totalKm: 0, totalMinutes: 0, intensities: [], sessionCount: 0 };
+      }
+
+      for (const session of sessionsData || []) {
+        const weekBucket = weekMap[session.week_id];
+        if (!weekBucket) continue;
+        weekBucket.sessionCount++;
+        for (const ex of (session.session_exercises || []) as any[]) {
+          if (!ex.cardio_content) continue;
+          try {
+            const parsed = JSON.parse(ex.cardio_content);
+            const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+            const m = calculateCardioMetrics(data, athleteVma);
+            weekBucket.totalKm += m.totalDistanceKm;
+            weekBucket.totalMinutes += m.totalDurationMinutes;
+            if (m.averageIntensity) weekBucket.intensities.push(m.averageIntensity);
+          } catch { /* ignore */ }
+        }
+      }
+
+      const history = uniqueWeeks.map((w: any) => {
+        const b = weekMap[w.id];
+        return {
+          weekNumber: w.week_number,
+          year: w.year,
+          totalKm: Math.round(b.totalKm * 10) / 10,
+          totalMinutes: Math.round(b.totalMinutes),
+          sessionCount: b.sessionCount,
+          avgIntensityPct: b.intensities.length > 0
+            ? Math.round(b.intensities.reduce((a: number, c: number) => a + c, 0) / b.intensities.length)
+            : undefined,
+        };
+      });
+
+      setRecentCardioHistory(history);
+    } catch (e) {
+      console.error("Erreur loadRecentCardioHistory:", e);
+    }
   };
 
   // Load sessions from DB for a given week (used for past or navigated weeks)
@@ -4196,7 +4277,7 @@ export default function ClientDetail() {
               variant="outline"
               size="sm"
               className="bg-background/95 backdrop-blur-sm border-primary/30 hover:bg-primary/10 shadow-md"
-              onClick={() => setShowCardioAIChat(true)}
+              onClick={() => { setShowCardioAIChat(true); loadRecentCardioHistory(); }}
             >
               <Bot className="h-4 w-4 mr-1 text-primary" />
               <span className="text-xs">IA Cardio</span>
@@ -4705,6 +4786,10 @@ export default function ClientDetail() {
               selectedWeek: selectedWeekToProgram,
               mesocycleName: activeMeso?.name,
               phaseType: activeMeso?.phase_type,
+              mesocycleStart: activeMeso?.start_date,
+              mesocycleEnd: activeMeso?.end_date,
+              objective: activeMeso?.objective || (athleteObjectives as any)?.main_objective || undefined,
+              recentHistory: recentCardioHistory.length > 0 ? recentCardioHistory : undefined,
               sessions: sessions.filter((s) => s.session_type !== "renfo").map((s) => {
                 const exs = sessionExercises[s.id] || [];
                 let cardioSummary: string | undefined;
