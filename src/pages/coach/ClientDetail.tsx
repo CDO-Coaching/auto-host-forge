@@ -2783,27 +2783,39 @@ export default function ClientDetail() {
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
 
         // Smart resize: preserve existing per-serie edits.
-        // Increasing → append copies of the last serie (or main-line defaults).
+        // Increasing → append copies of the main-line defaults.
         // Decreasing → slice from the end.
+        // Empty fields in existing entries are back-filled from the main line.
         const smartResizeSeries = (ex: Exercise, count: number): SerieDetail[] => {
           const existing = getSerieDetailsArray(ex.serie_details);
+          const mainDefaults: SerieDetail = {
+            reps: ex.reps ?? "",
+            charge: ex.charge ?? "",
+            rpe: ex.rpe ?? "",
+            tempo: ex.tempo ?? "",
+            commentaire: ex.commentaire ?? "",
+            recuperation: ex.recuperation ?? "",
+          };
           if (count <= 0) return [];
-          if (count === existing.length) return existing;
-          if (count > existing.length) {
-            const lastSerie: SerieDetail = existing[existing.length - 1] ?? {
-              reps: ex.reps ?? "",
-              charge: ex.charge ?? "",
-              rpe: ex.rpe ?? "",
-              tempo: ex.tempo ?? "",
-              commentaire: ex.commentaire ?? "",
-              recuperation: ex.recuperation ?? "",
-            };
+
+          // Back-fill empty fields of existing entries from main-line values
+          const filled = existing.map((s) => ({
+            ...s,
+            reps:         s.reps         || mainDefaults.reps,
+            charge:       s.charge       || mainDefaults.charge,
+            rpe:          s.rpe          || mainDefaults.rpe,
+            tempo:        s.tempo        || mainDefaults.tempo,
+            recuperation: s.recuperation || mainDefaults.recuperation,
+          }));
+
+          if (count === filled.length) return filled;
+          if (count > filled.length) {
             return [
-              ...existing,
-              ...Array.from({ length: count - existing.length }, () => ({ ...lastSerie })),
+              ...filled,
+              ...Array.from({ length: count - filled.length }, () => ({ ...mainDefaults })),
             ];
           }
-          return existing.slice(0, count);
+          return filled.slice(0, count);
         };
 
         // Auto-collapse when more than 1 serie
@@ -2846,6 +2858,27 @@ export default function ClientDetail() {
             const newReps   = field === "reps"   ? (value as string)      : ex.reps;
             const estimated = estimateRpe(newCharge, newReps, ex.exercice);
             if (estimated !== null) update.rpe = estimated;
+          }
+
+          // Propagate main-line value changes to serie_details:
+          // Only update a serie field if it was empty OR matched the old main-line value
+          // (i.e. not individually customised). Skipped for commentaire/tempo.
+          if (
+            (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation") &&
+            typeof finalValue === "string"
+          ) {
+            const details = getSerieDetailsArray(ex.serie_details);
+            if (details.length > 0) {
+              const oldMainValue = ex[field as keyof Exercise] as string ?? "";
+              const propagatedDetails = details.map((s) => {
+                const serieVal = s[field as keyof SerieDetail] ?? "";
+                if (serieVal === "" || serieVal === oldMainValue) {
+                  return { ...s, [field]: finalValue };
+                }
+                return s;
+              });
+              update.serie_details = propagatedDetails;
+            }
           }
 
           return { ...ex, ...update };
