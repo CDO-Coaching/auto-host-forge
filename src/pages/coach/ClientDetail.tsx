@@ -4705,7 +4705,7 @@ export default function ClientDetail() {
               selectedWeek: selectedWeekToProgram,
               mesocycleName: activeMeso?.name,
               phaseType: activeMeso?.phase_type,
-              sessions: sessions.map((s) => {
+              sessions: sessions.filter((s) => s.session_type !== "renfo").map((s) => {
                 const exs = sessionExercises[s.id] || [];
                 let cardioSummary: string | undefined;
                 if (s.session_type === "cardio" && exs.length > 0) {

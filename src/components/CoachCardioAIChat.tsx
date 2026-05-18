@@ -67,13 +67,13 @@ function buildVmaTable(vma: number): string {
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx: AIChatContext): string {
-  const sessionLines = ctx.sessions.length > 0
-    ? ctx.sessions.map((s, i) =>
-        `  Séance ${i + 1} (${s.type}): "${s.name}"` +
-        (s.cardioSummary ? ` — ${s.cardioSummary}` : "") +
-        (s.type !== "cardio" ? ` (${s.exerciseCount} exercices)` : "")
+  const cardioSessions = ctx.sessions.filter((s) => s.type === "cardio" || s.type === "recup");
+  const sessionLines = cardioSessions.length > 0
+    ? cardioSessions.map((s, i) =>
+        `  Séance cardio ${i + 1} (${s.type === "recup" ? "récupération active" : "cardio"}): "${s.name}"` +
+        (s.cardioSummary ? ` — ${s.cardioSummary}` : "")
       ).join("\n")
-    : "  Aucune séance programmée pour cette semaine.";
+    : "  Aucune séance cardio programmée pour cette semaine.";
 
   const phaseInfo = ctx.mesocycleName
     ? `Phase active : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}.`
@@ -116,7 +116,7 @@ Contexte athlète :
 ${phaseInfo}
 ${vmaSection}
 
-Séances programmées cette semaine :
+Séances cardio programmées cette semaine (les séances de renforcement musculaire sont exclues — tu n'en tiens pas compte) :
 ${sessionLines}
 
 Format de réponse :
