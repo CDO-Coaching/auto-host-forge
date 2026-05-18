@@ -41,44 +41,90 @@ export interface AIChatContext {
   phaseType?: string;
 }
 
+// ─── Pace calculator from VMA ─────────────────────────────────────────────────
+function vmaTopace(vma: number, pct: number): string {
+  const speed = vma * (pct / 100); // km/h
+  const paceMin = 60 / speed;
+  const min = Math.floor(paceMin);
+  const sec = Math.round((paceMin - min) * 60);
+  return `${min}:${sec.toString().padStart(2, "0")}/km`;
+}
+
+function buildVmaTable(vma: number): string {
+  const zones: [string, number, number][] = [
+    ["EF (endurance fondamentale)", 60, 70],
+    ["Seuil aérobie", 75, 80],
+    ["Seuil anaérobie / tempo", 83, 88],
+    ["VMA courte (100-110%)", 100, 110],
+    ["Survitesse (110-120%)", 110, 120],
+  ];
+  return zones
+    .map(([label, lo, hi]) =>
+      `  • ${label} : ${vmaTopace(vma, lo)} → ${vmaTopace(vma, hi)} (${lo}-${hi}% VMA)`
+    )
+    .join("\n");
+}
+
 // ─── System prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx: AIChatContext): string {
   const sessionLines = ctx.sessions.length > 0
     ? ctx.sessions.map((s, i) =>
         `  Séance ${i + 1} (${s.type}): "${s.name}"` +
         (s.cardioSummary ? ` — ${s.cardioSummary}` : "") +
-        (s.type === "cardio" ? "" : ` (${s.exerciseCount} exercices)`)
+        (s.type !== "cardio" ? ` (${s.exerciseCount} exercices)` : "")
       ).join("\n")
     : "  Aucune séance programmée pour cette semaine.";
 
   const phaseInfo = ctx.mesocycleName
-    ? `Phase actuelle : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}.`
+    ? `Phase active : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}.`
     : "";
 
-  return `Tu es un préparateur physique expert en course à pied et sports d'endurance. Tu aides un coach à concevoir et optimiser ses programmations cardio pour ses athlètes.
+  const vmaSection = ctx.athleteVma
+    ? `\nTable d'allures calculées pour VMA = ${ctx.athleteVma} km/h :\n${buildVmaTable(ctx.athleteVma)}`
+    : "";
 
-Ton expertise couvre :
-- Programmation de la course à pied (VMA, seuils, endurance fondamentale, fractionné)
-- Périodisation en endurance : phases fondamentales, développement, spécifique, affûtage
-- Allures d'entraînement selon % VMA, fréquences cardiaques cibles, RPE
-- Gestion de la charge : volume hebdomadaire, densité, récupération
-- Préparation aux compétitions : 5km, 10km, semi-marathon, marathon, trail
-- Blocs d'intervalles et séances types (fartlek, tempo, côtes, régénération)
+  return `Tu es un préparateur physique expert en course à pied et endurance, avec 15 ans d'expérience en entraînement de coureurs de tous niveaux.
 
-Contexte de l'athlète :
-- Nom : ${ctx.athleteName}${ctx.athleteVma ? `\n- VMA : ${ctx.athleteVma} km/h` : ""}
-- Semaine S${ctx.selectedWeek.week} ${ctx.selectedWeek.year}
+RÈGLE ABSOLUE : Tu ne proposes JAMAIS de séances vagues. Chaque réponse contenant une séance doit inclure :
+- Le format EXACT : Nbre rép × distance ou durée @ allure min/km (ou % VMA) — récupération
+- Exemple obligatoire : "8 × 400m @ 3:45/km (105% VMA) — récup 90s trot"
+- L'échauffement (15-20 min EF + éducatifs) et le retour au calme (10 min EF)
+- Le volume total de la séance en km
+
+Tu dois systématiquement utiliser les allures calculées depuis la VMA de l'athlète. Jamais de "courez à allure confortable" ou "intensité modérée" — toujours des chiffres.
+
+Types de séances que tu maîtrises parfaitement :
+- Fractionné court (200-400m, 100-110% VMA, récup = durée effort)
+- Fractionné long (1000-2000m, 95-100% VMA, récup 2-3 min)
+- Seuil / tempo (20-40 min continu ou 2-3 × 10-15 min, 83-88% VMA)
+- VMA longue (600-1200m, 95-100% VMA)
+- Endurance fondamentale (EF, 60-70% VMA, volume long)
+- Côtes (8-12 × 80-150m en montée, 100-105% VMA effort perçu)
+- Fartlek (séquences libres avec variations d'allure intégrées)
+- Allure spécifique compétition (allure objectif 5km/10km/semi/marathon)
+
+Périodisation endurance :
+- Fondamental (6-8 sem) : 80% EF, 20% seuil, pas de VMA pure
+- Développement (4-6 sem) : 65% EF, 20% seuil, 15% VMA
+- Spécifique (3-4 sem) : allure cible + seuil, réduction EF
+- Affûtage (2-3 sem) : réduction volume 30-40%, maintien intensité
+
+Contexte athlète :
+- Nom : ${ctx.athleteName}
+- VMA : ${ctx.athleteVma ? `${ctx.athleteVma} km/h` : "non renseignée (demande-la au coach si besoin)"}
+- Semaine : S${ctx.selectedWeek.week} ${ctx.selectedWeek.year}
 ${phaseInfo}
+${vmaSection}
 
-Programmation de la semaine sélectionnée :
+Séances programmées cette semaine :
 ${sessionLines}
 
-Directives :
-- Réponds en français, de façon concise et pratique
-- Utilise des chiffres concrets (km, min, % VMA, allures)
-- Adapte tes conseils au contexte de l'athlète si disponible
-- Si tu proposes une séance, donne le détail : échauffement, corps, retour au calme
-- Sois direct : le coach est un professionnel qui veut des recommandations précises
+Format de réponse :
+- Réponds en français
+- Structure tes séances avec des tirets ou numéros clairs
+- Donne toujours les allures en min/km ET en % VMA
+- Si tu donnes plusieurs options, note laquelle tu recommandes en premier
+- Pas de blabla introductif — va directement à l'essentiel
 `;
 }
 
@@ -99,8 +145,8 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
         { role: "system", content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ],
-      temperature: 0.65,
-      max_tokens: 1024,
+      temperature: 0.4,
+      max_tokens: 1536,
     }),
   });
 
@@ -114,12 +160,12 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
 
 // ─── Suggested questions ──────────────────────────────────────────────────────
 const SUGGESTIONS = [
-  "Quelle séance de fractionné recommandes-tu pour cette semaine ?",
-  "Est-ce que la charge cardio de cette semaine est adaptée ?",
-  "Comment structurer une semaine de récupération active ?",
-  "Propose-moi une séance de tempo pour préparer un 10km.",
-  "Quelles allures utiliser pour les séances d'endurance fondamentale ?",
-  "Comment organiser un bloc de développement VMA sur 4 semaines ?",
+  "Propose-moi une séance de fractionné court avec les allures exactes.",
+  "Donne-moi une séance de seuil / tempo complète avec échauffement.",
+  "Quelle séance de VMA longue recommandes-tu cette semaine ?",
+  "Propose un fartlek structuré de 45 minutes.",
+  "Donne-moi une séance de côtes avec le détail complet.",
+  "Comment construire un bloc de 4 semaines pour développer la VMA ?",
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
