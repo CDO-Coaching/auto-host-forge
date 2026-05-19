@@ -439,7 +439,6 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
       ],
       temperature: 0.6,
       max_tokens: 8192,
-      enable_thinking: true,
     }),
   });
 
