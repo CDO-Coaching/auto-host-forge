@@ -41,6 +41,23 @@ export interface AIChatWeekHistory {
   avgIntensityPct?: number; // avg % VMA
 }
 
+export interface AIChatMesocycle {
+  name: string;
+  phaseType?: string;
+  start: string; // ISO date
+  end: string;   // ISO date
+  objective?: string;
+  volumeTarget?: number;
+  intensityTarget?: number;
+}
+
+export interface AIChatMilestone {
+  label: string;       // name / label of the event
+  targetDate: string;  // ISO date
+  completed?: boolean;
+  type?: string;       // "competition" | "test" | etc.
+}
+
 export interface AIChatContext {
   athleteName: string;
   athleteVma?: number | null;
@@ -50,8 +67,10 @@ export interface AIChatContext {
   phaseType?: string;
   mesocycleStart?: string;
   mesocycleEnd?: string;
-  objective?: string; // athlete's main objective
-  recentHistory?: AIChatWeekHistory[]; // last 8 weeks of cardio
+  objective?: string;
+  recentHistory?: AIChatWeekHistory[];
+  allMesocycles?: AIChatMesocycle[];   // full planning timeline
+  milestones?: AIChatMilestone[];      // competitions / key dates
 }
 
 // ─── Pace calculator from VMA ─────────────────────────────────────────────────
@@ -78,6 +97,21 @@ function buildVmaTable(vma: number): string {
     .join("\n");
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function weeksUntil(isoDate: string, fromWeek: { week: number; year: number }): number {
+  // Approximate: compute monday of fromWeek
+  const jan4 = new Date(fromWeek.year, 0, 4);
+  const dayOfWeek = jan4.getDay() || 7;
+  const monday = new Date(jan4);
+  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (fromWeek.week - 1) * 7);
+  const target = new Date(isoDate);
+  return Math.ceil((target.getTime() - monday.getTime()) / (7 * 24 * 60 * 60 * 1000));
+}
+
+function formatDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+}
+
 // ─── System prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx: AIChatContext): string {
   const cardioSessions = ctx.sessions.filter((s) => s.type === "cardio" || s.type === "recup");
@@ -88,36 +122,131 @@ function buildSystemPrompt(ctx: AIChatContext): string {
       ).join("\n")
     : "  Aucune séance cardio programmée pour cette semaine.";
 
-  const phaseInfo = ctx.mesocycleName
-    ? `  Phase : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}` +
-      (ctx.mesocycleStart && ctx.mesocycleEnd ? ` | ${ctx.mesocycleStart} → ${ctx.mesocycleEnd}` : "")
-    : "  Aucune phase active définie.";
-
-  const objectiveInfo = ctx.objective
-    ? `  Objectif : ${ctx.objective}`
-    : "  Objectif : non renseigné (pose la question si pertinent)";
-
   const vmaSection = ctx.athleteVma
     ? `VMA = ${ctx.athleteVma} km/h — Table d'allures :
 ${buildVmaTable(ctx.athleteVma)}`
     : "VMA non renseignée — demande-la impérativement avant de prescrire des allures.";
 
-  // Recent history section
-  let historySection = "Historique des 8 dernières semaines cardio : non disponible.";
+  // ── Recent training history ────────────────────────────────────────────────
+  let historySection = "Historique des dernières semaines cardio : non disponible.";
   if (ctx.recentHistory && ctx.recentHistory.length > 0) {
-    const rows = ctx.recentHistory.map((w) => {
-      const dur = w.totalMinutes > 0 ? `${Math.round(w.totalMinutes)} min` : "-";
-      const km = w.totalKm > 0 ? `${w.totalKm.toFixed(1)} km` : "-";
-      const intensity = w.avgIntensityPct ? ` | ~${Math.round(w.avgIntensityPct)}% VMA` : "";
-      return `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s)${intensity}`;
+    const nonEmpty = ctx.recentHistory.filter((w) => w.totalKm > 0 || w.totalMinutes > 0);
+    // Detect last deload week (volume drop ≥25% vs previous)
+    const deloadFlags = nonEmpty.map((w, i) => {
+      if (i === 0) return false;
+      const prev = nonEmpty[i - 1];
+      return prev.totalKm > 0 && w.totalKm < prev.totalKm * 0.75;
     });
-    const totalKm = ctx.recentHistory.reduce((a, w) => a + w.totalKm, 0);
-    const avgKm = totalKm / ctx.recentHistory.length;
-    const avgMin = ctx.recentHistory.reduce((a, w) => a + w.totalMinutes, 0) / ctx.recentHistory.length;
-    historySection = `Historique des ${ctx.recentHistory.length} dernières semaines cardio :
+    const rows = ctx.recentHistory.map((w, i) => {
+      const dur = w.totalMinutes > 0 ? `${Math.round(w.totalMinutes)} min` : "-";
+      const km = w.totalKm > 0 ? `${w.totalKm.toFixed(1)} km` : "0 km";
+      const intensity = w.avgIntensityPct ? ` | ~${Math.round(w.avgIntensityPct)}% VMA` : "";
+      const deload = deloadFlags[i] ? " ⬇ décharge" : "";
+      return `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s)${intensity}${deload}`;
+    });
+    const nonZero = nonEmpty.filter((w) => w.totalKm > 0);
+    const avgKm = nonZero.length > 0 ? nonZero.reduce((a, w) => a + w.totalKm, 0) / nonZero.length : 0;
+    const avgMin = nonZero.length > 0 ? nonZero.reduce((a, w) => a + w.totalMinutes, 0) / nonZero.length : 0;
+    // Detect recent overload: last 2 weeks both grew >15%
+    const last3 = nonEmpty.slice(-3);
+    let overloadWarning = "";
+    if (last3.length === 3 &&
+        last3[1].totalKm > last3[0].totalKm * 1.15 &&
+        last3[2].totalKm > last3[1].totalKm * 1.15) {
+      overloadWarning = "\n  ⚠ ALERTE : Augmentation de volume >15% sur 2 semaines consécutives — risque de surmenage.";
+    }
+    // Detect missing deload
+    const weeksSinceDeload = deloadFlags.lastIndexOf(true);
+    let deloadWarning = "";
+    if (weeksSinceDeload === -1 && ctx.recentHistory.length >= 4) {
+      deloadWarning = "\n  ⚠ Aucune semaine de décharge détectée sur les 8 dernières semaines.";
+    } else if (weeksSinceDeload >= 0 && (ctx.recentHistory.length - 1 - weeksSinceDeload) >= 4) {
+      deloadWarning = `\n  ⚠ La dernière décharge remonte à ${ctx.recentHistory.length - 1 - weeksSinceDeload} semaines — une décharge bientôt recommandée.`;
+    }
+    historySection = `Historique des ${ctx.recentHistory.length} dernières semaines (du plus récent au plus ancien) :
 ${rows.join("\n")}
-  → Moyenne : ${avgKm.toFixed(1)} km/sem · ${Math.round(avgMin)} min/sem`;
+  → Moyenne (semaines actives) : ${avgKm.toFixed(1)} km/sem · ${Math.round(avgMin)} min/sem${overloadWarning}${deloadWarning}`;
   }
+
+  // ── Mesocycles timeline ────────────────────────────────────────────────────
+  let mesocycleSection = "Aucun mésocycle / cycle de planification renseigné.";
+  const upcomingMesos: AIChatMesocycle[] = [];
+  if (ctx.allMesocycles && ctx.allMesocycles.length > 0) {
+    const today = new Date();
+    const rows = ctx.allMesocycles.map((m) => {
+      const start = new Date(m.start);
+      const end = new Date(m.end);
+      const weeksLeft = Math.ceil((end.getTime() - today.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      let status = "✗ passé";
+      if (today >= start && today <= end) status = "● EN COURS";
+      else if (start > today) {
+        status = "○ à venir";
+        upcomingMesos.push(m);
+      }
+      const obj = m.objective ? ` | Objectif : ${m.objective}` : "";
+      const phase = m.phaseType ? ` (${m.phaseType})` : "";
+      const remaining = today <= end && today >= start ? ` — ${weeksLeft} sem. restantes` : "";
+      return `  [${status}] ${m.name}${phase} : ${formatDate(m.start)} → ${formatDate(m.end)}${remaining}${obj}`;
+    });
+    mesocycleSection = `Mésocycles / cycles planifiés :
+${rows.join("\n")}`;
+  }
+
+  // ── Milestones (competitions / key dates) ─────────────────────────────────
+  let milestonesSection = "Aucune compétition ou date clé renseignée.";
+  let criticalCompetitionAlert = "";
+  if (ctx.milestones && ctx.milestones.length > 0) {
+    const today = new Date();
+    const upcoming = ctx.milestones
+      .filter((m) => !m.completed && new Date(m.targetDate) >= today)
+      .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime());
+    const past = ctx.milestones.filter((m) => m.completed || new Date(m.targetDate) < today);
+    const formatMilestone = (m: AIChatMilestone) => {
+      const w = weeksUntil(m.targetDate, ctx.selectedWeek);
+      const wLabel = w <= 0 ? "cette semaine ou passé" : `dans ${w} semaine(s)`;
+      return `  • ${m.label} — ${formatDate(m.targetDate)} (${wLabel})`;
+    };
+    const upcomingLines = upcoming.map(formatMilestone);
+    const pastLines = past.slice(-3).map((m) => `  • ✓ ${m.label} — ${formatDate(m.targetDate)} (passé)`);
+    milestonesSection = [
+      upcoming.length > 0 ? `Compétitions / objectifs à venir :\n${upcomingLines.join("\n")}` : "Aucune compétition à venir.",
+      pastLines.length > 0 ? `Récents (passés) :\n${pastLines.join("\n")}` : "",
+    ].filter(Boolean).join("\n");
+
+    // Alert if competition is close
+    if (upcoming.length > 0) {
+      const next = upcoming[0];
+      const weeksAway = weeksUntil(next.targetDate, ctx.selectedWeek);
+      if (weeksAway <= 3 && weeksAway > 0) {
+        criticalCompetitionAlert = `
+⚠ COMPÉTITION IMMINENTE : "${next.label}" dans ${weeksAway} semaine(s) !
+  → AFFÛTAGE OBLIGATOIRE : réduire le volume de ${weeksAway === 1 ? "50-60%" : "30-40%"}, maintenir l'intensité.
+  → Pas de nouvelle stimulation, pas de séance longue.
+  → ${weeksAway === 1 ? "Semaine de course : séances courtes, allures spécifiques uniquement." : "Réduire les séances qualité à 1 maximum cette semaine."}`;
+      } else if (weeksAway <= 6 && weeksAway > 3) {
+        criticalCompetitionAlert = `
+ℹ Compétition "${next.label}" dans ${weeksAway} semaines → Phase spécifique recommandée.
+  → Intégrer des séances à allure compétition, réduire progressivement le volume.`;
+      }
+    }
+
+    // Multiple upcoming mesocycles → instruction to ask
+    if (upcomingMesos.length > 1) {
+      criticalCompetitionAlert += `
+ℹ Il y a ${upcomingMesos.length} mésocycles à venir (${upcomingMesos.map((m) => `"${m.name}"`).join(", ")}).
+  → Si le coach demande une programmation sur plusieurs semaines, demande-lui sur quel mésocycle / objectif se concentrer en priorité.`;
+    }
+  }
+
+  // ── Active phase info ──────────────────────────────────────────────────────
+  const phaseInfo = ctx.mesocycleName
+    ? `Phase active : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}` +
+      (ctx.mesocycleStart && ctx.mesocycleEnd ? ` | ${formatDate(ctx.mesocycleStart)} → ${formatDate(ctx.mesocycleEnd)}` : "")
+    : "Aucune phase active définie.";
+
+  const objectiveInfo = ctx.objective
+    ? `Objectif en cours : ${ctx.objective}`
+    : "Objectif : non renseigné (pose la question si pertinent pour la programmation)";
 
   return `Tu es un entraîneur expert en course à pied et endurance, avec 20 ans d'expérience auprès de coureurs amateurs et semi-professionnels. Tu as formé des athlètes de tous niveaux : débutants, compétiteurs sur 5km/10km/semi/marathon/trail.
 
@@ -133,94 +262,94 @@ RÈGLES ABSOLUES — NE JAMAIS DÉROGER
    - Retour au calme (durée + allure)
    - Volume total de la séance en km
 
-2. TOUJOURS UTILISER LA VMA RÉELLE pour les allures — jamais "allure confortable" ou "effort modéré"
+2. TOUJOURS UTILISER LA VMA RÉELLE pour les allures — jamais "allure confortable" ou "effort modéré".
 
 3. POSER DES QUESTIONS si un élément manque avant de proposer une programmation :
    - VMA ? (obligatoire pour les allures)
-   - Objectif de compétition et date ?
-   - Volume habituel ? (vérifie l'historique)
-   - Nb de séances cardio par semaine disponibles ?
-   - Blessures / contraintes ?
-   Ne pose pas toutes ces questions en même temps — priorise selon ce qui manque vraiment.
+   - Sur quel mésocycle / objectif le coach veut-il se concentrer ? (si plusieurs existent)
+   - Nombre de séances cardio par semaine disponibles ?
+   - Blessures / contraintes particulières ?
+   → Ne pose pas toutes ces questions à la fois — priorise selon ce qui bloque vraiment la réponse.
 
-4. ANALYSER L'HISTORIQUE avant toute recommandation de charge :
-   - Respecter le principe de progressivité (max +10-15% de volume par semaine)
-   - Identifier les semaines de décharge (toutes les 3-4 semaines)
-   - Vérifier les ruptures de charge (surmenage ou désentraînement)
-   - Si la charge actuelle est trop haute ou trop basse, le signaler explicitement
+4. ANALYSER L'HISTORIQUE ET LA PLANIFICATION avant toute recommandation :
+   a) Respect de la progressivité : max +10-15% de volume par semaine
+   b) Décharge obligatoire toutes les 3-4 semaines (-25 à -30% volume)
+   c) Ne jamais augmenter volume ET intensité la même semaine
+   d) Vérifier les alertes surcharge / décharge dans l'historique ci-dessous
+   e) Adapter le type de séance à la phase du mésocycle actif
 
-5. COHÉRENCE AVEC LA PHASE en cours :
-   - Fondamental : 75-80% EF + seuil, PAS de VMA pure
-   - Développement : 65% EF + 20% seuil + 15% VMA
-   - Spécifique : allure compétition + seuil, réduction EF
-   - Affûtage : -30% volume, maintien intensité, pas de nouveau stimulus
+5. GESTION DE LA PROXIMITÉ AVEC LA COMPÉTITION :
+   - 8-6 semaines avant : phase spécifique — allure compétition + seuil, réduction EF
+   - 3-4 semaines avant : début de réduction volume (-15% puis -25%)
+   - 2-3 semaines avant : affûtage — volume -30 à -40%, maintien intensité
+   - 1 semaine avant : semaine de course — volume -50 à -60%, séances très courtes, allures spécifiques uniquement
+   - Jamais de stimulus nouveau dans les 2 semaines avant une compétition
+
+6. MULTIPLE MÉSOCYCLES / OBJECTIFS :
+   Si le coach veut programmer sur plusieurs semaines et qu'il y a plusieurs mésocycles ou compétitions,
+   demande-lui sur lequel se concentrer AVANT de proposer un plan.
 
 ═══════════════════════════════════════════
 CATALOGUE DE SÉANCES
 ═══════════════════════════════════════════
 
-ENDURANCE FONDAMENTALE (EF)
-  60-70% VMA | RPE 2-4 | Conversation possible
-  → Volume : 40-90 min | Idéal : 70% du volume total hebdo
+ENDURANCE FONDAMENTALE (EF) — 60-70% VMA | RPE 2-4
+  → 40-90 min | Base : 70-80% du volume hebdomadaire total
 
-SEUIL AÉROBIE
-  75-80% VMA | RPE 5-6 | "Confortablement dur"
-  → 20-30 min continu ou 3-4 × 8 min — récup 2 min
+SEUIL AÉROBIE — 75-80% VMA | RPE 5-6
+  → 20-30 min continu OU 3-4 × 8 min — récup 2 min trot
 
-TEMPO / SEUIL ANAÉROBIE
-  83-88% VMA | RPE 7-8 | "Difficile mais tenable"
-  → 20-40 min continu ou 2-3 × 10-15 min — récup 3 min
+TEMPO / SEUIL ANAÉROBIE — 83-88% VMA | RPE 7-8
+  → 20-40 min continu OU 2-3 × 10-15 min — récup 3 min
 
-FRACTIONNÉ COURT (développement VMA)
-  100-110% VMA | RPE 9 | Très difficile
-  → 30s/30s, 1min/1min, ou 200-400m — récup = durée effort
+FRACTIONNÉ COURT (développement VMA) — 100-110% VMA | RPE 9
+  → 30s/30s, 1min/1min, 200-400m — récup = durée effort
 
-FRACTIONNÉ LONG (consolidation VMA)
-  95-100% VMA | RPE 8-9
+FRACTIONNÉ LONG (consolidation VMA) — 95-100% VMA | RPE 8-9
   → 600m, 800m, 1000m, 1200m — récup 2-3 min trot
 
-VMA LONGUE
-  92-97% VMA | RPE 8
+VMA LONGUE — 92-97% VMA | RPE 8
   → 3-5 × 1500-2000m — récup 3-4 min
 
-CÔTES (développement puissance)
-  100-110% VMA effort perçu | 5-8% pente
+CÔTES (puissance) — 100-110% VMA perçue | 5-8% pente
   → 8-15 × 80-150m — récup descente marchée
 
-FARTLEK STRUCTURÉ
-  Alternance EF + accélérations sur durée totale 40-60 min
-  → Ex : 10min EF, puis 6 × (3min @ 90% + 2min EF), 10min EF
+FARTLEK STRUCTURÉ — 40-60 min
+  → Ex : 10min EF + 6 × (3min @ 90% VMA + 2min EF) + 10min EF
 
-ALLURE SPÉCIFIQUE COMPÉTITION
-  Allure cible course | À intégrer en phase spécifique
-  → 5km : ~102-105% VMA | 10km : ~97-100% VMA | Semi : ~90-93% VMA | Marathon : ~83-86% VMA
+ALLURE SPÉCIFIQUE COMPÉTITION :
+  → 5km : 102-105% VMA | 10km : 97-100% VMA | Semi : 90-93% VMA | Marathon : 83-86% VMA
 
-RÉCUPÉRATION ACTIVE
-  55-60% VMA | RPE 1-2 | 20-40 min max
+RÉCUPÉRATION ACTIVE — 55-60% VMA | RPE 1-2 | 20-40 min max
 
 ═══════════════════════════════════════════
-PRINCIPES DE PROGRAMMATION HEBDOMADAIRE
+PRINCIPES DE PROGRAMMATION
 ═══════════════════════════════════════════
 
-Distribution idéale (modèle polarisé 80/20) :
-  • 75-80% du volume total en EF/récup (zones basses)
+MODÈLE POLARISÉ 80/20 (distribution idéale) :
+  • 75-80% volume en EF/récup (zones basses)
   • 10-15% en seuil/tempo
   • 5-10% en VMA/fractionné
   → Jamais 2 séances intenses consécutives
-  → Séance longue EF en fin de semaine si possible
-  → Séance clé qualité au milieu de semaine (après récup)
+  → Séance longue EF le week-end de préférence
+  → Séance clé qualité en milieu de semaine (J+2 après récup)
 
-Progression du volume :
-  • Augmentation max +10-15%/semaine
-  • Décharge toutes les 3-4 semaines (-25 à -30% volume)
-  • Ne jamais augmenter volume ET intensité la même semaine
+CYCLE DE CHARGE STANDARD (3:1 ou 4:1) :
+  Semaine 1 : charge normale (base)
+  Semaine 2 : +8-10% volume, même intensité
+  Semaine 3 : +10-15% volume, légère intensification
+  Semaine 4 : décharge (-25 à -30% volume, maintien fréquence)
+  → Après décharge : reprise à +5% du niveau pré-décharge
 
-Détection de surcharge :
-  → Si le volume récent a augmenté >15% sur 2 semaines consécutives : signaler
-  → Si pas de semaine de décharge depuis >4 semaines : recommander
+PROGRESSION VERS LA COMPÉTITION :
+  Phase fondamentale (6-10 sem) : 80% EF, 20% seuil, 0% VMA
+  Phase développement (4-6 sem) : 65% EF, 20% seuil, 15% VMA
+  Phase spécifique (3-5 sem) : allure compétition + seuil, réduction EF
+  Phase affûtage (2-3 sem) : volume -30-40%, maintien intensité, 0 stimulus nouveau
+  Semaine de compétition : volume -50-60%, uniquement activation
 
 ═══════════════════════════════════════════
-CONTEXTE DE L'ATHLÈTE
+CONTEXTE DE L'ATHLÈTE${criticalCompetitionAlert}
 ═══════════════════════════════════════════
 
 Nom : ${ctx.athleteName}
@@ -229,10 +358,17 @@ ${vmaSection}
 ${objectiveInfo}
 ${phaseInfo}
 
-Semaine en cours : S${ctx.selectedWeek.week} ${ctx.selectedWeek.year}
-Séances cardio de cette semaine (renfo exclue) :
+Semaine consultée : S${ctx.selectedWeek.week} ${ctx.selectedWeek.year}
+Séances cardio de la semaine (renfo exclue) :
 ${sessionLines}
 
+─── Planning complet ─────────────────────
+${mesocycleSection}
+
+─── Compétitions & objectifs clés ────────
+${milestonesSection}
+
+─── Volume récent ────────────────────────
 ${historySection}
 
 ═══════════════════════════════════════════
@@ -240,12 +376,13 @@ FORMAT DE RÉPONSE
 ═══════════════════════════════════════════
 
 - Langue : français uniquement
-- Commence par une analyse rapide si l'historique le justifie (1-2 lignes max)
+- Commence par une analyse de contexte (1-3 lignes) si l'historique ou la proximité d'une compétition le justifient
 - Structure les séances avec numéros et tirets
 - Allures toujours en min/km + (% VMA) entre parenthèses
-- Si tu proposes plusieurs séances, identifie clairement la priorité
-- Si une information manque pour répondre correctement, pose UNE question ciblée avant de proposer quoi que ce soit
-- Termine toujours par le volume total de la semaine proposée si tu programmes une semaine complète
+- Si tu proposes une semaine complète : indique le volume total et la répartition EF/seuil/VMA
+- Si tu proposes un bloc de semaines : indique la logique de progression semaine par semaine
+- Si une information manque, pose UNE question ciblée d'abord — ne suppose pas
+- Signal les risques de surcharge ou de manque de récupération si détectés
 `;
 }
 
@@ -281,12 +418,12 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
 
 // ─── Suggested questions ──────────────────────────────────────────────────────
 const SUGGESTIONS = [
+  "Analyse le volume récent et propose la semaine suivante en conséquence.",
+  "Construis un bloc de 4 semaines (3+1 décharge) adapté à la phase actuelle.",
   "Propose-moi une séance de fractionné court avec les allures exactes.",
   "Donne-moi une séance de seuil / tempo complète avec échauffement.",
-  "Quelle séance de VMA longue recommandes-tu cette semaine ?",
-  "Propose un fartlek structuré de 45 minutes.",
+  "Comment préparer les 3 dernières semaines avant la compétition ?",
   "Donne-moi une séance de côtes avec le détail complet.",
-  "Comment construire un bloc de 4 semaines pour développer la VMA ?",
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -386,15 +523,38 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
           </div>
         </SheetHeader>
 
-        {/* Context pill */}
-        {context.sessions.length > 0 && (
-          <div className="px-4 py-2 border-b bg-muted/30 shrink-0">
-            <p className="text-[10px] text-muted-foreground">
-              <span className="font-medium">Semaine en contexte :</span>{" "}
-              {context.sessions.map((s) => s.name).join(", ")}
-            </p>
-          </div>
-        )}
+        {/* Context pills */}
+        {(() => {
+          const today = new Date();
+          const nextComp = context.milestones
+            ?.filter((m) => !m.completed && new Date(m.targetDate) >= today)
+            .sort((a, b) => new Date(a.targetDate).getTime() - new Date(b.targetDate).getTime())[0];
+          const weeksAway = nextComp ? weeksUntil(nextComp.targetDate, context.selectedWeek) : null;
+          const isUrgent = weeksAway !== null && weeksAway <= 3 && weeksAway > 0;
+          return (
+            <div className="px-4 py-2 border-b bg-muted/30 shrink-0 space-y-1">
+              {context.sessions.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  <span className="font-medium">Séances :</span>{" "}
+                  {context.sessions.map((s) => s.name).join(", ")}
+                </p>
+              )}
+              {context.mesocycleName && (
+                <p className="text-[10px] text-muted-foreground">
+                  <span className="font-medium">Phase :</span>{" "}
+                  {context.mesocycleName}{context.phaseType ? ` · ${context.phaseType}` : ""}
+                </p>
+              )}
+              {nextComp && (
+                <p className={`text-[10px] font-medium ${isUrgent ? "text-amber-600" : "text-muted-foreground"}`}>
+                  {isUrgent ? "⚠ " : "🎯 "}
+                  {nextComp.label} — {new Date(nextComp.targetDate).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}
+                  {weeksAway !== null ? ` (J-${weeksAway * 7} · ${weeksAway} sem.)` : ""}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
@@ -407,10 +567,19 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
                   <Bot className="h-3.5 w-3.5 text-primary" />
                 </div>
                 <div className="bg-muted/40 rounded-2xl rounded-tl-sm px-3 py-2.5 text-sm text-foreground max-w-[85%]">
-                  Bonjour ! Je suis ton assistant spécialisé en programmation course à pied et cardio.
+                  Bonjour ! Je suis ton assistant spécialisé en programmation course à pied.{" "}
                   {context.athleteVma
-                    ? ` Je connais la VMA de ${context.athleteName} (${context.athleteVma} km/h) et la programmation de la semaine.`
-                    : ` Je connais la programmation de la semaine pour ${context.athleteName}.`}
+                    ? `Je connais la VMA de ${context.athleteName} (${context.athleteVma} km/h)`
+                    : `Je suis prêt à travailler sur ${context.athleteName}`}
+                  {(context.allMesocycles?.length ?? 0) > 0
+                    ? `, son planning de ${context.allMesocycles!.length} mésocycle(s)`
+                    : ""}
+                  {(context.milestones?.filter((m) => !m.completed).length ?? 0) > 0
+                    ? ` et ses ${context.milestones!.filter((m) => !m.completed).length} objectif(s) à venir`
+                    : ""}
+                  {(context.recentHistory?.some((w) => w.totalKm > 0)) ?? false
+                    ? ". J'ai accès à l'historique de volume des dernières semaines."
+                    : "."}
                   {" "}Comment puis-je t'aider ?
                 </div>
               </div>

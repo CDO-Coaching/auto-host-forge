@@ -4790,6 +4790,25 @@ export default function ClientDetail() {
               mesocycleEnd: activeMeso?.end_date,
               objective: activeMeso?.objective || (athleteObjectives as any)?.main_objective || undefined,
               recentHistory: recentCardioHistory.length > 0 ? recentCardioHistory : undefined,
+              allMesocycles: athleteMesocycles.length > 0
+                ? athleteMesocycles.map((m) => ({
+                    name: m.name,
+                    phaseType: m.phase_type,
+                    start: m.start_date,
+                    end: m.end_date,
+                    objective: m.objective,
+                    volumeTarget: m.volume_target,
+                    intensityTarget: m.intensity_target,
+                  }))
+                : undefined,
+              milestones: athleteMilestones.length > 0
+                ? athleteMilestones.map((m: any) => ({
+                    label: m.label || m.name || "Objectif",
+                    targetDate: m.target_date,
+                    completed: m.completed || false,
+                    type: m.type,
+                  }))
+                : undefined,
               sessions: sessions.filter((s) => s.session_type !== "renfo").map((s) => {
                 const exs = sessionExercises[s.id] || [];
                 let cardioSummary: string | undefined;
