@@ -1095,7 +1095,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             </TableCell>
                                             <TableCell>
                                               <Select value={ex.recuperation} onValueChange={(v) => { onExerciseChange(selectedSession.id, ex.id, "recuperation", v); setTimeout(() => { const el = document.querySelector(`[data-session="${selectedSession.id}"][data-exercise="${ex.id}"][data-field="reps"]`) as HTMLInputElement; el?.focus(); }, 100); }} disabled={isValidated}>
-                                                <SelectTrigger data-session={selectedSession.id} data-exercise={ex.id} data-field="recuperation"><SelectValue placeholder="Récup" /></SelectTrigger>
+                                                <SelectTrigger data-session={selectedSession.id} data-exercise={ex.id} data-field="recuperation" onKeyDown={(e) => { if (e.key === "Enter" && e.currentTarget.getAttribute("aria-expanded") === "false") { e.preventDefault(); const repsEl = document.querySelector(`[data-session="${selectedSession.id}"][data-exercise="${ex.id}"][data-field="reps"]`) as HTMLInputElement; repsEl?.focus(); repsEl?.select(); } }}><SelectValue placeholder="Récup" /></SelectTrigger>
                                                 <SelectContent>{recuperationOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                                               </Select>
                                             </TableCell>
@@ -1222,7 +1222,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       </TableCell>
                                       <TableCell>
                                         <Select value={exercise.recuperation} onValueChange={(v) => { onExerciseChange(selectedSession.id, exercise.id, "recuperation", v); setTimeout(() => { const el = document.querySelector(`[data-session="${selectedSession.id}"][data-exercise="${exercise.id}"][data-field="reps"]`) as HTMLInputElement; el?.focus(); }, 100); }} disabled={isValidated}>
-                                          <SelectTrigger data-session={selectedSession.id} data-exercise={exercise.id} data-field="recuperation"><SelectValue placeholder="Récup" /></SelectTrigger>
+                                          <SelectTrigger data-session={selectedSession.id} data-exercise={exercise.id} data-field="recuperation" onKeyDown={(e) => { if (e.key === "Enter" && e.currentTarget.getAttribute("aria-expanded") === "false") { e.preventDefault(); const repsEl = document.querySelector(`[data-session="${selectedSession.id}"][data-exercise="${exercise.id}"][data-field="reps"]`) as HTMLInputElement; repsEl?.focus(); repsEl?.select(); } }}><SelectValue placeholder="Récup" /></SelectTrigger>
                                           <SelectContent>{recuperationOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                                         </Select>
                                       </TableCell>
