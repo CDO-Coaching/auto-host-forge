@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 // ─── Groq config (same as CycleSetupGate) ────────────────────────────────────
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL   = "qwen/qwen3-32b";
+const GROQ_MODEL   = "llama-3.3-70b-versatile";
 
 interface Message {
   role: "user" | "assistant";
@@ -437,8 +437,8 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
         { role: "system", content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ],
-      temperature: 0.6,
-      max_tokens: 8192,
+      temperature: 0.4,
+      max_tokens: 1536,
     }),
   });
 
