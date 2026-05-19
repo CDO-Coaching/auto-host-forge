@@ -183,6 +183,14 @@ function parseRepsDuration(
   // → traiter comme durée en secondes (ex: "8" reps sur tapis = 8 sec ?)
   // On laisse tomber vers la logique standard ci-dessous.
 
+  // Durée en minutes "5min", "2min30", "1min30s"
+  const minMatch = reps.match(/(\d+)\s*min(?:utes?)?\s*(?:(\d+)\s*s(?:ec)?)?/i);
+  if (minMatch) {
+    const mins = parseInt(minMatch[1], 10);
+    const secs = minMatch[2] ? parseInt(minMatch[2], 10) : 0;
+    return (mins * 60 + secs) * multiplier;
+  }
+
   // Valeur en secondes explicite "20sec", "20s"
   const secMatch = reps.match(/(\d+)\s*s(?:ec)?(?!\w)/i);
   if (secMatch) return parseInt(secMatch[1], 10) * multiplier;
