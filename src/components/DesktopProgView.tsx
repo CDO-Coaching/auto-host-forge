@@ -1103,13 +1103,13 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               <div className="space-y-2">
                                                 <Input value={ex.reps} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "reps", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "reps")} placeholder={ex.is_duration ? "sec" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="reps" />
                                                 <div className="flex items-center gap-1.5">
-                                                  <Checkbox id={`dur-ss-${ex.id}`} checked={ex.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "is_duration", c as boolean)} disabled={isValidated} />
-                                                  <label htmlFor={`dur-ss-${ex.id}`} className="text-xs cursor-pointer">durée</label>
+                                                  <Checkbox id={`dur-ss-${ex.id}`} checked={ex.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "is_duration", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="is_duration" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, ex.id, "is_duration"); } }} />
+                                                  <label htmlFor={`dur-ss-${ex.id}`} className="text-xs cursor-pointer select-none">durée <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
                                                 </div>
                                                 {ex.is_unilateral && (
                                                   <div className="flex items-center gap-1.5">
-                                                    <Checkbox id={`side-ss-${ex.id}`} checked={ex.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "per_side", c as boolean)} disabled={isValidated} />
-                                                    <label htmlFor={`side-ss-${ex.id}`} className="text-xs cursor-pointer">par côté</label>
+                                                    <Checkbox id={`side-ss-${ex.id}`} checked={ex.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "per_side", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="per_side" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, ex.id, "per_side"); } }} />
+                                                    <label htmlFor={`side-ss-${ex.id}`} className="text-xs cursor-pointer select-none">par côté <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
                                                   </div>
                                                 )}
                                               </div>
@@ -1230,13 +1230,13 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         <div className="space-y-2">
                                           <Input value={exercise.reps} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "reps")} placeholder={exercise.is_duration ? "sec" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="reps" />
                                           <div className="flex items-center gap-1.5">
-                                            <Checkbox id={`dur-${selectedSession.id}-${exercise.id}`} checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} />
-                                            <label htmlFor={`dur-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer">durée (sec)</label>
+                                            <Checkbox id={`dur-${selectedSession.id}-${exercise.id}`} checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="is_duration" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, exercise.id, "is_duration"); } }} />
+                                            <label htmlFor={`dur-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer select-none">durée <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
                                           </div>
                                           {exercise.is_unilateral && (
                                             <div className="flex items-center gap-1.5">
-                                              <Checkbox id={`side-${selectedSession.id}-${exercise.id}`} checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
-                                              <label htmlFor={`side-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer">par côté</label>
+                                              <Checkbox id={`side-${selectedSession.id}-${exercise.id}`} checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="per_side" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, exercise.id, "per_side"); } }} />
+                                              <label htmlFor={`side-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer select-none">par côté <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
                                             </div>
                                           )}
                                         </div>

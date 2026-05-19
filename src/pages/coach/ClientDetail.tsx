@@ -3016,7 +3016,7 @@ export default function ClientDetail() {
   };
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
-    // Determine extra updates synchronously (unilateral check)
+    // Determine extra updates synchronously (unilateral check + auto is_duration)
     let extraUpdates: Partial<Exercise> = {};
     if (field === "exercice" && typeof value === "string") {
       const selectedExercise = libraryExercises.find((ex) => ex.name === value);
@@ -3025,6 +3025,14 @@ export default function ClientDetail() {
         if (!selectedExercise.unilateral) {
           extraUpdates.per_side = false;
         }
+      }
+    }
+
+    // Auto-detect is_duration from reps value (time formats only — not distances)
+    if (field === "reps" && typeof value === "string") {
+      const isTimeFormat = /(\d+\s*min|\d+\s*s(?:ec)?(?!\w))/i.test(value);
+      if (isTimeFormat) {
+        extraUpdates.is_duration = true;
       }
     }
 
@@ -3563,34 +3571,37 @@ export default function ClientDetail() {
       if (field === "series") {
         // Séries est le dernier champ — Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
-      } else {
-        // Pour les autres champs, passer au champ suivant
-        const fieldOrder: (keyof Exercise)[] = [
-          "exercice",
-          "recuperation",
-          "reps",
-          "rpe",
-          "charge",
-          "tempo",
-          "commentaire",
-          "series",
-        ];
-        const currentIndex = fieldOrder.indexOf(field);
-        const nextField = fieldOrder[currentIndex + 1];
+        return;
+      }
 
-        if (nextField) {
-          const nextInput = document.querySelector(
-            `[data-session="${sessionId}"][data-exercise="${exerciseId}"][data-field="${nextField}"]`,
-          ) as HTMLElement;
+      // Construire l'ordre dynamiquement selon si l'exo est unilatéral
+      const exercise = sessionExercises[sessionId]?.find((ex) => ex.id === exerciseId);
+      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration"];
+      if (exercise?.is_unilateral) fieldOrder.push("per_side");
+      fieldOrder.push("rpe", "charge", "tempo", "commentaire", "series");
 
-          if (nextInput) {
-            nextInput.focus();
-            if (nextInput.tagName === "BUTTON") {
-              nextInput.click();
-            }
+      const currentIndex = fieldOrder.indexOf(field as string);
+      const nextField = fieldOrder[currentIndex + 1];
+
+      if (nextField) {
+        const nextEl = document.querySelector(
+          `[data-session="${sessionId}"][data-exercise="${exerciseId}"][data-field="${nextField}"]`,
+        ) as HTMLElement;
+        if (nextEl) {
+          nextEl.focus();
+          // Pour les inputs, sélectionner le contenu
+          if (nextEl.tagName === "INPUT") {
+            (nextEl as HTMLInputElement).select();
           }
         }
       }
+    }
+
+    // Space sur un checkbox-field → toggle + rester sur place (comportement natif préservé)
+    // Enter sur un checkbox-field → avancer au champ suivant sans toggle
+    if (e.key === " " && (field === "is_duration" || field === "per_side")) {
+      // Laisser le comportement natif du bouton (toggle via click)
+      return;
     }
   };
 
