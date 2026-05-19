@@ -85,18 +85,29 @@ function vmaTopace(vma: number, pct: number): string {
 }
 
 function buildVmaTable(vma: number): string {
-  const zones: [string, number, number][] = [
-    ["EF (endurance fondamentale)", 60, 70],
-    ["Seuil aérobie", 75, 80],
-    ["Seuil anaérobie / tempo", 83, 88],
-    ["VMA courte (100-110%)", 100, 110],
-    ["Survitesse (110-120%)", 110, 120],
+  // Valeurs ponctuelles exactes — l'IA DOIT utiliser ces allures telles quelles
+  const points: [number, string][] = [
+    [55, "Récup active"],
+    [60, "EF basse"],
+    [65, "EF"],
+    [70, "EF haute"],
+    [75, "Seuil aérobie bas"],
+    [80, "Seuil aérobie haut"],
+    [83, "Tempo / seuil anaérobie bas"],
+    [88, "Seuil anaérobie haut"],
+    [90, "Allure semi-marathon"],
+    [92, "Allure 10 km (lent)"],
+    [95, "Allure 10 km"],
+    [97, "Allure 5 km / fractionné long"],
+    [100, "VMA"],
+    [105, "Sur-VMA"],
+    [110, "Fractionné court"],
   ];
-  return zones
-    .map(([label, lo, hi]) =>
-      `  • ${label} : ${vmaTopace(vma, lo)} → ${vmaTopace(vma, hi)} (${lo}-${hi}% VMA)`
-    )
-    .join("\n");
+  const rows = points.map(([pct, label]) =>
+    `  ${pct}% VMA → ${vmaTopace(vma, pct)}/km  (${label})`
+  ).join("\n");
+
+  return `Correspondances exactes pour VMA=${vma} km/h :\n${rows}\n\n⚠️ RÈGLE CRITIQUE : si tu écris "X% VMA", l'allure associée DOIT correspondre exactement à la ligne ci-dessus. Ne jamais mélanger un pourcentage et l'allure d'un autre pourcentage.`;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -276,6 +287,8 @@ RÈGLES ABSOLUES — NE JAMAIS DÉROGER
    - Volume total de la séance en km
 
 2. TOUJOURS UTILISER LA VMA RÉELLE pour les allures — jamais "allure confortable" ou "effort modéré".
+   ⚠️ CORRESPONDANCE STRICTE % ↔ allure : si tu écris "60% VMA", l'allure DOIT être celle de la ligne "60%" dans la table ci-dessus.
+   Vérification : allure (min/km) = 60 ÷ (VMA × %/100). Ne jamais utiliser l'allure d'un autre % par erreur.
 
 3. POSER DES QUESTIONS si un élément manque avant de proposer une programmation :
    - VMA ? (obligatoire pour les allures)
