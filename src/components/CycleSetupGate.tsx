@@ -17,7 +17,8 @@ import {
   CheckCircle2, ArrowRight, SkipForward, Plus,
   Sparkles, Bot, Send, X as XIcon,
 } from "lucide-react";
-import { PHASE_TYPES, getPhase } from "@/components/CoachObjectivesView";
+import { PHASE_TYPES, getPhase, SPORT_TYPES } from "@/components/CoachObjectivesView";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // ─── AI Chat ──────────────────────────────────────────────────────────────────
 
@@ -191,11 +192,29 @@ function MacroForm({ form, onChange }: { form: MacroFormData; onChange: (f: Macr
 
       <div className="space-y-2">
         <Label className="text-sm font-semibold">Discipline (optionnel)</Label>
-        <Input
-          placeholder="Ex : Musculation, Course à pied, Natation…"
-          value={form.sport}
-          onChange={(e) => onChange({ ...form, sport: e.target.value })}
-        />
+        <Select
+          value={form.sport || "none"}
+          onValueChange={(v) => onChange({ ...form, sport: v === "none" ? "" : v })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Choisir une discipline…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Non spécifié</SelectItem>
+            <SelectItem value="_endurance" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Endurance</SelectItem>
+            {SPORT_TYPES.filter((s) => s.category === "endurance").map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+            ))}
+            <SelectItem value="_force" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Force</SelectItem>
+            {SPORT_TYPES.filter((s) => s.category === "force").map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+            ))}
+            <SelectItem value="_autre" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Autre</SelectItem>
+            {SPORT_TYPES.filter((s) => s.category === "autre").map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
