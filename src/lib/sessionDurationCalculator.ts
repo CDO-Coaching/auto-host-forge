@@ -107,8 +107,54 @@ function parseTempoSeconds(tempo: string): number {
   return 0;
 }
 
+const RUNNING_KEYWORDS = ["run", "course", "sprint", "tapis", "corde à sauter", "rowing machine", "vélo", "bike", "ergomètre"];
+
 /**
- * Parse les reps : "10", "8-10", "15 sec", "20sec", number → secondes d'effort.
+ * Détecte si l'exercice est une course/cardio basé sur le nom.
+ */
+function isRunningExercise(name: string): boolean {
+  return RUNNING_KEYWORDS.some((k) => name.toLowerCase().includes(k));
+}
+
+/**
+ * Parse une distance dans les reps : "2000m", "400m", "1.5km", "5000m"
+ * Retourne la distance en mètres, ou null si pas une distance.
+ */
+function parseDistance(reps: string): number | null {
+  // Format "Xkm" ou "X km"
+  const kmMatch = reps.match(/(\d+(?:[.,]\d+)?)\s*km/i);
+  if (kmMatch) return parseFloat(kmMatch[1].replace(",", ".")) * 1000;
+
+  // Format "Xm" ou "X m" (mais pas "Xmin")
+  const mMatch = reps.match(/(\d+)\s*m(?!in)(?!\w)/i);
+  if (mMatch) return parseInt(mMatch[1], 10);
+
+  return null;
+}
+
+/**
+ * Estime la durée en secondes pour une distance de course.
+ * Allure par défaut : 5:30/km (330 s/km) — allure de footing modéré.
+ * Sprint (<400m) : 3:30/km (210 s/km)
+ * Endurance (>3000m) : 6:00/km (360 s/km)
+ */
+function estimateRunDuration(distanceMeters: number): number {
+  const km = distanceMeters / 1000;
+  let paceSecPerKm: number;
+  if (distanceMeters < 400) {
+    paceSecPerKm = 210; // ~3:30/km sprint
+  } else if (distanceMeters <= 1000) {
+    paceSecPerKm = 270; // ~4:30/km fractionné
+  } else if (distanceMeters <= 3000) {
+    paceSecPerKm = 330; // ~5:30/km tempo/footing
+  } else {
+    paceSecPerKm = 360; // ~6:00/km endurance
+  }
+  return Math.round(km * paceSecPerKm);
+}
+
+/**
+ * Parse les reps : "10", "8-10", "15 sec", "20sec", "2000m", "1km" → secondes d'effort.
  * Si is_duration → la valeur est directement en secondes.
  * Si per_side → le temps est doublé ici.
  */
@@ -123,11 +169,19 @@ function parseRepsDuration(
 
   const multiplier = perSide ? 2 : 1;
 
+  // Distance explicite dans les reps ("2000m", "400m", "1km", "1.5km")
+  const distanceM = parseDistance(reps);
+  if (distanceM !== null) return estimateRunDuration(distanceM); // pas de multiplier pour la course
+
   // Durée directe (is_duration activé)
   if (isDuration) {
     const m = reps.match(/(\d+)/);
     return m ? parseInt(m[1], 10) * multiplier : 0;
   }
+
+  // Si c'est un exercice de course et les reps ne contiennent pas de distance reconnue
+  // → traiter comme durée en secondes (ex: "8" reps sur tapis = 8 sec ?)
+  // On laisse tomber vers la logique standard ci-dessous.
 
   // Valeur en secondes explicite "20sec", "20s"
   const secMatch = reps.match(/(\d+)\s*s(?:ec)?(?!\w)/i);
@@ -139,7 +193,6 @@ function parseRepsDuration(
     const hi = parseInt(rangeMatch[2], 10);
     const tempoSec = parseTempoSeconds(tempo);
     const secPerRep = tempoSec > 0 ? tempoSec : getTimePerRep(exerciseName);
-    // Exercice isométrique : les "reps" sont en secondes directement
     if (isIsometric(exerciseName)) return hi * multiplier;
     return hi * secPerRep * multiplier;
   }
@@ -148,7 +201,9 @@ function parseRepsDuration(
   const numMatch = reps.match(/(\d+)/);
   if (numMatch) {
     const numReps = parseInt(numMatch[1], 10);
-    if (isIsometric(exerciseName)) return numReps * multiplier; // secondes = reps pour planche
+    // Exercice de course avec nombre simple : traiter comme durée en secondes
+    if (isRunningExercise(exerciseName)) return numReps * multiplier;
+    if (isIsometric(exerciseName)) return numReps * multiplier;
     const tempoSec = parseTempoSeconds(tempo);
     const secPerRep = tempoSec > 0 ? tempoSec : getTimePerRep(exerciseName);
     return numReps * secPerRep * multiplier;
