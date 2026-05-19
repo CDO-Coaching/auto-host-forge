@@ -1430,6 +1430,17 @@ export default function ClientDetail() {
 
     setSessions([...sessions, newSession]);
 
+    // Si c'est une séance renfo, ajouter automatiquement une ligne vide et ouvrir le combobox
+    if (newSessionType === "renfo") {
+      const blankExercise: Exercise = {
+        id: 1, exercice: "", recuperation: "", reps: "", series: "4",
+        charge: "", rpe: "", tempo: "", commentaire: "",
+      };
+      setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
+      setExpandedSessionId(nextSessionNumber);
+      setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
+    }
+
     // Si c'est une séance cardio ou recup, ajouter automatiquement un exercice
     if (newSessionType === "cardio") {
       const newExercise: Exercise = {
@@ -1488,6 +1499,16 @@ export default function ClientDetail() {
     const newSession: Session = { id: nextSessionNumber, name: sessionName, isExpanded: false, session_type: type };
     const updatedSessions = [...sessions, newSession];
     setSessions(updatedSessions);
+
+    if (type === "renfo") {
+      const blankExercise: Exercise = {
+        id: 1, exercice: "", recuperation: "", reps: "", series: "4",
+        charge: "", rpe: "", tempo: "", commentaire: "",
+      };
+      setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
+      setExpandedSessionId(nextSessionNumber);
+      setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
+    }
 
     if (type === "cardio") {
       setSessionExercises((prev) => ({
