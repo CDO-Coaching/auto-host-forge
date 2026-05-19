@@ -63,7 +63,8 @@ export interface AIChatContext {
   athleteName: string;
   athleteVma?: number | null;
   selectedWeek: { week: number; year: number };
-  sessions: AIChatSession[];
+  sessions: AIChatSession[];           // cardio/recup only (renfo excluded)
+  renfoSessionCount?: number;          // nb of renfo sessions this week (for recovery context)
   mesocycleName?: string;
   phaseType?: string;
   mesocycleStart?: string;
@@ -116,12 +117,22 @@ function formatDate(isoDate: string): string {
 // ─── System prompt ────────────────────────────────────────────────────────────
 function buildSystemPrompt(ctx: AIChatContext): string {
   const cardioSessions = ctx.sessions.filter((s) => s.type === "cardio" || s.type === "recup");
+  const cardioSlots = cardioSessions.length;
+  const renfoSlots = ctx.renfoSessionCount ?? 0;
+  const totalSlots = cardioSlots + renfoSlots;
+
   const sessionLines = cardioSessions.length > 0
     ? cardioSessions.map((s, i) =>
         `  ${i + 1}. "${s.name}" (${s.type === "recup" ? "récup active" : "cardio"})` +
         (s.cardioSummary ? ` → ${s.cardioSummary}` : " → contenu non renseigné")
       ).join("\n")
     : "  Aucune séance cardio programmée pour cette semaine.";
+
+  const weekStructureLine = cardioSlots > 0
+    ? `Créneaux disponibles : ${cardioSlots} séance(s) CARDIO` +
+      (renfoSlots > 0 ? ` + ${renfoSlots} séance(s) RENFO (renfo non programmée ici, mais impacte la récupération)` : "") +
+      (totalSlots > 0 ? ` = ${totalSlots} séances/sem au total` : "")
+    : "Aucun créneau cardio défini cette semaine.";
 
   const vmaSection = ctx.athleteVma
     ? `VMA = ${ctx.athleteVma} km/h — Table d'allures :
@@ -143,7 +154,7 @@ ${buildVmaTable(ctx.athleteVma)}`
       const km = w.totalKm > 0 ? `${w.totalKm.toFixed(1)} km` : "0 km";
       const intensity = w.avgIntensityPct ? ` | ~${Math.round(w.avgIntensityPct)}% VMA` : "";
       const deload = deloadFlags[i] ? " ⬇ décharge" : "";
-      return `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s)${intensity}${deload}`;
+      return `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s) cardio${intensity}${deload}`;
     });
     const nonZero = nonEmpty.filter((w) => w.totalKm > 0);
     const avgKm = nonZero.length > 0 ? nonZero.reduce((a, w) => a + w.totalKm, 0) / nonZero.length : 0;
@@ -287,7 +298,13 @@ RÈGLES ABSOLUES — NE JAMAIS DÉROGER
    - 1 semaine avant : semaine de course — volume -50 à -60%, séances très courtes, allures spécifiques uniquement
    - Jamais de stimulus nouveau dans les 2 semaines avant une compétition
 
-6. MULTIPLE MÉSOCYCLES / OBJECTIFS :
+6. RESPECTER STRICTEMENT LE NOMBRE DE CRÉNEAUX CARDIO :
+   - Cette semaine : ${cardioSlots} créneau(x) cardio disponible(s)${renfoSlots > 0 ? ` (+ ${renfoSlots} renfo qui sollicitent la récupération)` : ""}
+   - Ne JAMAIS proposer plus de ${cardioSlots} séance(s) cardio par semaine sans que le coach le demande explicitement
+   - Si l'historique montre un nb de séances différent, s'aligner sur la structure actuelle
+   - Les séances renfo ne sont PAS de ton ressort — ne les programme pas, mais compte-les dans la fatigue globale
+
+7. MULTIPLE MÉSOCYCLES / OBJECTIFS :
    Si le coach veut programmer sur plusieurs semaines et qu'il y a plusieurs mésocycles ou compétitions,
    demande-lui sur lequel se concentrer AVANT de proposer un plan.
 
@@ -361,7 +378,8 @@ ${objectiveInfo}
 ${phaseInfo}
 
 Semaine consultée : S${ctx.selectedWeek.week} ${ctx.selectedWeek.year}
-Séances cardio de la semaine (renfo exclue) :
+${weekStructureLine}
+Séances cardio (renfo exclue) :
 ${sessionLines}
 
 ─── Planning complet ─────────────────────

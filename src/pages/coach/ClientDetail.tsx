@@ -4812,6 +4812,7 @@ export default function ClientDetail() {
                     type: m.type,
                   }))
                 : undefined,
+              renfoSessionCount: sessions.filter((s) => s.session_type === "renfo").length,
               sessions: sessions.filter((s) => s.session_type !== "renfo").map((s) => {
                 const exs = sessionExercises[s.id] || [];
                 let cardioSummary: string | undefined;
