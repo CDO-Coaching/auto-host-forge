@@ -69,7 +69,7 @@ import { CoachSwimmingView } from "@/components/CoachSwimmingView";
 import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
-import { CoachObjectivesView, getPhase } from "@/components/CoachObjectivesView";
+import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
@@ -4791,15 +4791,18 @@ export default function ClientDetail() {
               objective: activeMeso?.objective || (athleteObjectives as any)?.main_objective || undefined,
               recentHistory: recentCardioHistory.length > 0 ? recentCardioHistory : undefined,
               allMesocycles: athleteMesocycles.length > 0
-                ? athleteMesocycles.map((m) => ({
-                    name: m.name,
-                    phaseType: m.phase_type,
-                    start: m.start_date,
-                    end: m.end_date,
-                    objective: m.objective,
-                    volumeTarget: m.volume_target,
-                    intensityTarget: m.intensity_target,
-                  }))
+                ? athleteMesocycles
+                    .filter((m) => !m.sport || (CARDIO_SPORT_VALUES as readonly string[]).includes(m.sport))
+                    .map((m) => ({
+                      name: m.name,
+                      phaseType: m.phase_type,
+                      start: m.start_date,
+                      end: m.end_date,
+                      objective: m.objective,
+                      sport: m.sport || undefined,
+                      volumeTarget: m.volume_target,
+                      intensityTarget: m.intensity_target,
+                    }))
                 : undefined,
               milestones: athleteMilestones.length > 0
                 ? athleteMilestones.map((m: any) => ({

@@ -150,6 +150,35 @@ export function getPhase(value?: string) {
   return PHASE_TYPES.find((p) => p.value === value) ?? PHASE_TYPES.find((p) => p.value === "custom")!;
 }
 
+// ─── Sport types ──────────────────────────────────────────────────────────────
+export const SPORT_TYPES = [
+  // Endurance / Cardio
+  { value: "course",      label: "Course à pied",        emoji: "🏃", category: "endurance" },
+  { value: "trail",       label: "Trail / Montagne",     emoji: "🏔️", category: "endurance" },
+  { value: "triathlon",   label: "Triathlon",            emoji: "🏊", category: "endurance" },
+  { value: "cyclisme",    label: "Cyclisme",             emoji: "🚴", category: "endurance" },
+  { value: "natation",    label: "Natation",             emoji: "🏊", category: "endurance" },
+  { value: "duathlon",    label: "Duathlon",             emoji: "🏃", category: "endurance" },
+  // Force / Musculaire
+  { value: "musculation", label: "Musculation / Force",  emoji: "💪", category: "force" },
+  { value: "haltero",     label: "Haltérophilie",        emoji: "🏋️", category: "force" },
+  { value: "crossfit",    label: "CrossFit / Functional",emoji: "⚡", category: "force" },
+  // Autre
+  { value: "cross_training", label: "Cross-training",   emoji: "🔄", category: "autre" },
+  { value: "yoga",        label: "Yoga / Mobilité",      emoji: "🧘", category: "autre" },
+  { value: "sport_collectif", label: "Sport collectif",  emoji: "⚽", category: "autre" },
+  { value: "general",     label: "Général / Mixte",      emoji: "📋", category: "autre" },
+] as const;
+
+// Values that count as "cardio/endurance" for AI filtering
+export const CARDIO_SPORT_VALUES = ["course", "trail", "triathlon", "cyclisme", "natation", "duathlon"] as const;
+
+export type SportTypeValue = typeof SPORT_TYPES[number]["value"];
+
+export function getSport(value?: string) {
+  return SPORT_TYPES.find((s) => s.value === value) ?? null;
+}
+
 // ─── Sous-composants ──────────────────────────────────────────────────────────
 
 function PhaseTag({ value, size = "sm" }: { value?: string; size?: "sm" | "xs" }) {
@@ -541,11 +570,14 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                     Macrocycle
                   </span>
                 )}
-                {cycle.sport && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
-                    {cycle.sport}
-                  </span>
-                )}
+                {cycle.sport && (() => {
+                  const sp = getSport(cycle.sport);
+                  return (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+                      {sp ? `${sp.emoji} ${sp.label}` : cycle.sport}
+                    </span>
+                  );
+                })()}
                 <Badge variant={status === "active" ? "default" : status === "upcoming" ? "secondary" : "outline"} className="text-xs">
                   {status === "active" ? "En cours" : status === "upcoming" ? "À venir" : "Terminé"}
                 </Badge>
@@ -1098,12 +1130,36 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               />
             </div>
 
-            {/* Sport (uniquement macro) */}
-            {cycleDialogType === "macro" && (
+            {/* Sport / Discipline */}
+            {(cycleDialogType === "macro" || cycleDialogType === "meso") && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold">Discipline (optionnel)</Label>
-                <Input placeholder="Ex: Musculation, Course à pied, Natation…" value={cycleForm.sport} onChange={(e) => setCycleForm({ ...cycleForm, sport: e.target.value })} />
-                <p className="text-xs text-muted-foreground">Utile si l'athlète a plusieurs macrocycles simultanés.</p>
+                <Select
+                  value={cycleForm.sport || "none"}
+                  onValueChange={(v) => setCycleForm({ ...cycleForm, sport: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir une discipline…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Non spécifié</SelectItem>
+                    <SelectItem value="_endurance" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Endurance</SelectItem>
+                    {SPORT_TYPES.filter((s) => s.category === "endurance").map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+                    ))}
+                    <SelectItem value="_force" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Force</SelectItem>
+                    {SPORT_TYPES.filter((s) => s.category === "force").map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+                    ))}
+                    <SelectItem value="_autre" disabled className="text-xs text-muted-foreground font-semibold uppercase tracking-wide py-1">── Autre</SelectItem>
+                    {SPORT_TYPES.filter((s) => s.category === "autre").map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.emoji} {s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {cycleDialogType === "meso" ? "Utilisé pour filtrer les cycles dans l'IA Cardio." : "Utile si l'athlète a plusieurs macrocycles simultanés."}
+                </p>
               </div>
             )}
 

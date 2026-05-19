@@ -44,6 +44,7 @@ export interface AIChatWeekHistory {
 export interface AIChatMesocycle {
   name: string;
   phaseType?: string;
+  sport?: string;  // e.g. "course", "trail", "triathlon"
   start: string; // ISO date
   end: string;   // ISO date
   objective?: string;
@@ -185,8 +186,9 @@ ${rows.join("\n")}
       }
       const obj = m.objective ? ` | Objectif : ${m.objective}` : "";
       const phase = m.phaseType ? ` (${m.phaseType})` : "";
+      const sportLabel = m.sport ? ` [${m.sport}]` : "";
       const remaining = today <= end && today >= start ? ` — ${weeksLeft} sem. restantes` : "";
-      return `  [${status}] ${m.name}${phase} : ${formatDate(m.start)} → ${formatDate(m.end)}${remaining}${obj}`;
+      return `  [${status}] ${m.name}${phase}${sportLabel} : ${formatDate(m.start)} → ${formatDate(m.end)}${remaining}${obj}`;
     });
     mesocycleSection = `Mésocycles / cycles planifiés :
 ${rows.join("\n")}`;
