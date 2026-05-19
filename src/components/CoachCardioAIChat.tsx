@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 // ─── Groq config (same as CycleSetupGate) ────────────────────────────────────
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL   = "llama-3.3-70b-versatile";
+const GROQ_MODEL   = "deepseek-r1-distill-llama-70b";
 
 interface Message {
   role: "user" | "assistant";
@@ -437,8 +437,8 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
         { role: "system", content: systemPrompt },
         ...messages.map((m) => ({ role: m.role, content: m.content })),
       ],
-      temperature: 0.4,
-      max_tokens: 1536,
+      temperature: 0.6,
+      max_tokens: 8192,
     }),
   });
 
@@ -447,7 +447,9 @@ async function askGroq(messages: Message[], systemPrompt: string): Promise<strin
     throw new Error(`Groq ${resp.status}: ${err}`);
   }
   const data = await resp.json();
-  return data.choices?.[0]?.message?.content ?? "Pas de réponse.";
+  const raw: string = data.choices?.[0]?.message?.content ?? "Pas de réponse.";
+  // Supprimer le bloc de réflexion interne <think>…</think> avant d'afficher
+  return raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
 
 // ─── Suggested questions ──────────────────────────────────────────────────────
