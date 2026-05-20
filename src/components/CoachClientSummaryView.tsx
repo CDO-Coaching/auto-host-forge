@@ -9,6 +9,7 @@ import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } fro
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { CoachCardioSummaryCard } from "@/components/CoachCardioSummaryCard";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CoachClientSummaryViewProps {
   athleteId: string;
@@ -46,6 +47,12 @@ interface SessionInfo {
   scheduled_date: string | null;
   isCustom?: boolean;
   inProgress?: boolean;
+  // Extra fields for custom sessions
+  cardio_type?: string | null;
+  distance_km?: number | null;
+  avg_pace?: string | null;
+  avg_heart_rate?: number | null;
+  description?: string | null;
 }
 
 interface Milestone {
@@ -75,6 +82,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
   const [previousWeekSessions, setPreviousWeekSessions] = useState<SessionInfo[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCustomSessionDetail, setSelectedCustomSessionDetail] = useState<SessionInfo | null>(null);
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
 
   const today = new Date();
@@ -263,6 +271,11 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
           duration_minutes: cs.duration_minutes,
           scheduled_date: cs.scheduled_date,
           isCustom: true,
+          cardio_type: cs.cardio_type ?? null,
+          distance_km: cs.distance_km ?? null,
+          avg_pace: cs.avg_pace ?? null,
+          avg_heart_rate: cs.avg_heart_rate ?? null,
+          description: cs.description ?? null,
         }));
     }
 
@@ -322,7 +335,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
       ) : (
         <div className="space-y-1">
           {sessions.map((s) => {
-            const isClickable = !s.isCustom;
+            const isClickable = true;
             const bgClass = s.completed_at
               ? "bg-green-500/5 border-green-500/20"
               : s.inProgress
@@ -336,10 +349,10 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
             return (
               <div
                 key={s.id}
-                onClick={isClickable ? () => setSelectedSession(s) : undefined}
+                onClick={isClickable ? () => s.isCustom ? setSelectedCustomSessionDetail(s) : setSelectedSession(s) : undefined}
                 role={isClickable ? "button" : undefined}
                 tabIndex={isClickable ? 0 : undefined}
-                onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedSession(s); } } : undefined}
+                onKeyDown={isClickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); s.isCustom ? setSelectedCustomSessionDetail(s) : setSelectedSession(s); } } : undefined}
                 className={`flex items-center justify-between px-2 py-1.5 rounded border text-xs overflow-hidden transition-colors ${bgClass} ${isClickable ? `cursor-pointer ${hoverClass}` : ""}`}
               >
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
@@ -496,6 +509,74 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
         </Card>
       </div>
     </div>
+
+    {/* Dialog séance perso */}
+    <Dialog open={!!selectedCustomSessionDetail} onOpenChange={(open) => !open && setSelectedCustomSessionDetail(null)}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>{selectedCustomSessionDetail?.cardio_type === "course" ? "🏃" : selectedCustomSessionDetail?.cardio_type === "velo" ? "🚴" : selectedCustomSessionDetail?.cardio_type === "natation" ? "🏊" : "🏋️"}</span>
+            {selectedCustomSessionDetail?.name}
+          </DialogTitle>
+        </DialogHeader>
+        {selectedCustomSessionDetail && (
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg bg-muted/40 p-3 space-y-2">
+              {(selectedCustomSessionDetail.scheduled_date || selectedCustomSessionDetail.completed_at) && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="font-medium">
+                    {new Date(selectedCustomSessionDetail.scheduled_date || selectedCustomSessionDetail.completed_at!).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                  </span>
+                </div>
+              )}
+              {selectedCustomSessionDetail.cardio_type && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-medium capitalize">{selectedCustomSessionDetail.cardio_type === "course" ? "Course à pied" : selectedCustomSessionDetail.cardio_type === "velo" ? "Vélo" : selectedCustomSessionDetail.cardio_type === "natation" ? "Natation" : selectedCustomSessionDetail.cardio_type}</span>
+                </div>
+              )}
+              {selectedCustomSessionDetail.duration_minutes && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Durée</span>
+                  <span className="font-medium">{selectedCustomSessionDetail.duration_minutes} min</span>
+                </div>
+              )}
+              {selectedCustomSessionDetail.distance_km && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Distance</span>
+                  <span className="font-medium">{selectedCustomSessionDetail.distance_km} km</span>
+                </div>
+              )}
+              {selectedCustomSessionDetail.avg_pace && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Allure moy.</span>
+                  <span className="font-medium">{selectedCustomSessionDetail.avg_pace} /km</span>
+                </div>
+              )}
+              {selectedCustomSessionDetail.avg_heart_rate && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">FC moyenne</span>
+                  <span className="font-medium">{selectedCustomSessionDetail.avg_heart_rate} bpm</span>
+                </div>
+              )}
+              {!selectedCustomSessionDetail.duration_minutes && !selectedCustomSessionDetail.distance_km && (
+                <p className="text-muted-foreground text-xs italic">Séance planifiée — pas encore réalisée</p>
+              )}
+            </div>
+            {selectedCustomSessionDetail.description && (
+              <div className="rounded-lg bg-muted/20 border border-border/40 p-3">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Commentaire</p>
+                <p className="text-sm italic">{selectedCustomSessionDetail.description}</p>
+              </div>
+            )}
+            {selectedCustomSessionDetail.completed_at && (
+              <Badge className="bg-green-500/20 text-green-600 border-green-500/30">✅ Validée</Badge>
+            )}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
 
     <CoachSessionDetailDialog
       open={!!selectedSession}

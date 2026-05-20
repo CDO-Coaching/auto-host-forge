@@ -1062,6 +1062,48 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} />
                           </div>
 
+                          {/* Données réelles (Strava ou saisie manuelle) */}
+                          {(exercise.actual_duration_minutes != null || exercise.actual_distance_km != null || exercise.actual_pace_min_per_km != null || exercise.actual_avg_heart_rate != null || exercise.sportif_rpe != null) && (
+                            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-3">
+                              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" /></svg>
+                                Réalisé
+                              </p>
+                              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                                {exercise.actual_duration_minutes != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Durée</span>
+                                    <span className="font-medium text-xs">{exercise.actual_duration_minutes} min</span>
+                                  </div>
+                                )}
+                                {exercise.actual_distance_km != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Distance</span>
+                                    <span className="font-medium text-xs">{exercise.actual_distance_km} km</span>
+                                  </div>
+                                )}
+                                {exercise.actual_pace_min_per_km != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Allure</span>
+                                    <span className="font-medium text-xs">{exercise.actual_pace_min_per_km} /km</span>
+                                  </div>
+                                )}
+                                {exercise.actual_avg_heart_rate != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">FC moy.</span>
+                                    <span className="font-medium text-xs">{exercise.actual_avg_heart_rate} bpm</span>
+                                  </div>
+                                )}
+                                {exercise.sportif_rpe != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">RPE</span>
+                                    <span className="font-medium text-xs">{exercise.sportif_rpe}/10</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           <CardioStepBuilder
                             steps={cardioData.steps}
                             blocks={cardioData.blocks}
