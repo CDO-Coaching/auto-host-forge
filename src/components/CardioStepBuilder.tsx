@@ -337,13 +337,13 @@ export function CardioStepBuilder({
   const renderStepFields = (step: CardioStep, index: number, inBlock: boolean) => {
     const isRunning = sportType === "course";
     const borderClass = inBlock
-      ? "border-l-2 border-indigo-300"
+      ? "border-l-2 border-amber-500/60"
       : "border-l-2 border-border";
 
     return (
       <div
         key={step.id}
-        className={`flex flex-wrap gap-3 items-end px-4 py-3 ${inBlock ? "bg-indigo-500/5" : ""} ${borderClass} relative`}
+        className={`flex flex-wrap gap-3 items-end px-4 py-3 ${inBlock ? "bg-amber-500/5" : ""} ${borderClass} relative`}
         draggable={!disabled}
         onDragStart={() => handleStepDragStart(step.id)}
         onDragOver={handleStepDragOver}
@@ -362,7 +362,7 @@ export function CardioStepBuilder({
               className="h-3.5 w-3.5 rounded border-border"
             />
           )}
-          <span className={`inline-flex items-center justify-center rounded-full h-6 w-6 text-xs font-semibold shrink-0 ${inBlock ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300" : "bg-muted text-muted-foreground"}`}>
+          <span className={`inline-flex items-center justify-center rounded-full h-6 w-6 text-xs font-semibold shrink-0 ${inBlock ? "bg-amber-500/20 text-amber-400" : "bg-muted text-muted-foreground"}`}>
             {index + 1}
           </span>
         </div>
@@ -606,11 +606,11 @@ export function CardioStepBuilder({
             return (
               <div
                 key={`block-${block.id}`}
-                className="rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-800"
+                className="rounded-lg overflow-hidden border border-amber-500/40 dark:border-amber-500/30"
               >
                 {/* Block header */}
-                <div className="bg-indigo-600 text-white px-4 py-2 flex flex-wrap items-center gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wider">Bloc</span>
+                <div className="bg-amber-500/20 text-amber-300 px-4 py-2 flex flex-wrap items-center gap-3 border-b border-amber-500/30">
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Bloc</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs opacity-80">×</span>
                     <Input
@@ -627,7 +627,7 @@ export function CardioStepBuilder({
                         updateBlockRepetitions(block.id, reps);
                         setBlockRepInputs(prev => { const n = { ...prev }; delete n[block.id]; return n; });
                       }}
-                      className="w-12 h-7 text-sm bg-white/20 border-white/30 text-white placeholder:text-white/60 focus-visible:ring-white/50"
+                      className="w-12 h-7 text-sm bg-amber-500/10 border-amber-500/30 text-amber-200 placeholder:text-amber-300/60 focus-visible:ring-amber-500/50"
                       disabled={disabled}
                     />
                     <span className="text-xs opacity-80">répétitions</span>
@@ -637,7 +637,7 @@ export function CardioStepBuilder({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeBlock(block.id)}
-                      className="ml-auto h-7 px-2 text-white hover:text-white hover:bg-white/20 text-xs"
+                      className="ml-auto h-7 px-2 text-amber-300 hover:text-amber-200 hover:bg-amber-500/20 text-xs"
                     >
                       <Unlink className="h-3.5 w-3.5 mr-1" />
                       Délier
@@ -646,7 +646,7 @@ export function CardioStepBuilder({
                 </div>
 
                 {/* Steps inside block */}
-                <div className="divide-y divide-indigo-100 dark:divide-indigo-900 bg-card">
+                <div className="divide-y divide-amber-500/10 bg-card">
                   {entries.map(({ step, index }) =>
                     renderStepFields(step, index, true)
                   )}
