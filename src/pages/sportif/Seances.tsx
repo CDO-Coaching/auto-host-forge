@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { getWeekNumber, getWeekYear, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
+import { StravaActivityMatcher } from "@/components/StravaActivityMatcher";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import { WeeklyCompletionCelebration } from "@/components/WeeklyCompletionCelebration";
 import { useWeeklyCompletionCelebration } from "@/hooks/useWeeklyCompletionCelebration";
@@ -32,6 +33,7 @@ export default function Seances() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
   const firstName = profile?.first_name || "champion";
+  const [userId, setUserId] = useState<string | null>(null);
   const [weeks, setWeeks] = useState<any[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
@@ -73,6 +75,7 @@ export default function Seances() {
         setLoading(false);
         return;
       }
+      setUserId(user.id);
       loadWeeks(user.id);
       loadCustomSessions();
     };
@@ -382,6 +385,16 @@ export default function Seances() {
             <h2 className="text-lg sm:text-xl font-semibold">
               Semaine {selectedWeek.week_number} ({formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)})
             </h2>
+
+            {/* Bandeau Strava — activités récentes à lier */}
+            {userId && (
+              <StravaActivityMatcher
+                athleteId={userId}
+                currentWeekSessions={sessions}
+                onLinked={() => loadWeekSessions(selectedWeek.id)}
+              />
+            )}
+
             {sessions.length === 0 ? (
               <p className="text-sm sm:text-base text-muted-foreground text-center py-6 sm:py-8">Aucune séance pour cette semaine.</p>
             ) : (
@@ -471,6 +484,15 @@ export default function Seances() {
                                 {isFirstToDo && !hasSchedule && (
                                   <Badge variant="default" className="bg-primary text-primary-foreground text-xs shadow-lg shadow-primary/30">
                                     À faire
+                                  </Badge>
+                                )}
+
+                                {session.linked_strava_activity_id && (
+                                  <Badge className="bg-[#FC4C02]/15 text-[#FC4C02] border border-[#FC4C02]/30 text-xs font-medium">
+                                    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-[#FC4C02] mr-1">
+                                      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
+                                    </svg>
+                                    Strava
                                   </Badge>
                                 )}
                               </div>
