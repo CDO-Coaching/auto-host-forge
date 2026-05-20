@@ -13,7 +13,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
-import { Shield, ExternalLink, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { Shield, ExternalLink, Settings, ChevronDown, ChevronUp, Link2, Link2Off, Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -152,6 +152,61 @@ export default function Profil() {
   const [saving, setSaving] = useState(false);
   const [healthDataConsent, setHealthDataConsent] = useState(false);
   const [healthDataConsentAt, setHealthDataConsentAt] = useState<string | null>(null);
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [stravaLoading, setStravaLoading] = useState(true);
+  const [stravaDisconnecting, setStravaDisconnecting] = useState(false);
+
+  // ─── Strava ────────────────────────────────────────────────────────────────
+  const STRAVA_API = "https://api.cdocoaching.com";
+  const STRAVA_CLIENT_ID = "248105";
+
+  useEffect(() => {
+    if (!userId) return;
+
+    // Vérifie le statut de connexion Strava
+    const checkStrava = async () => {
+      try {
+        const res = await fetch(`${STRAVA_API}/strava/status/${userId}`);
+        const data = await res.json();
+        setStravaConnected(data.connected);
+      } catch { /* ignore */ } finally {
+        setStravaLoading(false);
+      }
+    };
+    checkStrava();
+
+    // Gère le retour après OAuth Strava
+    const params = new URLSearchParams(window.location.search);
+    const stravaParam = params.get("strava");
+    if (stravaParam === "connected") {
+      toast.success("Strava connecté avec succès ! Tes activités seront importées automatiquement.");
+      setStravaConnected(true);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (stravaParam === "error") {
+      toast.error("Erreur lors de la connexion Strava. Réessaie.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [userId]);
+
+  const connectStrava = () => {
+    const redirectUri = `${STRAVA_API}/auth/strava/callback`;
+    const scope = "activity:read_all";
+    const url = `https://www.strava.com/oauth/authorize?client_id=${STRAVA_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&approval_prompt=auto&scope=${scope}&state=${userId}`;
+    window.location.href = url;
+  };
+
+  const disconnectStrava = async () => {
+    setStravaDisconnecting(true);
+    try {
+      await fetch(`${STRAVA_API}/strava/disconnect/${userId}`, { method: "DELETE" });
+      setStravaConnected(false);
+      toast.success("Strava déconnecté.");
+    } catch {
+      toast.error("Erreur lors de la déconnexion.");
+    } finally {
+      setStravaDisconnecting(false);
+    }
+  };
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -597,6 +652,63 @@ export default function Profil() {
           </CollapsibleContent>
         </Card>
       </Collapsible>
+
+      {/* ─── Connexions ─────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            Connexions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Logo Strava */}
+              <div className="w-10 h-10 rounded-lg bg-[#FC4C02] flex items-center justify-center shrink-0">
+                <svg viewBox="0 0 24 24" className="w-6 h-6 fill-white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-sm">Strava</p>
+                {stravaLoading ? (
+                  <p className="text-xs text-muted-foreground">Vérification...</p>
+                ) : stravaConnected ? (
+                  <p className="text-xs text-green-500 font-medium">✓ Connecté — activités synchronisées automatiquement</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Non connecté</p>
+                )}
+              </div>
+            </div>
+
+            {stravaLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : stravaConnected ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={disconnectStrava}
+                disabled={stravaDisconnecting}
+                className="text-destructive border-destructive/30 hover:bg-destructive/10 text-xs"
+              >
+                {stravaDisconnecting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2Off className="h-3 w-3 mr-1" />}
+                Déconnecter
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={connectStrava}
+                className="bg-[#FC4C02] hover:bg-[#e04400] text-white text-xs"
+              >
+                <Link2 className="h-3 w-3 mr-1" />
+                Connecter Strava
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

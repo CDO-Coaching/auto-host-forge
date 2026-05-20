@@ -162,6 +162,10 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
+  const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
+  const [currentInjury, setCurrentInjury] = useState<{ level: number; location: string } | null>(null);
+  const [recentPerfTests, setRecentPerfTests] = useState<Array<{ test_type: string; test_date: string; raw_value: number | null; vma_estimated: number | null; notes: string | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedSessionId, setExpandedSessionId] = useState<number | null>(null);
@@ -449,6 +453,7 @@ export default function ClientDetail() {
     loadHeaderInjury();
     loadSessionTemplates();
     loadPersistentActiveAssignment();
+    loadInjuryAndPerfTests();
   }, [athleteId]);
 
   // When selected week changes, load its data from DB
@@ -979,6 +984,38 @@ export default function ClientDetail() {
     }
   };
 
+  const loadInjuryAndPerfTests = async () => {
+    if (!athleteId) return;
+
+    // Recent injury from daily_fatigue_log
+    const { data: injuryData } = await supabase
+      .from("daily_fatigue_log")
+      .select("injury_level, injury_location")
+      .eq("user_id", athleteId)
+      .eq("has_injury", true)
+      .not("injury_level", "is", null)
+      .order("date", { ascending: false })
+      .limit(1);
+
+    if (injuryData && injuryData.length > 0 && injuryData[0].injury_level > 0) {
+      setCurrentInjury({
+        level: injuryData[0].injury_level,
+        location: injuryData[0].injury_location || "Non précisé",
+      });
+    } else {
+      setCurrentInjury(null);
+    }
+
+    // Performance tests
+    const { data: testData } = await (supabase.from("athlete_performance_tests") as any)
+      .select("test_type, test_date, raw_value, vma_estimated, notes")
+      .eq("athlete_id", athleteId)
+      .order("test_date", { ascending: false })
+      .limit(5);
+
+    if (testData) setRecentPerfTests(testData);
+  };
+
   const loadHeaderInjury = async () => {
     if (!athleteId) return;
     
@@ -1382,6 +1419,8 @@ export default function ClientDetail() {
     } else {
       setAthlete(data);
       setAthleteVma(data.vma || null);
+      setAthleteFcMax((data as any).fc_max || null);
+      setAthleteFcRepos((data as any).fc_repos || null);
     }
 
     setLoading(false);
@@ -4846,6 +4885,17 @@ export default function ClientDetail() {
                     type: m.type,
                   }))
                 : undefined,
+              athleteFcMax: athleteFcMax,
+              athleteFcRepos: athleteFcRepos,
+              adaptationLevel: (athlete as any)?.adaptation_period_level ?? null,
+              currentInjury: currentInjury,
+              recentPerformanceTests: recentPerfTests.map((t) => ({
+                testType: t.test_type,
+                testDate: t.test_date,
+                rawValue: t.raw_value,
+                vmaEstimated: t.vma_estimated,
+                notes: t.notes,
+              })),
               renfoSessionCount: sessions.filter((s) => s.session_type === "renfo").length,
               sessions: sessions.filter((s) => s.session_type !== "renfo").map((s) => {
                 const exs = sessionExercises[s.id] || [];
@@ -4888,6 +4938,7 @@ export default function ClientDetail() {
                 open={showCardioAIChat}
                 onOpenChange={setShowCardioAIChat}
                 context={aiChatContext}
+                athleteId={athleteId}
               />
             );
           })()}

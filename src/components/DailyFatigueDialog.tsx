@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles, CalendarIcon } from "lucide-react";
+import { InjuryLocationPicker } from "./InjuryLocationPicker";
 import { cn } from "@/lib/utils";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,6 +64,7 @@ const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑
 
 type AdaptationLevel = "legere" | "moyenne" | "grosse" | null;
 type InjuryEvolution = "same" | "better" | "worse" | "gone" | null;
+
 
 interface PreviousInjury {
   injury_level: number;
@@ -517,6 +519,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   setHasInjury(true);
                   setInjuryLevel(4);
                   setInjuryLocation("");
+                  setSelectedZone("");
+                  setSelectedSide("");
                 }}
                 className="w-full text-xs"
               >
@@ -558,18 +562,10 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <Label htmlFor="injury-location" className="text-xs sm:text-base">
-                      Localisation <span className="text-muted-foreground">(optionnel)</span>
-                    </Label>
-                    <Input
-                      id="injury-location"
-                      placeholder="Ex: Genou droit, épaule gauche..."
-                      value={injuryLocation}
-                      onChange={(e) => setInjuryLocation(e.target.value)}
-                      className="text-xs sm:text-sm"
-                    />
-                  </div>
+                  <InjuryLocationPicker
+                    value={injuryLocation}
+                    onChange={setInjuryLocation}
+                  />
                 </>
               )}
 
@@ -583,6 +579,8 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                     setHasInjury(false);
                     setInjuryLevel(previousInjury.injury_level);
                     setInjuryLocation(previousInjury.injury_location || "");
+                    setSelectedZone(previousInjury.injury_location || "");
+                    setSelectedSide("");
                   }}
                   className="w-full text-xs"
                 >

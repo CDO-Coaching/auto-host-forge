@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { QuickRatingInput } from "./QuickRatingInput";
 import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
+import { InjuryLocationPicker } from "./InjuryLocationPicker";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
@@ -271,18 +271,10 @@ export function EditFatigueDialog({ open, onClose, logs, initialLog }: EditFatig
                       />
                     </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="injuryLocation" className="text-xs sm:text-sm font-medium">
-                        Localisation
-                      </Label>
-                      <Input
-                        id="injuryLocation"
-                        placeholder="Ex: genou droit, épaule..."
-                        value={injuryLocation}
-                        onChange={(e) => setInjuryLocation(e.target.value)}
-                        className="text-sm h-9"
-                      />
-                    </div>
+                    <InjuryLocationPicker
+                      value={injuryLocation}
+                      onChange={setInjuryLocation}
+                    />
                   </div>
                 )}
               </div>

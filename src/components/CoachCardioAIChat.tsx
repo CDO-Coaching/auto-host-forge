@@ -15,9 +15,9 @@ import { Badge } from "@/components/ui/badge";
 import { Send, Loader2, Trash2, Bot, User, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-// ─── Groq config (same as CycleSetupGate) ────────────────────────────────────
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL   = "llama-3.3-70b-versatile";
+// ─── OpenAI config ────────────────────────────────────────────────────────────
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const OPENAI_MODEL   = "gpt-4o";
 
 interface Message {
   role: "user" | "assistant";
@@ -59,6 +59,14 @@ export interface AIChatMilestone {
   type?: string;       // "competition" | "test" | etc.
 }
 
+export interface AIChatPerformanceTest {
+  testType: string;
+  testDate: string;
+  rawValue?: number | null;
+  vmaEstimated?: number | null;
+  notes?: string | null;
+}
+
 export interface AIChatContext {
   athleteName: string;
   athleteVma?: number | null;
@@ -73,6 +81,11 @@ export interface AIChatContext {
   recentHistory?: AIChatWeekHistory[];
   allMesocycles?: AIChatMesocycle[];   // full planning timeline
   milestones?: AIChatMilestone[];      // competitions / key dates
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
+  adaptationLevel?: "legere" | "moyenne" | "grosse" | null;
+  currentInjury?: { level: number; location: string } | null;
+  recentPerformanceTests?: AIChatPerformanceTest[];
 }
 
 // ─── Pace calculator from VMA ─────────────────────────────────────────────────
@@ -126,7 +139,7 @@ function formatDate(isoDate: string): string {
 }
 
 // ─── System prompt ────────────────────────────────────────────────────────────
-function buildSystemPrompt(ctx: AIChatContext): string {
+function buildSystemPrompt(ctx: AIChatContext, memory?: string): string {
   const cardioSessions = ctx.sessions.filter((s) => s.type === "cardio" || s.type === "recup");
   const cardioSlots = cardioSessions.length;
   const renfoSlots = ctx.renfoSessionCount ?? 0;
@@ -262,6 +275,60 @@ ${rows.join("\n")}`;
     }
   }
 
+  // ── FC & Niveau ───────────────────────────────────────────────────────────
+  const fcSection = (ctx.athleteFcMax || ctx.athleteFcRepos)
+    ? `FC max : ${ctx.athleteFcMax ?? "?"} bpm | FC repos : ${ctx.athleteFcRepos ?? "?"} bpm` +
+      (ctx.athleteFcMax && ctx.athleteFcRepos ? ` | Réserve FC : ${ctx.athleteFcMax - ctx.athleteFcRepos} bpm` : "")
+    : "FC max / FC repos : non renseignées";
+
+  const niveauMap: Record<string, string> = {
+    legere: "Débutant / charge légère",
+    moyenne: "Intermédiaire / charge moyenne",
+    grosse: "Avancé / charge élevée",
+  };
+  const niveauSection = ctx.adaptationLevel
+    ? `Niveau : ${niveauMap[ctx.adaptationLevel] ?? ctx.adaptationLevel}`
+    : "Niveau : non renseigné";
+
+  // ── Blessure active ───────────────────────────────────────────────────────
+  const injurySection = ctx.currentInjury
+    ? `⚠ BLESSURE ACTIVE : douleur ${ctx.currentInjury.level}/5 — zone : ${ctx.currentInjury.location}\n  → Éviter impacts élevés, réduire intensité si douleur > 2/5`
+    : "Blessure : aucune signalée récemment";
+
+  // ── Tests de performance ──────────────────────────────────────────────────
+  let perfTestsSection = "Tests de performance : aucun enregistré.";
+  if (ctx.recentPerformanceTests && ctx.recentPerformanceTests.length > 0) {
+    const testLabels: Record<string, string> = {
+      cooper: "Cooper (12min)", "5km": "Chrono 5km", "10km": "Chrono 10km",
+      vma_direct: "VMA directe", autre: "Autre test",
+    };
+    const rows = ctx.recentPerformanceTests.slice(0, 5).map((t) => {
+      let valueStr = "";
+      if ((t.testType === "5km" || t.testType === "10km") && t.rawValue) {
+        const min = Math.floor(t.rawValue / 60);
+        const sec = Math.round(t.rawValue % 60);
+        valueStr = `${min}:${sec.toString().padStart(2, "0")}`;
+        if (t.testType === "10km") {
+          const semiSec = t.rawValue * 2.11;
+          const maraSec = t.rawValue * 4.50;
+          const sh = Math.floor(semiSec / 3600); const sm = Math.floor((semiSec % 3600) / 60);
+          const mh = Math.floor(maraSec / 3600); const mm = Math.floor((maraSec % 3600) / 60);
+          valueStr += ` → semi prédit : ${sh}h${sm.toString().padStart(2,"0")} | marathon prédit : ${mh}h${mm.toString().padStart(2,"0")}`;
+        }
+      } else if (t.testType === "cooper" && t.rawValue) {
+        valueStr = `${t.rawValue} m parcourus`;
+      }
+      const vmaStr = t.vmaEstimated ? ` (VMA : ${t.vmaEstimated} km/h)` : "";
+      return `  • ${testLabels[t.testType] || t.testType} — ${new Date(t.testDate).toLocaleDateString("fr-FR")} : ${valueStr}${vmaStr}`;
+    });
+    perfTestsSection = `Tests de performance récents :\n${rows.join("\n")}`;
+  }
+
+  // ── Memory from previous session ──────────────────────────────────────────
+  const memorySection = memory
+    ? `─── Mémoire session précédente ──────────\n${memory}`
+    : "";
+
   // ── Active phase info ──────────────────────────────────────────────────────
   const phaseInfo = ctx.mesocycleName
     ? `Phase active : ${ctx.mesocycleName}${ctx.phaseType ? ` (${ctx.phaseType})` : ""}` +
@@ -382,11 +449,78 @@ PROGRESSION VERS LA COMPÉTITION :
   Semaine de compétition : volume -50-60%, uniquement activation
 
 ═══════════════════════════════════════════
+RÉFÉRENTIEL SCIENTIFIQUE CDO COACHING
+═══════════════════════════════════════════
+
+▸ MODÈLE DE PERFORMANCE (Joyner & Coyle)
+  Les 4 déterminants : VO₂max · Seuil lactique · Économie de course · Durabilité
+  → Maximiser le seuil lactique = levier n°1 pour marathoniens/semi
+  → Économie de course : renfo lourd (≥80% 1RM) + plyométrie (Llanos-Lagos 2024)
+
+▸ ZONES CDO (3 zones sur base VMA)
+  Z1 : < 75% VMA  — Endurance fondamentale (EF), récupération
+  Z2 : 75–88% VMA — Seuil aérobie / tempo / seuil anaérobie
+  Z3 : > 88% VMA  — VMA, fractionné, spécifique compétition
+
+▸ DISTRIBUTION OPTIMALE PAR OBJECTIF
+  Polarisé  (5km–10km) : Z1 80% · Z2  5% · Z3 15%
+  Pyramidal (semi–marathon) : Z1 80% · Z2 15% · Z3  5%
+  → Jamais de "zone grise" dominante (Z2 > 20% seul = erreur)
+
+▸ ALLURES CIBLES PAR DISTANCE (% VMA)
+  5 km       : 102–107% VMA
+  10 km      : 88–95%  VMA  (élite → 92–95%, amateur → 88–92%)
+  Semi       : 82–90%  VMA  (élite → 87–90%, amateur → 82–87%)
+  Marathon   : 78–86%  VMA  (élite → 82–86%, amateur → 70–80%)
+  Ultra/trail: 60–75%  VMA  (selon D+)
+
+▸ VOLUMES CIBLES HEBDOMADAIRES PAR NIVEAU
+  10 km   : Déb 20–30 km | Inter 30–45 km | Avancé 50–80 km
+  Semi    : Déb 25–40 km | Inter 40–60 km | Avancé 70–100 km
+  Marathon: Déb 40–60 km | Inter 60–80 km | Avancé 90–140 km
+  (semaine pic, hors décharge)
+
+▸ SÉANCES REINES PAR OBJECTIF
+  10 km  : Intervalles allure 10km (5–8 × 1000m @ 92–95% VMA — récup 2min trot)
+  Semi   : Tempo long allure semi (2 × 20min ou 1 × 30–40min @ 87–90% VMA)
+  Marathon: Sortie longue avec blocs allure marathon (ex : 25km dont 3 × 5km @ 82–85% VMA)
+  → Ces séances reines = priorité absolue dans la semaine, jamais sacrifiées
+
+▸ RIEGEL — PRÉDICTION DE TEMPS
+  Semi-marathon ≈ 10km × 2,11
+  Marathon      ≈ 10km × 4,50
+  → Utilise ces formules pour estimer les allures cibles si seul le 10km est connu
+
+▸ TAPERING (Bosquet 2007)
+  Durée : 2 semaines avant compétition
+  Volume : −41 à −60% (progressif, pas brutal)
+  Intensité : MAINTENUE (ne pas réduire les % VMA)
+  Fréquence : maintenue ou légèrement réduite (−20% max)
+  → Ne jamais réduire l'intensité en affûtage : erreur classique
+
+▸ CHARGE D'ENTRAÎNEMENT — ACWR
+  Cible : ACWR 0,8–1,3 (zone verte)
+  Danger : ACWR > 1,5 → risque blessure élevé
+  Sous-entraînement : ACWR < 0,8
+  Cycle 3:1 (3 semaines charge + 1 décharge) : règle CDO standard
+
+▸ RENFORCEMENT MUSCULAIRE & COURSE
+  Llanos-Lagos 2024 : charges ≥ 80% 1RM + plyométrie → améliore économie de course
+  → 2 séances renfo/sem en phase fondamentale, 1/sem en phase spécifique
+  → Renfo le même jour qu'une EF (jamais avant une séance qualité le lendemain)
+
+═══════════════════════════════════════════
 CONTEXTE DE L'ATHLÈTE${criticalCompetitionAlert}
 ═══════════════════════════════════════════
 
 Nom : ${ctx.athleteName}
 ${vmaSection}
+${fcSection}
+${niveauSection}
+${injurySection}
+
+─── Tests de performance ─────────────────
+${perfTestsSection}
 
 ${objectiveInfo}
 ${phaseInfo}
@@ -405,7 +539,7 @@ ${milestonesSection}
 ─── Volume récent ────────────────────────
 ${historySection}
 
-═══════════════════════════════════════════
+${memorySection ? memorySection + "\n\n" : ""}═══════════════════════════════════════════
 FORMAT DE RÉPONSE
 ═══════════════════════════════════════════
 
@@ -420,36 +554,108 @@ FORMAT DE RÉPONSE
 `;
 }
 
-// ─── Groq call ────────────────────────────────────────────────────────────────
-async function askGroq(messages: Message[], systemPrompt: string): Promise<string> {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) throw new Error("Clé API Groq manquante (VITE_GROQ_API_KEY)");
+// ─── Conversation memory (localStorage per athlete) ───────────────────────────
+const MEMORY_KEY = (id: string) => `cdo_ai_memory_${id}`;
 
-  const resp = await fetch(GROQ_API_URL, {
+function loadMemory(athleteId: string): string | null {
+  try {
+    const raw = localStorage.getItem(MEMORY_KEY(athleteId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed.summary ?? null;
+  } catch { return null; }
+}
+
+function saveMemory(athleteId: string, summary: string) {
+  try {
+    localStorage.setItem(MEMORY_KEY(athleteId), JSON.stringify({ summary, savedAt: new Date().toISOString() }));
+  } catch { /* ignore */ }
+}
+
+async function generateMemorySummary(messages: Message[]): Promise<string> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey || messages.length < 2) return "";
+  try {
+    const resp = await fetch(OPENAI_API_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "Résume en 3-5 bullet points très courts les décisions clés de cette conversation coach/IA course à pied. Retiens : séances prescrites, volumes discutés, objectifs, points de vigilance. Français uniquement." },
+          ...messages.slice(-10),
+          { role: "user", content: "Résume cette conversation." },
+        ],
+        temperature: 0.3,
+        max_tokens: 200,
+      }),
+    });
+    if (!resp.ok) return "";
+    const data = await resp.json();
+    return data.choices?.[0]?.message?.content ?? "";
+  } catch { return ""; }
+}
+
+// ─── Conversation trimming (garde les N derniers messages pour limiter les coûts) ──
+const MAX_HISTORY_MESSAGES = 10; // 5 échanges complets
+
+function trimHistory(messages: Message[]): Message[] {
+  if (messages.length <= MAX_HISTORY_MESSAGES) return messages;
+  return messages.slice(messages.length - MAX_HISTORY_MESSAGES);
+}
+
+// ─── OpenAI streaming call ────────────────────────────────────────────────────
+async function askOpenAI(
+  messages: Message[],
+  systemPrompt: string,
+  onChunk: (chunk: string) => void
+): Promise<void> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Clé API OpenAI manquante (VITE_OPENAI_API_KEY)");
+
+  const resp = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: GROQ_MODEL,
+      model: OPENAI_MODEL,
       messages: [
         { role: "system", content: systemPrompt },
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ...trimHistory(messages).map((m) => ({ role: m.role, content: m.content })),
       ],
       temperature: 0.4,
-      max_tokens: 1536,
+      max_tokens: 1800,
+      stream: true,
     }),
   });
 
   if (!resp.ok) {
     const err = await resp.text();
-    throw new Error(`Groq ${resp.status}: ${err}`);
+    throw new Error(`OpenAI ${resp.status}: ${err}`);
   }
-  const data = await resp.json();
-  const raw: string = data.choices?.[0]?.message?.content ?? "Pas de réponse.";
-  // Supprimer le bloc de réflexion interne <think>…</think> avant d'afficher
-  return raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+
+  const reader = resp.body!.getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const lines = decoder.decode(value).split("\n").filter((l) => l.startsWith("data: "));
+    for (const line of lines) {
+      const data = line.slice(6);
+      if (data === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(data);
+        const chunk = parsed.choices?.[0]?.delta?.content;
+        if (chunk) onChunk(chunk);
+      } catch {
+        // ligne SSE invalide, on ignore
+      }
+    }
+  }
 }
 
 // ─── Suggested questions ──────────────────────────────────────────────────────
@@ -467,16 +673,32 @@ interface CoachCardioAIChatProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context: AIChatContext;
+  athleteId?: string;
 }
 
-export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAIChatProps) {
+export function CoachCardioAIChat({ open, onOpenChange, context, athleteId }: CoachCardioAIChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [previousMemory, setPreviousMemory] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const systemPrompt = buildSystemPrompt(context);
+  const systemPrompt = buildSystemPrompt(context, previousMemory || undefined);
+
+  // Load memory when opening, save when closing
+  useEffect(() => {
+    if (open && messages.length === 0 && athleteId) {
+      const mem = loadMemory(athleteId);
+      if (mem) setPreviousMemory(mem);
+    }
+    // Save memory when closing
+    if (!open && messages.length >= 2 && athleteId) {
+      generateMemorySummary(messages).then((summary) => {
+        if (summary) saveMemory(athleteId, summary);
+      });
+    }
+  }, [open]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -490,14 +712,18 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
     const userMsg: Message = { role: "user", content };
     const nextMessages = [...messages, userMsg];
 
-    setMessages(nextMessages);
+    setMessages([...nextMessages, { role: "assistant", content: "" }]);
     setInput("");
     setLoading(true);
 
     try {
-      const reply = await askGroq(nextMessages, systemPrompt);
-      setMessages([...nextMessages, { role: "assistant", content: reply }]);
+      let fullContent = "";
+      await askOpenAI(nextMessages, systemPrompt, (chunk) => {
+        fullContent += chunk;
+        setMessages([...nextMessages, { role: "assistant", content: fullContent }]);
+      });
     } catch (err: any) {
+      setMessages(nextMessages); // retire le message vide en cas d'erreur
       toast.error("Erreur IA : " + (err?.message ?? "Inconnue"));
     } finally {
       setLoading(false);
@@ -515,6 +741,7 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
   const clearChat = () => {
     setMessages([]);
     setInput("");
+    setPreviousMemory("");
   };
 
   return (
@@ -620,6 +847,13 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
                 </div>
               </div>
 
+              {previousMemory && (
+                <div className="ml-8 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+                  <p className="font-medium mb-1">💬 Session précédente :</p>
+                  <p className="whitespace-pre-wrap leading-relaxed">{previousMemory}</p>
+                </div>
+              )}
+
               {/* Suggestions */}
               <div className="space-y-1.5 pl-8">
                 <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
@@ -668,8 +902,8 @@ export function CoachCardioAIChat({ open, onOpenChange, context }: CoachCardioAI
             </div>
           ))}
 
-          {/* Loading indicator */}
-          {loading && (
+          {/* Loading indicator — affiché seulement avant le premier token */}
+          {loading && messages[messages.length - 1]?.content === "" && (
             <div className="flex gap-2 items-start">
               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
                 <Bot className="h-3.5 w-3.5 text-muted-foreground" />
