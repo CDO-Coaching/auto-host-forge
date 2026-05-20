@@ -84,7 +84,7 @@ export default function DashboardSportif() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 app-header h-14">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              <SidebarTrigger />
+              <SidebarTrigger className="h-10 w-10 [&_svg]:h-6 [&_svg]:w-6" />
               <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
             <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">
