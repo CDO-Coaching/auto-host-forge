@@ -113,7 +113,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
 
   // ── Charge les activités Strava des 48 dernières heures non encore liées ──
   const loadRecentActivities = async () => {
-    const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: activitiesData } = await supabase
       .from("strava_activities")
