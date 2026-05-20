@@ -35,15 +35,16 @@ export interface AIChatSession {
 /** Détail d'une séance cardio réalisée (pour l'historique IA) */
 export interface AIChatSessionDetail {
   name: string;
-  sport?: string;           // "course" | "velo" | "natation"
-  source: "coach" | "custom"; // programmée par coach ou séance perso
-  plannedKm?: number;       // volume prévu (cardio_content)
-  plannedMinutes?: number;  // durée prévue
-  actualKm?: number;        // distance réelle accomplie
-  actualMinutes?: number;   // durée réelle
-  actualPaceMinkm?: string; // allure réelle ex : "5:42"
-  actualAvgHr?: number;     // FC moyenne réelle
-  rpe?: number;             // RPE 1-10
+  sport?: string;              // "course" | "velo" | "natation"
+  source: "coach" | "custom";  // programmée par coach ou séance perso
+  plannedKm?: number;          // volume prévu (cardio_content)
+  plannedMinutes?: number;     // durée prévue
+  plannedContent?: string;     // contenu détaillé de la séance (steps formatés)
+  actualKm?: number;           // distance réelle accomplie
+  actualMinutes?: number;      // durée réelle
+  actualPaceMinkm?: string;    // allure réelle ex : "5:42"
+  actualAvgHr?: number;        // FC moyenne réelle
+  rpe?: number;                // RPE 1-10
   completed: boolean;
 }
 
@@ -207,12 +208,12 @@ ${buildVmaTable(ctx.athleteVma)}`
           const sportTag = s.sport ? ` (${s.sport})` : "";
           const parts: string[] = [];
 
-          // Planned
+          // Planned metrics
           if (s.plannedKm || s.plannedMinutes) {
             const p = [s.plannedKm ? `${s.plannedKm}km` : null, s.plannedMinutes ? `${s.plannedMinutes}min` : null].filter(Boolean).join("/");
             parts.push(`prévu ${p}`);
           }
-          // Actual
+          // Actual metrics
           if (s.actualKm || s.actualMinutes) {
             const a = [s.actualKm ? `${s.actualKm}km` : null, s.actualMinutes ? `${s.actualMinutes}min` : null].filter(Boolean).join("/");
             const tag = (s.plannedKm || s.plannedMinutes) ? `réel ${a}` : a;
@@ -224,7 +225,14 @@ ${buildVmaTable(ctx.athleteVma)}`
           if (!s.completed) parts.push("non réalisée");
 
           const detail = parts.length > 0 ? ` : ${parts.join(" | ")}` : "";
-          return `${prefix} "${s.name}" ${sourceTag}${sportTag}${detail}`;
+          const header = `${prefix} "${s.name}" ${sourceTag}${sportTag}${detail}`;
+
+          // Planned session content (step-by-step breakdown)
+          const contentBlock = s.plannedContent
+            ? `\n${s.plannedContent}`
+            : "";
+
+          return header + contentBlock;
         }).join("\n");
       }
 

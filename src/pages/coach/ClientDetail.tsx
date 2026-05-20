@@ -85,7 +85,7 @@ import { CoachCardioAIChat, type AIChatContext } from "@/components/CoachCardioA
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
-import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics } from "@/lib/cardioCalculations";
+import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics, formatCardioStepsForAI } from "@/lib/cardioCalculations";
 import { getISOWeek, subDays, format, startOfDay, endOfDay } from "date-fns";
 
 interface AthleteProfile {
@@ -629,6 +629,7 @@ export default function ClientDetail() {
 
         const exs = (session.session_exercises || []) as any[];
         let plannedKm = 0, plannedMinutes = 0;
+        let plannedContentParts: string[] = [];
         let actualKm = 0, actualMinutes = 0;
         let rpe: number | undefined;
         let sport: string | undefined;
@@ -645,6 +646,9 @@ export default function ClientDetail() {
               plannedKm      += m.totalDistanceKm;
               plannedMinutes += m.totalDurationMinutes;
               if (m.averageIntensity) bucket.intensities.push(m.averageIntensity);
+              // Format step-by-step content for the AI
+              const stepsText = formatCardioStepsForAI(cdata, athleteVma);
+              if (stepsText) plannedContentParts.push(stepsText);
             } catch { /* ignore */ }
           }
           // Real (actual) data
@@ -665,16 +669,17 @@ export default function ClientDetail() {
         bucket.totalMinutes += effectiveMin;
 
         bucket.sessions.push({
-          name:           session.name,
+          name:            session.name,
           sport,
-          source:         "coach",
-          plannedKm:      plannedKm > 0      ? Math.round(plannedKm * 10) / 10 : undefined,
-          plannedMinutes: plannedMinutes > 0  ? Math.round(plannedMinutes)      : undefined,
-          actualKm:       actualKm > 0        ? Math.round(actualKm * 10) / 10  : undefined,
-          actualMinutes:  actualMinutes > 0   ? Math.round(actualMinutes)        : undefined,
+          source:          "coach",
+          plannedKm:       plannedKm > 0         ? Math.round(plannedKm * 10) / 10    : undefined,
+          plannedMinutes:  plannedMinutes > 0     ? Math.round(plannedMinutes)          : undefined,
+          plannedContent:  plannedContentParts.length > 0 ? plannedContentParts.join("\n") : undefined,
+          actualKm:        actualKm > 0           ? Math.round(actualKm * 10) / 10     : undefined,
+          actualMinutes:   actualMinutes > 0      ? Math.round(actualMinutes)           : undefined,
           actualPaceMinkm: avgPace || undefined,
-          actualAvgHr:    avgHr || undefined,
-          rpe:            rpe ?? (session.session_rpe || undefined),
+          actualAvgHr:     avgHr || undefined,
+          rpe:             rpe ?? (session.session_rpe || undefined),
           completed,
         });
       }

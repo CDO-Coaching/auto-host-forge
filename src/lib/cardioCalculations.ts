@@ -1,5 +1,85 @@
 import { CardioData, CardioStep, CardioBlock } from "@/components/CardioStepBuilder";
 
+// ─── AI-readable formatter ────────────────────────────────────────────────────
+
+/**
+ * Formate le contenu structuré d'une séance cardio en texte lisible pour l'IA.
+ * Retourne chaque step sous forme "• course 15min | 65% VMA → 5:32/km"
+ * et les blocs répétés sous forme "[Bloc ×4] …"
+ */
+export const formatCardioStepsForAI = (
+  cardioData: CardioData,
+  athleteVma: number | null,
+): string => {
+  const steps  = cardioData.steps  || [];
+  const blocks = cardioData.blocks || [];
+  if (steps.length === 0) return "";
+
+  const toPace = (vmaPct: number): string => {
+    if (!athleteVma) return `${vmaPct}% VMA`;
+    const speed    = athleteVma * (vmaPct / 100);
+    const paceMin  = 60 / speed;
+    const min      = Math.floor(paceMin);
+    const sec      = Math.round((paceMin - min) * 60);
+    return `${vmaPct}% VMA → ${min}:${sec.toString().padStart(2, "0")}/km`;
+  };
+
+  const mvtLabel = (m: string) =>
+    m === "marche" ? "marche" : m === "course" ? "course" : m === "velo" ? "vélo" : "natation";
+
+  const formatStep = (step: CardioStep): string => {
+    const parts: string[] = [];
+
+    // Effort (durée ou distance)
+    if (step.effort_type === "duration" && step.duration) {
+      const min = Math.floor(step.duration / 60);
+      const sec = step.duration % 60;
+      parts.push(sec > 0 ? `${min}min${sec}s` : `${min}min`);
+    } else if (step.effort_type === "distance" && step.distance != null) {
+      const unit = step.distance_unit || "m";
+      if (unit === "km") {
+        parts.push(`${step.distance}km`);
+      } else {
+        parts.push(step.distance >= 1000 ? `${(step.distance / 1000).toFixed(1)}km` : `${step.distance}m`);
+      }
+    }
+
+    // Intensité
+    if (step.movement_type === "marche") {
+      parts.push("marche (~10:00/km)");
+    } else if (step.vma_percentage) {
+      parts.push(toPace(step.vma_percentage));
+    } else if (step.rpe) {
+      parts.push(`RPE ${step.rpe}/10`);
+    } else if (step.target_heart_rate) {
+      parts.push(`FC ${step.target_heart_rate}`);
+    }
+
+    return `${mvtLabel(step.movement_type)} ${parts.join(" | ")}`;
+  };
+
+  const lines: string[] = [];
+  const renderedBlocks = new Set<number>();
+
+  for (const step of steps) {
+    if (step.block_id != null) {
+      if (renderedBlocks.has(step.block_id)) continue;
+      renderedBlocks.add(step.block_id);
+
+      const block = blocks.find((b) => b.id === step.block_id);
+      if (!block) continue;
+
+      const blockSteps = steps.filter((s) => s.block_id === block.id);
+      lines.push(`    [Bloc ×${block.repetitions}]`);
+      blockSteps.forEach((bs) => lines.push(`      · ${formatStep(bs)}`));
+    } else {
+      lines.push(`    · ${formatStep(step)}`);
+    }
+  }
+
+  return lines.join("\n");
+};
+
 // Constante globale pour la vitesse de marche (6 km/h = 10:00/km)
 export const WALKING_SPEED_KMH = 6;
 export const WALKING_PACE = "10:00/km";
