@@ -33,6 +33,7 @@ import PaiementSucces from "./sportif/PaiementSucces";
 import MesFactures from "./sportif/MesFactures";
 import SportifDashboard from "./sportif/Dashboard";
 import ProgrammerSeances from "./sportif/ProgrammerSeances";
+import Bilan from "./sportif/Bilan";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -113,6 +114,7 @@ export default function DashboardSportif() {
                 <Route path="/paiement-succes" element={<PaiementSucces />} />
                 <Route path="/factures" element={<MesFactures />} />
                 <Route path="/questions" element={<Questions />} />
+                <Route path="/bilan" element={<Bilan />} />
                 <Route path="/profil" element={<Profil />} />
                 <Route path="/aide" element={<Aide />} />
               </Routes>

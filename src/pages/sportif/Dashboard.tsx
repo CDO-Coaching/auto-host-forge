@@ -389,9 +389,9 @@ export default function SportifDashboard() {
         </CardContent>
       </Card>
 
-      {/* Bilan hebdo — durée moyenne + distances par sport */}
+      {/* Bilan hebdo — durée + distances par sport */}
       {weeklyStats.completedCount > 0 && (
-        <Card>
+        <Card className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate("/sportif/bilan")}>
           <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
               <Clock className="h-4 w-4 text-primary" />
