@@ -183,15 +183,31 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     if (!selectedActivity) return;
     const cdoSport = STRAVA_TO_CDO_SPORT[selectedActivity.sport_type];
     const durationMin = Math.round(selectedActivity.moving_time_seconds / 60);
-    const distanceKm = (selectedActivity.distance_meters / 1000).toFixed(2);
-    const pace = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
+    const distanceKm = selectedActivity.distance_meters > 0
+      ? (selectedActivity.distance_meters / 1000).toFixed(2)
+      : "";
+
+    // Pour le vélo : vitesse en km/h. Pour course/natation : allure min/km ou min/100m
+    let avgPaceOrSpeed = "";
+    if (cdoSport === "velo" && selectedActivity.distance_meters > 0 && selectedActivity.moving_time_seconds > 0) {
+      const speedKmH = (selectedActivity.distance_meters / 1000) / (selectedActivity.moving_time_seconds / 3600);
+      avgPaceOrSpeed = speedKmH.toFixed(1);
+    } else if (cdoSport === "natation" && selectedActivity.distance_meters > 0 && selectedActivity.moving_time_seconds > 0) {
+      // Allure en min/100m
+      const secPer100m = (selectedActivity.moving_time_seconds / selectedActivity.distance_meters) * 100;
+      const mm = Math.floor(secPer100m / 60);
+      const ss = Math.round(secPer100m % 60);
+      avgPaceOrSpeed = `${mm}:${ss.toString().padStart(2, "0")}`;
+    } else {
+      avgPaceOrSpeed = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
+    }
 
     setStravaCustomData({
       sessionName: selectedActivity.name,
       cardioType: cdoSport || "",
       duration: String(durationMin),
       distanceKm,
-      avgPace: pace,
+      avgPace: avgPaceOrSpeed,
       avgHeartRate: selectedActivity.average_heartrate
         ? String(Math.round(selectedActivity.average_heartrate))
         : "",

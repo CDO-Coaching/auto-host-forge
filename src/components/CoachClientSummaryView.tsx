@@ -550,8 +550,13 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
               )}
               {selectedCustomSessionDetail.avg_pace && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Allure moy.</span>
-                  <span className="font-medium">{selectedCustomSessionDetail.avg_pace} /km</span>
+                  <span className="text-muted-foreground">
+                    {selectedCustomSessionDetail.cardio_type === "velo" ? "Vitesse moy." : selectedCustomSessionDetail.cardio_type === "natation" ? "Allure" : "Allure moy."}
+                  </span>
+                  <span className="font-medium">
+                    {selectedCustomSessionDetail.avg_pace}
+                    {selectedCustomSessionDetail.cardio_type === "velo" ? " km/h" : selectedCustomSessionDetail.cardio_type === "natation" ? " /100m" : " /km"}
+                  </span>
                 </div>
               )}
               {selectedCustomSessionDetail.avg_heart_rate && (

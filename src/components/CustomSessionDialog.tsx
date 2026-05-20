@@ -389,31 +389,43 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
               {cardioType && cardioType !== "none" && (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="distance">Distance (km)</Label>
+                    <Label htmlFor="distance">
+                      {cardioType === "natation" ? "Distance (m)" : "Distance (km)"}
+                    </Label>
                     <Input
                       id="distance"
                       type="number"
                       inputMode="decimal"
-                      step="0.1"
-                      placeholder="Ex: 10"
+                      step={cardioType === "natation" ? "50" : "0.1"}
+                      placeholder={cardioType === "natation" ? "Ex: 1500" : "Ex: 10"}
                       value={distanceKm}
                       onChange={(e) => setDistanceKm(e.target.value)}
                       min="0"
-                      max="500"
+                      max={cardioType === "natation" ? "50000" : "500"}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="avg-pace">Allure moy. (min:sec/km)</Label>
+                    <Label htmlFor="avg-pace">
+                      {cardioType === "velo" ? "Vitesse moy. (km/h)" : cardioType === "natation" ? "Allure (min:sec/100m)" : "Allure moy. (min:sec/km)"}
+                    </Label>
                     <Input
                       id="avg-pace"
-                      type="text"
-                      placeholder="Ex: 5:30"
+                      type={cardioType === "velo" ? "number" : "text"}
+                      inputMode={cardioType === "velo" ? "decimal" : "text"}
+                      step={cardioType === "velo" ? "0.1" : undefined}
+                      placeholder={cardioType === "velo" ? "Ex: 28.5" : cardioType === "natation" ? "Ex: 2:10" : "Ex: 5:30"}
                       value={avgPace}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9:]/g, '');
-                        setAvgPace(val);
+                        if (cardioType === "velo") {
+                          setAvgPace(e.target.value);
+                        } else {
+                          const val = e.target.value.replace(/[^0-9:]/g, '');
+                          setAvgPace(val);
+                        }
                       }}
-                      maxLength={6}
+                      maxLength={cardioType === "velo" ? undefined : 6}
+                      min={cardioType === "velo" ? "0" : undefined}
+                      max={cardioType === "velo" ? "120" : undefined}
                     />
                   </div>
                   <div className="space-y-2">

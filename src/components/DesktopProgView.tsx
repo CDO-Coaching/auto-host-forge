@@ -854,13 +854,20 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                 {selectedCustomSession.distance_km && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">📍 Distance</span>
-                    <span className="font-medium">{selectedCustomSession.distance_km} km</span>
+                    <span className="font-medium">
+                      {selectedCustomSession.distance_km} {selectedCustomSession.cardio_type === "natation" ? "m" : "km"}
+                    </span>
                   </div>
                 )}
                 {selectedCustomSession.avg_pace && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">🏃 Allure</span>
-                    <span className="font-medium">{selectedCustomSession.avg_pace} /km</span>
+                    <span className="text-muted-foreground">
+                      {selectedCustomSession.cardio_type === "velo" ? "🚴 Vitesse" : selectedCustomSession.cardio_type === "natation" ? "🏊 Allure" : "🏃 Allure"}
+                    </span>
+                    <span className="font-medium">
+                      {selectedCustomSession.avg_pace}
+                      {selectedCustomSession.cardio_type === "velo" ? " km/h" : selectedCustomSession.cardio_type === "natation" ? " /100m" : " /km"}
+                    </span>
                   </div>
                 )}
                 {selectedCustomSession.avg_heart_rate && (
