@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Link2 } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -214,9 +216,8 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       );
 
       setDialogOpen(false);
-      setActivities((prev) =>
-        prev.filter((a) => a.strava_activity_id !== selectedActivity.strava_activity_id)
-      );
+      // Recharge les activités depuis Supabase pour être sûr que le bandeau disparaît
+      await loadRecentActivities();
       onLinked();
     } catch (err) {
       console.error("Erreur liaison Strava:", err);
@@ -272,26 +273,19 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                         </Badge>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                        <span className="font-medium text-foreground/70">
+                          📅 {format(new Date(activity.start_date), "EEE d MMM", { locale: fr })}
+                        </span>
                         {activity.distance_meters > 0 && (
-                          <span>
-                            📍 {(activity.distance_meters / 1000).toFixed(2)} km
-                          </span>
+                          <span>📍 {(activity.distance_meters / 1000).toFixed(2)} km</span>
                         )}
                         <span>⏱ {formatDuration(activity.moving_time_seconds)}</span>
                         {activity.average_heartrate && (
                           <span>❤️ {Math.round(activity.average_heartrate)} bpm</span>
                         )}
-                        {activity.distance_meters > 0 &&
-                          activity.moving_time_seconds > 0 && (
-                            <span>
-                              🏃{" "}
-                              {formatPace(
-                                activity.distance_meters,
-                                activity.moving_time_seconds
-                              )}
-                              /km
-                            </span>
-                          )}
+                        {activity.distance_meters > 0 && activity.moving_time_seconds > 0 && (
+                          <span>🏃 {formatPace(activity.distance_meters, activity.moving_time_seconds)}/km</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -328,6 +322,9 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
               {/* Résumé de l'activité */}
               <div className="rounded-lg bg-[#FC4C02]/10 border border-[#FC4C02]/20 p-3 space-y-1.5">
                 <p className="font-medium text-sm">{selectedActivity.name}</p>
+                <p className="text-xs text-muted-foreground font-medium">
+                  📅 {format(new Date(selectedActivity.start_date), "EEEE d MMMM", { locale: fr })}
+                </p>
                 <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
                   {selectedActivity.distance_meters > 0 && (
                     <span>📍 {(selectedActivity.distance_meters / 1000).toFixed(2)} km</span>
