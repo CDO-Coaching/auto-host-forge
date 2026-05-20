@@ -314,34 +314,48 @@ export function CoachSessionDetailDialog({
 
     if (allSteps.length === 0 && blocks.length === 0) return null;
 
-    // Standalone steps (pas dans un bloc)
-    const standaloneSteps = allSteps.filter(s => !s.block_id);
-    // Steps dans un bloc (regroupés par block_id)
+    // Construire la liste d'affichage en respectant l'ordre des steps
+    const seenBlockIds = new Set<number>();
+    const blockMap: Record<number, CardioBlock> = {};
+    blocks.forEach(b => { blockMap[b.id] = b; });
+
+    // Regrouper les steps par block_id pour le rendu dans l'ordre
     const blockStepMap: Record<number, CardioStep[]> = {};
     allSteps.filter(s => s.block_id).forEach(s => {
       if (!blockStepMap[s.block_id!]) blockStepMap[s.block_id!] = [];
       blockStepMap[s.block_id!].push(s);
     });
 
-    return (
-      <div className="mt-2 space-y-1.5">
-        {standaloneSteps.map((step) => renderCardioStep(step, step.id))}
-        {blocks.map((block) => (
-          <div key={block.id} className="rounded border border-primary/20 bg-primary/5 overflow-hidden">
-            <div className="px-2.5 py-1 bg-primary/10 flex items-center gap-1.5">
-              <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
-                {block.repetitions}× répétitions
-              </span>
+    const displayItems: React.ReactNode[] = [];
+    allSteps.forEach((step) => {
+      if (!step.block_id) {
+        // Step standalone
+        displayItems.push(renderCardioStep(step, step.id));
+      } else if (!seenBlockIds.has(step.block_id)) {
+        // Premier step d'un bloc → rendre tout le bloc
+        seenBlockIds.add(step.block_id);
+        const block = blockMap[step.block_id];
+        if (block) {
+          displayItems.push(
+            <div key={`block-${block.id}`} className="rounded border border-primary/20 bg-primary/5 overflow-hidden">
+              <div className="px-2.5 py-1 bg-primary/10 flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                  {block.repetitions}× répétitions
+                </span>
+              </div>
+              <div className="p-1 space-y-1">
+                {(blockStepMap[block.id] ?? block.steps ?? []).map((s) =>
+                  renderCardioStep(s, `${block.id}-${s.id}`)
+                )}
+              </div>
             </div>
-            <div className="p-1 space-y-1">
-              {(blockStepMap[block.id] ?? block.steps ?? []).map((step) =>
-                renderCardioStep(step, `${block.id}-${step.id}`)
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
+          );
+        }
+      }
+      // Si déjà vu ce block_id → on skip (déjà rendu)
+    });
+
+    return <div className="mt-2 space-y-1.5">{displayItems}</div>;
   };
 
   const renderExerciseContent = (ex: SessionExercise) => {
