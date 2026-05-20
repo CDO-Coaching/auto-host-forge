@@ -72,7 +72,6 @@ import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPa
 import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { CoachObjectiveAlert } from "@/components/CoachObjectiveAlert";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
@@ -4428,17 +4427,6 @@ export default function ClientDetail() {
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
             />
           )}
-
-          {/* Alerte objectif atteint */}
-          {athlete && (
-            <CoachObjectiveAlert
-              athleteId={athleteId!}
-              athleteName={athlete.first_name || "l'athlète"}
-              onNavigateToObjectives={() => setActiveTab("objectifs")}
-            />
-          )}
-
-
 
           {/* ── Bannière de phase active (masquée si gate actif) ─────── */}
           {(() => {

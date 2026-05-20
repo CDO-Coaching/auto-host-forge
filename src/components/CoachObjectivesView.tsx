@@ -837,6 +837,54 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </div>
       )}
 
+      {/* ── Dates d'objectifs ─────────────────────────────────────────── */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-5 w-5 text-primary" />
+              Dates d'Objectifs
+            </div>
+            <Button size="sm" onClick={() => handleOpenMilestoneDialog()}>
+              <Plus className="h-4 w-4 mr-2" /> Ajouter
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {milestones.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">Aucune date d'objectif pour le moment.</p>
+          ) : (
+            <div className="space-y-3">
+              {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
+                const daysUntil = getDaysUntil(m.target_date);
+                return (
+                  <Card key={m.id} className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold">{m.label}</h4>
+                          <Badge variant={getMilestoneBadge(m)}>
+                            {m.completed ? "Atteint" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(m.target_date), "EEEE d MMMM yyyy", { locale: fr })}
+                        </p>
+                        {m.notes && <p className="text-sm text-muted-foreground italic">{m.notes}</p>}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleOpenMilestoneDialog(m)}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteMilestone(m.id)}><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ── Cycles actifs en résumé ───────────────────────────────────── */}
       {(allActiveMacros.length > 0 || allActiveMesos.length > 0 || allActiveMicros.length > 0) && (
         <Card>
@@ -958,94 +1006,6 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardHeader>
         <CardContent>
           {renderHierarchy()}
-        </CardContent>
-      </Card>
-
-      {/* ── Objectif Principal ────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5 text-primary" />
-            Objectif Principal
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="main-objective">Description de l'objectif</Label>
-            <Textarea
-              id="main-objective"
-              placeholder="Ex: Préparer le marathon de Paris, améliorer son 10km…"
-              value={objective.main_objective || ""}
-              onChange={(e) => setObjective({ ...objective, main_objective: e.target.value })}
-              rows={3}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Date cible *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !mainDeadlineDate && "text-muted-foreground")}>
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {mainDeadlineDate ? format(mainDeadlineDate, "EEEE d MMMM yyyy", { locale: fr }) : "Sélectionner une date"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={mainDeadlineDate} onSelect={setMainDeadlineDate} initialFocus locale={fr} weekStartsOn={1} className="pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-          </div>
-          <Button onClick={handleSaveMainObjective} disabled={isSavingMain}>
-            <Save className="h-4 w-4 mr-2" />
-            {isSavingMain ? "Enregistrement…" : "Enregistrer"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* ── Dates d'objectifs ─────────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5 text-primary" />
-              Dates d'Objectifs
-            </div>
-            <Button size="sm" onClick={() => handleOpenMilestoneDialog()}>
-              <Plus className="h-4 w-4 mr-2" /> Ajouter
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {milestones.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8 text-sm">Aucune date d'objectif pour le moment.</p>
-          ) : (
-            <div className="space-y-3">
-              {milestones.map((m) => {
-                const daysUntil = getDaysUntil(m.target_date);
-                return (
-                  <Card key={m.id} className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold">{m.label}</h4>
-                          <Badge variant={getMilestoneBadge(m)}>
-                            {m.completed ? "Atteint" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(m.target_date), "EEEE d MMMM yyyy", { locale: fr })}
-                        </p>
-                        {m.notes && <p className="text-sm text-muted-foreground italic">{m.notes}</p>}
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => handleOpenMilestoneDialog(m)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleDeleteMilestone(m.id)}><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
         </CardContent>
       </Card>
 
