@@ -295,6 +295,9 @@ export interface DesktopProgViewProps {
   // Récup options
   recuperationOptions: Array<{ value: string; label: string }>;
 
+  // Séances perso de l'athlète
+  customSessions?: any[];
+
   // Exercise creation
   onExerciseCreated: (ex: { id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }) => void;
 
@@ -346,9 +349,31 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     setSelectedMethodologyId, setSelectedMethodologyWeek,
     setSelectedMethodologyCycle, setMethodologyStep, setMethodologyMaxes,
     allTrainingWeeks = [], isLoadingWeek = false,
+    customSessions = [],
   } = props;
 
+  const [selectedCustomSessionId, setSelectedCustomSessionId] = React.useState<string | null>(null);
+
   const selectedSession = sessions.find((s) => s.id === expandedSessionId) ?? null;
+  const selectedCustomSession = customSessions.find((s) => s.id === selectedCustomSessionId) ?? null;
+
+  // Filtre les séances perso de la semaine sélectionnée
+  const weekCustomSessions = React.useMemo(() => {
+    if (!customSessions.length) return [];
+    // Calcul lundi/dimanche de la semaine sélectionnée
+    const jan4 = new Date(selectedWeek.year, 0, 4);
+    const dayOfWeek = jan4.getDay() || 7;
+    const monday = new Date(jan4);
+    monday.setDate(jan4.getDate() - dayOfWeek + 1 + (selectedWeek.week - 1) * 7);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+
+    return customSessions.filter((cs) => {
+      const d = new Date(cs.scheduled_date || cs.completed_at);
+      return d >= monday && d <= sunday;
+    });
+  }, [customSessions, selectedWeek]);
 
   // ── Week arrow navigation ─────────────────────────────────────────────────
   const goToPrevWeek = () => {
@@ -713,6 +738,54 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             </div>
           )}
 
+          {/* Séances perso de l'athlète */}
+          {weekCustomSessions.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-border/40">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5 px-0.5">
+                Séances perso
+              </p>
+              <div className="flex flex-col gap-1.5">
+                {weekCustomSessions.map((cs) => {
+                  const isSelected = selectedCustomSessionId === cs.id;
+                  const sportLabel = cs.cardio_type === "course" ? "🏃 Course"
+                    : cs.cardio_type === "velo" ? "🚴 Vélo"
+                    : cs.cardio_type === "natation" ? "🏊 Natation"
+                    : "Perso";
+                  return (
+                    <div
+                      key={cs.id}
+                      className={`rounded-lg border p-2 cursor-pointer transition-all duration-150 ${
+                        isSelected
+                          ? "border-[#FC4C02]/60 bg-[#FC4C02]/10 shadow-sm"
+                          : "border-border/50 bg-card/40 hover:border-[#FC4C02]/30 hover:bg-muted/30"
+                      }`}
+                      onClick={() => {
+                        setSelectedCustomSessionId(isSelected ? null : cs.id);
+                        setExpandedSessionId(null);
+                      }}
+                    >
+                      <div className="flex items-start gap-1.5">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5 bg-emerald-500" />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-medium truncate block">{cs.session_name}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0 bg-[#FC4C02]/15 text-[#FC4C02] border-none">
+                              {sportLabel}
+                            </Badge>
+                            <span className="text-[9px] text-muted-foreground">
+                              {cs.duration_minutes ? `${cs.duration_minutes} min` : ""}
+                              {cs.distance_km ? ` · ${cs.distance_km} km` : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Validated message */}
           {isValidated && (
             <div className="p-2 bg-primary/10 border border-primary/20 rounded-md text-xs text-primary font-medium">
@@ -724,7 +797,83 @@ export function DesktopProgView(props: DesktopProgViewProps) {
         {/* RIGHT PANEL — exercise editor ──────────────────────────────────── */}
         <div className="flex-1 min-w-0 rounded-lg border border-border/40 bg-card/20 overflow-hidden flex flex-col">
 
-          {!selectedSession ? (
+          {selectedCustomSession ? (
+            /* Détail d'une séance perso */
+            <div className="flex-1 p-5 space-y-4 overflow-y-auto">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded bg-[#FC4C02] flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-base">{selectedCustomSession.session_name}</h3>
+                  <p className="text-xs text-muted-foreground">Séance personnalisée de l'athlète</p>
+                </div>
+              </div>
+
+              {/* Date */}
+              <div className="rounded-lg bg-muted/30 border border-border/40 p-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Date</span>
+                  <span className="font-medium">
+                    {new Date(selectedCustomSession.scheduled_date || selectedCustomSession.completed_at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
+                  </span>
+                </div>
+                {selectedCustomSession.cardio_type && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Type</span>
+                    <Badge className="bg-[#FC4C02]/15 text-[#FC4C02] border-[#FC4C02]/30 text-xs">
+                      {selectedCustomSession.cardio_type === "course" ? "🏃 Course"
+                        : selectedCustomSession.cardio_type === "velo" ? "🚴 Vélo"
+                        : selectedCustomSession.cardio_type === "natation" ? "🏊 Natation"
+                        : selectedCustomSession.cardio_type}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* Données de performance */}
+              <div className="rounded-lg bg-muted/30 border border-border/40 p-3 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Données</p>
+                {selectedCustomSession.duration_minutes && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">⏱ Durée</span>
+                    <span className="font-medium">{selectedCustomSession.duration_minutes} min</span>
+                  </div>
+                )}
+                {selectedCustomSession.distance_km && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">📍 Distance</span>
+                    <span className="font-medium">{selectedCustomSession.distance_km} km</span>
+                  </div>
+                )}
+                {selectedCustomSession.avg_pace && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">🏃 Allure</span>
+                    <span className="font-medium">{selectedCustomSession.avg_pace} /km</span>
+                  </div>
+                )}
+                {selectedCustomSession.avg_heart_rate && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">❤️ FC moyenne</span>
+                    <span className="font-medium">{selectedCustomSession.avg_heart_rate} bpm</span>
+                  </div>
+                )}
+                {!selectedCustomSession.duration_minutes && !selectedCustomSession.distance_km && (
+                  <p className="text-xs text-muted-foreground">Aucune donnée enregistrée</p>
+                )}
+              </div>
+
+              {/* Commentaire */}
+              {selectedCustomSession.description && (
+                <div className="rounded-lg bg-muted/30 border border-border/40 p-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Commentaire</p>
+                  <p className="text-sm italic text-foreground/80">{selectedCustomSession.description}</p>
+                </div>
+              )}
+            </div>
+          ) : !selectedSession ? (
             /* Empty state */
             <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
               <div>

@@ -4648,6 +4648,7 @@ export default function ClientDetail() {
               onCancelMethodology={handleCancelMethodology}
               allTrainingWeeks={allTrainingWeeks}
               isLoadingWeek={isLoadingWeek}
+              customSessions={customSessions}
             />
 
           {/* Dialog méthodologie */}
