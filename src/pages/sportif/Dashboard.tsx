@@ -42,7 +42,8 @@ interface FatigueInfo {
 
 interface WeeklyStats {
   totalDurationMinutes: number;
-  totalDistanceKm: number;
+  completedCount: number;
+  distanceBySport: { course: number; velo: number; natation: number };
 }
 
 export default function SportifDashboard() {
@@ -54,7 +55,7 @@ export default function SportifDashboard() {
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
   const [unreadCount, setUnreadCount] = useState(0);
-  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ totalDurationMinutes: 0, totalDistanceKm: 0 });
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ totalDurationMinutes: 0, completedCount: 0, distanceBySport: { course: 0, velo: 0, natation: 0 } });
   const [loading, setLoading] = useState(true);
 
   const isSessionCompleted = useCallback((session: any) => {
@@ -211,7 +212,8 @@ export default function SportifDashboard() {
     const sundayISO = getSundayISO(weekNumber, year);
 
     let totalDuration = 0;
-    let totalDistance = 0;
+    let completedCount = 0;
+    const distanceBySport = { course: 0, velo: 0, natation: 0 };
 
     // 1. Training sessions (coach-programmed) — only completed ones
     const { data: week } = await supabase
@@ -225,13 +227,14 @@ export default function SportifDashboard() {
     if (week) {
       const { data: sessions } = await supabase
         .from("training_sessions")
-        .select("id, duration_minutes, session_type, completed_at, cardio_total_distance_km, cardio_total_duration_minutes, session_exercises(actual_distance_km, actual_duration_minutes)")
+        .select("id, duration_minutes, session_type, completed_at, cardio_total_distance_km, cardio_total_duration_minutes, session_exercises(actual_distance_km, actual_duration_minutes, cardio_sport)")
         .eq("week_id", week.id)
         .not("completed_at", "is", null);
 
       if (sessions) {
         for (const s of sessions) {
           const ex = s.session_exercises?.[0];
+          completedCount++;
 
           // Duration: prioritize actual, then duration_minutes, then cardio_total_duration_minutes
           if (ex?.actual_duration_minutes) {
@@ -242,12 +245,14 @@ export default function SportifDashboard() {
             totalDuration += s.cardio_total_duration_minutes;
           }
 
-          // Distance for cardio sessions
+          // Distance by sport for cardio sessions
           if (s.session_type === "cardio") {
-            if (ex?.actual_distance_km) {
-              totalDistance += ex.actual_distance_km;
-            } else if (s.cardio_total_distance_km) {
-              totalDistance += s.cardio_total_distance_km;
+            const dist = ex?.actual_distance_km ?? s.cardio_total_distance_km ?? 0;
+            const sport = ex?.cardio_sport ?? "course";
+            if (dist > 0) {
+              if (sport === "velo") distanceBySport.velo += dist;
+              else if (sport === "natation") distanceBySport.natation += dist;
+              else distanceBySport.course += dist;
             }
           }
         }
@@ -257,7 +262,7 @@ export default function SportifDashboard() {
     // 2. Custom sessions completed this week
     const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("duration_minutes, distance_km, completed_at")
+      .select("duration_minutes, distance_km, completed_at, cardio_type")
       .eq("user_id", user!.id)
       .not("completed_at", "is", null)
       .gte("completed_at", `${mondayISO}T00:00:00`)
@@ -265,12 +270,18 @@ export default function SportifDashboard() {
 
     if (customData) {
       for (const c of customData) {
+        completedCount++;
         if (c.duration_minutes) totalDuration += c.duration_minutes;
-        if (c.distance_km) totalDistance += c.distance_km;
+        if (c.distance_km && c.distance_km > 0) {
+          const sport = c.cardio_type ?? "course";
+          if (sport === "velo") distanceBySport.velo += c.distance_km;
+          else if (sport === "natation") distanceBySport.natation += c.distance_km;
+          else distanceBySport.course += c.distance_km;
+        }
       }
     }
 
-    setWeeklyStats({ totalDurationMinutes: totalDuration, totalDistanceKm: Math.round(totalDistance * 100) / 100 });
+    setWeeklyStats({ totalDurationMinutes: totalDuration, completedCount, distanceBySport });
   };
 
   const loadUnreadMessages = async () => {
@@ -378,46 +389,75 @@ export default function SportifDashboard() {
         </CardContent>
       </Card>
 
-      {/* Bilan hebdo inline — durée + distance */}
-      {(weeklyStats.totalDurationMinutes > 0 || weeklyStats.totalDistanceKm > 0) && (
+      {/* Bilan hebdo — durée moyenne + distances par sport */}
+      {weeklyStats.completedCount > 0 && (
         <Card>
           <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4 text-primary" />
-                <span className="text-xs text-muted-foreground">Bilan</span>
-              </div>
-              <div className="flex items-center gap-4 flex-1">
-                {weeklyStats.totalDurationMinutes > 0 && (
+            <div className="flex items-center gap-2 mb-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <span className="text-xs text-muted-foreground">Bilan</span>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
+              {/* Durée moyenne */}
+              {weeklyStats.totalDurationMinutes > 0 && (() => {
+                const avg = Math.round(weeklyStats.totalDurationMinutes / weeklyStats.completedCount);
+                const h = Math.floor(avg / 60);
+                const m = avg % 60;
+                const label = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${avg} min`;
+                return (
                   <div className="flex items-center gap-1.5">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
                       <Clock className="h-3.5 w-3.5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-foreground leading-tight">
-                        {Math.floor(weeklyStats.totalDurationMinutes / 60) > 0 
-                          ? `${Math.floor(weeklyStats.totalDurationMinutes / 60)}h${(weeklyStats.totalDurationMinutes % 60).toString().padStart(2, '0')}`
-                          : `${weeklyStats.totalDurationMinutes} min`
-                        }
-                      </p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Entraînement</p>
+                      <p className="text-sm font-bold text-foreground leading-tight">{label}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Durée moy.</p>
                     </div>
                   </div>
-                )}
-                {weeklyStats.totalDistanceKm > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Activity className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground leading-tight">
-                        {weeklyStats.totalDistanceKm} km
-                      </p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Distance</p>
-                    </div>
+                );
+              })()}
+              {/* Distance course */}
+              {weeklyStats.distanceBySport.course > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs">🏃</span>
                   </div>
-                )}
-              </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground leading-tight">
+                      {Math.round(weeklyStats.distanceBySport.course * 100) / 100} km
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Course</p>
+                  </div>
+                </div>
+              )}
+              {/* Distance vélo */}
+              {weeklyStats.distanceBySport.velo > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs">🚴</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground leading-tight">
+                      {Math.round(weeklyStats.distanceBySport.velo * 100) / 100} km
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Vélo</p>
+                  </div>
+                </div>
+              )}
+              {/* Distance natation */}
+              {weeklyStats.distanceBySport.natation > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                    <span className="text-xs">🏊</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-foreground leading-tight">
+                      {Math.round(weeklyStats.distanceBySport.natation * 1000)} m
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">Natation</p>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
