@@ -24,7 +24,6 @@ const menuGroups = [
       { title: "Séances programmées", url: "/coach/seances-programmees", icon: ClipboardList },
       { title: "Notes", url: "/coach/notes", icon: StickyNote },
       { title: "Messagerie", url: "/coach/messagerie", icon: MessageCircle, showBadge: true },
-      { title: "Questions", url: "/coach/questions", icon: HelpCircle },
     ],
   },
   {
