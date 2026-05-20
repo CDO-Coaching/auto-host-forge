@@ -217,17 +217,100 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
   const sportEmoji = (sport: SportType) =>
     sport === "velo" ? "🚴" : sport === "natation" ? "🏊" : "🏃";
 
-  // Totals per sport
-  const totals: Record<string, { dist: number; dur: number }> = {};
+  const sportLabel = (sport: SportType) =>
+    sport === "velo" ? "Vélo" : sport === "natation" ? "Natation" : "Course";
+
+  // Group sessions by sport, preserve insertion order
+  const sportOrder: SportType[] = [];
+  const grouped: Record<SportType, CardioSessionRow[]> = { course: [], velo: [], natation: [], other: [] };
   sessions.forEach((s) => {
-    const key = s.sport;
-    if (!totals[key]) totals[key] = { dist: 0, dur: 0 };
-    totals[key].dist += s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
-    totals[key].dur += s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
+    if (!sportOrder.includes(s.sport)) sportOrder.push(s.sport);
+    grouped[s.sport].push(s);
   });
 
-  const sportKeys = Object.keys(totals) as SportType[];
-  const multiSport = sportKeys.length > 1;
+  const renderSession = (s: CardioSessionRow) => {
+    const dist = s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
+    const dur = s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
+    const isVelo = s.sport === "velo";
+    const isNatation = s.sport === "natation";
+
+    const speedKmh = s.actualSpeedKmh ?? (dur > 0 && dist > 0 ? dist / (dur / 60) : null);
+    const pctVma = speedKmh && vma ? Math.round((speedKmh / vma) * 100) : null;
+    const pctFc = s.actualHeartRate && fcMax ? Math.round((s.actualHeartRate / fcMax) * 100) : null;
+
+    let metricLabel: string;
+    if (isVelo) {
+      metricLabel = speedKmh ? `${speedKmh.toFixed(1)} km/h` : "—";
+    } else if (isNatation) {
+      const paceDec = s.actualPaceDecimal ?? (speedKmh ? 60 / speedKmh / 10 : null);
+      if (paceDec) {
+        const min = Math.floor(paceDec);
+        const sec = Math.round((paceDec - min) * 60);
+        metricLabel = `${min}:${sec.toString().padStart(2, "0")}/100m`;
+      } else {
+        metricLabel = "—";
+      }
+    } else {
+      const paceLabel = s.actualPaceDecimal
+        ? formatPaceFromDecimal(s.actualPaceDecimal)
+        : (speedKmh ? formatPaceFromDecimal(60 / speedKmh) : null);
+      metricLabel = paceLabel || "—";
+    }
+
+    const distLabel = isNatation
+      ? (dist > 0 ? `${Math.round(dist * 1000)} m` : "—")
+      : (dist > 0 ? `${dist.toFixed(2)} km` : "—");
+
+    return (
+      <div key={s.id} className="rounded border bg-muted/10 p-2 text-xs">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            {s.isCustom && (
+              <Badge className="text-[9px] h-4 px-1 bg-orange-500/20 text-orange-600 border-orange-500/30">Perso</Badge>
+            )}
+            <span className="truncate font-medium">{s.name}</span>
+          </div>
+          <Badge
+            className={`text-[9px] px-1.5 py-0 shrink-0 ${
+              s.completed_at
+                ? "bg-green-500/20 text-green-600 border-green-500/30"
+                : "bg-muted text-muted-foreground"
+            }`}
+          >
+            {s.completed_at ? "Réalisée" : "Planifiée"}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+          <div className="flex items-center gap-1">
+            <MapPin className="h-2.5 w-2.5 text-muted-foreground" />
+            <span>{distLabel}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Clock className="h-2.5 w-2.5 text-muted-foreground" />
+            <span>{formatDur(dur)}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Gauge className="h-2.5 w-2.5 text-muted-foreground" />
+            <span>
+              {metricLabel}
+              {!isVelo && !isNatation && pctVma !== null && (
+                <span className={`ml-1 font-semibold ${pctColor(pctVma)}`}>({pctVma}% VMA)</span>
+              )}
+            </span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Heart className="h-2.5 w-2.5 text-red-500" />
+            <span>
+              {s.actualHeartRate ? `${s.actualHeartRate} bpm` : "—"}
+              {pctFc !== null && (
+                <span className={`ml-1 font-semibold ${pctColor(pctFc)}`}>({pctFc}% FCmax)</span>
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <Card>
@@ -237,55 +320,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
           Volume cardio (semaine dernière)
         </CardTitle>
       </CardHeader>
-      <CardContent className="px-3 pb-3 space-y-3">
-        {/* Totals — séparés par sport si multi-sport */}
-        {multiSport ? (
-          <div className="space-y-1.5">
-            {sportKeys.map((sport) => (
-              <div key={sport} className="grid grid-cols-2 gap-2">
-                <div className="rounded border bg-muted/20 p-2">
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    <span>{sportEmoji(sport)} Distance {sport === "natation" ? "(m)" : "(km)"}</span>
-                  </div>
-                  <div className="text-sm font-bold">
-                    {sport === "natation"
-                      ? `${Math.round(totals[sport].dist * 1000)} m`
-                      : `${totals[sport].dist.toFixed(1)} km`}
-                  </div>
-                </div>
-                <div className="rounded border bg-muted/20 p-2">
-                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>{sportEmoji(sport)} Durée</span>
-                  </div>
-                  <div className="text-sm font-bold">{formatDur(totals[sport].dur)}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded border bg-muted/20 p-2">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <MapPin className="h-3 w-3" />
-                {sportKeys[0] === "natation" ? "Distance totale (m)" : "Distance totale"}
-              </div>
-              <div className="text-sm font-bold">
-                {sportKeys[0] === "natation"
-                  ? `${Math.round(totals[sportKeys[0]].dist * 1000)} m`
-                  : `${totals[sportKeys[0]]?.dist.toFixed(1) ?? "0.0"} km`}
-              </div>
-            </div>
-            <div className="rounded border bg-muted/20 p-2">
-              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                <Clock className="h-3 w-3" /> Durée totale
-              </div>
-              <div className="text-sm font-bold">{formatDur(totals[sportKeys[0]]?.dur ?? 0)}</div>
-            </div>
-          </div>
-        )}
-
+      <CardContent className="px-3 pb-3 space-y-4">
         {(!vma || !fcMax) && (
           <p className="text-[10px] text-muted-foreground italic">
             {!vma && "VMA non renseignée. "}
@@ -294,102 +329,34 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
           </p>
         )}
 
-        {/* Per-session breakdown */}
-        <div className="space-y-1.5">
-          {sessions.map((s) => {
-            const dist = s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
-            const dur = s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
-            const isVelo = s.sport === "velo";
-            const isNatation = s.sport === "natation";
+        {/* Groupé par sport */}
+        {sportOrder.map((sport) => {
+          const sportSessions = grouped[sport];
+          const totalDist = sportSessions.reduce((acc, s) => acc + (s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0)), 0);
+          const totalDur = sportSessions.reduce((acc, s) => acc + (s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0)), 0);
+          const distTotalLabel = sport === "natation"
+            ? `${Math.round(totalDist * 1000)} m`
+            : `${totalDist.toFixed(1)} km`;
 
-            // Vitesse / allure
-            const speedKmh = s.actualSpeedKmh ?? (dur > 0 && dist > 0 ? dist / (dur / 60) : null);
-            const pctVma = speedKmh && vma ? Math.round((speedKmh / vma) * 100) : null;
-            const pctFc = s.actualHeartRate && fcMax ? Math.round((s.actualHeartRate / fcMax) * 100) : null;
-
-            // Label allure/vitesse selon sport
-            let metricLabel: string;
-            if (isVelo) {
-              metricLabel = speedKmh ? `${speedKmh.toFixed(1)} km/h` : "—";
-            } else if (isNatation) {
-              // pace en min/100m
-              const paceDec = s.actualPaceDecimal ?? (speedKmh ? 60 / speedKmh / 10 : null);
-              if (paceDec) {
-                const min = Math.floor(paceDec);
-                const sec = Math.round((paceDec - min) * 60);
-                metricLabel = `${min}:${sec.toString().padStart(2, "0")}/100m`;
-              } else {
-                metricLabel = "—";
-              }
-            } else {
-              const paceLabel = s.actualPaceDecimal
-                ? formatPaceFromDecimal(s.actualPaceDecimal)
-                : (speedKmh ? formatPaceFromDecimal(60 / speedKmh) : null);
-              metricLabel = paceLabel || "—";
-            }
-
-            // Distance label
-            const distLabel = isNatation
-              ? (dist > 0 ? `${Math.round(dist * 1000)} m` : "—")
-              : (dist > 0 ? `${dist.toFixed(2)} km` : "—");
-
-            return (
-              <div key={s.id} className="rounded border bg-muted/10 p-2 text-xs">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <Badge variant="outline" className="text-[9px] h-4 px-1">{s.week_label}</Badge>
-                    <span className="text-sm leading-none">{sportEmoji(s.sport)}</span>
-                    {s.isCustom && (
-                      <Badge className="text-[9px] h-4 px-1 bg-orange-500/20 text-orange-600 border-orange-500/30">Perso</Badge>
-                    )}
-                    <span className="truncate font-medium">{s.name}</span>
-                  </div>
-                  <Badge
-                    className={`text-[9px] px-1.5 py-0 ${
-                      s.completed_at
-                        ? "bg-green-500/20 text-green-600 border-green-500/30"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {s.completed_at ? "Réalisée" : "Planifiée"}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="h-2.5 w-2.5 text-muted-foreground" />
-                    <span>{distLabel}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-2.5 w-2.5 text-muted-foreground" />
-                    <span>{formatDur(dur)}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Gauge className="h-2.5 w-2.5 text-muted-foreground" />
-                    <span>
-                      {metricLabel}
-                      {!isVelo && !isNatation && pctVma !== null && (
-                        <span className={`ml-1 font-semibold ${pctColor(pctVma)}`}>
-                          ({pctVma}% VMA)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Heart className="h-2.5 w-2.5 text-red-500" />
-                    <span>
-                      {s.actualHeartRate ? `${s.actualHeartRate} bpm` : "—"}
-                      {pctFc !== null && (
-                        <span className={`ml-1 font-semibold ${pctColor(pctFc)}`}>
-                          ({pctFc}% FCmax)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                </div>
+          return (
+            <div key={sport} className="space-y-2">
+              {/* En-tête sport + totaux */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold flex items-center gap-1">
+                  <span className="text-sm">{sportEmoji(sport)}</span>
+                  {sportLabel(sport)}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {distTotalLabel} · {formatDur(totalDur)}
+                </span>
               </div>
-            );
-          })}
-        </div>
+              {/* Séances */}
+              <div className="space-y-1.5">
+                {sportSessions.map(renderSession)}
+              </div>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );
