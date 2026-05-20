@@ -176,6 +176,45 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     setLinkDialogOpen(true);
   };
 
+  // ── Crée une séance perso à partir de l'activité Strava ──────────────────
+  const handleCreateCustomSession = async () => {
+    if (!selectedActivity) return;
+    setLinking(true);
+    try {
+      const cdoSport = STRAVA_TO_CDO_SPORT[selectedActivity.sport_type];
+      const distanceKm = parseFloat((selectedActivity.distance_meters / 1000).toFixed(2));
+      const durationMin = Math.round(selectedActivity.moving_time_seconds / 60);
+      const pace = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
+      const dateStr = selectedActivity.start_date.split("T")[0];
+
+      await (supabase.from("custom_sessions") as any).insert({
+        user_id: athleteId,
+        session_name: selectedActivity.name,
+        cardio_type: cdoSport || null,
+        duration_minutes: durationMin,
+        completed_at: selectedActivity.start_date,
+        scheduled_date: dateStr,
+        distance_km: distanceKm || null,
+        avg_pace: pace || null,
+        avg_heart_rate: selectedActivity.average_heartrate
+          ? Math.round(selectedActivity.average_heartrate)
+          : null,
+        description: comment.trim() || null,
+      });
+
+      toast.success(`✅ "${selectedActivity.name}" ajoutée en séance perso !`);
+      setLinkDialogOpen(false);
+      setListOpen(false);
+      await loadActivities();
+      onLinked();
+    } catch (err) {
+      console.error("Erreur création séance perso:", err);
+      toast.error("Erreur lors de la création");
+    } finally {
+      setLinking(false);
+    }
+  };
+
   const handleLink = async () => {
     if (!selectedActivity || !selectedSession) return;
 
@@ -408,6 +447,23 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                   </div>
                 )}
               </div>
+
+              {/* Créer séance perso */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="flex-1 border-t" />
+                <span>ou</span>
+                <div className="flex-1 border-t" />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full text-xs"
+                disabled={linking}
+                onClick={handleCreateCustomSession}
+              >
+                <Link2 className="h-3 w-3 mr-1.5" />
+                Créer une séance perso à partir de cette activité
+              </Button>
 
               {/* RPE */}
               {selectedSession && (

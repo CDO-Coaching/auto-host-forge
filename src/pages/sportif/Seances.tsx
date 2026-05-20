@@ -504,11 +504,34 @@ export default function Seances() {
                                     Récup/Mobilité
                                   </Badge>
                                 )}
-                                {session.session_type === "cardio" && (
-                                  <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
-                                    Cardio
-                                  </Badge>
-                                )}
+                                {session.session_type === "cardio" && (() => {
+                                  const sport = session.session_exercises?.find((ex: any) => ex.cardio_sport)?.cardio_sport;
+                                  if (sport === "course") return (
+                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
+                                      🏃 Course
+                                    </Badge>
+                                  );
+                                  if (sport === "velo") return (
+                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-amber-500 text-amber-600 dark:text-amber-400 backdrop-blur-sm bg-amber-500/10">
+                                      🚴 Vélo
+                                    </Badge>
+                                  );
+                                  if (sport === "natation") return (
+                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-cyan-500 text-cyan-600 dark:text-cyan-400 backdrop-blur-sm bg-cyan-500/10">
+                                      🏊 Natation
+                                    </Badge>
+                                  );
+                                  if (sport === "hiit") return (
+                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-orange-500 text-orange-600 dark:text-orange-400 backdrop-blur-sm bg-orange-500/10">
+                                      ⚡ HIIT
+                                    </Badge>
+                                  );
+                                  return (
+                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
+                                      Cardio
+                                    </Badge>
+                                  );
+                                })()}
                                 {isCardioSession(session) && (() => {
                                   const dur = getCardioEstimatedDuration(session.session_exercises || [], (profile as any)?.vma || null);
                                   return dur ? (
@@ -604,6 +627,15 @@ export default function Seances() {
                                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                                   <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
                                   <Badge variant="secondary" className="text-xs">Perso</Badge>
+                                  {customSession.cardio_type === "course" && (
+                                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-500/10">🏃 Course</Badge>
+                                  )}
+                                  {customSession.cardio_type === "velo" && (
+                                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">🚴 Vélo</Badge>
+                                  )}
+                                  {customSession.cardio_type === "natation" && (
+                                    <Badge variant="outline" className="text-xs border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10">🏊 Natation</Badge>
+                                  )}
                                   {isPlanned ? (
                                     <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10">
                                       📅 Planifiée
