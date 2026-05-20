@@ -135,13 +135,15 @@ export default function Agenda() {
 
       if (tsError) throw tsError;
 
-      // Fetch custom sessions for the week
+      // Fetch custom sessions for the week — match on completed_at OR scheduled_date
       const { data: customSessions, error: csError } = await supabase
         .from("custom_sessions")
-        .select("id, session_name, completed_at, user_id")
+        .select("id, session_name, completed_at, scheduled_date, user_id")
         .in("user_id", athleteIds)
-        .gte("completed_at", weekStartStr)
-        .lte("completed_at", weekEndStr + "T23:59:59");
+        .or(
+          `and(completed_at.gte.${weekStartStr}T00:00:00,completed_at.lte.${weekEndStr}T23:59:59),` +
+          `and(scheduled_date.gte.${weekStartStr},scheduled_date.lte.${weekEndStr})`
+        );
 
       if (csError) throw csError;
 
@@ -168,20 +170,21 @@ export default function Agenda() {
       // Process custom sessions (add to programmed counts as well)
       (customSessions || []).forEach((cs: any) => {
         const profile = profileMap.get(cs.user_id);
-        if (profile && cs.completed_at) {
-          // Custom sessions add to both completed and programmed total
-          programmedMap.set(cs.user_id, (programmedMap.get(cs.user_id) || 0) + 1);
-          allSessions.push({
-            id: cs.id,
-            sessionName: cs.session_name,
-            sessionType: "custom",
-            completedAt: cs.completed_at,
-            sessionRpe: null,
-            athleteId: cs.user_id,
-            athleteFirstName: profile.first_name || "",
-            athleteLastName: profile.last_name || ""
-          });
-        }
+        if (!profile) return;
+        // Use completed_at if set, otherwise scheduled_date
+        const effectiveDate = cs.completed_at ?? (cs.scheduled_date ? `${cs.scheduled_date}T12:00:00.000Z` : null);
+        if (!effectiveDate) return;
+        programmedMap.set(cs.user_id, (programmedMap.get(cs.user_id) || 0) + 1);
+        allSessions.push({
+          id: cs.id,
+          sessionName: cs.session_name,
+          sessionType: "custom",
+          completedAt: effectiveDate,
+          sessionRpe: null,
+          athleteId: cs.user_id,
+          athleteFirstName: profile.first_name || "",
+          athleteLastName: profile.last_name || ""
+        });
       });
 
       setProgrammedCounts(new Map(programmedMap));

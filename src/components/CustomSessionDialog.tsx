@@ -168,12 +168,19 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Utilisateur non connecté");
 
+      // Build completed_at from the selected date (preserves correct date even for past sessions)
+      const completedAtForDate = (dateStr: string) => {
+        const isToday = format(new Date(), "yyyy-MM-dd") === dateStr;
+        return isToday ? new Date().toISOString() : `${dateStr}T12:00:00.000Z`;
+      };
+
       if (validateSession) {
-        // Completing a planned session
+        // Completing a planned session — use scheduled_date as the completion date
+        const dateStr = validateSession.scheduled_date ?? format(new Date(), "yyyy-MM-dd");
         const { error } = await (supabase.from("custom_sessions") as any)
           .update({
             duration_minutes: parseInt(duration),
-            completed_at: new Date().toISOString(),
+            completed_at: completedAtForDate(dateStr),
             description: description.trim() || null,
             distance_km: distanceKm ? parseFloat(distanceKm) : null,
             avg_pace: avgPace.trim() || null,
@@ -185,14 +192,15 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
         toast.success("Séance perso validée ! 💪");
       } else if (editSession) {
         // Update existing session
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
         const updateData: any = {
           session_name: sessionName.trim(),
           description: description.trim() || null,
-          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+          scheduled_date: dateStr,
         };
         if (isCompleting) {
           updateData.duration_minutes = parseInt(duration);
-          updateData.completed_at = new Date().toISOString();
+          updateData.completed_at = completedAtForDate(dateStr);
         }
 
         const { error } = await (supabase.from("custom_sessions") as any)
@@ -203,17 +211,18 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
         toast.success("Séance perso modifiée !");
       } else {
         // Create new session
+        const dateStr = format(selectedDate, "yyyy-MM-dd");
         const insertData: any = {
           user_id: user.id,
           session_name: sessionName.trim(),
           description: description.trim() || null,
-          scheduled_date: format(selectedDate, "yyyy-MM-dd"),
+          scheduled_date: dateStr,
           cardio_type: cardioType || null,
         };
 
         if (isCompleting) {
           insertData.duration_minutes = parseInt(duration);
-          insertData.completed_at = new Date().toISOString();
+          insertData.completed_at = completedAtForDate(dateStr);
           insertData.distance_km = distanceKm ? parseFloat(distanceKm) : null;
           insertData.avg_pace = avgPace.trim() || null;
           insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
