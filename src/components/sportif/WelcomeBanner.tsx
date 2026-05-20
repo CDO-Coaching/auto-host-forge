@@ -94,29 +94,29 @@ export function WelcomeBanner({ firstName, recoveryPercent }: Props) {
 
   return (
     <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
+      <CardContent className="p-3 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] sm:text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+            <p className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1">
               <CalendarCheck className="h-3 w-3" />
               {today}
             </p>
-            <h2 className="text-lg sm:text-2xl font-bold mt-0.5 flex items-center gap-2">
+            <h2 className="text-base sm:text-2xl font-bold mt-0.5 flex items-center gap-1.5">
               <span className="truncate">Salut {firstName}</span>
               <span aria-hidden>{moodEmoji}</span>
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+            <p className="text-[11px] sm:text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
               <Sparkles className="h-3 w-3 text-primary" />
               Prêt à donner le meilleur ?
             </p>
           </div>
           {streak > 0 && (
             <div
-              className="shrink-0 flex flex-col items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/30 px-3 py-2 min-w-[64px]"
+              className="shrink-0 flex flex-col items-center justify-center rounded-xl bg-orange-500/10 border border-orange-500/30 px-2.5 py-1.5 sm:px-3 sm:py-2 min-w-[54px] sm:min-w-[64px]"
               title={`${streak} jour${streak > 1 ? "s" : ""} d'affilée`}
             >
-              <Flame className="h-5 w-5 text-orange-500" />
-              <span className="text-lg font-bold leading-none mt-0.5 text-orange-600">{streak}</span>
+              <Flame className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
+              <span className="text-base sm:text-lg font-bold leading-none mt-0.5 text-orange-600">{streak}</span>
               <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-0.5">
                 jour{streak > 1 ? "s" : ""}
               </span>

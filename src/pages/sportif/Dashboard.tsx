@@ -352,16 +352,12 @@ export default function SportifDashboard() {
   const recoveryPercentForBanner = fatigue.avgScore !== null ? getRecoveryPercent(fatigue.avgScore) : null;
 
   return (
-    <div className="space-y-2 sm:space-y-4 pb-4">
+    <div className="space-y-2 sm:space-y-3 pb-20 sm:pb-4">
       <AthleteSfmsRequestBanner />
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
 
-      <p className="text-xs sm:text-sm text-muted-foreground">
-        Semaine {currentWeek} • {formatWeekRangeFromNumber(currentWeek, currentYear)}
-      </p>
-
-      {/* Progression hebdomadaire — compact */}
+      {/* Progression hebdomadaire — avec numéro de semaine intégré */}
       <Card className="overflow-hidden">
         <CardContent className="p-3 sm:p-4 space-y-2">
           <div className="flex items-center justify-between">
@@ -369,16 +365,20 @@ export default function SportifDashboard() {
               <Dumbbell className="h-4 w-4 text-primary" />
               <span className="font-semibold text-sm">Progression</span>
             </div>
-            {weeklyInfo.total > 0 ? (
-              <span className="text-xs text-muted-foreground">
-                {weeklyInfo.completed}/{weeklyInfo.total} séances • <span className="font-bold text-primary">{progressPercent}%</span>
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">Pas de programme</span>
-            )}
+            <span className="text-[10px] text-muted-foreground">
+              S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
+            </span>
           </div>
-          {weeklyInfo.total > 0 && (
-            <Progress value={progressPercent} className="h-2" />
+          {weeklyInfo.total > 0 ? (
+            <>
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
+                <span className="font-bold text-primary">{progressPercent}%</span>
+              </div>
+              <Progress value={progressPercent} className="h-2" />
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground">Pas de programme cette semaine</p>
           )}
           {progressPercent === 100 && weeklyInfo.total > 0 && (
             <p className="text-xs text-green-500 font-medium flex items-center gap-1">
@@ -390,78 +390,41 @@ export default function SportifDashboard() {
       </Card>
 
       {/* Bilan hebdo — durée + distances par sport */}
-      {weeklyStats.completedCount > 0 && (
-        <Card className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => navigate("/sportif/bilan")}>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Bilan</span>
-            </div>
-            <div className="flex items-center gap-4 flex-wrap">
-              {/* Durée totale */}
-              {weeklyStats.totalDurationMinutes > 0 && (() => {
-                const total = weeklyStats.totalDurationMinutes;
-                const h = Math.floor(total / 60);
-                const m = total % 60;
-                const label = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${total} min`;
-                return (
-                  <div className="flex items-center gap-1.5">
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Clock className="h-3.5 w-3.5 text-primary" />
+      {weeklyStats.completedCount > 0 && (() => {
+        const total = weeklyStats.totalDurationMinutes;
+        const h = Math.floor(total / 60);
+        const m = total % 60;
+        const durLabel = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${total} min`;
+        const stats = [
+          ...(total > 0 ? [{ emoji: "⏱", value: durLabel, label: "Entraînement" }] : []),
+          ...(weeklyStats.distanceBySport.course > 0 ? [{ emoji: "🏃", value: `${Math.round(weeklyStats.distanceBySport.course * 100) / 100} km`, label: "Course" }] : []),
+          ...(weeklyStats.distanceBySport.velo > 0 ? [{ emoji: "🚴", value: `${Math.round(weeklyStats.distanceBySport.velo * 100) / 100} km`, label: "Vélo" }] : []),
+          ...(weeklyStats.distanceBySport.natation > 0 ? [{ emoji: "🏊", value: `${Math.round(weeklyStats.distanceBySport.natation)} m`, label: "Natation" }] : []),
+        ];
+        return (
+          <Card className="cursor-pointer active:bg-muted/30 transition-colors" onClick={() => navigate("/sportif/bilan")}>
+            <CardContent className="p-3 sm:p-4">
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <Clock className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Bilan</span>
+              </div>
+              <div className={`grid gap-2 ${stats.length <= 2 ? "grid-cols-2" : stats.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
+                {stats.map((s) => (
+                  <div key={s.label} className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <span className="text-sm leading-none">{s.emoji}</span>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-foreground leading-tight">{label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Entraînement</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-foreground leading-tight truncate">{s.value}</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
                     </div>
                   </div>
-                );
-              })()}
-              {/* Distance course */}
-              {weeklyStats.distanceBySport.course > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs">🏃</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground leading-tight">
-                      {Math.round(weeklyStats.distanceBySport.course * 100) / 100} km
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Course</p>
-                  </div>
-                </div>
-              )}
-              {/* Distance vélo */}
-              {weeklyStats.distanceBySport.velo > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs">🚴</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground leading-tight">
-                      {Math.round(weeklyStats.distanceBySport.velo * 100) / 100} km
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Vélo</p>
-                  </div>
-                </div>
-              )}
-              {/* Distance natation */}
-              {weeklyStats.distanceBySport.natation > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs">🏊</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-foreground leading-tight">
-                      {Math.round(weeklyStats.distanceBySport.natation * 1000)} m
-                    </p>
-                    <p className="text-[10px] text-muted-foreground leading-tight">Natation</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Récupération + Messagerie — side by side */}
       <div className="grid grid-cols-2 gap-2 sm:gap-4">
@@ -574,27 +537,22 @@ export default function SportifDashboard() {
       )}
 
       {/* Boutons d'action */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Button
           variant="outline"
-          size="sm"
-          className="flex-1 text-xs h-8"
+          className="h-10 text-sm"
           onClick={() => navigate("/sportif/seances")}
         >
           Mes séances
-          <ChevronRight className="h-3 w-3 ml-1" />
+          <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
-        {weeklyInfo.nextSession && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 text-xs h-8 border-primary/30 text-primary hover:bg-primary/10"
-            onClick={() => navigate("/sportif/programmer")}
-          >
-            <CalendarDays className="h-3 w-3 mr-1" />
-            Programmer
-          </Button>
-        )}
+        <Button
+          className="h-10 text-sm"
+          onClick={() => navigate("/sportif/programmer")}
+        >
+          <CalendarDays className="h-4 w-4 mr-1" />
+          Programmer
+        </Button>
       </div>
 
       {/* Citation motivante de la semaine */}
