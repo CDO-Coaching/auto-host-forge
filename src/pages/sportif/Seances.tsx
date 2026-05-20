@@ -302,7 +302,10 @@ export default function Seances() {
             <StravaActivityMatcher
               athleteId={userId}
               currentWeekSessions={sessions}
-              onLinked={() => loadWeekSessions(selectedWeek.id)}
+              onLinked={() => {
+                loadWeekSessions(selectedWeek.id);
+                loadCustomSessions();
+              }}
             />
           )}
           {weeks.length > 0 && (
