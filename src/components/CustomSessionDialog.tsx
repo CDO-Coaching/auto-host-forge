@@ -52,9 +52,11 @@ interface CustomSessionDialogProps {
   forceOpen?: boolean;
   /** Called when the dialog closes after a forceOpen */
   onForceClose?: () => void;
+  /** When true, hides the internal trigger button (caller provides its own trigger) */
+  hideTrigger?: boolean;
 }
 
-export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession, stravaData, forceOpen, onForceClose }: CustomSessionDialogProps) {
+export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession, stravaData, forceOpen, onForceClose, hideTrigger }: CustomSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
@@ -291,7 +293,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {!isEditing && !isValidating && (
+      {!isEditing && !isValidating && !hideTrigger && (
         <DialogTrigger asChild>
           <Button className="gap-2 w-full sm:w-auto text-sm sm:text-base">
             <Plus className="h-4 w-4" />

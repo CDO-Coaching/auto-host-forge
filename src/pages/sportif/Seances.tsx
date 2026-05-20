@@ -349,6 +349,7 @@ export default function Seances() {
 
       {/* CustomSessionDialog (triggered by "+ Perso" button or editing) */}
       <CustomSessionDialog
+        hideTrigger
         forceOpen={openCustomDialog}
         onForceClose={() => setOpenCustomDialog(false)}
         onSessionCreated={() => {

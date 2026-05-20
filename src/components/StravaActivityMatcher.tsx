@@ -300,6 +300,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     <>
       {/* ── CustomSessionDialog pré-rempli via Strava ── */}
       <CustomSessionDialog
+        hideTrigger
         stravaData={stravaCustomData}
         onSessionCreated={() => {
           setStravaCustomData(null);
@@ -314,12 +315,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
         variant="outline"
         size="sm"
         onClick={openList}
-        className="border-[#FC4C02]/40 text-[#FC4C02] hover:bg-[#FC4C02]/10 hover:border-[#FC4C02] text-xs gap-1.5 h-8"
+        className="border-[#FC4C02]/40 text-[#FC4C02] hover:bg-[#FC4C02]/10 hover:border-[#FC4C02] text-xs gap-1.5 h-8 shrink-0"
       >
-        <div className="w-3.5 h-3.5 rounded bg-[#FC4C02] flex items-center justify-center">
+        <div className="w-3.5 h-3.5 rounded bg-[#FC4C02] flex items-center justify-center shrink-0">
           <StravaLogo className="w-2.5 h-2.5 fill-white" />
         </div>
-        Lier séance Strava
+        <span className="hidden sm:inline">Lier séance </span>Strava
       </Button>
 
       {/* ── Dialog liste des activités ── */}
