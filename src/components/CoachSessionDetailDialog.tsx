@@ -12,10 +12,22 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface CardioStep {
-  type?: string;
-  duration?: string;
-  intensity?: number;
-  comment?: string;
+  id: number;
+  movement_type: "course" | "marche" | "velo" | "natation";
+  effort_type: "duration" | "distance";
+  duration?: number; // secondes
+  distance?: number;
+  distance_unit?: "m" | "km";
+  vma_percentage?: number;
+  rpe?: number;
+  target_heart_rate?: string;
+  block_id?: number;
+}
+
+interface CardioBlock {
+  id: number;
+  repetitions: number;
+  steps: CardioStep[];
 }
 
 interface SessionExercise {
@@ -254,48 +266,78 @@ export function CoachSessionDetailDialog({
     return "text-red-600";
   };
 
+  const formatSeconds = (sec: number): string => {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (h > 0) return `${h}h${m.toString().padStart(2, "0")}`;
+    if (s > 0) return `${m}:${s.toString().padStart(2, "0")}`;
+    return `${m} min`;
+  };
+
+  const movementLabel: Record<string, string> = {
+    course: "🏃 Course", marche: "🚶 Marche", velo: "🚴 Vélo", natation: "🏊 Natation",
+  };
+
+  const renderCardioStep = (step: CardioStep, key: string | number) => (
+    <div key={key} className="flex items-center justify-between rounded px-2.5 py-1.5 bg-muted/30 border border-border/30 text-xs">
+      <span className="font-medium text-foreground/90">
+        {movementLabel[step.movement_type] ?? step.movement_type}
+      </span>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {step.effort_type === "duration" && step.duration != null && (
+          <span className="font-medium text-foreground">{formatSeconds(step.duration)}</span>
+        )}
+        {step.effort_type === "distance" && step.distance != null && (
+          <span className="font-medium text-foreground">{step.distance} {step.distance_unit ?? "m"}</span>
+        )}
+        {step.vma_percentage != null && step.vma_percentage > 0 && (
+          <span className="text-primary/80">{step.vma_percentage}% VMA</span>
+        )}
+        {step.rpe != null && step.rpe > 0 && (
+          <span className="text-orange-400">RPE {step.rpe}</span>
+        )}
+        {step.target_heart_rate && (
+          <span className="text-rose-400">FC {step.target_heart_rate}</span>
+        )}
+      </div>
+    </div>
+  );
+
   const renderCardioSteps = (ex: SessionExercise) => {
     if (!ex.cardio_content) return null;
-    let parsed: { steps?: CardioStep[]; blocks?: any[] } = {};
+    let parsed: { steps?: CardioStep[]; blocks?: CardioBlock[] } = {};
     try { parsed = JSON.parse(ex.cardio_content); } catch { return null; }
 
-    const steps: CardioStep[] = Array.isArray(parsed) ? parsed : (parsed.steps ?? []);
-    const blocks = parsed.blocks ?? [];
+    const allSteps: CardioStep[] = Array.isArray(parsed) ? parsed : (parsed.steps ?? []);
+    const blocks: CardioBlock[] = parsed.blocks ?? [];
 
-    const stepTypeLabel: Record<string, string> = {
-      warmup: "Échauffement", work: "Travail", recovery: "Récupération", cooldown: "Retour au calme", easy: "Footing facile",
-    };
-    const stepTypeColor: Record<string, string> = {
-      warmup: "bg-yellow-500/15 text-yellow-600", work: "bg-red-500/15 text-red-600",
-      recovery: "bg-blue-500/15 text-blue-500", cooldown: "bg-green-500/15 text-green-600", easy: "bg-teal-500/15 text-teal-600",
-    };
+    if (allSteps.length === 0 && blocks.length === 0) return null;
 
-    if (steps.length === 0 && blocks.length === 0) return null;
+    // Standalone steps (pas dans un bloc)
+    const standaloneSteps = allSteps.filter(s => !s.block_id);
+    // Steps dans un bloc (regroupés par block_id)
+    const blockStepMap: Record<number, CardioStep[]> = {};
+    allSteps.filter(s => s.block_id).forEach(s => {
+      if (!blockStepMap[s.block_id!]) blockStepMap[s.block_id!] = [];
+      blockStepMap[s.block_id!].push(s);
+    });
 
     return (
-      <div className="mt-2 space-y-1">
-        {steps.map((step, i) => (
-          <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${stepTypeColor[step.type ?? ""] ?? "bg-muted/40"}`}>
-            <span className="font-medium">{stepTypeLabel[step.type ?? ""] ?? step.type}</span>
-            <div className="flex items-center gap-2 text-right">
-              {step.duration && <span>{step.duration}</span>}
-              {step.intensity != null && step.intensity > 0 && <span className="opacity-70">{step.intensity}% VMA</span>}
-              {step.comment && <span className="opacity-60 italic truncate max-w-[80px]">{step.comment}</span>}
+      <div className="mt-2 space-y-1.5">
+        {standaloneSteps.map((step) => renderCardioStep(step, step.id))}
+        {blocks.map((block) => (
+          <div key={block.id} className="rounded border border-primary/20 bg-primary/5 overflow-hidden">
+            <div className="px-2.5 py-1 bg-primary/10 flex items-center gap-1.5">
+              <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                {block.repetitions}× répétitions
+              </span>
             </div>
-          </div>
-        ))}
-        {blocks.map((block: any, i: number) => (
-          <div key={`block-${i}`} className="rounded border border-border/40 p-1.5 space-y-1">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase">{block.repeat}× bloc</p>
-            {(block.steps ?? []).map((step: CardioStep, j: number) => (
-              <div key={j} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${stepTypeColor[step.type ?? ""] ?? "bg-muted/40"}`}>
-                <span className="font-medium">{stepTypeLabel[step.type ?? ""] ?? step.type}</span>
-                <div className="flex items-center gap-2">
-                  {step.duration && <span>{step.duration}</span>}
-                  {step.intensity != null && step.intensity > 0 && <span className="opacity-70">{step.intensity}% VMA</span>}
-                </div>
-              </div>
-            ))}
+            <div className="p-1 space-y-1">
+              {(blockStepMap[block.id] ?? block.steps ?? []).map((step) =>
+                renderCardioStep(step, `${block.id}-${step.id}`)
+              )}
+            </div>
           </div>
         ))}
       </div>
