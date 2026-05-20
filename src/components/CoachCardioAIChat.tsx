@@ -32,13 +32,29 @@ export interface AIChatSession {
   cardioSummary?: string; // e.g. "8.5 km · 45min · 65-100% VMA"
 }
 
+/** Détail d'une séance cardio réalisée (pour l'historique IA) */
+export interface AIChatSessionDetail {
+  name: string;
+  sport?: string;           // "course" | "velo" | "natation"
+  source: "coach" | "custom"; // programmée par coach ou séance perso
+  plannedKm?: number;       // volume prévu (cardio_content)
+  plannedMinutes?: number;  // durée prévue
+  actualKm?: number;        // distance réelle accomplie
+  actualMinutes?: number;   // durée réelle
+  actualPaceMinkm?: string; // allure réelle ex : "5:42"
+  actualAvgHr?: number;     // FC moyenne réelle
+  rpe?: number;             // RPE 1-10
+  completed: boolean;
+}
+
 export interface AIChatWeekHistory {
   weekNumber: number;
   year: number;
   totalKm: number;
   totalMinutes: number;
   sessionCount: number;
-  avgIntensityPct?: number; // avg % VMA
+  avgIntensityPct?: number; // avg % VMA (données programmées)
+  sessions?: AIChatSessionDetail[]; // détail par séance (données réelles)
 }
 
 export interface AIChatMesocycle {
@@ -166,23 +182,59 @@ ${buildVmaTable(ctx.athleteVma)}`
   // ── Recent training history ────────────────────────────────────────────────
   let historySection = "Historique des dernières semaines cardio : non disponible.";
   if (ctx.recentHistory && ctx.recentHistory.length > 0) {
-    const nonEmpty = ctx.recentHistory.filter((w) => w.totalKm > 0 || w.totalMinutes > 0);
+    const nonEmpty = ctx.recentHistory.filter((w) => w.totalKm > 0 || w.totalMinutes > 0 || w.sessionCount > 0);
     // Detect last deload week (volume drop ≥25% vs previous)
     const deloadFlags = nonEmpty.map((w, i) => {
       if (i === 0) return false;
       const prev = nonEmpty[i - 1];
       return prev.totalKm > 0 && w.totalKm < prev.totalKm * 0.75;
     });
+
     const rows = ctx.recentHistory.map((w, i) => {
       const dur = w.totalMinutes > 0 ? `${Math.round(w.totalMinutes)} min` : "-";
       const km = w.totalKm > 0 ? `${w.totalKm.toFixed(1)} km` : "0 km";
       const intensity = w.avgIntensityPct ? ` | ~${Math.round(w.avgIntensityPct)}% VMA` : "";
       const deload = deloadFlags[i] ? " ⬇ décharge" : "";
-      return `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s) cardio${intensity}${deload}`;
+      const header = `  S${w.weekNumber}/${w.year} : ${km} · ${dur} · ${w.sessionCount} séance(s)${intensity}${deload}`;
+
+      // Session-level details (real data)
+      let sessionLines = "";
+      if (w.sessions && w.sessions.length > 0) {
+        sessionLines = "\n" + w.sessions.map((s, si) => {
+          const isLast = si === w.sessions!.length - 1;
+          const prefix = `    ${isLast ? "└─" : "├─"}`;
+          const sourceTag = s.source === "custom" ? "[perso]" : "[coach]";
+          const sportTag = s.sport ? ` (${s.sport})` : "";
+          const parts: string[] = [];
+
+          // Planned
+          if (s.plannedKm || s.plannedMinutes) {
+            const p = [s.plannedKm ? `${s.plannedKm}km` : null, s.plannedMinutes ? `${s.plannedMinutes}min` : null].filter(Boolean).join("/");
+            parts.push(`prévu ${p}`);
+          }
+          // Actual
+          if (s.actualKm || s.actualMinutes) {
+            const a = [s.actualKm ? `${s.actualKm}km` : null, s.actualMinutes ? `${s.actualMinutes}min` : null].filter(Boolean).join("/");
+            const tag = (s.plannedKm || s.plannedMinutes) ? `réel ${a}` : a;
+            parts.push(tag);
+          }
+          if (s.actualPaceMinkm) parts.push(`allure ${s.actualPaceMinkm}/km`);
+          if (s.actualAvgHr) parts.push(`FC ${s.actualAvgHr}`);
+          if (s.rpe) parts.push(`RPE ${s.rpe}/10`);
+          if (!s.completed) parts.push("non réalisée");
+
+          const detail = parts.length > 0 ? ` : ${parts.join(" | ")}` : "";
+          return `${prefix} "${s.name}" ${sourceTag}${sportTag}${detail}`;
+        }).join("\n");
+      }
+
+      return header + sessionLines;
     });
+
     const nonZero = nonEmpty.filter((w) => w.totalKm > 0);
     const avgKm = nonZero.length > 0 ? nonZero.reduce((a, w) => a + w.totalKm, 0) / nonZero.length : 0;
     const avgMin = nonZero.length > 0 ? nonZero.reduce((a, w) => a + w.totalMinutes, 0) / nonZero.length : 0;
+
     // Detect recent overload: last 2 weeks both grew >15%
     const last3 = nonEmpty.slice(-3);
     let overloadWarning = "";
@@ -195,11 +247,12 @@ ${buildVmaTable(ctx.athleteVma)}`
     const weeksSinceDeload = deloadFlags.lastIndexOf(true);
     let deloadWarning = "";
     if (weeksSinceDeload === -1 && ctx.recentHistory.length >= 4) {
-      deloadWarning = "\n  ⚠ Aucune semaine de décharge détectée sur les 8 dernières semaines.";
+      deloadWarning = "\n  ⚠ Aucune semaine de décharge détectée sur les 5 dernières semaines.";
     } else if (weeksSinceDeload >= 0 && (ctx.recentHistory.length - 1 - weeksSinceDeload) >= 4) {
       deloadWarning = `\n  ⚠ La dernière décharge remonte à ${ctx.recentHistory.length - 1 - weeksSinceDeload} semaines — une décharge bientôt recommandée.`;
     }
-    historySection = `Historique des ${ctx.recentHistory.length} dernières semaines (du plus récent au plus ancien) :
+    historySection = `Historique réel des ${ctx.recentHistory.length} dernières semaines (du plus récent au plus ancien) :
+Note : les km/min reflètent les données RÉELLES accomplies (non les séances planifiées non réalisées). Les séances perso [perso] sont incluses.
 ${rows.join("\n")}
   → Moyenne (semaines actives) : ${avgKm.toFixed(1)} km/sem · ${Math.round(avgMin)} min/sem${overloadWarning}${deloadWarning}`;
   }

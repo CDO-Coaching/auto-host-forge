@@ -541,73 +541,193 @@ export default function ClientDetail() {
   const loadRecentCardioHistory = async () => {
     if (!athleteId) return;
     try {
-      // Get last 8 training_weeks (most recent first)
+      // ── 1. Get last 5 unique training weeks ─────────────────────────────
       const { data: weeksData, error: weeksError } = await supabase
         .from("training_weeks")
         .select("id, week_number, year")
         .eq("athlete_id", athleteId)
         .order("year", { ascending: false })
         .order("week_number", { ascending: false })
-        .limit(16); // fetch more to deduplicate
+        .limit(12); // fetch more to deduplicate then slice
 
       if (weeksError || !weeksData) return;
 
-      // Deduplicate
       const seen = new Set<string>();
       const uniqueWeeks = weeksData.filter((w: any) => {
         const key = `${w.year}-${w.week_number}`;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
-      }).slice(0, 8);
+      }).slice(0, 5); // only last 5 weeks
 
       if (uniqueWeeks.length === 0) return;
 
       const weekIds = uniqueWeeks.map((w: any) => w.id);
 
-      // Load cardio sessions + exercises for those weeks
+      // ── 2. Load cardio + recup sessions with real performance data ───────
       const { data: sessionsData, error: sessionsError } = await supabase
         .from("training_sessions")
-        .select("week_id, session_type, session_exercises(*)")
+        .select(`
+          id, week_id, session_type, name, session_rpe, completed_at,
+          session_exercises (
+            cardio_content, cardio_sport,
+            actual_distance_km, actual_duration_minutes,
+            actual_pace_min_per_km, actual_avg_heart_rate,
+            sportif_rpe
+          )
+        `)
         .in("week_id", weekIds)
-        .eq("session_type", "cardio");
+        .in("session_type", ["cardio", "recup"]);
 
       if (sessionsError) return;
 
-      // Aggregate per week
-      const weekMap: Record<string, { totalKm: number; totalMinutes: number; intensities: number[]; sessionCount: number }> = {};
+      // ── 3. Compute date range to fetch custom sessions ───────────────────
+      const getWeekMonday = (weekNum: number, year: number): Date => {
+        const jan4 = new Date(year, 0, 4);
+        const dow = jan4.getDay() || 7;
+        const monday = new Date(jan4);
+        monday.setDate(jan4.getDate() - dow + 1 + (weekNum - 1) * 7);
+        monday.setHours(0, 0, 0, 0);
+        return monday;
+      };
+      const getWeekSunday = (weekNum: number, year: number): Date => {
+        const s = new Date(getWeekMonday(weekNum, year));
+        s.setDate(s.getDate() + 6);
+        s.setHours(23, 59, 59, 999);
+        return s;
+      };
+
+      const oldestWeek = uniqueWeeks[uniqueWeeks.length - 1];
+      const newestWeek  = uniqueWeeks[0];
+      const rangeStart  = getWeekMonday(oldestWeek.week_number, oldestWeek.year).toISOString();
+      const rangeEnd    = getWeekSunday(newestWeek.week_number, newestWeek.year).toISOString();
+
+      const { data: customData } = await (supabase.from("custom_sessions") as any)
+        .select("session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, completed_at, scheduled_date")
+        .eq("user_id", athleteId)
+        .not("completed_at", "is", null)
+        .gte("completed_at", rangeStart)
+        .lte("completed_at", rangeEnd);
+
+      // ── 4. Build per-week buckets ────────────────────────────────────────
+      type WeekBucket = {
+        weekNumber: number; year: number;
+        totalKm: number; totalMinutes: number;
+        intensities: number[]; sessionCount: number;
+        sessions: import("@/components/CoachCardioAIChat").AIChatSessionDetail[];
+      };
+      const weekMap: Record<string, WeekBucket> = {};
       for (const w of uniqueWeeks) {
-        weekMap[w.id] = { totalKm: 0, totalMinutes: 0, intensities: [], sessionCount: 0 };
+        weekMap[w.id] = { weekNumber: w.week_number, year: w.year, totalKm: 0, totalMinutes: 0, intensities: [], sessionCount: 0, sessions: [] };
       }
 
+      // ── 5. Process coach sessions ────────────────────────────────────────
       for (const session of sessionsData || []) {
-        const weekBucket = weekMap[session.week_id];
-        if (!weekBucket) continue;
-        weekBucket.sessionCount++;
-        for (const ex of (session.session_exercises || []) as any[]) {
-          if (!ex.cardio_content) continue;
-          try {
-            const parsed = JSON.parse(ex.cardio_content);
-            const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
-            const m = calculateCardioMetrics(data, athleteVma);
-            weekBucket.totalKm += m.totalDistanceKm;
-            weekBucket.totalMinutes += m.totalDurationMinutes;
-            if (m.averageIntensity) weekBucket.intensities.push(m.averageIntensity);
-          } catch { /* ignore */ }
+        const bucket = weekMap[session.week_id];
+        if (!bucket) continue;
+        bucket.sessionCount++;
+
+        const exs = (session.session_exercises || []) as any[];
+        let plannedKm = 0, plannedMinutes = 0;
+        let actualKm = 0, actualMinutes = 0;
+        let rpe: number | undefined;
+        let sport: string | undefined;
+        let avgHr: number | undefined;
+        let avgPace: string | undefined;
+
+        for (const ex of exs) {
+          // Planned data from cardio_content
+          if (ex.cardio_content) {
+            try {
+              const parsed = JSON.parse(ex.cardio_content);
+              const cdata = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+              const m = calculateCardioMetrics(cdata, athleteVma);
+              plannedKm      += m.totalDistanceKm;
+              plannedMinutes += m.totalDurationMinutes;
+              if (m.averageIntensity) bucket.intensities.push(m.averageIntensity);
+            } catch { /* ignore */ }
+          }
+          // Real (actual) data
+          if (ex.actual_distance_km)    actualKm      += ex.actual_distance_km;
+          if (ex.actual_duration_minutes) actualMinutes += ex.actual_duration_minutes;
+          if (ex.sportif_rpe != null && !rpe)         rpe     = ex.sportif_rpe;
+          if (ex.cardio_sport && !sport)              sport   = ex.cardio_sport;
+          if (ex.actual_avg_heart_rate && !avgHr)     avgHr   = ex.actual_avg_heart_rate;
+          if (ex.actual_pace_min_per_km && !avgPace)  avgPace = ex.actual_pace_min_per_km;
         }
+
+        const completed = !!session.completed_at || exs.some((ex: any) => ex.sportif_rpe != null);
+        // Use actual if available, else planned
+        const effectiveKm  = actualKm > 0  ? actualKm  : plannedKm;
+        const effectiveMin = actualMinutes > 0 ? actualMinutes : plannedMinutes;
+
+        bucket.totalKm      += effectiveKm;
+        bucket.totalMinutes += effectiveMin;
+
+        bucket.sessions.push({
+          name:           session.name,
+          sport,
+          source:         "coach",
+          plannedKm:      plannedKm > 0      ? Math.round(plannedKm * 10) / 10 : undefined,
+          plannedMinutes: plannedMinutes > 0  ? Math.round(plannedMinutes)      : undefined,
+          actualKm:       actualKm > 0        ? Math.round(actualKm * 10) / 10  : undefined,
+          actualMinutes:  actualMinutes > 0   ? Math.round(actualMinutes)        : undefined,
+          actualPaceMinkm: avgPace || undefined,
+          actualAvgHr:    avgHr || undefined,
+          rpe:            rpe ?? (session.session_rpe || undefined),
+          completed,
+        });
       }
 
+      // ── 6. Process custom sessions & assign to week ──────────────────────
+      const findWeekId = (dateStr: string): string | null => {
+        const d = new Date(dateStr);
+        for (const w of uniqueWeeks) {
+          const mon = getWeekMonday(w.week_number, w.year);
+          const sun = getWeekSunday(w.week_number, w.year);
+          if (d >= mon && d <= sun) return w.id;
+        }
+        return null;
+      };
+
+      for (const cs of customData || []) {
+        const dateStr = cs.completed_at || cs.scheduled_date;
+        if (!dateStr) continue;
+        const wid = findWeekId(dateStr);
+        if (!wid || !weekMap[wid]) continue;
+
+        const bucket = weekMap[wid];
+        bucket.sessionCount++;
+        const km  = cs.distance_km      || 0;
+        const min = cs.duration_minutes || 0;
+        bucket.totalKm      += km;
+        bucket.totalMinutes += min;
+
+        bucket.sessions.push({
+          name:            cs.session_name,
+          sport:           cs.cardio_type || undefined,
+          source:          "custom",
+          actualKm:        km > 0  ? km  : undefined,
+          actualMinutes:   min > 0 ? min : undefined,
+          actualPaceMinkm: cs.avg_pace     || undefined,
+          actualAvgHr:     cs.avg_heart_rate || undefined,
+          completed:       true,
+        });
+      }
+
+      // ── 7. Build final history array ─────────────────────────────────────
       const history = uniqueWeeks.map((w: any) => {
         const b = weekMap[w.id];
         return {
-          weekNumber: w.week_number,
-          year: w.year,
-          totalKm: Math.round(b.totalKm * 10) / 10,
-          totalMinutes: Math.round(b.totalMinutes),
-          sessionCount: b.sessionCount,
+          weekNumber:     b.weekNumber,
+          year:           b.year,
+          totalKm:        Math.round(b.totalKm * 10) / 10,
+          totalMinutes:   Math.round(b.totalMinutes),
+          sessionCount:   b.sessionCount,
           avgIntensityPct: b.intensities.length > 0
             ? Math.round(b.intensities.reduce((a: number, c: number) => a + c, 0) / b.intensities.length)
             : undefined,
+          sessions: b.sessions,
         };
       });
 
