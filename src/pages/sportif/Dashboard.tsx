@@ -398,12 +398,12 @@ export default function SportifDashboard() {
               <span className="text-xs text-muted-foreground">Bilan</span>
             </div>
             <div className="flex items-center gap-4 flex-wrap">
-              {/* Durée moyenne */}
+              {/* Durée totale */}
               {weeklyStats.totalDurationMinutes > 0 && (() => {
-                const avg = Math.round(weeklyStats.totalDurationMinutes / weeklyStats.completedCount);
-                const h = Math.floor(avg / 60);
-                const m = avg % 60;
-                const label = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${avg} min`;
+                const total = weeklyStats.totalDurationMinutes;
+                const h = Math.floor(total / 60);
+                const m = total % 60;
+                const label = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${total} min`;
                 return (
                   <div className="flex items-center gap-1.5">
                     <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
@@ -411,7 +411,7 @@ export default function SportifDashboard() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-foreground leading-tight">{label}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">Durée moy.</p>
+                      <p className="text-[10px] text-muted-foreground leading-tight">Entraînement</p>
                     </div>
                   </div>
                 );
