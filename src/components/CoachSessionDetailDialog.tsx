@@ -11,12 +11,22 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 
+interface CardioStep {
+  type?: string;
+  duration?: string;
+  intensity?: number;
+  comment?: string;
+}
+
 interface SessionExercise {
   id: string;
   exercice: string;
   series: number | null;
   reps: string | null;
   charge: string | null;
+  rpe: string | null;
+  tempo: string | null;
+  recuperation: string | null;
   sportif_rpe: number | null;
   sportif_comment: string | null;
   commentaire: string | null;
@@ -25,6 +35,7 @@ interface SessionExercise {
   super_set_group: string | null;
   exercise_order: number | null;
   cardio_sport: string | null;
+  cardio_content: string | null;
   actual_duration_minutes: number | null;
   actual_distance_km: number | null;
   actual_pace_min_per_km: string | null;
@@ -108,6 +119,9 @@ export function CoachSessionDetailDialog({
             series,
             reps,
             charge,
+            rpe,
+            tempo,
+            recuperation,
             sportif_rpe,
             sportif_comment,
             commentaire,
@@ -116,6 +130,7 @@ export function CoachSessionDetailDialog({
             super_set_group,
             exercise_order,
             cardio_sport,
+            cardio_content,
             actual_duration_minutes,
             actual_distance_km,
             actual_pace_min_per_km,
@@ -239,8 +254,58 @@ export function CoachSessionDetailDialog({
     return "text-red-600";
   };
 
+  const renderCardioSteps = (ex: SessionExercise) => {
+    if (!ex.cardio_content) return null;
+    let parsed: { steps?: CardioStep[]; blocks?: any[] } = {};
+    try { parsed = JSON.parse(ex.cardio_content); } catch { return null; }
+
+    const steps: CardioStep[] = Array.isArray(parsed) ? parsed : (parsed.steps ?? []);
+    const blocks = parsed.blocks ?? [];
+
+    const stepTypeLabel: Record<string, string> = {
+      warmup: "Échauffement", work: "Travail", recovery: "Récupération", cooldown: "Retour au calme", easy: "Footing facile",
+    };
+    const stepTypeColor: Record<string, string> = {
+      warmup: "bg-yellow-500/15 text-yellow-600", work: "bg-red-500/15 text-red-600",
+      recovery: "bg-blue-500/15 text-blue-500", cooldown: "bg-green-500/15 text-green-600", easy: "bg-teal-500/15 text-teal-600",
+    };
+
+    if (steps.length === 0 && blocks.length === 0) return null;
+
+    return (
+      <div className="mt-2 space-y-1">
+        {steps.map((step, i) => (
+          <div key={i} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${stepTypeColor[step.type ?? ""] ?? "bg-muted/40"}`}>
+            <span className="font-medium">{stepTypeLabel[step.type ?? ""] ?? step.type}</span>
+            <div className="flex items-center gap-2 text-right">
+              {step.duration && <span>{step.duration}</span>}
+              {step.intensity != null && step.intensity > 0 && <span className="opacity-70">{step.intensity}% VMA</span>}
+              {step.comment && <span className="opacity-60 italic truncate max-w-[80px]">{step.comment}</span>}
+            </div>
+          </div>
+        ))}
+        {blocks.map((block: any, i: number) => (
+          <div key={`block-${i}`} className="rounded border border-border/40 p-1.5 space-y-1">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase">{block.repeat}× bloc</p>
+            {(block.steps ?? []).map((step: CardioStep, j: number) => (
+              <div key={j} className={`flex items-center justify-between rounded px-2 py-1 text-xs ${stepTypeColor[step.type ?? ""] ?? "bg-muted/40"}`}>
+                <span className="font-medium">{stepTypeLabel[step.type ?? ""] ?? step.type}</span>
+                <div className="flex items-center gap-2">
+                  {step.duration && <span>{step.duration}</span>}
+                  {step.intensity != null && step.intensity > 0 && <span className="opacity-70">{step.intensity}% VMA</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   const renderExerciseContent = (ex: SessionExercise) => {
     const hasActualData = ex.actual_duration_minutes != null || ex.actual_distance_km != null || ex.actual_pace_min_per_km != null || ex.actual_avg_heart_rate != null;
+    const isCardio = !!ex.cardio_sport || !!ex.cardio_content;
+
     return (
       <>
         <div className="flex items-start justify-between">
@@ -248,16 +313,18 @@ export function CoachSessionDetailDialog({
             <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
               {ex.exercice}
             </p>
-            <div className="text-sm text-muted-foreground mt-1">
-              {!ex.is_duration && (
-                <>
-                  {ex.series && <span>{ex.series}x</span>}
-                  {ex.reps && <span>{ex.reps}</span>}
-                  {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
-                </>
-              )}
-              {ex.is_duration && <span className="italic">Durée</span>}
-            </div>
+            {/* Renfo : séries / reps / charge / tempo / récup */}
+            {!isCardio && (
+              <div className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-2">
+                {!ex.is_duration && ex.series && <span>{ex.series} séries</span>}
+                {!ex.is_duration && ex.reps && <span>× {ex.reps}</span>}
+                {ex.charge && <span>@ {ex.charge}</span>}
+                {ex.rpe && <span>RPE cible {ex.rpe}</span>}
+                {ex.tempo && <span>Tempo {ex.tempo}</span>}
+                {ex.recuperation && <span>Récup {ex.recuperation}</span>}
+                {ex.is_duration && <span className="italic">Durée libre</span>}
+              </div>
+            )}
           </div>
           {ex.sportif_rpe && (
             <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
@@ -265,6 +332,9 @@ export function CoachSessionDetailDialog({
             </Badge>
           )}
         </div>
+
+        {/* Plan cardio prévu */}
+        {isCardio && renderCardioSteps(ex)}
 
         {/* Données réelles (Strava ou saisie manuelle) */}
         {hasActualData && (
