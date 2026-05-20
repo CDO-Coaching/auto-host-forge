@@ -337,9 +337,9 @@ export function CoachSessionDetailDialog({
         const block = blockMap[step.block_id];
         if (block) {
           displayItems.push(
-            <div key={`block-${block.id}`} className="rounded border border-border/50 bg-muted/20 overflow-hidden">
-              <div className="px-2.5 py-1 bg-muted/40 flex items-center gap-1.5 border-b border-border/40">
-                <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wide">
+            <div key={`block-${block.id}`} className="rounded border border-amber-500/40 bg-amber-500/8 overflow-hidden">
+              <div className="px-2.5 py-1 bg-amber-500/20 flex items-center gap-1.5 border-b border-amber-500/30">
+                <span className="text-[10px] font-semibold text-amber-400 uppercase tracking-wide">
                   {block.repetitions}× répétitions
                 </span>
               </div>
