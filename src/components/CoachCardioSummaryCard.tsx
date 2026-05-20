@@ -51,6 +51,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
     const today = new Date();
     const w1 = getISOWeek(today);
     const y1 = getWeekYear(today);
+    // Only last week (w0)
     let w0 = w1 - 1, y0 = y1;
     if (w0 <= 0) { w0 = 52; y0 = y1 - 1; }
 
@@ -65,12 +66,13 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
       setFcMax((profile as any).fc_max ?? null);
     }
 
-    // weeks
+    // Only fetch last week
     const { data: weeks } = await supabase
       .from("training_weeks")
       .select("id, week_number, year")
       .eq("athlete_id", athleteId)
-      .or(`and(week_number.eq.${w1},year.eq.${y1}),and(week_number.eq.${w0},year.eq.${y0})`);
+      .eq("week_number", w0)
+      .eq("year", y0);
 
     const weekMap = new Map((weeks || []).map((w: any) => [w.id, `S${w.week_number}`]));
 
@@ -142,29 +144,26 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
       }
     }
 
-    // Custom sessions (Perso) — fetch by date range of the 2 weeks
-    // (today already defined above)
+    // Custom sessions (Perso) — only last week
     const startThis = startOfWeek(today, { weekStartsOn: 1 });
-    const endThis = endOfWeek(today, { weekStartsOn: 1 });
     const startPrev = new Date(startThis); startPrev.setDate(startPrev.getDate() - 7);
+    const endPrev = new Date(startThis); endPrev.setDate(endPrev.getDate() - 1);
 
     const { data: customData } = await supabase
       .from("custom_sessions")
       .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate, cardio_type")
       .eq("user_id", athleteId)
       .gte("completed_at", startPrev.toISOString())
-      .lte("completed_at", endThis.toISOString());
+      .lte("completed_at", endPrev.toISOString());
 
     const customRows: CardioSessionRow[] = (customData || [])
       .filter((cs: any) => {
         const d = cs.completed_at ? new Date(cs.completed_at) : null;
-        return d && d >= startPrev && d <= endThis;
+        return d && d >= startPrev && d <= endPrev;
       })
       // Only keep rows with cardio info (distance OR pace OR HR)
       .filter((cs: any) => cs.distance_km || cs.avg_pace || cs.avg_heart_rate)
       .map((cs: any) => {
-        const d = new Date(cs.completed_at);
-        const isCurrent = d >= startThis;
         const dist = Number(cs.distance_km || 0);
         const dur = Number(cs.duration_minutes || 0);
         const sportRaw = cs.cardio_type ?? "course";
@@ -181,7 +180,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
           cardio_total_distance_km: dist || null,
           cardio_total_duration_minutes: dur || null,
           cardio_average_intensity: null,
-          week_label: isCurrent ? `S${w1}` : `S${w0}`,
+          week_label: `S${w0}`,
           sport,
           actualDistanceKm: dist,
           actualDurationMin: dur,
@@ -235,7 +234,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
       <CardHeader className="pb-1 pt-3 px-3">
         <CardTitle className="text-xs flex items-center gap-1.5">
           <Activity className="h-3.5 w-3.5 text-blue-500" />
-          Volume cardio (2 dernières semaines)
+          Volume cardio (semaine dernière)
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-3 space-y-3">
