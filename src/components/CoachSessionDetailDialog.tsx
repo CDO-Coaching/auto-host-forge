@@ -24,6 +24,11 @@ interface SessionExercise {
   is_duration: boolean | null;
   super_set_group: string | null;
   exercise_order: number | null;
+  cardio_sport: string | null;
+  actual_duration_minutes: number | null;
+  actual_distance_km: number | null;
+  actual_pace_min_per_km: string | null;
+  actual_avg_heart_rate: number | null;
 }
 
 interface SessionDetail {
@@ -36,6 +41,7 @@ interface SessionDetail {
   session_comment: string | null;
   coach_liked: boolean | null;
   coach_feedback: string | null;
+  linked_strava_activity_id: number | null;
   exercises: SessionExercise[];
 }
 
@@ -95,6 +101,7 @@ export function CoachSessionDetailDialog({
           session_comment,
           coach_liked,
           coach_feedback,
+          linked_strava_activity_id,
           session_exercises (
             id,
             exercice,
@@ -107,7 +114,12 @@ export function CoachSessionDetailDialog({
             skipped,
             is_duration,
             super_set_group,
-            exercise_order
+            exercise_order,
+            cardio_sport,
+            actual_duration_minutes,
+            actual_distance_km,
+            actual_pace_min_per_km,
+            actual_avg_heart_rate
           )
         `)
         .eq("id", sessionId)
@@ -117,7 +129,8 @@ export function CoachSessionDetailDialog({
 
       setSession({
         ...data,
-        exercises: data.session_exercises || [],
+        linked_strava_activity_id: (data as any).linked_strava_activity_id ?? null,
+        exercises: (data.session_exercises || []) as SessionExercise[],
       });
     } catch (error) {
       console.error("Error loading session:", error);
@@ -226,37 +239,65 @@ export function CoachSessionDetailDialog({
     return "text-red-600";
   };
 
-  const renderExerciseContent = (ex: SessionExercise) => (
-    <>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
-            {ex.exercice}
-          </p>
-          <div className="text-sm text-muted-foreground mt-1">
-            {!ex.is_duration && (
-              <>
-                {ex.series && <span>{ex.series}x</span>}
-                {ex.reps && <span>{ex.reps}</span>}
-                {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
-              </>
-            )}
-            {ex.is_duration && <span className="italic">Durée</span>}
+  const renderExerciseContent = (ex: SessionExercise) => {
+    const hasActualData = ex.actual_duration_minutes != null || ex.actual_distance_km != null || ex.actual_pace_min_per_km != null || ex.actual_avg_heart_rate != null;
+    return (
+      <>
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <p className={`font-medium ${ex.skipped ? "line-through" : ""}`}>
+              {ex.exercice}
+            </p>
+            <div className="text-sm text-muted-foreground mt-1">
+              {!ex.is_duration && (
+                <>
+                  {ex.series && <span>{ex.series}x</span>}
+                  {ex.reps && <span>{ex.reps}</span>}
+                  {ex.charge && <span className="ml-1">@ {ex.charge}</span>}
+                </>
+              )}
+              {ex.is_duration && <span className="italic">Durée</span>}
+            </div>
           </div>
+          {ex.sportif_rpe && (
+            <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
+              RPE {ex.sportif_rpe}
+            </Badge>
+          )}
         </div>
-        {ex.sportif_rpe && (
-          <Badge variant="outline" className={getRpeColor(ex.sportif_rpe)}>
-            RPE {ex.sportif_rpe}
-          </Badge>
+
+        {/* Données réelles (Strava ou saisie manuelle) */}
+        {hasActualData && (
+          <div className="mt-2 rounded-md bg-emerald-500/10 border border-emerald-500/30 p-2.5">
+            <p className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" /></svg>
+              Réalisé
+            </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+              {ex.actual_duration_minutes != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Durée</span><span className="font-medium">{ex.actual_duration_minutes} min</span></div>
+              )}
+              {ex.actual_distance_km != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Distance</span><span className="font-medium">{ex.actual_distance_km} km</span></div>
+              )}
+              {ex.actual_pace_min_per_km != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Allure</span><span className="font-medium">{ex.actual_pace_min_per_km} /km</span></div>
+              )}
+              {ex.actual_avg_heart_rate != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">FC moy.</span><span className="font-medium">{ex.actual_avg_heart_rate} bpm</span></div>
+              )}
+            </div>
+          </div>
         )}
-      </div>
-      {(ex.sportif_comment || ex.commentaire) && (
-        <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
-          {ex.sportif_comment || ex.commentaire}
-        </div>
-      )}
-    </>
-  );
+
+        {(ex.sportif_comment || ex.commentaire) && (
+          <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+            {ex.sportif_comment || ex.commentaire}
+          </div>
+        )}
+      </>
+    );
+  };
 
   if (sessionType === "custom") {
     return (
@@ -303,7 +344,7 @@ export function CoachSessionDetailDialog({
                     </Badge>
                   </div>
                   
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
                       {session.completed_at
@@ -312,6 +353,12 @@ export function CoachSessionDetailDialog({
                     </span>
                     {session.duration_minutes && (
                       <span>{session.duration_minutes} min</span>
+                    )}
+                    {session.linked_strava_activity_id && (
+                      <span className="flex items-center gap-1 text-[#FC4C02] text-xs font-medium">
+                        <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" /></svg>
+                        Strava
+                      </span>
                     )}
                   </div>
 
