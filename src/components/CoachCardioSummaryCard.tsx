@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfWeek, endOfWeek, getISOWeek } from "date-fns";
+import { startOfWeek, endOfWeek, getISOWeek } from "date-fns";
 import { getWeekYear } from "@/lib/weekUtils";
 import { Activity, MapPin, Clock, Heart, Gauge } from "lucide-react";
 import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculations";
@@ -10,6 +10,8 @@ import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculati
 interface Props {
   athleteId: string;
 }
+
+type SportType = "course" | "velo" | "natation" | "other";
 
 interface CardioSessionRow {
   id: string;
@@ -21,10 +23,12 @@ interface CardioSessionRow {
   cardio_total_duration_minutes: number | null;
   cardio_average_intensity: number | null;
   week_label: string;
+  sport: SportType;
   // actual aggregated
   actualDistanceKm: number;
   actualDurationMin: number;
-  actualPaceDecimal: number | null; // min/km weighted
+  actualPaceDecimal: number | null; // min/km weighted (course/natation)
+  actualSpeedKmh: number | null;    // km/h (velo)
   actualHeartRate: number | null;
   hasActual: boolean;
   isCustom: boolean;
@@ -82,7 +86,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
         const sessionIds = sess.map((s: any) => s.id);
         const { data: exos } = await supabase
           .from("session_exercises")
-          .select("session_id, actual_distance_km, actual_duration_minutes, actual_pace_min_per_km, actual_avg_heart_rate")
+          .select("session_id, actual_distance_km, actual_duration_minutes, actual_pace_min_per_km, actual_avg_heart_rate, cardio_sport")
           .in("session_id", sessionIds);
 
         const exoBySession = new Map<string, any[]>();
@@ -111,6 +115,10 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
               hrDur += Number(e.actual_duration_minutes);
             }
           });
+          // Detect sport from first exercise that has cardio_sport
+          const sportRaw = ex.find((e: any) => e.cardio_sport)?.cardio_sport ?? null;
+          const sport: SportType = sportRaw === "velo" ? "velo" : sportRaw === "natation" ? "natation" : sportRaw === "course" || sportRaw === "marche" ? "course" : "other";
+          const speedKmh = dur > 0 && dist > 0 ? dist / (dur / 60) : null;
           return {
             id: s.id,
             name: s.name,
@@ -121,9 +129,11 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
             cardio_total_duration_minutes: s.cardio_total_duration_minutes,
             cardio_average_intensity: s.cardio_average_intensity,
             week_label: weekMap.get(s.week_id) || "",
+            sport,
             actualDistanceKm: dist,
             actualDurationMin: dur,
             actualPaceDecimal: paceDur > 0 ? weightedPace / paceDur : null,
+            actualSpeedKmh: sport === "velo" ? speedKmh : null,
             actualHeartRate: hrDur > 0 ? Math.round(weightedHR / hrDur) : null,
             hasActual,
             isCustom: false,
@@ -140,7 +150,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
 
     const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate, cardio_type")
       .eq("user_id", athleteId)
       .gte("completed_at", startPrev.toISOString())
       .lte("completed_at", endThis.toISOString());
@@ -157,7 +167,11 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
         const isCurrent = d >= startThis;
         const dist = Number(cs.distance_km || 0);
         const dur = Number(cs.duration_minutes || 0);
-        const paceDec = parsePaceToDecimal(cs.avg_pace);
+        const sportRaw = cs.cardio_type ?? "course";
+        const sport: SportType = sportRaw === "velo" ? "velo" : sportRaw === "natation" ? "natation" : "course";
+        // For vélo, avg_pace stores speed in km/h as string
+        const speedKmh = sport === "velo" && cs.avg_pace ? Number(cs.avg_pace) || null : null;
+        const paceDec = sport !== "velo" ? parsePaceToDecimal(cs.avg_pace) : null;
         return {
           id: cs.id,
           name: cs.session_name,
@@ -168,9 +182,11 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
           cardio_total_duration_minutes: dur || null,
           cardio_average_intensity: null,
           week_label: isCurrent ? `S${w1}` : `S${w0}`,
+          sport,
           actualDistanceKm: dist,
           actualDurationMin: dur,
           actualPaceDecimal: paceDec,
+          actualSpeedKmh: speedKmh,
           actualHeartRate: cs.avg_heart_rate ? Number(cs.avg_heart_rate) : null,
           hasActual: !!(dist || dur),
           isCustom: true,
@@ -183,13 +199,6 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
 
   if (loading) return null;
   if (sessions.length === 0) return null;
-
-  // Totals (use actual if any, else planned)
-  let totalDist = 0, totalDur = 0;
-  sessions.forEach((s) => {
-    totalDist += s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
-    totalDur += s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
-  });
 
   const formatDur = (min: number) => {
     if (!min) return "—";
@@ -206,6 +215,21 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
     return "text-green-500";
   };
 
+  const sportEmoji = (sport: SportType) =>
+    sport === "velo" ? "🚴" : sport === "natation" ? "🏊" : "🏃";
+
+  // Totals per sport
+  const totals: Record<string, { dist: number; dur: number }> = {};
+  sessions.forEach((s) => {
+    const key = s.sport;
+    if (!totals[key]) totals[key] = { dist: 0, dur: 0 };
+    totals[key].dist += s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
+    totals[key].dur += s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
+  });
+
+  const sportKeys = Object.keys(totals) as SportType[];
+  const multiSport = sportKeys.length > 1;
+
   return (
     <Card>
       <CardHeader className="pb-1 pt-3 px-3">
@@ -215,21 +239,53 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="px-3 pb-3 space-y-3">
-        {/* Totals */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="rounded border bg-muted/20 p-2">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <MapPin className="h-3 w-3" /> Distance totale
-            </div>
-            <div className="text-sm font-bold">{totalDist.toFixed(1)} km</div>
+        {/* Totals — séparés par sport si multi-sport */}
+        {multiSport ? (
+          <div className="space-y-1.5">
+            {sportKeys.map((sport) => (
+              <div key={sport} className="grid grid-cols-2 gap-2">
+                <div className="rounded border bg-muted/20 p-2">
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <MapPin className="h-3 w-3" />
+                    <span>{sportEmoji(sport)} Distance {sport === "natation" ? "(m)" : "(km)"}</span>
+                  </div>
+                  <div className="text-sm font-bold">
+                    {sport === "natation"
+                      ? `${Math.round(totals[sport].dist * 1000)} m`
+                      : `${totals[sport].dist.toFixed(1)} km`}
+                  </div>
+                </div>
+                <div className="rounded border bg-muted/20 p-2">
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    <span>{sportEmoji(sport)} Durée</span>
+                  </div>
+                  <div className="text-sm font-bold">{formatDur(totals[sport].dur)}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="rounded border bg-muted/20 p-2">
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Clock className="h-3 w-3" /> Durée totale
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded border bg-muted/20 p-2">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <MapPin className="h-3 w-3" />
+                {sportKeys[0] === "natation" ? "Distance totale (m)" : "Distance totale"}
+              </div>
+              <div className="text-sm font-bold">
+                {sportKeys[0] === "natation"
+                  ? `${Math.round(totals[sportKeys[0]].dist * 1000)} m`
+                  : `${totals[sportKeys[0]]?.dist.toFixed(1) ?? "0.0"} km`}
+              </div>
             </div>
-            <div className="text-sm font-bold">{formatDur(totalDur)}</div>
+            <div className="rounded border bg-muted/20 p-2">
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <Clock className="h-3 w-3" /> Durée totale
+              </div>
+              <div className="text-sm font-bold">{formatDur(totals[sportKeys[0]]?.dur ?? 0)}</div>
+            </div>
           </div>
-        </div>
+        )}
 
         {(!vma || !fcMax) && (
           <p className="text-[10px] text-muted-foreground italic">
@@ -244,19 +300,46 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
           {sessions.map((s) => {
             const dist = s.hasActual ? s.actualDistanceKm : (s.cardio_total_distance_km || 0);
             const dur = s.hasActual ? s.actualDurationMin : (s.cardio_total_duration_minutes || 0);
-            // average speed km/h
-            const avgSpeed = dur > 0 && dist > 0 ? (dist / (dur / 60)) : null;
-            const pctVma = avgSpeed && vma ? Math.round((avgSpeed / vma) * 100) : null;
+            const isVelo = s.sport === "velo";
+            const isNatation = s.sport === "natation";
+
+            // Vitesse / allure
+            const speedKmh = s.actualSpeedKmh ?? (dur > 0 && dist > 0 ? dist / (dur / 60) : null);
+            const pctVma = speedKmh && vma ? Math.round((speedKmh / vma) * 100) : null;
             const pctFc = s.actualHeartRate && fcMax ? Math.round((s.actualHeartRate / fcMax) * 100) : null;
-            const paceLabel = s.actualPaceDecimal
-              ? formatPaceFromDecimal(s.actualPaceDecimal)
-              : (avgSpeed ? formatPaceFromDecimal(60 / avgSpeed) : null);
+
+            // Label allure/vitesse selon sport
+            let metricLabel: string;
+            if (isVelo) {
+              metricLabel = speedKmh ? `${speedKmh.toFixed(1)} km/h` : "—";
+            } else if (isNatation) {
+              // pace en min/100m
+              const paceDec = s.actualPaceDecimal ?? (speedKmh ? 60 / speedKmh / 10 : null);
+              if (paceDec) {
+                const min = Math.floor(paceDec);
+                const sec = Math.round((paceDec - min) * 60);
+                metricLabel = `${min}:${sec.toString().padStart(2, "0")}/100m`;
+              } else {
+                metricLabel = "—";
+              }
+            } else {
+              const paceLabel = s.actualPaceDecimal
+                ? formatPaceFromDecimal(s.actualPaceDecimal)
+                : (speedKmh ? formatPaceFromDecimal(60 / speedKmh) : null);
+              metricLabel = paceLabel || "—";
+            }
+
+            // Distance label
+            const distLabel = isNatation
+              ? (dist > 0 ? `${Math.round(dist * 1000)} m` : "—")
+              : (dist > 0 ? `${dist.toFixed(2)} km` : "—");
 
             return (
               <div key={s.id} className="rounded border bg-muted/10 p-2 text-xs">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Badge variant="outline" className="text-[9px] h-4 px-1">{s.week_label}</Badge>
+                    <span className="text-sm leading-none">{sportEmoji(s.sport)}</span>
                     {s.isCustom && (
                       <Badge className="text-[9px] h-4 px-1 bg-orange-500/20 text-orange-600 border-orange-500/30">Perso</Badge>
                     )}
@@ -275,7 +358,7 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
                 <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
                   <div className="flex items-center gap-1">
                     <MapPin className="h-2.5 w-2.5 text-muted-foreground" />
-                    <span>{dist > 0 ? `${dist.toFixed(2)} km` : "—"}</span>
+                    <span>{distLabel}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-2.5 w-2.5 text-muted-foreground" />
@@ -284,8 +367,8 @@ export function CoachCardioSummaryCard({ athleteId }: Props) {
                   <div className="flex items-center gap-1">
                     <Gauge className="h-2.5 w-2.5 text-muted-foreground" />
                     <span>
-                      {paceLabel || "—"}
-                      {pctVma !== null && (
+                      {metricLabel}
+                      {!isVelo && !isNatation && pctVma !== null && (
                         <span className={`ml-1 font-semibold ${pctColor(pctVma)}`}>
                           ({pctVma}% VMA)
                         </span>
