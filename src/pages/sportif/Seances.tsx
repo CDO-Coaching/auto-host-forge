@@ -3,10 +3,26 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
-import { ChevronRight, CheckCircle2, Clock, Pencil, Trash2, CalendarPlus } from "lucide-react";
+import {
+  ChevronRight,
+  CheckCircle2,
+  Clock,
+  Pencil,
+  Trash2,
+  CalendarPlus,
+  ChevronLeft,
+  Plus,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getWeekNumber, getWeekYear, formatWeekRangeFromNumber, getDateFromWeekNumber, getMondayOfWeek, getSundayOfWeek } from "@/lib/weekUtils";
+import {
+  getWeekNumber,
+  getWeekYear,
+  formatWeekRangeFromNumber,
+  getDateFromWeekNumber,
+  getMondayOfWeek,
+  getSundayOfWeek,
+} from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
 import { StravaActivityMatcher } from "@/components/StravaActivityMatcher";
@@ -29,6 +45,38 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+// ─── Helper ─────────────────────────────────────────────────────────────────
+
+function SportBadge({ sport }: { sport: string | undefined }) {
+  if (sport === "course")
+    return (
+      <Badge variant="outline" className="text-xs border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-500/10">
+        🏃 Course
+      </Badge>
+    );
+  if (sport === "velo")
+    return (
+      <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+        🚴 Vélo
+      </Badge>
+    );
+  if (sport === "natation")
+    return (
+      <Badge variant="outline" className="text-xs border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10">
+        🏊 Natation
+      </Badge>
+    );
+  if (sport === "hiit")
+    return (
+      <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10">
+        ⚡ HIIT
+      </Badge>
+    );
+  return null;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function Seances() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
@@ -42,16 +90,12 @@ export default function Seances() {
   const [editingCustomSession, setEditingCustomSession] = useState<any>(null);
   const [validatingCustomSession, setValidatingCustomSession] = useState<any>(null);
   const [schedulingSession, setSchedulingSession] = useState<any>(null);
+  const [openCustomDialog, setOpenCustomDialog] = useState(false);
 
   const handleDeleteCustomSession = async (sessionId: string) => {
     try {
-      const { error } = await supabase
-        .from("custom_sessions")
-        .delete()
-        .eq("id", sessionId);
-
+      const { error } = await supabase.from("custom_sessions").delete().eq("id", sessionId);
       if (error) throw error;
-      
       toast.success("Séance perso supprimée");
       loadCustomSessions();
     } catch (error) {
@@ -62,16 +106,12 @@ export default function Seances() {
 
   useEffect(() => {
     const init = async () => {
-      // Attendre d'avoir un utilisateur authentifié avant de charger les données
-      // Sinon RLS renvoie 0 résultats si le token est en cours de refresh
       let user = (await supabase.auth.getUser()).data.user;
       if (!user) {
-        // Tenter un refresh si getUser échoue (token expiré transitoirement)
         const { data } = await supabase.auth.refreshSession().catch(() => ({ data: { session: null } }));
         user = data.session?.user ?? null;
       }
       if (!user) {
-        // Toujours pas d'utilisateur, on charge quand même (le guard parent redirigera)
         setLoading(false);
         return;
       }
@@ -84,7 +124,6 @@ export default function Seances() {
 
   const loadWeeks = async (userId?: string) => {
     setLoading(true);
-
     const resolvedUserId = userId ?? (await supabase.auth.getUser()).data.user?.id;
     if (!resolvedUserId) {
       setWeeks([]);
@@ -103,8 +142,6 @@ export default function Seances() {
       .order("week_number", { ascending: false })
       .order("created_at", { ascending: false });
 
-    console.log("📅 Semaines validées chargées:", { count: data?.length, error, data: data?.map((w: any) => ({ id: w.id, week: w.week_number, year: w.year, athlete_id: w.athlete_id })) });
-
     if (error) {
       console.error("Erreur lors du chargement des semaines:", error);
       setLoading(false);
@@ -115,8 +152,6 @@ export default function Seances() {
     const currentYear = getWeekYear(now);
     const currentWeekNumber = getWeekNumber(now);
 
-    console.log("📅 Filtre semaine actuelle:", { currentYear, currentWeekNumber });
-
     const filteredWeeks = (data || []).filter((week: any) => {
       if (week.year < currentYear) return true;
       if (week.year > currentYear) return false;
@@ -124,16 +159,9 @@ export default function Seances() {
     });
 
     const weekIds = filteredWeeks.map((week: any) => week.id);
-    const { data: sessionLinks, error: sessionLinksError } = weekIds.length
-      ? await supabase
-          .from("training_sessions")
-          .select("week_id")
-          .in("week_id", weekIds)
-      : { data: [], error: null };
-
-    if (sessionLinksError) {
-      console.error("Erreur lors du comptage des séances par semaine:", sessionLinksError);
-    }
+    const { data: sessionLinks } = weekIds.length
+      ? await supabase.from("training_sessions").select("week_id").in("week_id", weekIds)
+      : { data: [] };
 
     const sessionCountByWeekId = new Map<string, number>();
     (sessionLinks || []).forEach((session: any) => {
@@ -144,17 +172,8 @@ export default function Seances() {
     filteredWeeks.forEach((week: any) => {
       const key = `${week.year}-${week.week_number}`;
       const currentBest = uniqueWeeksMap.get(key);
-      const weekWithCount = {
-        ...week,
-        session_count: sessionCountByWeekId.get(week.id) || 0,
-      };
-
-      if (!currentBest) {
-        uniqueWeeksMap.set(key, weekWithCount);
-        return;
-      }
-
-      if (weekWithCount.session_count > currentBest.session_count) {
+      const weekWithCount = { ...week, session_count: sessionCountByWeekId.get(week.id) || 0 };
+      if (!currentBest || weekWithCount.session_count > currentBest.session_count) {
         uniqueWeeksMap.set(key, weekWithCount);
       }
     });
@@ -164,8 +183,6 @@ export default function Seances() {
       if (a.week_number !== b.week_number) return b.week_number - a.week_number;
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
-
-    console.log("📅 Semaines après filtrage:", uniqueWeeks.length);
 
     setWeeks(uniqueWeeks);
 
@@ -187,22 +204,16 @@ export default function Seances() {
     setLoading(false);
   };
 
-
   const loadCustomSessions = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
       const { data, error } = await (supabase.from("custom_sessions") as any)
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Erreur lors du chargement des séances perso:", error);
-      } else {
-        setCustomSessions(data || []);
-      }
+      if (error) console.error("Erreur lors du chargement des séances perso:", error);
+      else setCustomSessions(data || []);
     } catch (error) {
       console.error("Erreur:", error);
     }
@@ -211,16 +222,9 @@ export default function Seances() {
   const loadWeekSessions = async (weekId: string) => {
     const { data: sessionsData, error: sessionsError } = await supabase
       .from("training_sessions")
-      .select(
-        `
-        *,
-        session_exercises (*)
-      `,
-      )
+      .select("*, session_exercises (*)")
       .eq("week_id", weekId)
       .order("session_number");
-
-    console.log("📋 Séances chargées pour semaine", weekId, ":", { count: sessionsData?.length, error: sessionsError });
 
     if (sessionsError) {
       console.error("Erreur lors du chargement des séances:", sessionsError);
@@ -228,13 +232,9 @@ export default function Seances() {
       const sorted = (sessionsData || []).sort((a: any, b: any) => {
         const aCompleted = isSessionCompleted(a);
         const bCompleted = isSessionCompleted(b);
-
-        if (aCompleted === bCompleted) {
-          return a.session_number - b.session_number;
-        }
+        if (aCompleted === bCompleted) return a.session_number - b.session_number;
         return aCompleted ? 1 : -1;
       });
-
       setSessions(sorted);
     }
   };
@@ -247,23 +247,18 @@ export default function Seances() {
 
   const isSessionCompleted = useCallback((session: any) => {
     if (!session.session_exercises || session.session_exercises.length === 0) return false;
-    
-    // Pour les sessions Récup/Mobilité, vérifier si duration_minutes est défini
     if (session.session_type === "recup") {
       return session.duration_minutes !== null && session.duration_minutes !== undefined;
     }
-    
-    // Pour les autres séances, vérifier si tous les exercices ont soit un RPE soit sont marqués comme skipped
-    return session.session_exercises.every((ex: any) => 
-      (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true
+    return session.session_exercises.every(
+      (ex: any) => (ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true,
     );
   }, []);
 
-  // Hook pour la célébration hebdomadaire
   const { showCelebration, celebration, closeCelebration } = useWeeklyCompletionCelebration(
     selectedWeek?.id || null,
     sessions,
-    isSessionCompleted
+    isSessionCompleted,
   );
 
   if (loading) {
@@ -278,11 +273,16 @@ export default function Seances() {
   const currentYear = now.getFullYear();
   const currentWeekNumber = getWeekNumber(now);
   const isCurrentWeekAvailable = weeks.some(
-    (week) => week.week_number === currentWeekNumber && week.year === currentYear
+    (week) => week.week_number === currentWeekNumber && week.year === currentYear,
   );
 
+  // Week navigation
+  const selectedIdx = weeks.findIndex((w) => w.id === selectedWeek?.id);
+  const prevWeek = selectedIdx >= 0 && selectedIdx + 1 < weeks.length ? weeks[selectedIdx + 1] : null;
+  const nextWeek = selectedIdx > 0 ? weeks[selectedIdx - 1] : null;
+
   return (
-    <div className="space-y-3 sm:space-y-4 pb-4">
+    <div className="space-y-3 pb-4">
       <WeeklyCompletionCelebration
         show={showCelebration}
         title={celebration?.title || ""}
@@ -290,87 +290,93 @@ export default function Seances() {
         onClose={closeCelebration}
       />
       <AthleteFatigueAlert />
-      
-      <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-3 sm:gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl sm:text-3xl font-bold">Tes séances</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">{firstName}, voici ton programme personnalisé</p>
-        </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {userId && selectedWeek && (
-            <StravaActivityMatcher
-              athleteId={userId}
-              currentWeekSessions={sessions}
-              onLinked={() => {
-                loadWeekSessions(selectedWeek.id);
-                loadCustomSessions();
-              }}
-            />
-          )}
-          {weeks.length > 0 && (
-            <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[140px]">
-              <label className="text-xs text-muted-foreground">Semaine</label>
-              <select
-                className="text-sm p-2.5 sm:p-2 border rounded-md bg-background text-foreground border-input focus:outline-none focus:ring-2 focus:ring-ring w-full"
-                value={selectedWeek?.id || ""}
-                onChange={(e) => handleWeekChange(e.target.value)}
-              >
-                {weeks.map((week) => (
-                  <option key={week.id} value={week.id}>
-                    S{week.week_number} - {week.year} ({formatWeekRangeFromNumber(week.week_number, week.year)})
-                  </option>
-                ))}
-              </select>
+      {/* ── Week navigator + action buttons ──────────────────────────────── */}
+      {weeks.length > 0 && selectedWeek && (
+        <div className="space-y-2">
+          {/* Week nav row */}
+          <div className="flex items-center gap-2">
+            <button
+              disabled={!prevWeek}
+              onClick={() => prevWeek && handleWeekChange(prevWeek.id)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium disabled:opacity-30 hover:bg-accent transition-colors"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              S{prevWeek?.week_number ?? "—"}
+            </button>
+
+            <div className="flex-1 text-center">
+              <span className="text-sm font-semibold">
+                S{selectedWeek.week_number}
+                <span className="text-muted-foreground font-normal">
+                  {" "}· {formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)}
+                </span>
+              </span>
             </div>
-          )}
-        </div>
-      </div>
 
-      {/* Filtres rapides */}
-      {weeks.length > 1 && (() => {
-        const idx = weeks.findIndex((w) => w.id === selectedWeek?.id);
-        const current = weeks.find((w) => w.week_number === currentWeekNumber && w.year === currentYear);
-        const prev = idx >= 0 && idx + 1 < weeks.length ? weeks[idx + 1] : null;
-        const next = idx > 0 ? weeks[idx - 1] : null;
-        const chip = "px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap";
-        const active = "bg-primary text-primary-foreground border-primary";
-        const inactive = "bg-background hover:bg-accent border-border text-foreground";
-        return (
-          <div className="flex gap-2 overflow-x-auto -mx-1 px-1 pb-1">
-            {prev && (
-              <button className={`${chip} ${inactive}`} onClick={() => handleWeekChange(prev.id)}>
-                ← S{prev.week_number}
-              </button>
-            )}
-            {current && (
-              <button
-                className={`${chip} ${selectedWeek?.id === current.id ? active : inactive}`}
-                onClick={() => handleWeekChange(current.id)}
-              >
-                Cette semaine
-              </button>
-            )}
-            {next && (
-              <button className={`${chip} ${inactive}`} onClick={() => handleWeekChange(next.id)}>
-                S{next.week_number} →
-              </button>
+            <button
+              disabled={!nextWeek}
+              onClick={() => nextWeek && handleWeekChange(nextWeek.id)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium disabled:opacity-30 hover:bg-accent transition-colors"
+            >
+              S{nextWeek?.week_number ?? "—"}
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Action buttons row */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOpenCustomDialog(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/50 text-primary text-xs font-medium hover:bg-primary/10 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Perso
+            </button>
+            {userId && selectedWeek && (
+              <StravaActivityMatcher
+                athleteId={userId}
+                currentWeekSessions={sessions}
+                onLinked={() => {
+                  loadWeekSessions(selectedWeek.id);
+                  loadCustomSessions();
+                }}
+              />
             )}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
+      {/* CustomSessionDialog (triggered by "+ Perso" button or editing) */}
+      <CustomSessionDialog
+        forceOpen={openCustomDialog}
+        onForceClose={() => setOpenCustomDialog(false)}
+        onSessionCreated={() => {
+          setOpenCustomDialog(false);
+          loadWeeks();
+          loadCustomSessions();
+        }}
+        editSession={editingCustomSession}
+        onClose={() => {
+          setOpenCustomDialog(false);
+          setEditingCustomSession(null);
+          setValidatingCustomSession(null);
+        }}
+        validateSession={validatingCustomSession}
+      />
+
+      {/* ── "Semaine en cours de création" alert ─────────────────────────── */}
       {!isCurrentWeekAvailable && weeks.length > 0 && (
         <Card className="border-orange-500 bg-orange-500/10">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-start gap-2 sm:gap-3">
-              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500 mt-0.5 flex-shrink-0" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-start gap-2">
+              <Clock className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
               <div>
-                <h3 className="font-semibold text-sm sm:text-base text-orange-700 dark:text-orange-400">
+                <h3 className="font-semibold text-sm text-orange-700 dark:text-orange-400">
                   Semaine {currentWeekNumber} en cours de création
                 </h3>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                  {firstName}, ton coach prépare ta semaine de sport. En attendant, tu peux consulter tes semaines précédentes.
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {firstName}, ton coach prépare ta semaine. En attendant, tu peux consulter les semaines précédentes.
                 </p>
               </div>
             </div>
@@ -378,6 +384,7 @@ export default function Seances() {
         </Card>
       )}
 
+      {/* ── No weeks ─────────────────────────────────────────────────────── */}
       {weeks.length === 0 ? (
         <Card>
           <CardHeader>
@@ -391,344 +398,259 @@ export default function Seances() {
         </Card>
       ) : (
         selectedWeek && (
-          <div className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-semibold">
-              Semaine {selectedWeek.week_number} ({formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)})
-            </h2>
-
+          <div className="space-y-2">
+            {/* ── Coach sessions ─────────────────────────────────────────── */}
             {sessions.length === 0 ? (
-              <p className="text-sm sm:text-base text-muted-foreground text-center py-6 sm:py-8">Aucune séance pour cette semaine.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">Aucune séance pour cette semaine.</p>
             ) : (
-              <div className="space-y-4">
-                {sessions.map((session, index) => {
-                  const completed = isSessionCompleted(session);
-                  const isFirstToDo = index === 0 && !completed;
-                  const displayName = session.athlete_custom_name || session.name;
-                  const hasSchedule = session.scheduled_date && !completed;
+              sessions.map((session, index) => {
+                const completed = isSessionCompleted(session);
+                const isFirstToDo = index === 0 && !completed;
+                const displayName = session.athlete_custom_name || session.name;
+                const hasSchedule = session.scheduled_date && !completed;
+                const exCount = session.session_exercises?.length || 0;
+                const sport = session.session_exercises?.find((ex: any) => ex.cardio_sport)?.cardio_sport;
+                const cardioDur =
+                  isCardioSession(session)
+                    ? getCardioEstimatedDuration(session.session_exercises || [], (profile as any)?.vma || null)
+                    : null;
 
-                  return (
-                    <div
-                      key={session.id}
-                      className="group"
-                      style={{
-                        animationDelay: `${index * 50}ms`,
-                      }}
-                    >
-                      <Card
-                        className={`
-                          relative overflow-hidden transition-all duration-300 ease-out
-                          transform-gpu hover:scale-[1.02] hover:-translate-y-1
-                          shadow-lg hover:shadow-2xl
-                          ${completed
-                            ? "border-green-500/50 bg-card"
-                            : hasSchedule
-                              ? "border-orange-500/50 bg-card"
-                              : isFirstToDo
-                                ? "border-primary border-2 bg-card shadow-primary/20"
-                                : "border-border/50 bg-card hover:border-primary/50"
-                          }
-                        `}
-                        style={{
-                          boxShadow: completed 
-                            ? '0 8px 30px -10px rgba(34, 197, 94, 0.3), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
-                            : hasSchedule
-                              ? '0 8px 30px -10px rgba(249, 115, 22, 0.3), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
-                              : isFirstToDo
-                                ? '0 8px 30px -10px rgba(var(--primary), 0.4), 0 4px 10px -5px rgba(0, 0, 0, 0.2)'
-                                : '0 4px 20px -5px rgba(0, 0, 0, 0.3)',
-                        }}
-                      >
-                        {/* Effet de brillance au survol */}
-                        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[200%]" 
-                          style={{ transition: 'transform 0.75s ease-in-out, opacity 0.3s' }}
+                const borderCls = completed
+                  ? "border-green-500/40 bg-green-500/5"
+                  : hasSchedule
+                  ? "border-orange-500/40 bg-orange-500/5"
+                  : isFirstToDo
+                  ? "border-primary/60 bg-primary/5"
+                  : "border-border/50 hover:border-primary/30";
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors hover:bg-accent/40 ${borderCls}`}
+                    onClick={() => {
+                      if (session.session_type === "recup") {
+                        navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
+                      } else {
+                        navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
+                      }
+                    }}
+                  >
+                    {/* Status icon */}
+                    <div className="shrink-0">
+                      {completed ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      ) : (
+                        <div
+                          className={`h-5 w-5 rounded-full border-2 ${
+                            isFirstToDo ? "border-primary" : "border-muted-foreground/30"
+                          }`}
                         />
-                        
-                        <CardContent className="p-4 sm:p-5 relative z-10">
-                          <div className="flex items-center justify-between gap-3">
-                            <div 
-                              className="flex-1 min-w-0 cursor-pointer"
-                              onClick={() => {
-                                if (session.session_type === "recup") {
-                                  navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
-                                } else {
-                                  navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
-                                }
-                              }}
-                            >
-                              <div className="flex items-center gap-2 sm:gap-3 mb-2 flex-wrap">
-                                <h3 className="font-bold text-lg sm:text-2xl flex items-center gap-2">
-                                  {displayName}
-                                  {session.athlete_custom_name && (
-                                    <span className="text-xs text-muted-foreground font-normal">
-                                      ({session.name})
-                                    </span>
-                                  )}
-                                  {completed && (
-                                    <div className="flex items-center gap-1 text-green-500 text-xs sm:text-sm font-normal">
-                                      <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-                                      {session.duration_minutes && (
-                                        <span className="flex items-center gap-1 text-green-400">
-                                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                          {session.duration_minutes} min
-                                        </span>
-                                      )}
-                                    </div>
-                                  )}
-                                </h3>
-
-                                {hasSchedule && (
-                                  <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 text-xs backdrop-blur-sm bg-orange-500/10">
-                                    📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
-                                  </Badge>
-                                )}
-
-                                {isFirstToDo && !hasSchedule && (
-                                  <Badge variant="default" className="bg-primary text-primary-foreground text-xs shadow-lg shadow-primary/30">
-                                    À faire
-                                  </Badge>
-                                )}
-
-                                {session.linked_strava_activity_id && (
-                                  <Badge className="bg-[#FC4C02]/15 text-[#FC4C02] border border-[#FC4C02]/30 text-xs font-medium">
-                                    <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-[#FC4C02] mr-1">
-                                      <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
-                                    </svg>
-                                    Strava
-                                  </Badge>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Badge variant={completed ? "secondary" : "outline"} className="text-xs sm:text-sm px-2 sm:px-3 py-1 backdrop-blur-sm">
-                                  {session.session_exercises?.length || 0} exercices
-                                </Badge>
-                                {session.session_type === "recup" && (
-                                  <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-purple-500 text-purple-600 dark:text-purple-400 backdrop-blur-sm bg-purple-500/10">
-                                    Récup/Mobilité
-                                  </Badge>
-                                )}
-                                {session.session_type === "cardio" && (() => {
-                                  const sport = session.session_exercises?.find((ex: any) => ex.cardio_sport)?.cardio_sport;
-                                  if (sport === "course") return (
-                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
-                                      🏃 Course
-                                    </Badge>
-                                  );
-                                  if (sport === "velo") return (
-                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-amber-500 text-amber-600 dark:text-amber-400 backdrop-blur-sm bg-amber-500/10">
-                                      🚴 Vélo
-                                    </Badge>
-                                  );
-                                  if (sport === "natation") return (
-                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-cyan-500 text-cyan-600 dark:text-cyan-400 backdrop-blur-sm bg-cyan-500/10">
-                                      🏊 Natation
-                                    </Badge>
-                                  );
-                                  if (sport === "hiit") return (
-                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-orange-500 text-orange-600 dark:text-orange-400 backdrop-blur-sm bg-orange-500/10">
-                                      ⚡ HIIT
-                                    </Badge>
-                                  );
-                                  return (
-                                    <Badge variant="outline" className="text-xs sm:text-sm px-2 sm:px-3 py-1 border-blue-500 text-blue-600 dark:text-blue-400 backdrop-blur-sm bg-blue-500/10">
-                                      Cardio
-                                    </Badge>
-                                  );
-                                })()}
-                                {isCardioSession(session) && (() => {
-                                  const dur = getCardioEstimatedDuration(session.session_exercises || [], (profile as any)?.vma || null);
-                                  return dur ? (
-                                    <Badge variant="secondary" className="text-xs sm:text-sm px-2 sm:px-3 py-1">
-                                      ⏱ {dur}
-                                    </Badge>
-                                  ) : null;
-                                })()}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1 flex-shrink-0">
-                              {!completed && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 sm:h-10 sm:w-10 hover:bg-white/10 transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSchedulingSession(session);
-                                  }}
-                                >
-                                  <CalendarPlus className={`h-4 w-4 sm:h-5 sm:w-5 ${hasSchedule ? "text-orange-500" : "text-muted-foreground"}`} />
-                                </Button>
-                              )}
-                              <div 
-                                className={`
-                                  h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center cursor-pointer
-                                  transition-all duration-200 hover:scale-110
-                                  ${completed ? "bg-green-500/20" : hasSchedule ? "bg-orange-500/20" : isFirstToDo ? "bg-primary/20" : "bg-white/5 hover:bg-white/10"}
-                                `}
-                                onClick={() => {
-                                  if (session.session_type === "recup") {
-                                    navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
-                                  } else {
-                                    navigate(`/sportif/seance/${selectedWeek.id}/${session.id}`);
-                                  }
-                                }}
-                              >
-                                <ChevronRight
-                                  className={`h-5 w-5 sm:h-6 sm:w-6 ${
-                                    completed ? "text-green-500" : hasSchedule ? "text-orange-500" : isFirstToDo ? "text-primary" : "text-muted-foreground"
-                                  }`}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Main content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-medium text-sm">{displayName}</span>
+
+                        {session.athlete_custom_name && (
+                          <span className="text-xs text-muted-foreground">({session.name})</span>
+                        )}
+
+                        {isFirstToDo && !hasSchedule && (
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+                            À faire
+                          </Badge>
+                        )}
+
+                        {hasSchedule && (
+                          <Badge variant="outline" className="text-[10px] border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0 h-4">
+                            📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
+                          </Badge>
+                        )}
+
+                        {session.session_type === "recup" && (
+                          <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0 h-4">
+                            Récup
+                          </Badge>
+                        )}
+
+                        {session.session_type === "cardio" && <SportBadge sport={sport} />}
+
+                        {session.linked_strava_activity_id && (
+                          <Badge className="text-[10px] bg-[#FC4C02]/15 text-[#FC4C02] border border-[#FC4C02]/30 px-1.5 py-0 h-4">
+                            <svg viewBox="0 0 24 24" className="w-2 h-2 fill-[#FC4C02] mr-0.5">
+                              <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
+                            </svg>
+                            Strava
+                          </Badge>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {exCount} exercice{exCount > 1 ? "s" : ""}
+                        {completed && session.duration_minutes ? ` · ${session.duration_minutes} min` : ""}
+                        {cardioDur ? ` · ⏱ ${cardioDur}` : ""}
+                      </p>
+                    </div>
+
+                    {/* Right actions */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {!completed && (
+                        <button
+                          className="p-1 rounded hover:bg-accent transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSchedulingSession(session);
+                          }}
+                        >
+                          <CalendarPlus
+                            className={`h-4 w-4 ${hasSchedule ? "text-orange-500" : "text-muted-foreground/50"}`}
+                          />
+                        </button>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
+                    </div>
+                  </div>
+                );
+              })
             )}
 
-            {/* Bouton pour ajouter une séance perso + Dialog d'édition */}
-            <div className="mt-4 sm:mt-6">
-              <CustomSessionDialog 
-                onSessionCreated={() => { loadWeeks(); loadCustomSessions(); }} 
-                editSession={editingCustomSession}
-                onClose={() => { setEditingCustomSession(null); setValidatingCustomSession(null); }}
-                validateSession={validatingCustomSession}
-              />
-            </div>
-
-            {/* Séances perso de la semaine */}
-            {selectedWeek && (() => {
+            {/* ── Custom (perso) sessions for this week ──────────────────── */}
+            {(() => {
               const weekRefDate = getDateFromWeekNumber(selectedWeek.week_number, selectedWeek.year);
               const weekStart = getMondayOfWeek(weekRefDate);
               const weekEnd = getSundayOfWeek(weekRefDate);
               weekEnd.setHours(23, 59, 59, 999);
 
-              const weekCustomSessions = customSessions.filter(cs => {
+              const weekCustomSessions = customSessions.filter((cs) => {
                 const dateStr = cs.scheduled_date || cs.completed_at;
                 if (!dateStr) return false;
-                const sessionDate = new Date(dateStr);
-                return sessionDate >= weekStart && sessionDate <= weekEnd;
+                const d = new Date(dateStr);
+                return d >= weekStart && d <= weekEnd;
               });
 
               if (weekCustomSessions.length === 0) return null;
 
               return (
-                <div className="mt-4 sm:mt-6">
-                  <h3 className="text-base sm:text-lg font-semibold mb-3">Séances perso</h3>
-                  <div className="space-y-2 sm:space-y-3">
-                    {weekCustomSessions.map((customSession) => {
-                      const isPlanned = !customSession.completed_at;
-                      return (
-                        <Card key={customSession.id} className={isPlanned ? "border-orange-500/30 bg-orange-500/5" : "border-primary/30 bg-primary/5"}>
-                          <CardContent className="p-4 sm:p-5">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                  <h3 className="font-bold text-base sm:text-xl">{customSession.session_name}</h3>
-                                  <Badge variant="secondary" className="text-xs">Perso</Badge>
-                                  {customSession.cardio_type === "course" && (
-                                    <Badge variant="outline" className="text-xs border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-500/10">🏃 Course</Badge>
-                                  )}
-                                  {customSession.cardio_type === "velo" && (
-                                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">🚴 Vélo</Badge>
-                                  )}
-                                  {customSession.cardio_type === "natation" && (
-                                    <Badge variant="outline" className="text-xs border-cyan-500 text-cyan-600 dark:text-cyan-400 bg-cyan-500/10">🏊 Natation</Badge>
-                                  )}
-                                  {isPlanned ? (
-                                    <Badge variant="outline" className="text-xs border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10">
-                                      📅 Planifiée
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs border-green-500 text-green-600 dark:text-green-400 bg-green-500/10">
-                                      ✅ Validée
-                                    </Badge>
-                                  )}
-                                </div>
-                                {customSession.duration_minutes && (
-                                  <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground mb-2">
-                                    <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                                    <span>{customSession.duration_minutes} min</span>
-                                  </div>
-                                )}
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(customSession.scheduled_date || customSession.completed_at).toLocaleDateString('fr-FR', {
-                                    weekday: 'long',
-                                    day: 'numeric',
-                                    month: 'long',
-                                  })}
-                                </p>
-                                {customSession.description && (
-                                  <p className="text-xs sm:text-sm mt-2 text-foreground/80 italic border-l-2 border-primary/30 pl-3">
-                                    {customSession.description}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex gap-1 flex-shrink-0">
-                                {isPlanned && (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    className="text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setValidatingCustomSession(customSession);
-                                    }}
-                                  >
-                                    Valider ✅
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditingCustomSession(customSession);
-                                  }}
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+                    Séances perso
+                  </p>
+                  {weekCustomSessions.map((cs) => {
+                    const isPlanned = !cs.completed_at;
+                    const dateLabel = new Date(cs.scheduled_date || cs.completed_at).toLocaleDateString("fr-FR", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    });
+
+                    return (
+                      <div
+                        key={cs.id}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
+                          isPlanned
+                            ? "border-orange-500/30 bg-orange-500/5"
+                            : "border-primary/30 bg-primary/5"
+                        }`}
+                      >
+                        {/* Status */}
+                        <div className="shrink-0">
+                          {isPlanned ? (
+                            <div className="h-5 w-5 rounded-full border-2 border-orange-400/60" />
+                          ) : (
+                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-medium text-sm">{cs.session_name}</span>
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                              Perso
+                            </Badge>
+                            {cs.cardio_type && <SportBadge sport={cs.cardio_type} />}
+                            {isPlanned ? (
+                              <Badge variant="outline" className="text-[10px] border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0 h-4">
+                                Planifiée
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] border-green-500 text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0 h-4">
+                                Validée
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {dateLabel}
+                            {cs.duration_minutes ? ` · ${cs.duration_minutes} min` : ""}
+                          </p>
+                          {cs.description && (
+                            <p className="text-xs mt-1 text-foreground/70 italic border-l-2 border-primary/30 pl-2">
+                              {cs.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {isPlanned && (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="text-xs h-7 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setValidatingCustomSession(cs);
+                              }}
+                            >
+                              Valider
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCustomSession(cs);
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Supprimer cette séance ?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Cette action est irréversible. La séance "{cs.session_name}" sera définitivement supprimée.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteCustomSession(cs.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:text-destructive"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Supprimer cette séance ?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Cette action est irréversible. La séance "{customSession.session_name}" sera définitivement supprimée.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                                      <AlertDialogAction 
-                                        onClick={() => handleDeleteCustomSession(customSession.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Supprimer
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
+                                  Supprimer
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
@@ -736,15 +658,13 @@ export default function Seances() {
         )
       )}
 
-      {/* Dialog pour programmer/renommer une séance */}
+      {/* ── Schedule dialog ───────────────────────────────────────────────── */}
       <ScheduleSessionDialog
         open={!!schedulingSession}
         onOpenChange={(open) => !open && setSchedulingSession(null)}
         session={schedulingSession}
         onUpdate={() => {
-          if (selectedWeek) {
-            loadWeekSessions(selectedWeek.id);
-          }
+          if (selectedWeek) loadWeekSessions(selectedWeek.id);
         }}
       />
     </div>

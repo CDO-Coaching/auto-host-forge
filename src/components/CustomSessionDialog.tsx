@@ -48,9 +48,13 @@ interface CustomSessionDialogProps {
   validateSession?: CustomSession | null;
   /** When provided, opens the dialog pre-filled with Strava activity data */
   stravaData?: StravaSessionData | null;
+  /** When true, forces the dialog open (for external trigger buttons) */
+  forceOpen?: boolean;
+  /** Called when the dialog closes after a forceOpen */
+  onForceClose?: () => void;
 }
 
-export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession, stravaData }: CustomSessionDialogProps) {
+export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession, stravaData, forceOpen, onForceClose }: CustomSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
@@ -78,6 +82,24 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setShowValidatePrompt(false);
     }
   }, [editSession]);
+
+  // Sync open state when forceOpen changes (external trigger)
+  useEffect(() => {
+    if (forceOpen) {
+      setOpen(true);
+      // Reset to blank new session
+      setSessionName("");
+      setDescription("");
+      setDuration("");
+      setSelectedDate(new Date());
+      setCardioType("");
+      setDistanceKm("");
+      setAvgPace("");
+      setAvgHeartRate("");
+      setMode("plan");
+      setShowValidatePrompt(false);
+    }
+  }, [forceOpen]);
 
   // Pré-remplissage depuis Strava
   useEffect(() => {
@@ -114,6 +136,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
     if (!isOpen) {
       resetForm();
       onClose?.();
+      onForceClose?.();
     }
   };
 
