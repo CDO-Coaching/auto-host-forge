@@ -30,15 +30,27 @@ interface CustomSession {
   scheduled_date: string | null;
 }
 
+export interface StravaSessionData {
+  sessionName: string;
+  cardioType: string;
+  duration: string;
+  distanceKm: string;
+  avgPace: string;
+  avgHeartRate: string;
+  date: Date;
+}
+
 interface CustomSessionDialogProps {
   onSessionCreated?: () => void;
   editSession?: CustomSession | null;
   onClose?: () => void;
   /** When provided, skip the planning flow and directly validate (complete) a planned session */
   validateSession?: CustomSession | null;
+  /** When provided, opens the dialog pre-filled with Strava activity data */
+  stravaData?: StravaSessionData | null;
 }
 
-export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession }: CustomSessionDialogProps) {
+export function CustomSessionDialog({ onSessionCreated, editSession, onClose, validateSession, stravaData }: CustomSessionDialogProps) {
   const [open, setOpen] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
@@ -66,6 +78,22 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setShowValidatePrompt(false);
     }
   }, [editSession]);
+
+  // Pré-remplissage depuis Strava
+  useEffect(() => {
+    if (stravaData) {
+      setOpen(true);
+      setSessionName(stravaData.sessionName);
+      setCardioType(stravaData.cardioType);
+      setDuration(stravaData.duration);
+      setDistanceKm(stravaData.distanceKm);
+      setAvgPace(stravaData.avgPace);
+      setAvgHeartRate(stravaData.avgHeartRate);
+      setSelectedDate(stravaData.date);
+      setMode("validate");
+      setShowValidatePrompt(false);
+    }
+  }, [stravaData]);
 
   // Handle validate mode (completing a planned session)
   useEffect(() => {

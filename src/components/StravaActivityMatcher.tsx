@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { CustomSessionDialog, StravaSessionData } from "@/components/CustomSessionDialog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
   const [linking, setLinking] = useState(false);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [hasStrava, setHasStrava] = useState(false);
+  const [stravaCustomData, setStravaCustomData] = useState<StravaSessionData | null>(null);
 
   useEffect(() => {
     if (athleteId) checkStravaConnection();
@@ -176,43 +178,28 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     setLinkDialogOpen(true);
   };
 
-  // ── Crée une séance perso à partir de l'activité Strava ──────────────────
-  const handleCreateCustomSession = async () => {
+  // ── Ouvre CustomSessionDialog pré-rempli avec les données Strava ─────────
+  const handleCreateCustomSession = () => {
     if (!selectedActivity) return;
-    setLinking(true);
-    try {
-      const cdoSport = STRAVA_TO_CDO_SPORT[selectedActivity.sport_type];
-      const distanceKm = parseFloat((selectedActivity.distance_meters / 1000).toFixed(2));
-      const durationMin = Math.round(selectedActivity.moving_time_seconds / 60);
-      const pace = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
-      const dateStr = selectedActivity.start_date.split("T")[0];
+    const cdoSport = STRAVA_TO_CDO_SPORT[selectedActivity.sport_type];
+    const durationMin = Math.round(selectedActivity.moving_time_seconds / 60);
+    const distanceKm = (selectedActivity.distance_meters / 1000).toFixed(2);
+    const pace = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
 
-      await (supabase.from("custom_sessions") as any).insert({
-        user_id: athleteId,
-        session_name: selectedActivity.name,
-        cardio_type: cdoSport || null,
-        duration_minutes: durationMin,
-        completed_at: selectedActivity.start_date,
-        scheduled_date: dateStr,
-        distance_km: distanceKm || null,
-        avg_pace: pace || null,
-        avg_heart_rate: selectedActivity.average_heartrate
-          ? Math.round(selectedActivity.average_heartrate)
-          : null,
-        description: comment.trim() || null,
-      });
+    setStravaCustomData({
+      sessionName: selectedActivity.name,
+      cardioType: cdoSport || "",
+      duration: String(durationMin),
+      distanceKm,
+      avgPace: pace,
+      avgHeartRate: selectedActivity.average_heartrate
+        ? String(Math.round(selectedActivity.average_heartrate))
+        : "",
+      date: new Date(selectedActivity.start_date),
+    });
 
-      toast.success(`✅ "${selectedActivity.name}" ajoutée en séance perso !`);
-      setLinkDialogOpen(false);
-      setListOpen(false);
-      await loadActivities();
-      onLinked();
-    } catch (err) {
-      console.error("Erreur création séance perso:", err);
-      toast.error("Erreur lors de la création");
-    } finally {
-      setLinking(false);
-    }
+    setLinkDialogOpen(false);
+    setListOpen(false);
   };
 
   const handleLink = async () => {
@@ -295,6 +282,17 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
 
   return (
     <>
+      {/* ── CustomSessionDialog pré-rempli via Strava ── */}
+      <CustomSessionDialog
+        stravaData={stravaCustomData}
+        onSessionCreated={() => {
+          setStravaCustomData(null);
+          loadActivities();
+          onLinked();
+        }}
+        onClose={() => setStravaCustomData(null)}
+      />
+
       {/* ── Bouton compact ── */}
       <Button
         variant="outline"
