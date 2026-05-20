@@ -34,6 +34,7 @@ interface StravaActivity {
   moving_time_seconds: number;
   average_heartrate: number | null;
   average_speed_ms: number | null;
+  linkedSessionName?: string; // nom de la séance liée si déjà associée
 }
 
 interface Session {
@@ -122,7 +123,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     setHasStrava(!!data);
   };
 
-  // Charge les 4 dernières activités Strava non encore liées
+  // Charge les 4 dernières activités Strava avec leur statut de liaison
   const loadActivities = async () => {
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -133,29 +134,33 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       .gte("start_date", since)
       .in("sport_type", Object.keys(STRAVA_TO_CDO_SPORT))
       .order("start_date", { ascending: false })
-      .limit(8);
+      .limit(4);
 
     if (!activitiesData?.length) {
       setActivities([]);
       return;
     }
 
-    // Filtre les déjà liées
+    // Récupère les séances déjà liées avec leur nom
     const { data: linkedSessions } = await (supabase
       .from("training_sessions")
-      .select("linked_strava_activity_id")
+      .select("linked_strava_activity_id, name, athlete_custom_name")
       .eq("sportif_id", athleteId)
       .not("linked_strava_activity_id", "is", null) as any);
 
-    const linkedIds = new Set(
-      (linkedSessions || []).map((s: any) => s.linked_strava_activity_id)
+    const linkedMap = new Map(
+      (linkedSessions || []).map((s: any) => [
+        s.linked_strava_activity_id,
+        s.athlete_custom_name || s.name,
+      ])
     );
 
-    const unlinked = (activitiesData as StravaActivity[])
-      .filter((a) => !linkedIds.has(a.strava_activity_id))
-      .slice(0, 4);
+    const enriched = (activitiesData as StravaActivity[]).map((a) => ({
+      ...a,
+      linkedSessionName: linkedMap.get(a.strava_activity_id) as string | undefined,
+    }));
 
-    setActivities(unlinked);
+    setActivities(enriched);
   };
 
   const openList = async () => {
@@ -285,15 +290,21 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
               activities.map((activity) => {
                 const cdoSport = STRAVA_TO_CDO_SPORT[activity.sport_type];
                 const label = SPORT_LABEL[cdoSport] || activity.sport_type;
+                const isLinked = !!activity.linkedSessionName;
 
                 return (
                   <button
                     key={activity.strava_activity_id}
-                    onClick={() => openLinkDialog(activity)}
-                    className="w-full text-left rounded-lg border border-border hover:border-[#FC4C02]/50 hover:bg-[#FC4C02]/5 p-3 transition-colors group"
+                    onClick={() => !isLinked && openLinkDialog(activity)}
+                    disabled={isLinked}
+                    className={`w-full text-left rounded-lg border p-3 transition-colors group ${
+                      isLinked
+                        ? "border-green-500/30 bg-green-500/5 cursor-default opacity-80"
+                        : "border-border hover:border-[#FC4C02]/50 hover:bg-[#FC4C02]/5"
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-sm truncate">{activity.name}</span>
                           <Badge
@@ -315,8 +326,15 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                             <span>❤️ {Math.round(activity.average_heartrate)} bpm</span>
                           )}
                         </div>
+                        {isLinked && (
+                          <p className="text-xs text-green-600 font-medium mt-1.5">
+                            ✓ Lié à "{activity.linkedSessionName}"
+                          </p>
+                        )}
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-[#FC4C02] shrink-0 transition-colors" />
+                      {!isLinked && (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-[#FC4C02] shrink-0 transition-colors" />
+                      )}
                     </div>
                   </button>
                 );
