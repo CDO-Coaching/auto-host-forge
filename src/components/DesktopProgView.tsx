@@ -202,6 +202,7 @@ export interface DesktopProgViewProps {
   onWeekChange: (week: number, year: number) => void;
   onSave: () => void;
   onUndo: () => void;
+  onUnvalidate?: () => void;
 
   // Session CRUD
   onCreateSession: (type: "renfo" | "cardio" | "recup") => void;
@@ -321,7 +322,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     sessions, setSessions, sessionExercises, setSessionExercises,
     selectedWeek, availableWeeks, isValidated, libraryExercises,
     expandedSessionId, setExpandedSessionId,
-    undoStack, onWeekChange, onSave, onUndo,
+    undoStack, onWeekChange, onSave, onUndo, onUnvalidate,
     onCreateSession, onDeleteSession,
     onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onKeyDown,
     onSessionDragStart, onSessionDragOver, onSessionDrop,
@@ -538,6 +539,14 @@ export function DesktopProgView(props: DesktopProgViewProps) {
         {undoStack.length > 0 && !isValidated && (
           <Button variant="outline" size="sm" className="h-8 text-xs" onClick={onUndo}>
             <Undo2 className="h-3.5 w-3.5 mr-1" />Annuler
+          </Button>
+        )}
+
+        {/* Unvalidate */}
+        {isValidated && onUnvalidate && (
+          <Button size="sm" variant="outline" className="h-8 text-xs border-amber-500/50 text-amber-500 hover:bg-amber-500/10" onClick={onUnvalidate}>
+            <Undo2 className="h-3.5 w-3.5 mr-1" />
+            Modifier la semaine
           </Button>
         )}
 

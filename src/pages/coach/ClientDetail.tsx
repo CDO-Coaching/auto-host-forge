@@ -2242,6 +2242,38 @@ export default function ClientDetail() {
     toast.success("Séance supprimée");
   };
 
+  const handleUnvalidate = async () => {
+    if (!athleteId || !selectedWeekToProgram) return;
+    try {
+      const { data: weekRecords } = await supabase
+        .from("training_weeks")
+        .select("id")
+        .eq("athlete_id", athleteId)
+        .eq("week_number", selectedWeekToProgram.week)
+        .eq("year", selectedWeekToProgram.year)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      const weekRecord = weekRecords?.[0] ?? null;
+      if (!weekRecord) {
+        toast.error("Semaine introuvable");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("training_weeks")
+        .update({ validated: false, validated_at: null })
+        .eq("id", weekRecord.id);
+
+      if (error) throw error;
+      setIsValidated(false);
+      toast.success("Semaine déverrouillée — tu peux maintenant modifier les séances");
+    } catch (error) {
+      console.error("Erreur lors du déverrouillage:", error);
+      toast.error("Erreur lors du déverrouillage de la semaine");
+    }
+  };
+
   const handleValidate = async () => {
     if (!athleteId) return;
 
@@ -4579,6 +4611,7 @@ export default function ClientDetail() {
               setExpandedSessionId={setExpandedSessionId}
               onWeekChange={(week, year) => setSelectedWeekToProgram({ week, year })}
               onSave={handleValidate}
+              onUnvalidate={handleUnvalidate}
               onUndo={handleUndo}
               onCreateSession={handleCreateSessionByType}
               onDeleteSession={handleDeleteSession}
