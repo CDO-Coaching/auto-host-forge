@@ -1,20 +1,19 @@
 /**
  * StravaActivityMatcher
- * Affiche les activités Strava récentes non encore liées à une séance CDO.
- * L'athlète choisit quelle séance cardio correspond → les données sont auto-remplies.
+ * Bouton "Lier séance Strava" → affiche les 4 dernières activités Strava
+ * non encore liées + permet de les associer à une séance CDO.
  */
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Link2 } from "lucide-react";
+import { Loader2, Link2, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +50,7 @@ interface Props {
   onLinked: () => void;
 }
 
-// ─── Mappings Strava → CDO ────────────────────────────────────────────────────
+// ─── Mappings ─────────────────────────────────────────────────────────────────
 
 const STRAVA_TO_CDO_SPORT: Record<string, string> = {
   Run: "course",
@@ -88,9 +87,7 @@ function formatDuration(seconds: number): string {
   return `${m} min`;
 }
 
-// ─── SVG logo Strava ──────────────────────────────────────────────────────────
-
-function StravaLogo({ className = "w-5 h-5 fill-white" }: { className?: string }) {
+function StravaLogo({ className = "w-4 h-4 fill-white" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" className={className} xmlns="http://www.w3.org/2000/svg">
       <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" />
@@ -98,24 +95,36 @@ function StravaLogo({ className = "w-5 h-5 fill-white" }: { className?: string }
   );
 }
 
-// ─── Composant principal ──────────────────────────────────────────────────────
+// ─── Composant ────────────────────────────────────────────────────────────────
 
 export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked }: Props) {
   const [activities, setActivities] = useState<StravaActivity[]>([]);
+  const [listOpen, setListOpen] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState<StravaActivity | null>(null);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
   const [linking, setLinking] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [hasStrava, setHasStrava] = useState(false);
 
   useEffect(() => {
-    if (athleteId) loadRecentActivities();
+    if (athleteId) checkStravaConnection();
   }, [athleteId]);
 
-  // ── Charge les activités Strava des 48 dernières heures non encore liées ──
-  const loadRecentActivities = async () => {
-    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  // Vérifie si l'athlète a Strava connecté
+  const checkStravaConnection = async () => {
+    const { data } = await supabase
+      .from("strava_tokens")
+      .select("athlete_id")
+      .eq("athlete_id", athleteId)
+      .single();
+    setHasStrava(!!data);
+  };
+
+  // Charge les 4 dernières activités Strava non encore liées
+  const loadActivities = async () => {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: activitiesData } = await supabase
       .from("strava_activities")
@@ -123,11 +132,15 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       .eq("athlete_id", athleteId)
       .gte("start_date", since)
       .in("sport_type", Object.keys(STRAVA_TO_CDO_SPORT))
-      .order("start_date", { ascending: false });
+      .order("start_date", { ascending: false })
+      .limit(8);
 
-    if (!activitiesData?.length) return;
+    if (!activitiesData?.length) {
+      setActivities([]);
+      return;
+    }
 
-    // Exclure les activités déjà liées à une séance
+    // Filtre les déjà liées
     const { data: linkedSessions } = await (supabase
       .from("training_sessions")
       .select("linked_strava_activity_id")
@@ -138,23 +151,26 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       (linkedSessions || []).map((s: any) => s.linked_strava_activity_id)
     );
 
-    const unlinked = activitiesData.filter(
-      (a: any) => !linkedIds.has(a.strava_activity_id)
-    );
+    const unlinked = (activitiesData as StravaActivity[])
+      .filter((a) => !linkedIds.has(a.strava_activity_id))
+      .slice(0, 4);
 
-    setActivities(unlinked as StravaActivity[]);
+    setActivities(unlinked);
   };
 
-  // ── Ouvre le dialog de liaison ────────────────────────────────────────────
+  const openList = async () => {
+    await loadActivities();
+    setListOpen(true);
+  };
+
   const openLinkDialog = (activity: StravaActivity) => {
     setSelectedActivity(activity);
     setSelectedSession(null);
     setRpe("");
     setComment("");
-    setDialogOpen(true);
+    setLinkDialogOpen(true);
   };
 
-  // ── Valide la liaison ─────────────────────────────────────────────────────
   const handleLink = async () => {
     if (!selectedActivity || !selectedSession) return;
 
@@ -171,16 +187,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       const pace = formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds);
       const cdoSport = STRAVA_TO_CDO_SPORT[selectedActivity.sport_type];
 
-      // Trouve les exercices cardio à mettre à jour
       const cardioExercises = selectedSession.session_exercises.filter(
         (ex: any) => ex.cardio_sport
       );
-
-      // Essaie de ne mettre à jour que les exos du bon sport, sinon tous
       const matching = cardioExercises.filter((ex: any) => ex.cardio_sport === cdoSport);
       const toUpdate = matching.length > 0 ? matching : cardioExercises;
 
-      // Met à jour chaque exercice cardio avec les données Strava
       for (const ex of toUpdate) {
         await supabase
           .from("session_exercises")
@@ -198,7 +210,6 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
           .eq("id", ex.id);
       }
 
-      // Marque la séance comme complétée et liée à l'activité Strava
       await (supabase
         .from("training_sessions")
         .update({
@@ -212,12 +223,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
         .eq("id", selectedSession.id) as any);
 
       toast.success(
-        `✅ "${selectedSession.athlete_custom_name || selectedSession.name}" liée à Strava — données importées !`
+        `✅ "${selectedSession.athlete_custom_name || selectedSession.name}" liée — données Strava importées !`
       );
 
-      setDialogOpen(false);
-      // Recharge les activités depuis Supabase pour être sûr que le bandeau disparaît
-      await loadRecentActivities();
+      setLinkDialogOpen(false);
+      setListOpen(false);
+      await loadActivities();
       onLinked();
     } catch (err) {
       console.error("Erreur liaison Strava:", err);
@@ -227,7 +238,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     }
   };
 
-  // Séances cardio non complétées de la semaine
+  // Séances cardio non complétées
   const cardioSessions = currentWeekSessions.filter(
     (s) =>
       s.session_exercises.some((ex: any) => ex.cardio_sport) &&
@@ -236,90 +247,100 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
       )
   );
 
-  if (activities.length === 0) return null;
+  if (!hasStrava) return null;
 
   return (
     <>
-      {/* ── Bandeau activités Strava ── */}
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-[#FC4C02] flex items-center gap-1.5">
-          <StravaLogo className="w-3.5 h-3.5 fill-[#FC4C02]" />
-          Activité Strava récente — à lier à une séance
-        </p>
+      {/* ── Bouton compact ── */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={openList}
+        className="border-[#FC4C02]/40 text-[#FC4C02] hover:bg-[#FC4C02]/10 hover:border-[#FC4C02] text-xs gap-1.5 h-8"
+      >
+        <div className="w-3.5 h-3.5 rounded bg-[#FC4C02] flex items-center justify-center">
+          <StravaLogo className="w-2.5 h-2.5 fill-white" />
+        </div>
+        Lier séance Strava
+      </Button>
 
-        {activities.map((activity) => {
-          const cdoSport = STRAVA_TO_CDO_SPORT[activity.sport_type];
-          const label = SPORT_LABEL[cdoSport] || activity.sport_type;
-
-          return (
-            <Card
-              key={activity.strava_activity_id}
-              className="border-[#FC4C02]/40 bg-[#FC4C02]/5"
-            >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center shrink-0">
-                      <StravaLogo />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-sm truncate">{activity.name}</span>
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-[#FC4C02]/10 text-[#FC4C02] border-[#FC4C02]/20 shrink-0"
-                        >
-                          {label}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                        <span className="font-medium text-foreground/70">
-                          📅 {format(new Date(activity.start_date), "EEE d MMM", { locale: fr })}
-                        </span>
-                        {activity.distance_meters > 0 && (
-                          <span>📍 {(activity.distance_meters / 1000).toFixed(2)} km</span>
-                        )}
-                        <span>⏱ {formatDuration(activity.moving_time_seconds)}</span>
-                        {activity.average_heartrate && (
-                          <span>❤️ {Math.round(activity.average_heartrate)} bpm</span>
-                        )}
-                        {activity.distance_meters > 0 && activity.moving_time_seconds > 0 && (
-                          <span>🏃 {formatPace(activity.distance_meters, activity.moving_time_seconds)}/km</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    className="bg-[#FC4C02] hover:bg-[#e04400] text-white text-xs shrink-0"
-                    onClick={() => openLinkDialog(activity)}
-                  >
-                    <Link2 className="h-3 w-3 mr-1" />
-                    Lier
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* ── Dialog de liaison ── */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* ── Dialog liste des activités ── */}
+      <Dialog open={listOpen} onOpenChange={setListOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <div className="w-6 h-6 rounded bg-[#FC4C02] flex items-center justify-center">
-                <StravaLogo className="w-4 h-4 fill-white" />
+                <StravaLogo />
               </div>
-              Lier l'activité Strava
+              Activités Strava récentes
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Aucune activité récente à lier.
+              </p>
+            ) : (
+              activities.map((activity) => {
+                const cdoSport = STRAVA_TO_CDO_SPORT[activity.sport_type];
+                const label = SPORT_LABEL[cdoSport] || activity.sport_type;
+
+                return (
+                  <button
+                    key={activity.strava_activity_id}
+                    onClick={() => openLinkDialog(activity)}
+                    className="w-full text-left rounded-lg border border-border hover:border-[#FC4C02]/50 hover:bg-[#FC4C02]/5 p-3 transition-colors group"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm truncate">{activity.name}</span>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-[#FC4C02]/10 text-[#FC4C02] border-[#FC4C02]/20 shrink-0"
+                          >
+                            {label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1 flex-wrap">
+                          <span className="font-medium">
+                            📅 {format(new Date(activity.start_date), "EEE d MMM", { locale: fr })}
+                          </span>
+                          {activity.distance_meters > 0 && (
+                            <span>📍 {(activity.distance_meters / 1000).toFixed(2)} km</span>
+                          )}
+                          <span>⏱ {formatDuration(activity.moving_time_seconds)}</span>
+                          {activity.average_heartrate && (
+                            <span>❤️ {Math.round(activity.average_heartrate)} bpm</span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-[#FC4C02] shrink-0 transition-colors" />
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog de liaison ── */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-[#FC4C02] flex items-center justify-center">
+                <StravaLogo />
+              </div>
+              Lier à une séance
             </DialogTitle>
           </DialogHeader>
 
           {selectedActivity && (
             <div className="space-y-5 py-2">
-              {/* Résumé de l'activité */}
+              {/* Résumé activité */}
               <div className="rounded-lg bg-[#FC4C02]/10 border border-[#FC4C02]/20 p-3 space-y-1.5">
                 <p className="font-medium text-sm">{selectedActivity.name}</p>
                 <p className="text-xs text-muted-foreground font-medium">
@@ -333,27 +354,19 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                   {selectedActivity.average_heartrate && (
                     <span>❤️ {Math.round(selectedActivity.average_heartrate)} bpm</span>
                   )}
-                  {selectedActivity.distance_meters > 0 &&
-                    selectedActivity.moving_time_seconds > 0 && (
-                      <span>
-                        🏃{" "}
-                        {formatPace(
-                          selectedActivity.distance_meters,
-                          selectedActivity.moving_time_seconds
-                        )}
-                        /km
-                      </span>
-                    )}
+                  {selectedActivity.distance_meters > 0 && selectedActivity.moving_time_seconds > 0 && (
+                    <span>🏃 {formatPace(selectedActivity.distance_meters, selectedActivity.moving_time_seconds)}/km</span>
+                  )}
                 </div>
-                <p className="text-xs text-[#FC4C02] font-medium mt-1">
-                  ✓ Distance, durée, allure et FC seront importées automatiquement
+                <p className="text-xs text-[#FC4C02] font-medium pt-0.5">
+                  ✓ Distance, durée, allure et FC importées automatiquement
                 </p>
               </div>
 
               {/* Sélecteur de séance */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  Quelle séance correspond à cette activité ?
+                  Quelle séance correspond ?
                 </Label>
                 {cardioSessions.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-2">
@@ -378,12 +391,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                 )}
               </div>
 
-              {/* RPE + commentaire (seulement après avoir choisi une séance) */}
+              {/* RPE */}
               {selectedSession && (
                 <div className="space-y-3 border-t pt-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="strava-rpe" className="text-sm font-medium">
-                      Comment tu as ressenti l'effort ? (RPE 1-10){" "}
+                      Ressenti de l'effort (RPE 1-10){" "}
                       <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -394,13 +407,11 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                       value={rpe}
                       onChange={(e) => setRpe(e.target.value)}
                       placeholder="Ex: 7"
-                      className="w-full"
                     />
                     <p className="text-xs text-muted-foreground">
                       1 = très facile · 10 = effort maximal
                     </p>
                   </div>
-
                   <div className="space-y-1.5">
                     <Label htmlFor="strava-comment" className="text-sm">
                       Commentaire (optionnel)
@@ -418,8 +429,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
           )}
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={linking}>
-              Annuler
+            <Button
+              variant="outline"
+              onClick={() => setLinkDialogOpen(false)}
+              disabled={linking}
+            >
+              Retour
             </Button>
             <Button
               onClick={handleLink}

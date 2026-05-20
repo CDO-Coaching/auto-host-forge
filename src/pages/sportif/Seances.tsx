@@ -298,6 +298,13 @@ export default function Seances() {
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          {userId && selectedWeek && (
+            <StravaActivityMatcher
+              athleteId={userId}
+              currentWeekSessions={sessions}
+              onLinked={() => loadWeekSessions(selectedWeek.id)}
+            />
+          )}
           {weeks.length > 0 && (
             <div className="flex flex-col gap-1 w-full sm:w-auto sm:min-w-[140px]">
               <label className="text-xs text-muted-foreground">Semaine</label>
@@ -385,15 +392,6 @@ export default function Seances() {
             <h2 className="text-lg sm:text-xl font-semibold">
               Semaine {selectedWeek.week_number} ({formatWeekRangeFromNumber(selectedWeek.week_number, selectedWeek.year)})
             </h2>
-
-            {/* Bandeau Strava — activités récentes à lier */}
-            {userId && (
-              <StravaActivityMatcher
-                athleteId={userId}
-                currentWeekSessions={sessions}
-                onLinked={() => loadWeekSessions(selectedWeek.id)}
-              />
-            )}
 
             {sessions.length === 0 ? (
               <p className="text-sm sm:text-base text-muted-foreground text-center py-6 sm:py-8">Aucune séance pour cette semaine.</p>
