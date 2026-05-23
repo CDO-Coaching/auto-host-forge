@@ -12,7 +12,7 @@ import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardi
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -47,6 +47,7 @@ interface Exercise {
   cardio_content?: string;
   cardio_pace?: string;
   serie_details?: SerieDetail[] | string;
+  super_set_group?: string | null;
   [key: string]: unknown;
 }
 
@@ -84,6 +85,7 @@ interface MobileProgViewProps {
   onDeleteExercise: (sessionId: number, exerciseId: number) => void;
   onExerciseChange: (sessionId: number, exerciseId: number, field: string, value: string) => void;
   onSerieDetailChange: (sessionId: number, exerciseId: number, serieIndex: number, field: string, value: string) => void;
+  onToggleSuperSet?: (sessionId: number, exerciseId: number) => void;
   onSave: () => void;
   isSaving?: boolean;
   hasPreviousWeeks?: boolean;
@@ -357,11 +359,25 @@ function RenfoExerciseRow({
   );
 }
 
+// ─── Couleurs superset ────────────────────────────────────────────────────────
+
+const SUPERSET_COLORS = [
+  { border: "border-orange-400", bg: "bg-orange-400/10", text: "text-orange-400", badge: "bg-orange-400/20 text-orange-400 border-orange-400/40" },
+  { border: "border-purple-400", bg: "bg-purple-400/10", text: "text-purple-400", badge: "bg-purple-400/20 text-purple-400 border-purple-400/40" },
+  { border: "border-cyan-400",   bg: "bg-cyan-400/10",   text: "text-cyan-400",   badge: "bg-cyan-400/20 text-cyan-400 border-cyan-400/40" },
+  { border: "border-pink-400",   bg: "bg-pink-400/10",   text: "text-pink-400",   badge: "bg-pink-400/20 text-pink-400 border-pink-400/40" },
+];
+
+function getSupersetColorIndex(group: string, allGroups: string[]): number {
+  const idx = allGroups.indexOf(group);
+  return idx >= 0 ? idx % SUPERSET_COLORS.length : 0;
+}
+
 // ─── Sous-composant : carte session ──────────────────────────────────────────
 
 function SessionCard({
   session, exercises, isValidated, athleteVma, libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -374,6 +390,7 @@ function SessionCard({
   onDeleteExercise: (exerciseId: number) => void;
   onExerciseChange: (exerciseId: number, field: string, value: string) => void;
   onSerieDetailChange: (exerciseId: number, serieIndex: number, field: string, value: string) => void;
+  onToggleSuperSet?: (exerciseId: number) => void;
 }) {
   const [open, setOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
@@ -478,22 +495,40 @@ function SessionCard({
         </div>
 
         {/* Preview des 2 premiers exercices (renfo) */}
-        {session.session_type === "renfo" && exercises.length > 0 && (
-          <div className="mt-3 space-y-1">
-            {exercises.slice(0, 2).map((ex) => (
-              <div key={ex.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <div className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
-                <span className="truncate">{ex.exercice || "—"}</span>
-                {ex.series && ex.reps && (
-                  <span className="shrink-0 opacity-60">{ex.series}×{ex.reps}</span>
-                )}
-              </div>
-            ))}
-            {exercises.length > 2 && (
-              <p className="text-xs text-muted-foreground/50">+{exercises.length - 2} autre{exercises.length - 2 > 1 ? "s" : ""}…</p>
-            )}
-          </div>
-        )}
+        {session.session_type === "renfo" && exercises.length > 0 && (() => {
+          const allGroups = [...new Set(exercises.filter(e => e.super_set_group).map(e => e.super_set_group as string))];
+          const hasSupersets = allGroups.length > 0;
+          return (
+            <div className="mt-3 space-y-1">
+              {hasSupersets && (
+                <div className="flex items-center gap-1 mb-1.5">
+                  <Link2 className="h-3 w-3 text-orange-400" />
+                  <span className="text-[10px] text-orange-400 font-medium">
+                    {allGroups.length} superset{allGroups.length > 1 ? "s" : ""}
+                  </span>
+                </div>
+              )}
+              {exercises.slice(0, 2).map((ex) => {
+                const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
+                const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
+                return (
+                  <div key={ex.id} className={cn("text-xs text-muted-foreground flex items-center gap-1.5 rounded px-1", color?.bg)}>
+                    {color
+                      ? <Link2 className={cn("h-2.5 w-2.5 shrink-0", color.text)} />
+                      : <div className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />}
+                    <span className="truncate">{ex.exercice || "—"}</span>
+                    {ex.series && ex.reps && (
+                      <span className="shrink-0 opacity-60">{ex.series}×{ex.reps}</span>
+                    )}
+                  </div>
+                );
+              })}
+              {exercises.length > 2 && (
+                <p className="text-xs text-muted-foreground/50">+{exercises.length - 2} autre{exercises.length - 2 > 1 ? "s" : ""}…</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Preview cardio */}
         {session.session_type === "cardio" && (
@@ -530,23 +565,57 @@ function SessionCard({
                     <Dumbbell className="h-8 w-8 opacity-30" />
                     <p className="text-sm text-center">Aucun exercice — ajoute le premier ci-dessous.</p>
                   </div>
-                ) : (
-                  <div>
-                    {exercises.map((ex) => (
-                      <RenfoExerciseRow
-                        key={ex.id}
-                        exercise={ex}
-                        sessionId={session.id}
-                        isValidated={isValidated}
-                        libraryExercises={libraryExercises}
-                        feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
-                        onChange={(field, value) => onExerciseChange(ex.id, field, value)}
-                        onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
-                        onDelete={() => onDeleteExercise(ex.id)}
-                      />
-                    ))}
-                  </div>
-                )}
+                ) : (() => {
+                  const allGroups = [...new Set(exercises.filter(e => e.super_set_group).map(e => e.super_set_group as string))];
+                  return (
+                    <div>
+                      {exercises.map((ex, idx) => {
+                        const nextEx = exercises[idx + 1];
+                        const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
+                        const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
+                        const linkedWithNext = !!(ex.super_set_group && nextEx?.super_set_group && ex.super_set_group === nextEx.super_set_group);
+                        return (
+                          <div key={ex.id}>
+                            {/* Exercice avec bordure superset éventuelle */}
+                            <div className={cn(color && "border-l-2 pl-0", color?.border)}>
+                              <RenfoExerciseRow
+                                exercise={ex}
+                                sessionId={session.id}
+                                isValidated={isValidated}
+                                libraryExercises={libraryExercises}
+                                feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
+                                onChange={(field, value) => onExerciseChange(ex.id, field, value)}
+                                onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
+                                onDelete={() => onDeleteExercise(ex.id)}
+                              />
+                            </div>
+
+                            {/* Bouton superset entre exercices consécutifs */}
+                            {!isValidated && onToggleSuperSet && idx < exercises.length - 1 && (
+                              <div className="flex items-center gap-2 px-4 py-1.5">
+                                <div className={cn("h-px flex-1", linkedWithNext ? (color?.border ? `border-t-2 ${color.border}` : "border-t border-border/40") : "border-t border-border/30 border-dashed")} />
+                                <button
+                                  onClick={() => onToggleSuperSet(ex.id)}
+                                  className={cn(
+                                    "flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border transition-colors shrink-0",
+                                    linkedWithNext
+                                      ? cn("active:opacity-70", color?.badge)
+                                      : "border-border/50 text-muted-foreground bg-secondary active:bg-muted",
+                                  )}
+                                >
+                                  {linkedWithNext
+                                    ? <><Unlink className="h-3 w-3" /> Délier</>
+                                    : <><Link2 className="h-3 w-3" /> Superset</>}
+                                </button>
+                                <div className={cn("h-px flex-1", linkedWithNext ? (color?.border ? `border-t-2 ${color.border}` : "border-t border-border/40") : "border-t border-border/30 border-dashed")} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </>
             )}
 
@@ -619,7 +688,7 @@ function SessionCard({
 export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
-  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onSave, isSaving,
+  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onSave, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
@@ -725,6 +794,7 @@ export function MobileProgView({
               onAddExercise={() => onAddExercise(session.id)}
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}
               onExerciseChange={(exId, field, value) => onExerciseChange(session.id, exId, field, value)}
+              onToggleSuperSet={onToggleSuperSet ? (exId) => onToggleSuperSet(session.id, exId) : undefined}
             />
           ))
         )}

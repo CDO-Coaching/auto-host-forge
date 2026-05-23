@@ -4697,6 +4697,7 @@ export default function ClientDetail() {
               onSerieDetailChange={(sessionId, exerciseId, serieIndex, field, value) =>
                 handleSerieDetailChange(sessionId, exerciseId, serieIndex, field as keyof SerieDetail, value)
               }
+              onToggleSuperSet={handleToggleSuperSet}
               onSave={handleValidate}
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
