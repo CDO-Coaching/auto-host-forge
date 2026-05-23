@@ -824,46 +824,36 @@ ${vmaHint}
 
 Retourne UNIQUEMENT du JSON valide (pas de markdown, pas d'explication, pas de \`\`\`json).
 
-Format cible :
+RÈGLE FONDAMENTALE SUR LES BLOCS :
+- Les étapes qui font partie d'un bloc DOIVENT avoir "block_id" = l'id du bloc.
+- Les étapes SANS bloc (échauffement, retour au calme) ont "block_id": null.
+- Chaque étape n'apparaît QU'UNE SEULE FOIS dans le tableau "steps".
+- Dans "blocks[n].steps", mets des COPIES des mêmes objets (mêmes ids) que dans "steps".
+- NE PAS créer les étapes du bloc une fois sans block_id puis les remettre dans blocks — c'est une erreur.
+
+Exemple CORRECT pour "10min éco + 6 × 1000m @ 97%VMA — récup 2min trot + 10min retour calme" :
 {
   "steps": [
-    {
-      "id": 1,
-      "movement_type": "course",
-      "effort_type": "duration",
-      "duration": 600,
-      "vma_percentage": 65,
-      "block_id": null
-    },
-    {
-      "id": 2,
-      "movement_type": "course",
-      "effort_type": "distance",
-      "distance": 1000,
-      "distance_unit": "m",
-      "vma_percentage": 97,
-      "block_id": 1
-    }
+    {"id":1,"movement_type":"course","effort_type":"duration","duration":600,"vma_percentage":65,"block_id":null},
+    {"id":2,"movement_type":"course","effort_type":"distance","distance":1000,"distance_unit":"m","vma_percentage":97,"block_id":1},
+    {"id":3,"movement_type":"course","effort_type":"duration","duration":120,"vma_percentage":65,"block_id":1},
+    {"id":4,"movement_type":"course","effort_type":"duration","duration":600,"vma_percentage":60,"block_id":null}
   ],
   "blocks": [
-    {
-      "id": 1,
-      "repetitions": 6,
-      "steps": []
-    }
+    {"id":1,"repetitions":6,"steps":[
+      {"id":2,"movement_type":"course","effort_type":"distance","distance":1000,"distance_unit":"m","vma_percentage":97,"block_id":1},
+      {"id":3,"movement_type":"course","effort_type":"duration","duration":120,"vma_percentage":65,"block_id":1}
+    ]}
   ]
 }
 
-Règles :
+Autres règles :
 - movement_type : "course" (default), "marche", "velo", "natation"
-- effort_type : "duration" (durée en secondes) ou "distance" (distance en m/km)
-- Pour une série répétée (ex: "6 × 1000m"), crée un block avec repetitions=6 et mets les étapes dedans (block_id correspondant)
-- Échauffement = course 65% VMA en duration
-- Retour au calme = course 60% VMA en duration
-- Les étapes du bloc "récupération" entre les répétitions doivent aussi être dans le bloc (ex: trot 1min)
-- Ordre des steps : échauffement → corps principal → retour au calme
-- Ne jamais inventer de distance/durée si non précisée — utilise des valeurs typiques (éco = 15min, retour calme = 10min)
-- Dans "blocks", le champ "steps" contient une copie des étapes du bloc (en répétition)`;
+- effort_type : "duration" (durée en secondes) ou "distance" (distance en m ou km)
+- Échauffement typique = 10-15min course 65% VMA | Retour au calme = 5-10min course 60% VMA
+- La récupération ENTRE les répétitions (trot, marche) doit aussi être dans le bloc, pas en dehors
+- Ordre des steps : échauffement (block_id null) → étapes du bloc (block_id=N) → retour au calme (block_id null)
+- Si pas de blocs répétés, "blocks" = []`;
 
   const userMsg = `Convertis en JSON la séance "${sessionName}" décrite ci-dessous :\n\n${sessionText}`;
 
