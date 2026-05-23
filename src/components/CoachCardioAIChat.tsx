@@ -12,8 +12,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Send, Loader2, Trash2, Bot, User, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Send, Loader2, Trash2, Bot, User, ChevronDown, Zap } from "lucide-react";
 import { toast } from "sonner";
+import type { CardioData } from "@/components/CardioStepBuilder";
 
 // ─── OpenAI config ────────────────────────────────────────────────────────────
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
@@ -30,6 +32,8 @@ export interface AIChatSession {
   type: string; // "renfo" | "cardio" | "recup"
   exerciseCount: number;
   cardioSummary?: string; // e.g. "8.5 km · 45min · 65-100% VMA"
+  sessionId?: number;     // DB id of the session (for apply feature)
+  exerciseId?: number;    // DB id of the first cardio exercise (for apply feature)
 }
 
 /** Détail d'une séance cardio réalisée (pour l'historique IA) */
@@ -719,6 +723,173 @@ async function askOpenAI(
   }
 }
 
+// ─── Markdown renderer ────────────────────────────────────────────────────────
+function parseBoldAndCode(text: string): React.ReactNode[] {
+  // Handle **bold** and `code` inline
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return <code key={i} className="bg-black/10 dark:bg-white/10 rounded px-1 text-[11px] font-mono">{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const nodes: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (line.startsWith("### ")) {
+      nodes.push(
+        <p key={i} className="font-bold text-[13px] mt-2.5 mb-0.5 leading-snug">
+          {parseBoldAndCode(line.slice(4))}
+        </p>
+      );
+    } else if (line.startsWith("## ")) {
+      nodes.push(
+        <p key={i} className="font-bold text-[13px] mt-2.5 mb-0.5 leading-snug border-b border-current/10 pb-0.5">
+          {parseBoldAndCode(line.slice(3))}
+        </p>
+      );
+    } else if (line.startsWith("# ")) {
+      nodes.push(
+        <p key={i} className="font-bold text-sm mt-3 mb-1 leading-snug">
+          {parseBoldAndCode(line.slice(2))}
+        </p>
+      );
+    } else if (line.startsWith("- ") || line.startsWith("* ")) {
+      // Collect a run of bullet items
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && (lines[i].startsWith("- ") || lines[i].startsWith("* "))) {
+        items.push(
+          <li key={i} className="leading-relaxed">{parseBoldAndCode(lines[i].slice(2))}</li>
+        );
+        i++;
+      }
+      nodes.push(<ul key={`ul-${i}`} className="ml-3 list-disc space-y-0.5 my-0.5">{items}</ul>);
+      continue; // i already advanced
+    } else if (/^\d+\.\s/.test(line)) {
+      // Collect a run of numbered items
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+        items.push(
+          <li key={i} className="leading-relaxed">{parseBoldAndCode(lines[i].replace(/^\d+\.\s/, ""))}</li>
+        );
+        i++;
+      }
+      nodes.push(<ol key={`ol-${i}`} className="ml-3 list-decimal space-y-0.5 my-0.5">{items}</ol>);
+      continue;
+    } else if (line.trim() === "" || line.trim() === "---") {
+      nodes.push(<div key={i} className="h-1" />);
+    } else {
+      nodes.push(
+        <p key={i} className="leading-relaxed">{parseBoldAndCode(line)}</p>
+      );
+    }
+
+    i++;
+  }
+
+  return <div className="space-y-0">{nodes}</div>;
+}
+
+// ─── Cardio extraction (AI → structured CardioData) ───────────────────────────
+async function extractCardioDataFromText(
+  sessionText: string,
+  sessionName: string,
+  athleteVma: number | null | undefined,
+): Promise<CardioData> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (!apiKey) throw new Error("Clé API OpenAI manquante");
+
+  const vmaHint = athleteVma
+    ? `VMA de l'athlète : ${athleteVma} km/h. Utilise-la pour convertir les % VMA en allures et vice-versa.`
+    : "VMA inconnue — utilise des pourcentages raisonnables (EF=65%, seuil=80%, VMA=100%).";
+
+  const systemPrompt = `Tu es un assistant qui convertit des descriptions de séances cardio course à pied en JSON structuré.
+${vmaHint}
+
+Retourne UNIQUEMENT du JSON valide (pas de markdown, pas d'explication, pas de \`\`\`json).
+
+Format cible :
+{
+  "steps": [
+    {
+      "id": 1,
+      "movement_type": "course",
+      "effort_type": "duration",
+      "duration": 600,
+      "vma_percentage": 65,
+      "block_id": null
+    },
+    {
+      "id": 2,
+      "movement_type": "course",
+      "effort_type": "distance",
+      "distance": 1000,
+      "distance_unit": "m",
+      "vma_percentage": 97,
+      "block_id": 1
+    }
+  ],
+  "blocks": [
+    {
+      "id": 1,
+      "repetitions": 6,
+      "steps": []
+    }
+  ]
+}
+
+Règles :
+- movement_type : "course" (default), "marche", "velo", "natation"
+- effort_type : "duration" (durée en secondes) ou "distance" (distance en m/km)
+- Pour une série répétée (ex: "6 × 1000m"), crée un block avec repetitions=6 et mets les étapes dedans (block_id correspondant)
+- Échauffement = course 65% VMA en duration
+- Retour au calme = course 60% VMA en duration
+- Les étapes du bloc "récupération" entre les répétitions doivent aussi être dans le bloc (ex: trot 1min)
+- Ordre des steps : échauffement → corps principal → retour au calme
+- Ne jamais inventer de distance/durée si non précisée — utilise des valeurs typiques (éco = 15min, retour calme = 10min)
+- Dans "blocks", le champ "steps" contient une copie des étapes du bloc (en répétition)`;
+
+  const userMsg = `Convertis en JSON la séance "${sessionName}" décrite ci-dessous :\n\n${sessionText}`;
+
+  const resp = await fetch(OPENAI_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMsg },
+      ],
+      temperature: 0.2,
+      max_tokens: 1500,
+    }),
+  });
+
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  const data = await resp.json();
+  const raw = data.choices?.[0]?.message?.content ?? "{}";
+
+  // Strip possible ```json ... ``` wrapper
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
+  const parsed = JSON.parse(cleaned) as CardioData;
+  if (!parsed.steps) parsed.steps = [];
+  if (!parsed.blocks) parsed.blocks = [];
+  return parsed;
+}
+
 // ─── Suggested questions ──────────────────────────────────────────────────────
 const SUGGESTIONS = [
   "Analyse le volume récent et propose la semaine suivante en conséquence.",
@@ -735,13 +906,15 @@ interface CoachCardioAIChatProps {
   onOpenChange: (open: boolean) => void;
   context: AIChatContext;
   athleteId?: string;
+  onApplyToSession?: (sessionId: number, exerciseId: number, data: CardioData) => void;
 }
 
-export function CoachCardioAIChat({ open, onOpenChange, context, athleteId }: CoachCardioAIChatProps) {
+export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onApplyToSession }: CoachCardioAIChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [previousMemory, setPreviousMemory] = useState<string>("");
+  const [applyingMsg, setApplyingMsg] = useState<number | null>(null); // index of message being applied
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -803,6 +976,21 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId }: Co
     setMessages([]);
     setInput("");
     setPreviousMemory("");
+  };
+
+  const handleApplyToSession = async (msgIndex: number, session: AIChatSession) => {
+    if (!session.sessionId || !session.exerciseId || !onApplyToSession) return;
+    setApplyingMsg(msgIndex);
+    try {
+      const msgContent = messages[msgIndex].content;
+      const data = await extractCardioDataFromText(msgContent, session.name, context.athleteVma);
+      onApplyToSession(session.sessionId, session.exerciseId, data);
+      toast.success(`Séance "${session.name}" mise à jour avec le plan IA`);
+    } catch (err: any) {
+      toast.error("Erreur lors de l'extraction : " + (err?.message ?? "Inconnue"));
+    } finally {
+      setApplyingMsg(null);
+    }
   };
 
   return (
@@ -934,34 +1122,103 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId }: Co
           )}
 
           {/* Chat history */}
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}
-            >
+          {messages.map((msg, i) => {
+            // Cardio sessions eligible for "apply" (must have sessionId + exerciseId)
+            const applyableSessions = context.sessions.filter(
+              (s) => s.type === "cardio" && s.sessionId && s.exerciseId
+            );
+            const isAssistant = msg.role === "assistant";
+            const canApply = isAssistant && msg.content.length > 50 && applyableSessions.length > 0 && onApplyToSession;
+            const isApplying = applyingMsg === i;
+
+            return (
               <div
-                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                }`}
+                key={i}
+                className={`flex gap-2 items-start ${msg.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                {msg.role === "user"
-                  ? <User className="h-3.5 w-3.5" />
-                  : <Bot className="h-3.5 w-3.5 text-muted-foreground" />
-                }
+                <div
+                  className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted"
+                  }`}
+                >
+                  {msg.role === "user"
+                    ? <User className="h-3.5 w-3.5" />
+                    : <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                  }
+                </div>
+                <div className="flex flex-col gap-1 max-w-[85%]">
+                  <div
+                    className={`rounded-2xl px-3 py-2.5 text-sm ${
+                      msg.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-tr-sm whitespace-pre-wrap leading-relaxed"
+                        : "bg-muted/40 text-foreground rounded-tl-sm"
+                    }`}
+                  >
+                    {msg.role === "assistant"
+                      ? renderMarkdown(msg.content)
+                      : msg.content
+                    }
+                  </div>
+
+                  {/* Apply to session button */}
+                  {canApply && (
+                    <div className="flex items-center gap-1 pl-1">
+                      {applyableSessions.length === 1 ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                          disabled={isApplying}
+                          onClick={() => handleApplyToSession(i, applyableSessions[0])}
+                        >
+                          {isApplying
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : <Zap className="h-3 w-3" />
+                          }
+                          {isApplying ? "Application…" : `Appliquer → ${applyableSessions[0].name}`}
+                        </Button>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                              disabled={isApplying}
+                            >
+                              {isApplying
+                                ? <Loader2 className="h-3 w-3 animate-spin" />
+                                : <Zap className="h-3 w-3" />
+                              }
+                              {isApplying ? "Application…" : "Appliquer à la séance"}
+                              {!isApplying && <ChevronDown className="h-2.5 w-2.5" />}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="text-xs">
+                            {applyableSessions.map((s) => (
+                              <DropdownMenuItem
+                                key={s.sessionId}
+                                className="text-xs cursor-pointer"
+                                onClick={() => handleApplyToSession(i, s)}
+                              >
+                                <Zap className="h-3 w-3 mr-1.5 text-primary" />
+                                {s.name}
+                                {s.cardioSummary && (
+                                  <span className="ml-1.5 text-muted-foreground">({s.cardioSummary})</span>
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div
-                className={`rounded-2xl px-3 py-2.5 text-sm max-w-[85%] whitespace-pre-wrap leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-tr-sm"
-                    : "bg-muted/40 text-foreground rounded-tl-sm"
-                }`}
-              >
-                {msg.content}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Loading indicator — affiché seulement avant le premier token */}
           {loading && messages[messages.length - 1]?.content === "" && (

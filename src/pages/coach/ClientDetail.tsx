@@ -5111,13 +5111,28 @@ export default function ClientDetail() {
                   }
                   cardioSummary = parts.join(" · ");
                 }
+                // First exercise that holds cardio_content (or first exercise)
+                const cardioEx = exs.find((e: any) => e.cardio_sport || e.cardio_content) ?? exs[0];
                 return {
                   name: s.name,
                   type: s.session_type,
                   exerciseCount: exs.length,
                   cardioSummary,
+                  sessionId: s.id,
+                  exerciseId: cardioEx?.id,
                 };
               }),
+            };
+
+            const handleApplyCardioFromAI = (sessionId: number, exerciseId: number, data: import("@/components/CardioStepBuilder").CardioData) => {
+              setSessionExercises(prev => ({
+                ...prev,
+                [sessionId]: (prev[sessionId] || []).map((ex: any) =>
+                  ex.id === exerciseId
+                    ? { ...ex, cardio_content: JSON.stringify(data) }
+                    : ex
+                ),
+              }));
             };
 
             return (
@@ -5126,6 +5141,7 @@ export default function ClientDetail() {
                 onOpenChange={setShowCardioAIChat}
                 context={aiChatContext}
                 athleteId={athleteId}
+                onApplyToSession={handleApplyCardioFromAI}
               />
             );
           })()}
