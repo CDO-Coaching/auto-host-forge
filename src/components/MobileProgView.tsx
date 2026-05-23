@@ -48,6 +48,7 @@ interface Exercise {
   cardio_pace?: string;
   serie_details?: SerieDetail[] | string;
   super_set_group?: string | null;
+  is_duration?: boolean;
   [key: string]: unknown;
 }
 
@@ -236,7 +237,48 @@ function RenfoExerciseRow({
           {/* Steppers 2 colonnes */}
           <div className="grid grid-cols-2 gap-3">
             <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
-            <Stepper label="Reps" value={exercise.reps} onChange={(v) => onChange("reps", v)} step={1} min={1} freeText />
+
+            {/* Reps / Durée avec toggle */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  {exercise.is_duration ? "Durée (sec)" : "Reps"}
+                </label>
+                {!isValidated && (
+                  <button
+                    type="button"
+                    onClick={() => onChange("is_duration", String(!exercise.is_duration))}
+                    className={cn(
+                      "text-[9px] font-bold rounded-full px-2 py-0.5 border transition-colors",
+                      exercise.is_duration
+                        ? "bg-primary/20 text-primary border-primary/40"
+                        : "bg-secondary text-muted-foreground border-border/50",
+                    )}
+                  >
+                    {exercise.is_duration ? "⏱ durée" : "🔢 reps"}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button"
+                  className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; if (cur > 0) onChange("reps", String(cur - (exercise.is_duration ? 5 : 1))); }}
+                  disabled={isValidated}>−</button>
+                <Input
+                  type="text"
+                  value={exercise.reps}
+                  onChange={(e) => onChange("reps", e.target.value)}
+                  className="flex-1 h-11 text-center text-base font-semibold"
+                  placeholder={exercise.is_duration ? "sec" : "10"}
+                  disabled={isValidated}
+                />
+                <button type="button"
+                  className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; onChange("reps", String(cur + (exercise.is_duration ? 5 : 1))); }}
+                  disabled={isValidated}>+</button>
+              </div>
+            </div>
+
             <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} />
             <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />
           </div>

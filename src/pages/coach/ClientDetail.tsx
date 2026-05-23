@@ -3259,6 +3259,11 @@ export default function ClientDetail() {
   };
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
+    // Normaliser les champs booléens passés comme string depuis le mobile
+    if ((field === "is_duration" || field === "per_side") && typeof value === "string") {
+      value = value === "true";
+    }
+
     // Determine extra updates synchronously (unilateral check + auto is_duration)
     let extraUpdates: Partial<Exercise> = {};
     if (field === "exercice" && typeof value === "string") {
