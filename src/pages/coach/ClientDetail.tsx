@@ -5124,15 +5124,21 @@ export default function ClientDetail() {
               }),
             };
 
-            const handleApplyCardioFromAI = (sessionId: number, exerciseId: number, data: import("@/components/CardioStepBuilder").CardioData) => {
-              setSessionExercises(prev => ({
-                ...prev,
-                [sessionId]: (prev[sessionId] || []).map((ex: any) =>
-                  ex.id === exerciseId
-                    ? { ...ex, cardio_content: JSON.stringify(data) }
-                    : ex
-                ),
-              }));
+            const handleApplyCardioFromAI = (sessionId: number, exerciseId: number | undefined, data: import("@/components/CardioStepBuilder").CardioData) => {
+              setSessionExercises(prev => {
+                const exs = prev[sessionId] || [];
+                // Use provided exerciseId, or fall back to first exercise in session
+                const targetId = exerciseId ?? exs[0]?.id;
+                if (!targetId) return prev; // no exercise to update
+                return {
+                  ...prev,
+                  [sessionId]: exs.map((ex: any) =>
+                    ex.id === targetId
+                      ? { ...ex, cardio_content: JSON.stringify(data) }
+                      : ex
+                  ),
+                };
+              });
             };
 
             return (

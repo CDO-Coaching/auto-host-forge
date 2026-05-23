@@ -746,7 +746,13 @@ function renderMarkdown(text: string): React.ReactNode {
   while (i < lines.length) {
     const line = lines[i];
 
-    if (line.startsWith("### ")) {
+    if (line.startsWith("#### ")) {
+      nodes.push(
+        <p key={i} className="font-semibold text-[12px] mt-2 mb-0 leading-snug text-primary/90">
+          {parseBoldAndCode(line.slice(5))}
+        </p>
+      );
+    } else if (line.startsWith("### ")) {
       nodes.push(
         <p key={i} className="font-bold text-[13px] mt-2.5 mb-0.5 leading-snug">
           {parseBoldAndCode(line.slice(4))}
@@ -906,7 +912,7 @@ interface CoachCardioAIChatProps {
   onOpenChange: (open: boolean) => void;
   context: AIChatContext;
   athleteId?: string;
-  onApplyToSession?: (sessionId: number, exerciseId: number, data: CardioData) => void;
+  onApplyToSession?: (sessionId: number, exerciseId: number | undefined, data: CardioData) => void;
 }
 
 export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onApplyToSession }: CoachCardioAIChatProps) {
@@ -979,7 +985,7 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
   };
 
   const handleApplyToSession = async (msgIndex: number, session: AIChatSession) => {
-    if (!session.sessionId || !session.exerciseId || !onApplyToSession) return;
+    if (!session.sessionId || !onApplyToSession) return;
     setApplyingMsg(msgIndex);
     try {
       const msgContent = messages[msgIndex].content;
@@ -1123,9 +1129,9 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
 
           {/* Chat history */}
           {messages.map((msg, i) => {
-            // Cardio sessions eligible for "apply" (must have sessionId + exerciseId)
+            // Cardio sessions eligible for "apply" (only need sessionId)
             const applyableSessions = context.sessions.filter(
-              (s) => s.type === "cardio" && s.sessionId && s.exerciseId
+              (s) => s.type === "cardio" && s.sessionId
             );
             const isAssistant = msg.role === "assistant";
             const canApply = isAssistant && msg.content.length > 50 && applyableSessions.length > 0 && onApplyToSession;
