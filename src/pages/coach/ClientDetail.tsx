@@ -142,6 +142,17 @@ interface Exercise {
  * as a JSON string (e.g. right after a week-copy). Always returns an array,
  * never null/undefined, so callers can safely use .map / .length.
  */
+/** Construit la map { exerciceId: true } pour replier toutes les séries individuelles (length > 1). */
+function buildCollapsedSeriesMap(exercises: Record<number, Exercise[]>): Record<string, boolean> {
+  const collapsed: Record<string, boolean> = {};
+  Object.values(exercises).forEach((exList) => {
+    exList.forEach((ex) => {
+      if (getSerieDetailsArray(ex.serie_details).length > 1) collapsed[ex.id] = true;
+    });
+  });
+  return collapsed;
+}
+
 function getSerieDetailsArray(value: any): SerieDetail[] {
   if (!value) return [];
   if (Array.isArray(value)) return value;
@@ -842,23 +853,8 @@ export default function ClientDetail() {
       setSessions(newSessions);
       setSessionExercises(newExercises);
 
-      // Si la semaine est validée, replier toutes les séries individuelles par défaut
-      if (weekRecord.validated) {
-        const collapsed: Record<string, boolean> = {};
-        Object.values(newExercises).forEach((exList) => {
-          exList.forEach((ex) => {
-            const details = Array.isArray(ex.serie_details)
-              ? ex.serie_details
-              : ex.serie_details
-              ? (() => { try { const p = JSON.parse(ex.serie_details as string); return Array.isArray(p) ? p : []; } catch { return []; } })()
-              : [];
-            if (details.length > 1) collapsed[ex.id] = true;
-          });
-        });
-        setCollapsedSeriesExercises(collapsed);
-      } else {
-        setCollapsedSeriesExercises({});
-      }
+      // Replier toutes les séries individuelles par défaut (validé ou non)
+      setCollapsedSeriesExercises(buildCollapsedSeriesMap(newExercises));
 
       // Populate copiedWeekFeedback from DB exercise feedback fields
       const feedbackMap: Record<string, {
@@ -2710,6 +2706,7 @@ export default function ClientDetail() {
 
         setSessions(newSessions);
         setSessionExercises(newExercises);
+        setCollapsedSeriesExercises(buildCollapsedSeriesMap(newExercises));
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         setShowCopyDialog(false);
@@ -2861,6 +2858,7 @@ export default function ClientDetail() {
 
         setSessions(newSessions);
         setSessionExercises(newExercises);
+        setCollapsedSeriesExercises(buildCollapsedSeriesMap(newExercises));
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         toast.success(`Semaine S${previousWeek} copiée ! Vous pouvez maintenant la modifier.`);
