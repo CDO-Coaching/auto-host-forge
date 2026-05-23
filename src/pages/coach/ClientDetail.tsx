@@ -816,7 +816,7 @@ export default function ClientDetail() {
               tempo: ex.tempo || "",
               commentaire: ex.commentaire || "",
               exercise_order: ex.exercise_order || 0,
-              super_set_group: ex.superset_group || null,
+              super_set_group: ex.super_set_group || null,
               per_side: ex.per_side || false,
               is_duration: ex.is_duration || false,
               serie_details: ex.serie_details || null,
