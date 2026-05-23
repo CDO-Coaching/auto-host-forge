@@ -896,6 +896,41 @@ Règles :
   return parsed;
 }
 
+// ─── AI session section detector ──────────────────────────────────────────────
+interface AISessionSection {
+  label: string;   // e.g. "Séance 1 : Endurance Fondamentale"
+  content: string; // the text of that section only
+}
+
+function detectAISessions(text: string): AISessionSection[] {
+  const lines = text.split("\n");
+  const starts: Array<{ idx: number; label: string }> = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    // Strip markdown decorators (####, **, etc.) before testing
+    const clean = lines[i]
+      .replace(/^#+\s*/, "")
+      .replace(/\*\*/g, "")
+      .trim();
+
+    // Match "Séance N", "Séance N :", "Séance N : label", "Session N", etc.
+    if (/^S[eé]ance\s+\d+/i.test(clean)) {
+      starts.push({ idx: i, label: clean.replace(/^(S[eé]ance\s+\d+\s*:?\s*)/i, (m) => m) });
+    }
+  }
+
+  if (starts.length < 2) return [];
+
+  return starts.map((start, k) => {
+    const nextIdx = starts[k + 1]?.idx ?? lines.length;
+    const contentLines = lines.slice(start.idx, nextIdx);
+    return {
+      label: start.label,
+      content: contentLines.join("\n").trim(),
+    };
+  });
+}
+
 // ─── Suggested questions ──────────────────────────────────────────────────────
 const SUGGESTIONS = [
   "Analyse le volume récent et propose la semaine suivante en conséquence.",
@@ -920,7 +955,6 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [previousMemory, setPreviousMemory] = useState<string>("");
-  const [applyingMsg, setApplyingMsg] = useState<number | null>(null); // index of message being applied
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -984,18 +1018,28 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
     setPreviousMemory("");
   };
 
-  const handleApplyToSession = async (msgIndex: number, session: AIChatSession) => {
+  // applyingKey = "msgIndex-sessionId" to track which specific button is loading
+  const [applyingKey, setApplyingKey] = useState<string | null>(null);
+
+  const handleApplyToSession = async (
+    msgIndex: number,
+    session: AIChatSession,
+    sectionContent?: string, // only this section's text, not the whole message
+    sectionLabel?: string,   // label to display in toast
+  ) => {
     if (!session.sessionId || !onApplyToSession) return;
-    setApplyingMsg(msgIndex);
+    const key = `${msgIndex}-${session.sessionId}`;
+    setApplyingKey(key);
     try {
-      const msgContent = messages[msgIndex].content;
-      const data = await extractCardioDataFromText(msgContent, session.name, context.athleteVma);
+      const textToExtract = sectionContent ?? messages[msgIndex].content;
+      const label = sectionLabel ?? session.name;
+      const data = await extractCardioDataFromText(textToExtract, label, context.athleteVma);
       onApplyToSession(session.sessionId, session.exerciseId, data);
-      toast.success(`Séance "${session.name}" mise à jour avec le plan IA`);
+      toast.success(`"${label}" appliquée à ${session.name}`);
     } catch (err: any) {
       toast.error("Erreur lors de l'extraction : " + (err?.message ?? "Inconnue"));
     } finally {
-      setApplyingMsg(null);
+      setApplyingKey(null);
     }
   };
 
@@ -1129,13 +1173,16 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
 
           {/* Chat history */}
           {messages.map((msg, i) => {
-            // Cardio sessions eligible for "apply" (only need sessionId)
+            // Cardio slots eligible for "apply"
             const applyableSessions = context.sessions.filter(
               (s) => s.type === "cardio" && s.sessionId
             );
             const isAssistant = msg.role === "assistant";
             const canApply = isAssistant && msg.content.length > 50 && applyableSessions.length > 0 && onApplyToSession;
-            const isApplying = applyingMsg === i;
+
+            // Detect individual session sections inside the AI message
+            const aiSections = canApply ? detectAISessions(msg.content) : [];
+            const hasMultipleSections = aiSections.length >= 2;
 
             return (
               <div
@@ -1168,56 +1215,119 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
                     }
                   </div>
 
-                  {/* Apply to session button */}
+                  {/* Apply to session — one row per detected AI section */}
                   {canApply && (
-                    <div className="flex items-center gap-1 pl-1">
-                      {applyableSessions.length === 1 ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
-                          disabled={isApplying}
-                          onClick={() => handleApplyToSession(i, applyableSessions[0])}
-                        >
-                          {isApplying
-                            ? <Loader2 className="h-3 w-3 animate-spin" />
-                            : <Zap className="h-3 w-3" />
-                          }
-                          {isApplying ? "Application…" : `Appliquer → ${applyableSessions[0].name}`}
-                        </Button>
+                    <div className="flex flex-col gap-1 pl-1 pt-0.5">
+                      {hasMultipleSections ? (
+                        // Multiple sessions detected → one row per AI section
+                        aiSections.map((section, sIdx) => {
+                          // Default target = same-index programming slot
+                          const defaultTarget = applyableSessions[sIdx] ?? applyableSessions[0];
+                          const rowKey = `${i}-${sIdx}`;
+
+                          // Shorten label for display
+                          const shortLabel = section.label
+                            .replace(/^S[eé]ance\s+\d+\s*:?\s*/i, "")
+                            .trim() || section.label;
+
+                          return (
+                            <div key={sIdx} className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-medium text-muted-foreground shrink-0">
+                                Séance {sIdx + 1}{shortLabel ? ` · ${shortLabel.slice(0, 28)}${shortLabel.length > 28 ? "…" : ""}` : ""}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">→</span>
+                              {applyableSessions.length === 1 ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-5 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                  disabled={applyingKey === rowKey}
+                                  onClick={() => handleApplyToSession(i, applyableSessions[0], section.content, section.label)}
+                                >
+                                  {applyingKey === rowKey
+                                    ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                    : <Zap className="h-2.5 w-2.5" />
+                                  }
+                                  {applyingKey === rowKey ? "…" : applyableSessions[0].name}
+                                </Button>
+                              ) : (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-5 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
+                                      disabled={applyingKey === rowKey}
+                                    >
+                                      {applyingKey === rowKey
+                                        ? <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                        : <Zap className="h-2.5 w-2.5" />
+                                      }
+                                      {applyingKey === rowKey ? "…" : (defaultTarget?.name ?? "Choisir")}
+                                      {applyingKey !== rowKey && <ChevronDown className="h-2 w-2" />}
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="start">
+                                    {applyableSessions.map((s) => (
+                                      <DropdownMenuItem
+                                        key={s.sessionId}
+                                        className="text-xs cursor-pointer"
+                                        onClick={() => handleApplyToSession(i, s, section.content, section.label)}
+                                      >
+                                        <Zap className="h-3 w-3 mr-1.5 text-primary" />
+                                        {s.name}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                          );
+                        })
                       ) : (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5"
-                              disabled={isApplying}
-                            >
-                              {isApplying
-                                ? <Loader2 className="h-3 w-3 animate-spin" />
-                                : <Zap className="h-3 w-3" />
-                              }
-                              {isApplying ? "Application…" : "Appliquer à la séance"}
-                              {!isApplying && <ChevronDown className="h-2.5 w-2.5" />}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="text-xs">
-                            {applyableSessions.map((s) => (
-                              <DropdownMenuItem
-                                key={s.sessionId}
-                                className="text-xs cursor-pointer"
-                                onClick={() => handleApplyToSession(i, s)}
+                        // No clear sections detected → one button, whole message
+                        applyableSessions.length === 1 ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5 self-start"
+                            disabled={applyingKey === `${i}-single`}
+                            onClick={() => handleApplyToSession(i, applyableSessions[0])}
+                          >
+                            {applyingKey === `${i}-single`
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Zap className="h-3 w-3" />
+                            }
+                            {applyingKey === `${i}-single` ? "Application…" : `Appliquer → ${applyableSessions[0].name}`}
+                          </Button>
+                        ) : (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 text-[10px] px-2 gap-1 text-primary border-primary/30 hover:bg-primary/5 self-start"
+                                disabled={!!applyingKey}
                               >
-                                <Zap className="h-3 w-3 mr-1.5 text-primary" />
-                                {s.name}
-                                {s.cardioSummary && (
-                                  <span className="ml-1.5 text-muted-foreground">({s.cardioSummary})</span>
-                                )}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                                {applyingKey ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                                {applyingKey ? "Application…" : "Appliquer à la séance"}
+                                {!applyingKey && <ChevronDown className="h-2.5 w-2.5" />}
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              {applyableSessions.map((s) => (
+                                <DropdownMenuItem
+                                  key={s.sessionId}
+                                  className="text-xs cursor-pointer"
+                                  onClick={() => handleApplyToSession(i, s)}
+                                >
+                                  <Zap className="h-3 w-3 mr-1.5 text-primary" />
+                                  {s.name}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )
                       )}
                     </div>
                   )}
