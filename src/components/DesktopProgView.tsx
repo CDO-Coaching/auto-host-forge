@@ -1342,18 +1342,23 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             </TableCell>
                                           </TableRow>
 
-                                          {/* Series individuelles (superset) */}
-                                          {getSerieDetailsArray(ex.serie_details).length > 1 && (
+                                          {/* Series individuelles (superset) — fallback sur les séries du header si l'exo n'en a pas */}
+                                          {(() => {
+                                            const ownDetails = getSerieDetailsArray(ex.serie_details);
+                                            const headerSeries = parseInt(exercise.series) || 0;
+                                            const serieCount = ownDetails.length > 1 ? ownDetails.length : headerSeries;
+                                            const serieList = ownDetails.length > 1 ? ownDetails : Array.from({ length: headerSeries }, () => ({ reps: ex.reps ?? "", charge: ex.charge ?? "", rpe: ex.rpe ?? "", tempo: ex.tempo ?? "", commentaire: "", recuperation: ex.recuperation ?? "" }));
+                                            return serieCount > 1 ? (
                                             <>
                                               <TableRow className="bg-primary/5 border-l-4 border-l-primary cursor-pointer hover:bg-primary/10" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))}>
                                                 <TableCell colSpan={10} className="py-1 pl-10">
                                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSeriesExercises[ex.id] ? "-rotate-90" : ""}`} />
-                                                    <span>{collapsedSeriesExercises[ex.id] ? "Afficher" : "Masquer"} le détail des {getSerieDetailsArray(ex.serie_details).length} séries</span>
+                                                    <span>{collapsedSeriesExercises[ex.id] ? "Afficher" : "Masquer"} le détail des {serieCount} séries</span>
                                                   </div>
                                                 </TableCell>
                                               </TableRow>
-                                              {!collapsedSeriesExercises[ex.id] && getSerieDetailsArray(ex.serie_details).map((serie, si) => (
+                                              {!collapsedSeriesExercises[ex.id] && serieList.map((serie, si) => (
                                                 <TableRow key={`${ex.id}-ss-serie-${si}`} className="bg-muted/20">
                                                   <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                     Série {si + 1}
@@ -1379,7 +1384,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                 </TableRow>
                                               ))}
                                             </>
-                                          )}
+                                            ) : null;
+                                          })()}
                                         </React.Fragment>
                                       );
                                     })}

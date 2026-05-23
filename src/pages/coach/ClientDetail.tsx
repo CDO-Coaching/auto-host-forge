@@ -3604,47 +3604,53 @@ export default function ClientDetail() {
     const currentExercise = currentExercises[exerciseIndex];
     const nextExercise = currentExercises[exerciseIndex + 1];
 
+    // Helper: synchronise les serie_details de tous les exercices d'un groupe
+    // en s'assurant que chacun a autant d'entrées que l'exercice qui en a le plus.
+    const syncSerieDetails = (exercises: Exercise[], groupId: string): Exercise[] => {
+      const group = exercises.filter((ex) => ex.super_set_group === groupId);
+      const maxCount = Math.max(...group.map((ex) => getSerieDetailsArray(ex.serie_details).length), 0);
+      if (maxCount <= 1) return exercises;
+      return exercises.map((ex) => {
+        if (ex.super_set_group !== groupId) return ex;
+        const existing = getSerieDetailsArray(ex.serie_details);
+        if (existing.length === maxCount) return ex;
+        const defaults = { reps: ex.reps ?? "", charge: ex.charge ?? "", rpe: ex.rpe ?? "", tempo: ex.tempo ?? "", commentaire: "", recuperation: ex.recuperation ?? "" };
+        const filled = [...existing, ...Array.from({ length: maxCount - existing.length }, () => ({ ...defaults }))].slice(0, maxCount);
+        return { ...ex, serie_details: filled };
+      });
+    };
+
     // Cas 1: Aucun des deux n'est dans un groupe - créer un nouveau groupe
     if (!currentExercise.super_set_group && !nextExercise.super_set_group) {
       const newGroupId = `group-${Date.now()}`;
-      const updatedExercises = currentExercises.map((ex) => {
+      let updatedExercises = currentExercises.map((ex) => {
         if (ex.id === exerciseId || ex.id === nextExercise.id) {
           return { ...ex, super_set_group: newGroupId };
         }
         return ex;
       });
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
+      updatedExercises = syncSerieDetails(updatedExercises, newGroupId);
+      setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Super-set créé !");
     }
     // Cas 2: L'exercice actuel est dans un groupe - ajouter le suivant au groupe
     else if (currentExercise.super_set_group && !nextExercise.super_set_group) {
-      const updatedExercises = currentExercises.map((ex) => {
-        if (ex.id === nextExercise.id) {
-          return { ...ex, super_set_group: currentExercise.super_set_group };
-        }
+      let updatedExercises = currentExercises.map((ex) => {
+        if (ex.id === nextExercise.id) return { ...ex, super_set_group: currentExercise.super_set_group };
         return ex;
       });
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
+      updatedExercises = syncSerieDetails(updatedExercises, currentExercise.super_set_group!);
+      setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Exercice ajouté au super-set !");
     }
     // Cas 3: Le suivant est dans un groupe - ajouter l'actuel au groupe
     else if (!currentExercise.super_set_group && nextExercise.super_set_group) {
-      const updatedExercises = currentExercises.map((ex) => {
-        if (ex.id === exerciseId) {
-          return { ...ex, super_set_group: nextExercise.super_set_group };
-        }
+      let updatedExercises = currentExercises.map((ex) => {
+        if (ex.id === exerciseId) return { ...ex, super_set_group: nextExercise.super_set_group };
         return ex;
       });
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
+      updatedExercises = syncSerieDetails(updatedExercises, nextExercise.super_set_group!);
+      setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Exercice ajouté au super-set !");
     }
     // Cas 4: Les deux sont dans le même groupe - retirer le lien entre eux
