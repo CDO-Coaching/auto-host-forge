@@ -842,6 +842,24 @@ export default function ClientDetail() {
       setSessions(newSessions);
       setSessionExercises(newExercises);
 
+      // Si la semaine est validée, replier toutes les séries individuelles par défaut
+      if (weekRecord.validated) {
+        const collapsed: Record<string, boolean> = {};
+        Object.values(newExercises).forEach((exList) => {
+          exList.forEach((ex) => {
+            const details = Array.isArray(ex.serie_details)
+              ? ex.serie_details
+              : ex.serie_details
+              ? (() => { try { const p = JSON.parse(ex.serie_details as string); return Array.isArray(p) ? p : []; } catch { return []; } })()
+              : [];
+            if (details.length > 1) collapsed[ex.id] = true;
+          });
+        });
+        setCollapsedSeriesExercises(collapsed);
+      } else {
+        setCollapsedSeriesExercises({});
+      }
+
       // Populate copiedWeekFeedback from DB exercise feedback fields
       const feedbackMap: Record<string, {
         sportif_rpe?: string | null;
