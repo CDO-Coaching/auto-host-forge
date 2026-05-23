@@ -362,10 +362,10 @@ function RenfoExerciseRow({
 // ─── Couleurs superset ────────────────────────────────────────────────────────
 
 const SUPERSET_COLORS = [
-  { border: "border-orange-400", bg: "bg-orange-400/10", text: "text-orange-400", badge: "bg-orange-400/20 text-orange-400 border-orange-400/40" },
-  { border: "border-purple-400", bg: "bg-purple-400/10", text: "text-purple-400", badge: "bg-purple-400/20 text-purple-400 border-purple-400/40" },
-  { border: "border-cyan-400",   bg: "bg-cyan-400/10",   text: "text-cyan-400",   badge: "bg-cyan-400/20 text-cyan-400 border-cyan-400/40" },
-  { border: "border-pink-400",   bg: "bg-pink-400/10",   text: "text-pink-400",   badge: "bg-pink-400/20 text-pink-400 border-pink-400/40" },
+  { border: "border-orange-400", bg: "bg-orange-400/10", text: "text-orange-400", badge: "bg-orange-400/20 text-orange-400 border-orange-400/40", dot: "bg-orange-400" },
+  { border: "border-purple-400", bg: "bg-purple-400/10", text: "text-purple-400", badge: "bg-purple-400/20 text-purple-400 border-purple-400/40", dot: "bg-purple-400" },
+  { border: "border-cyan-400",   bg: "bg-cyan-400/10",   text: "text-cyan-400",   badge: "bg-cyan-400/20 text-cyan-400 border-cyan-400/40",   dot: "bg-cyan-400"   },
+  { border: "border-pink-400",   bg: "bg-pink-400/10",   text: "text-pink-400",   badge: "bg-pink-400/20 text-pink-400 border-pink-400/40",   dot: "bg-pink-400"   },
 ];
 
 function getSupersetColorIndex(group: string, allGroups: string[]): number {
@@ -570,14 +570,29 @@ function SessionCard({
                   return (
                     <div>
                       {exercises.map((ex, idx) => {
+                        const prevEx = exercises[idx - 1];
                         const nextEx = exercises[idx + 1];
                         const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
                         const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
+                        const isFirstInGroup = !!(ex.super_set_group && (!prevEx?.super_set_group || prevEx.super_set_group !== ex.super_set_group));
+                        const isLastInGroup = !!(ex.super_set_group && (!nextEx?.super_set_group || nextEx.super_set_group !== ex.super_set_group));
                         const linkedWithNext = !!(ex.super_set_group && nextEx?.super_set_group && ex.super_set_group === nextEx.super_set_group);
+                        const groupSize = ex.super_set_group ? exercises.filter(e => e.super_set_group === ex.super_set_group).length : 0;
+
                         return (
                           <div key={ex.id}>
-                            {/* Exercice avec bordure superset éventuelle */}
-                            <div className={cn(color && "border-l-2 pl-0", color?.border)}>
+                            {/* Header visible pour le premier exercice du groupe */}
+                            {isFirstInGroup && color && (
+                              <div className={cn("flex items-center gap-2 px-4 py-1.5 border-l-4", color.border, color.bg)}>
+                                <Link2 className={cn("h-3.5 w-3.5 shrink-0", color.text)} />
+                                <span className={cn("text-[10px] font-bold uppercase tracking-wider", color.text)}>
+                                  Superset · {groupSize} exercices
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Exercice avec bordure et fond colorés si dans un groupe */}
+                            <div className={cn(color && "border-l-4", color?.border, color?.bg)}>
                               <RenfoExerciseRow
                                 exercise={ex}
                                 sessionId={session.id}
@@ -590,26 +605,41 @@ function SessionCard({
                               />
                             </div>
 
-                            {/* Bouton superset entre exercices consécutifs */}
-                            {!isValidated && onToggleSuperSet && idx < exercises.length - 1 && (
-                              <div className="flex items-center gap-2 px-4 py-1.5">
-                                <div className={cn("h-px flex-1", linkedWithNext ? (color?.border ? `border-t-2 ${color.border}` : "border-t border-border/40") : "border-t border-border/30 border-dashed")} />
-                                <button
-                                  onClick={() => onToggleSuperSet(ex.id)}
-                                  className={cn(
-                                    "flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border transition-colors shrink-0",
-                                    linkedWithNext
-                                      ? cn("active:opacity-70", color?.badge)
-                                      : "border-border/50 text-muted-foreground bg-secondary active:bg-muted",
-                                  )}
-                                >
-                                  {linkedWithNext
-                                    ? <><Unlink className="h-3 w-3" /> Délier</>
-                                    : <><Link2 className="h-3 w-3" /> Superset</>}
-                                </button>
-                                <div className={cn("h-px flex-1", linkedWithNext ? (color?.border ? `border-t-2 ${color.border}` : "border-t border-border/40") : "border-t border-border/30 border-dashed")} />
+                            {/* Connecteur visuel entre exercices du même groupe (toujours visible) */}
+                            {linkedWithNext && color && (
+                              <div className={cn("flex items-center gap-3 px-4 py-0 border-l-4", color.border, color.bg)}>
+                                <div className={cn("w-0.5 h-5 ml-1 rounded-full opacity-40", color.dot)} />
                               </div>
                             )}
+
+                            {/* Bouton toggle superset (mode édition seulement) */}
+                            {!isValidated && onToggleSuperSet && idx < exercises.length - 1 && !linkedWithNext && (
+                              <div className="flex items-center gap-2 px-4 py-1.5">
+                                <div className="h-px flex-1 border-t border-border/30 border-dashed" />
+                                <button
+                                  onClick={() => onToggleSuperSet(ex.id)}
+                                  className="flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border border-border/50 text-muted-foreground bg-secondary active:bg-muted transition-colors shrink-0"
+                                >
+                                  <Link2 className="h-3 w-3" /> Superset
+                                </button>
+                                <div className="h-px flex-1 border-t border-border/30 border-dashed" />
+                              </div>
+                            )}
+
+                            {/* Bouton Délier (mode édition, exercices liés) */}
+                            {!isValidated && onToggleSuperSet && linkedWithNext && color && (
+                              <div className={cn("flex justify-end px-4 py-1 border-l-4", color.border, color.bg)}>
+                                <button
+                                  onClick={() => onToggleSuperSet(ex.id)}
+                                  className={cn("flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border active:opacity-70", color.badge)}
+                                >
+                                  <Unlink className="h-3 w-3" /> Délier
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Espacement après la fin d'un groupe */}
+                            {isLastInGroup && color && <div className="h-2" />}
                           </div>
                         );
                       })}
