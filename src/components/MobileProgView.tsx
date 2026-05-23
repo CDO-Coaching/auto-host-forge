@@ -12,7 +12,7 @@ import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardi
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink, Lock,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -87,6 +87,7 @@ interface MobileProgViewProps {
   onSerieDetailChange: (sessionId: number, exerciseId: number, serieIndex: number, field: string, value: string) => void;
   onToggleSuperSet?: (sessionId: number, exerciseId: number) => void;
   onSave: () => void;
+  onUnvalidate?: () => void;
   isSaving?: boolean;
   hasPreviousWeeks?: boolean;
   onCopyPreviousWeek?: () => void;
@@ -718,7 +719,8 @@ function SessionCard({
 export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
-  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onSave, isSaving,
+  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
+  onSave, onUnvalidate, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
@@ -761,6 +763,20 @@ export function MobileProgView({
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+
+      {/* ── Bannière semaine verrouillée ────────────────────────────── */}
+      {isValidated && onUnvalidate && (
+        <div className="flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10">
+          <Lock className="h-4 w-4 text-amber-400 shrink-0" />
+          <p className="text-xs text-amber-400 flex-1">Semaine verrouillée</p>
+          <button
+            onClick={onUnvalidate}
+            className="text-xs font-semibold text-amber-400 border border-amber-400/50 rounded-lg px-2.5 py-1 active:bg-amber-400/20 transition-colors shrink-0"
+          >
+            Modifier
+          </button>
+        </div>
+      )}
 
       {/* ── Retours athlète (semaine copiée) ─────────────────────────── */}
       {hasFeedback && onShowFeedback && (

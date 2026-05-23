@@ -2526,6 +2526,7 @@ export default function ClientDetail() {
         if (sessionError) throw sessionError;
 
         // 3. Pour chaque exercice de la séance, créer l'entrée
+        // On préserve les retours sportif (sportif_rpe, sportif_comment, skipped…) s'ils existent
         const exercises = sessionExercises[session.id] || [];
         if (exercises.length > 0) {
           const exercisesToInsert = exercises.map((exercise, index) => ({
@@ -2547,6 +2548,16 @@ export default function ClientDetail() {
             is_duration: exercise.is_duration || false,
             request_video: exercise.request_video || false,
             serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
+            // Préserver les retours athlète si présents
+            sportif_rpe: (exercise as any).sportif_rpe ?? null,
+            sportif_comment: (exercise as any).sportif_comment ?? null,
+            skipped: (exercise as any).skipped ?? false,
+            sportif_feedback_at: (exercise as any).sportif_feedback_at ?? null,
+            serie_rpe_details: (exercise as any).serie_rpe_details ?? null,
+            actual_distance_km: (exercise as any).actual_distance_km ?? null,
+            actual_duration_minutes: (exercise as any).actual_duration_minutes ?? null,
+            actual_pace_min_per_km: (exercise as any).actual_pace_min_per_km ?? null,
+            actual_avg_heart_rate: (exercise as any).actual_avg_heart_rate ?? null,
           }));
 
           const { error: exercisesError } = await supabase.from("session_exercises").insert(exercisesToInsert);
@@ -4723,6 +4734,7 @@ export default function ClientDetail() {
               }
               onToggleSuperSet={handleToggleSuperSet}
               onSave={handleValidate}
+              onUnvalidate={handleUnvalidate}
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
