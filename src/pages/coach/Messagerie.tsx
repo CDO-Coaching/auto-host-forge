@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, User, Users, Video, Loader2, Search } from "lucide-react";
+import { Send, User, Users, Video, Loader2, Search, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ export default function Messagerie() {
   const [broadcastDialogOpen, setBroadcastDialogOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [isSendingBroadcast, setIsSendingBroadcast] = useState(false);
+  const [selectedBroadcastIds, setSelectedBroadcastIds] = useState<Set<string>>(new Set());
+  const [broadcastSearch, setBroadcastSearch] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,16 +198,47 @@ export default function Messagerie() {
 
   const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
+  const openBroadcastDialog = () => {
+    // Pre-select all clients when opening
+    setSelectedBroadcastIds(new Set(clients.map((c) => c.id)));
+    setBroadcastSearch("");
+    setBroadcastDialogOpen(true);
+  };
+
+  const toggleBroadcastClient = (id: string) => {
+    setSelectedBroadcastIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    const filtered = clients.filter((c) => {
+      if (!broadcastSearch.trim()) return true;
+      const full = `${c.first_name} ${c.last_name}`.toLowerCase();
+      return full.includes(broadcastSearch.toLowerCase().trim());
+    });
+    const allSelected = filtered.every((c) => selectedBroadcastIds.has(c.id));
+    setSelectedBroadcastIds((prev) => {
+      const next = new Set(prev);
+      if (allSelected) filtered.forEach((c) => next.delete(c.id));
+      else filtered.forEach((c) => next.add(c.id));
+      return next;
+    });
+  };
+
   const handleSendBroadcast = async () => {
-    if (!broadcastMessage.trim() || clients.length === 0) return;
+    const targetIds = [...selectedBroadcastIds];
+    if (!broadcastMessage.trim() || targetIds.length === 0) return;
 
     setIsSendingBroadcast(true);
     try {
-      const clientIds = clients.map((c) => c.id);
-      await sendBroadcastMessage(clientIds, broadcastMessage);
+      await sendBroadcastMessage(targetIds, broadcastMessage);
       setBroadcastMessage("");
       setBroadcastDialogOpen(false);
-      toast.success(`Message envoyé à ${clients.length} client${clients.length > 1 ? 's' : ''}`);
+      toast.success(`Message envoyé à ${targetIds.length} client${targetIds.length > 1 ? 's' : ''}`);
     } catch (error) {
       console.error("Failed to send broadcast message:", error);
       toast.error("Erreur lors de l'envoi du message");
@@ -222,40 +256,115 @@ export default function Messagerie() {
             Communique avec tes clients {totalUnread > 0 && `(${totalUnread} nouveau${totalUnread > 1 ? 'x' : ''} message${totalUnread > 1 ? 's' : ''})`}
           </p>
         </div>
-        <Button 
-          onClick={() => setBroadcastDialogOpen(true)} 
+        <Button
+          onClick={openBroadcastDialog}
           disabled={clients.length === 0}
           className="gap-2"
         >
           <Users className="h-4 w-4" />
-          Message général
+          Message groupé
         </Button>
       </div>
 
-      {/* Dialog message général */}
+      {/* Dialog message groupé */}
       <Dialog open={broadcastDialogOpen} onOpenChange={setBroadcastDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Message général</DialogTitle>
+            <DialogTitle>Message groupé</DialogTitle>
             <DialogDescription>
-              Ce message sera envoyé à tous tes clients ({clients.length} client{clients.length > 1 ? 's' : ''})
+              Sélectionne les destinataires puis écris ton message.
             </DialogDescription>
           </DialogHeader>
-          <Textarea
-            placeholder="Écris ton message..."
-            value={broadcastMessage}
-            onChange={(e) => setBroadcastMessage(e.target.value)}
-            rows={5}
-          />
+
+          <div className="space-y-3">
+            {/* Recipient selector */}
+            <div className="border rounded-lg overflow-hidden">
+              {/* Search + select all bar */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <input
+                  className="flex-1 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+                  placeholder="Rechercher..."
+                  value={broadcastSearch}
+                  onChange={(e) => setBroadcastSearch(e.target.value)}
+                />
+                <button
+                  className="text-xs font-medium text-primary hover:underline shrink-0"
+                  onClick={toggleSelectAll}
+                >
+                  {(() => {
+                    const filtered = clients.filter((c) => {
+                      if (!broadcastSearch.trim()) return true;
+                      return `${c.first_name} ${c.last_name}`.toLowerCase().includes(broadcastSearch.toLowerCase().trim());
+                    });
+                    return filtered.every((c) => selectedBroadcastIds.has(c.id)) ? "Tout désélectionner" : "Tout sélectionner";
+                  })()}
+                </button>
+              </div>
+
+              {/* Client list */}
+              <ScrollArea className="h-44">
+                <div className="p-2 space-y-0.5">
+                  {clients
+                    .filter((c) => {
+                      if (!broadcastSearch.trim()) return true;
+                      return `${c.first_name} ${c.last_name}`.toLowerCase().includes(broadcastSearch.toLowerCase().trim());
+                    })
+                    .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
+                    .map((client) => (
+                      <label
+                        key={client.id}
+                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted/50 cursor-pointer"
+                      >
+                        <Checkbox
+                          checked={selectedBroadcastIds.has(client.id)}
+                          onCheckedChange={() => toggleBroadcastClient(client.id)}
+                          id={`bc-${client.id}`}
+                        />
+                        <span className="text-sm">
+                          {client.first_name} {client.last_name}
+                        </span>
+                      </label>
+                    ))}
+                  {clients.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">Aucun client</p>
+                  )}
+                </div>
+              </ScrollArea>
+
+              {/* Selection summary */}
+              <div className="px-3 py-1.5 border-t bg-muted/20 text-xs text-muted-foreground">
+                {selectedBroadcastIds.size === 0
+                  ? "Aucun destinataire sélectionné"
+                  : selectedBroadcastIds.size === clients.length
+                  ? `Tous les clients (${clients.length})`
+                  : `${selectedBroadcastIds.size} client${selectedBroadcastIds.size > 1 ? 's' : ''} sélectionné${selectedBroadcastIds.size > 1 ? 's' : ''}`}
+              </div>
+            </div>
+
+            {/* Message textarea */}
+            <Textarea
+              placeholder="Écris ton message..."
+              value={broadcastMessage}
+              onChange={(e) => setBroadcastMessage(e.target.value)}
+              rows={4}
+            />
+          </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setBroadcastDialogOpen(false)}>
               Annuler
             </Button>
-            <Button 
-              onClick={handleSendBroadcast} 
-              disabled={!broadcastMessage.trim() || isSendingBroadcast}
+            <Button
+              onClick={handleSendBroadcast}
+              disabled={!broadcastMessage.trim() || selectedBroadcastIds.size === 0 || isSendingBroadcast}
+              className="gap-2"
             >
-              {isSendingBroadcast ? "Envoi..." : "Envoyer à tous"}
+              {isSendingBroadcast ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Envoi...</>
+              ) : (
+                <><Send className="h-4 w-4" />Envoyer à {selectedBroadcastIds.size > 0 ? `${selectedBroadcastIds.size} client${selectedBroadcastIds.size > 1 ? 's' : ''}` : "..."}</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
