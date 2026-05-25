@@ -886,7 +886,7 @@ export default function SeanceDetail() {
                                 )}
                                 {ex.reps && (
                                   <Badge variant="outline" className="text-xs">
-                                    {ex.reps} reps{ex.per_side ? " (par côté)" : ""}
+                                    {ex.reps}{(ex as any).is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}{ex.per_side ? " (par côté)" : ""}
                                   </Badge>
                                 )}
                                 {ex.charge && (

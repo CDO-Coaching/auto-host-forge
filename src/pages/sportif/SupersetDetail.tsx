@@ -643,7 +643,7 @@ export default function SupersetDetail() {
                                 <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
                                   {serieData.reps && (
                                     <span className="font-medium">
-                                      {serieData.reps}{ex.is_duration ? "s" : " reps"}
+                                      {serieData.reps}{ex.is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
                                       {ex.per_side && " /côté"}
                                     </span>
                                   )}

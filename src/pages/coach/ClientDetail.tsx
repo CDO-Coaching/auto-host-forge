@@ -133,6 +133,7 @@ interface Exercise {
   per_side?: boolean;
   is_unilateral?: boolean;
   is_duration?: boolean;
+  is_distance?: boolean;
   request_video?: boolean;
   serie_details?: SerieDetail[];
 }
@@ -830,6 +831,7 @@ export default function ClientDetail() {
               super_set_group: ex.super_set_group || null,
               per_side: ex.per_side || false,
               is_duration: ex.is_duration || false,
+              is_distance: ex.is_distance || false,
               serie_details: ex.serie_details || null,
               sportif_rpe: ex.sportif_rpe || null,
               sportif_comment: ex.sportif_comment || null,
@@ -1367,6 +1369,7 @@ export default function ClientDetail() {
               super_set_group: exercise.super_set_group || null,
               per_side: exercise.per_side || false,
               is_duration: exercise.is_duration || false,
+              is_distance: exercise.is_distance || false,
               request_video: exercise.request_video || false,
               serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
             })
@@ -2086,6 +2089,7 @@ export default function ClientDetail() {
           per_side: false,
           is_unilateral: libEx?.unilateral || false,
           is_duration: false,
+          is_distance: false,
           request_video: false,
           serie_details: serieDetails,
         };
@@ -2188,6 +2192,7 @@ export default function ClientDetail() {
         tempo: ex.tempo || "",
         commentaire: ex.commentaire || "",
         is_duration: ex.is_duration || false,
+              is_distance: ex.is_distance || false,
         per_side: ex.per_side || false,
         cardio_sport: ex.cardio_sport as any || undefined,
         cardio_content: ex.cardio_content ? JSON.stringify(ex.cardio_content) : "",
@@ -2317,6 +2322,7 @@ export default function ClientDetail() {
       tempo: ex.tempo || "",
       commentaire: ex.commentaire || "",
       is_duration: ex.is_duration || false,
+              is_distance: ex.is_distance || false,
       per_side: ex.per_side || false,
       is_unilateral: libraryExercises.find(e => e.name === ex.exercice)?.unilateral || false,
       serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details) : ex.serie_details) : undefined,
@@ -2542,6 +2548,7 @@ export default function ClientDetail() {
             super_set_group: exercise.super_set_group || null,
             per_side: exercise.per_side || false,
             is_duration: exercise.is_duration || false,
+              is_distance: exercise.is_distance || false,
             request_video: exercise.request_video || false,
             serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
             // Préserver les retours athlète si présents
@@ -3260,7 +3267,7 @@ export default function ClientDetail() {
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
     // Normaliser les champs booléens passés comme string depuis le mobile
-    if ((field === "is_duration" || field === "per_side") && typeof value === "string") {
+    if ((field === "is_duration" || field === "is_distance" || field === "per_side") && typeof value === "string") {
       value = value === "true";
     }
 
@@ -3276,11 +3283,16 @@ export default function ClientDetail() {
       }
     }
 
+    // Mutual exclusivity: is_duration and is_distance cannot both be true
+    if (field === "is_duration" && value === true) extraUpdates.is_distance = false;
+    if (field === "is_distance" && value === true) extraUpdates.is_duration = false;
+
     // Auto-detect is_duration from reps value (time formats only — not distances)
     if (field === "reps" && typeof value === "string") {
       const isTimeFormat = /(\d+\s*min|\d+\s*s(?:ec)?(?!\w))/i.test(value);
       if (isTimeFormat) {
         extraUpdates.is_duration = true;
+        extraUpdates.is_distance = false;
       }
     }
 

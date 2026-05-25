@@ -869,7 +869,7 @@ export default function ExerciceDetail() {
                           )}
                           {serie.reps && (
                             <span className="font-medium">
-                              {serie.reps}{exercise.is_duration ? "s" : " reps"}
+                              {serie.reps}{exercise.is_duration ? "s" : (exercise as any).is_distance ? "m" : " reps"}
                               {exercise.per_side && " /côté"}
                             </span>
                           )}

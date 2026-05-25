@@ -98,6 +98,7 @@ const buildExerciseRow = (ex: ExerciseData) => {
     if (series) parts.push(`${series} séries`);
     if (ex.reps) {
       if (ex.is_duration) parts.push(`${ex.reps} sec`);
+      else if ((ex as any).is_distance) parts.push(`${ex.reps} m`);
       else parts.push(`${ex.reps} reps${ex.per_side ? " /côté" : ""}`);
     }
     setsReps = parts.join(" × ");

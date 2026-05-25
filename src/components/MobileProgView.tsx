@@ -49,6 +49,7 @@ interface Exercise {
   serie_details?: SerieDetail[] | string;
   super_set_group?: string | null;
   is_duration?: boolean;
+  is_distance?: boolean;
   [key: string]: unknown;
 }
 
@@ -238,43 +239,61 @@ function RenfoExerciseRow({
           <div className="grid grid-cols-2 gap-3">
             <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
 
-            {/* Reps / Durée avec toggle */}
+            {/* Reps / Durée / Distance avec toggle 3 modes */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  {exercise.is_duration ? "Durée (sec)" : "Reps"}
+                  {exercise.is_duration ? "Durée (sec)" : exercise.is_distance ? "Distance (m)" : "Reps"}
                 </label>
                 {!isValidated && (
-                  <button
-                    type="button"
-                    onClick={() => onChange("is_duration", String(!exercise.is_duration))}
-                    className={cn(
-                      "text-[9px] font-bold rounded-full px-2 py-0.5 border transition-colors",
-                      exercise.is_duration
+                  <div className="flex items-center gap-1">
+                    {/* Cycle between modes: reps → durée → distance → reps */}
+                    {(() => {
+                      const cycleMode = () => {
+                        if (!exercise.is_duration && !exercise.is_distance) {
+                          // reps → durée
+                          onChange("is_duration", "true");
+                          onChange("is_distance", "false");
+                        } else if (exercise.is_duration) {
+                          // durée → distance
+                          onChange("is_duration", "false");
+                          onChange("is_distance", "true");
+                        } else {
+                          // distance → reps
+                          onChange("is_duration", "false");
+                          onChange("is_distance", "false");
+                        }
+                      };
+                      const label = exercise.is_duration ? "⏱ durée" : exercise.is_distance ? "📏 distance" : "🔢 reps";
+                      const activeClass = (exercise.is_duration || exercise.is_distance)
                         ? "bg-primary/20 text-primary border-primary/40"
-                        : "bg-secondary text-muted-foreground border-border/50",
-                    )}
-                  >
-                    {exercise.is_duration ? "⏱ durée" : "🔢 reps"}
-                  </button>
+                        : "bg-secondary text-muted-foreground border-border/50";
+                      return (
+                        <button type="button" onClick={cycleMode}
+                          className={cn("text-[9px] font-bold rounded-full px-2 py-0.5 border transition-colors", activeClass)}>
+                          {label}
+                        </button>
+                      );
+                    })()}
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <button type="button"
                   className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; if (cur > 0) onChange("reps", String(cur - (exercise.is_duration ? 5 : 1))); }}
+                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; if (cur > 0) onChange("reps", String(cur - (exercise.is_duration ? 5 : exercise.is_distance ? 10 : 1))); }}
                   disabled={isValidated}>−</button>
                 <Input
                   type="text"
                   value={exercise.reps}
                   onChange={(e) => onChange("reps", e.target.value)}
                   className="flex-1 h-11 text-center text-base font-semibold"
-                  placeholder={exercise.is_duration ? "sec" : "10"}
+                  placeholder={exercise.is_duration ? "sec" : exercise.is_distance ? "m" : "10"}
                   disabled={isValidated}
                 />
                 <button type="button"
                   className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; onChange("reps", String(cur + (exercise.is_duration ? 5 : 1))); }}
+                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; onChange("reps", String(cur + (exercise.is_duration ? 5 : exercise.is_distance ? 10 : 1))); }}
                   disabled={isValidated}>+</button>
               </div>
             </div>
