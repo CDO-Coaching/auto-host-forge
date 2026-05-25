@@ -42,6 +42,7 @@ interface SerieValidation {
   rpe: number | null;
   actual_reps?: string | null;
   actual_charge?: string | null;
+  modification_type?: "failure" | "too_easy" | null;
 }
 
 export default function SupersetDetail() {
@@ -71,6 +72,7 @@ export default function SupersetDetail() {
   const [rpeInputValue, setRpeInputValue] = useState("");
   const [rpeActualReps, setRpeActualReps] = useState("");
   const [rpeActualCharge, setRpeActualCharge] = useState("");
+  const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
   const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
 
   const {
@@ -231,6 +233,7 @@ export default function SupersetDetail() {
     setRpeInputValue(defaultVal);
     setRpeActualReps("");
     setRpeActualCharge("");
+    setModificationType("none");
     setRpeDialogOpen(true);
   };
 
@@ -242,12 +245,14 @@ export default function SupersetDetail() {
     }
     if (rpeDialogSerieIndex === null) return;
 
+    const hasModif = modificationType !== "none";
     const newValidations = [...serieValidations];
     newValidations[rpeDialogSerieIndex] = {
       validated: true,
       rpe: rpeNumber,
-      actual_reps: rpeActualReps.trim() || null,
-      actual_charge: rpeActualCharge.trim() || null,
+      actual_reps: (hasModif && rpeActualReps.trim()) ? rpeActualReps.trim() : null,
+      actual_charge: (hasModif && rpeActualCharge.trim()) ? rpeActualCharge.trim() : null,
+      modification_type: hasModif ? modificationType : null,
     };
     setSerieValidations(newValidations);
 
@@ -256,6 +261,7 @@ export default function SupersetDetail() {
     setRpeInputValue("");
     setRpeActualReps("");
     setRpeActualCharge("");
+    setModificationType("none");
 
     // Figure out position
     const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
@@ -329,7 +335,7 @@ export default function SupersetDetail() {
       const exercise = allExerciseRows[i];
       // Build per-serie RPE for this exercise (rounds where this exercise was validated)
       const exIdx = exercises.findIndex(e => e.id === exercise.id);
-      const perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] = [];
+      const perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: string | null }[] = [];
       if (exIdx >= 0) {
         for (let r = 0; r < totalRounds; r++) {
           const vIdx = r * exercises.length + exIdx;
@@ -338,6 +344,7 @@ export default function SupersetDetail() {
             rpe: sv?.rpe ?? null,
             actual_reps: sv?.actual_reps ?? null,
             actual_charge: sv?.actual_charge ?? null,
+            modification_type: sv?.modification_type ?? null,
           });
         }
       }
@@ -556,7 +563,7 @@ export default function SupersetDetail() {
               </div>
             </div>
 
-            {/* Corrections optionnelles */}
+            {/* Corrections optionnelles — accordéons */}
             {rpeDialogSerieIndex !== null && (() => {
               const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
               const exIdx = rpeDialogSerieIndex % exercises.length;
@@ -564,20 +571,79 @@ export default function SupersetDetail() {
               const seriesData = getSeriesDataForExercise(ex);
               const prescribedReps = seriesData[roundIdx]?.reps || ex?.reps;
               const prescribedCharge = seriesData[roundIdx]?.charge || ex?.charge;
+              const prescribedRpe = seriesData[roundIdx]?.rpe || ex?.rpe;
               if (!prescribedReps && !prescribedCharge) return null;
-              return (
-                <div className="border-t pt-3 space-y-3">
-                  <p className="text-xs text-muted-foreground font-medium">En échec ? Signale ce que tu as réellement fait :</p>
+
+              const modFields = (
+                <div className="space-y-2 mt-2 pl-1">
                   {prescribedReps && (
                     <div className="space-y-1">
-                      <Label className="text-xs">Reps effectuées <span className="text-muted-foreground">(prévu : {prescribedReps})</span></Label>
+                      <Label className="text-xs text-muted-foreground">Reps réellement faites <span className="font-medium text-foreground">(prévu : {prescribedReps})</span></Label>
                       <Input type="number" inputMode="numeric" value={rpeActualReps} onChange={(e) => setRpeActualReps(e.target.value)} placeholder={prescribedReps} className="h-8 text-sm" />
                     </div>
                   )}
                   {prescribedCharge && (
                     <div className="space-y-1">
-                      <Label className="text-xs">Charge utilisée <span className="text-muted-foreground">(prévu : {prescribedCharge})</span></Label>
+                      <Label className="text-xs text-muted-foreground">Charge réellement utilisée <span className="font-medium text-foreground">(prévu : {prescribedCharge})</span></Label>
                       <Input value={rpeActualCharge} onChange={(e) => setRpeActualCharge(e.target.value)} placeholder={prescribedCharge} className="h-8 text-sm" />
+                    </div>
+                  )}
+                </div>
+              );
+
+              return (
+                <div className="border-t pt-3 space-y-2">
+                  {/* Échec */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModificationType(prev => prev === "failure" ? "none" : "failure");
+                      setRpeActualReps("");
+                      setRpeActualCharge("");
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-sm transition-colors ${
+                      modificationType === "failure"
+                        ? "border-red-400/60 bg-red-500/10 text-red-700"
+                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 font-medium">
+                      <span>😓</span>
+                      <span>Pas réussi — j'ai fait moins</span>
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${modificationType === "failure" ? "rotate-180" : ""}`} />
+                  </button>
+                  {modificationType === "failure" && modFields}
+
+                  {/* Trop facile */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModificationType(prev => prev === "too_easy" ? "none" : "too_easy");
+                      setRpeActualReps("");
+                      setRpeActualCharge("");
+                    }}
+                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-sm transition-colors ${
+                      modificationType === "too_easy"
+                        ? "border-blue-400/60 bg-blue-500/10 text-blue-700"
+                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 font-medium">
+                      <span>💪</span>
+                      <span>Trop facile — j'ai ajusté</span>
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${modificationType === "too_easy" ? "rotate-180" : ""}`} />
+                  </button>
+                  {modificationType === "too_easy" && (
+                    <div className="space-y-2 mt-1">
+                      <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-400/30 rounded-lg text-xs text-amber-700">
+                        <span className="shrink-0 mt-0.5">⚠️</span>
+                        <span>
+                          Attention : reste dans ta zone RPE{prescribedRpe ? ` ${prescribedRpe}` : ""}. Augmenter la charge ou les reps doit être cohérent avec ton ressenti — ne force pas au-delà de tes capacités du moment.
+                        </span>
+                      </div>
+                      {modFields}
                     </div>
                   )}
                 </div>

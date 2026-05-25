@@ -238,7 +238,7 @@ export interface DesktopProgViewProps {
     sportif_rpe?: string | null;
     sportif_comment?: string | null;
     skipped?: boolean;
-    serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] | null;
+    serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: "failure" | "too_easy" | null }[] | null;
   }>;
   setCopiedWeekFeedback: React.Dispatch<React.SetStateAction<any>>;
   getExerciseFeedback: (sessionId: number, name: string) => any;
@@ -1360,6 +1360,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSeriesExercises[ex.id] ? "-rotate-90" : ""}`} />
                                                     <span>{collapsedSeriesExercises[ex.id] ? "Afficher" : "Masquer"} le détail des {serieCount} séries</span>
+                                                    {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const hasFailure = fb?.serie_rpe_details?.some(sd => sd.modification_type === "failure"); const hasTooEasy = fb?.serie_rpe_details?.some(sd => sd.modification_type === "too_easy"); const hasAnyModif = fb?.serie_rpe_details?.some(sd => sd.actual_reps || sd.actual_charge); if (!hasAnyModif) return null; return (<span className={`ml-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${hasFailure ? "bg-red-500/15 text-red-600" : "bg-blue-500/15 text-blue-600"}`}>{hasFailure ? "⬇ échec" : "⬆ ajusté"} — voir les séries</span>); })()}
                                                   </div>
                                                 </TableCell>
                                               </TableRow>
@@ -1367,7 +1368,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                 <TableRow key={`${ex.id}-ss-serie-${si}`} className="bg-muted/20">
                                                   <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                     Série {si + 1}
-                                                    {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; return (<span className="ml-2 inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500">RPE {sd.rpe}</span>}{sd.actual_reps && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_reps} reps (prévu {serie.reps || ex.reps})</span>}{sd.actual_charge && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_charge} (prévu {serie.charge || ex.charge})</span>}</span>); })()}
+                                                    {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; const isFailure = sd.modification_type === "failure"; const isTooEasy = sd.modification_type === "too_easy"; return (<span className="ml-2 inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500 font-medium">RPE {sd.rpe}</span>}{sd.actual_reps && <span className={`text-[10px] font-semibold ${isFailure ? "text-red-500" : isTooEasy ? "text-blue-500" : "text-orange-500"}`}>{isFailure ? "⬇" : isTooEasy ? "⬆" : "≠"} {sd.actual_reps} reps (prévu {serie.reps || ex.reps})</span>}{sd.actual_charge && <span className={`text-[10px] font-semibold ${isFailure ? "text-red-500" : isTooEasy ? "text-blue-500" : "text-orange-500"}`}>{isFailure ? "⬇" : isTooEasy ? "⬆" : "≠"} {sd.actual_charge} (prévu {serie.charge || ex.charge})</span>}</span>); })()}
                                                   </TableCell>
                                                   <TableCell className="py-1">
                                                     <Select value={serie.recuperation || ex.recuperation || ""} onValueChange={(v) => onSerieDetailChange(selectedSession.id, ex.id, si, "recuperation", v)} disabled={isValidated}>
@@ -1512,6 +1513,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSeriesExercises[exercise.id] ? "-rotate-90" : ""}`} />
                                               <span>{collapsedSeriesExercises[exercise.id] ? "Afficher" : "Masquer"} le détail des {getSerieDetailsArray(exercise.serie_details).length} séries</span>
+                                              {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const hasFailure = fb?.serie_rpe_details?.some(sd => sd.modification_type === "failure"); const hasTooEasy = fb?.serie_rpe_details?.some(sd => sd.modification_type === "too_easy"); const hasAnyModif = fb?.serie_rpe_details?.some(sd => sd.actual_reps || sd.actual_charge); if (!hasAnyModif) return null; return (<span className={`ml-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${hasFailure ? "bg-red-500/15 text-red-600" : "bg-blue-500/15 text-blue-600"}`}>{hasFailure ? "⬇ échec" : "⬆ ajusté"} — voir les séries</span>); })()}
                                             </div>
                                           </TableCell>
                                         </TableRow>
@@ -1534,7 +1536,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                 <span className="flex items-center flex-wrap gap-1">
                                                   Série {si + 1}
-                                                  {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; return (<span className="inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500">RPE {sd.rpe}</span>}{sd.actual_reps && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_reps} reps (prévu {serie.reps || exercise.reps})</span>}{sd.actual_charge && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_charge} (prévu {serie.charge || exercise.charge})</span>}</span>); })()}
+                                                  {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; const isFailure = sd.modification_type === "failure"; const isTooEasy = sd.modification_type === "too_easy"; return (<span className="inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500 font-medium">RPE {sd.rpe}</span>}{sd.actual_reps && <span className={`text-[10px] font-semibold ${isFailure ? "text-red-500" : isTooEasy ? "text-blue-500" : "text-orange-500"}`}>{isFailure ? "⬇" : isTooEasy ? "⬆" : "≠"} {sd.actual_reps} reps (prévu {serie.reps || exercise.reps})</span>}{sd.actual_charge && <span className={`text-[10px] font-semibold ${isFailure ? "text-red-500" : isTooEasy ? "text-blue-500" : "text-orange-500"}`}>{isFailure ? "⬇" : isTooEasy ? "⬆" : "≠"} {sd.actual_charge} (prévu {serie.charge || exercise.charge})</span>}</span>); })()}
                                                 </span>
                                               </TableCell>
                                               <TableCell className="py-1">
