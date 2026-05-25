@@ -3958,6 +3958,32 @@ export default function ClientDetail() {
                   {headerInjury.avgPain.toFixed(1)}/7
                 </span>
                )}
+              {/* Prochain milestone */}
+              {(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const next = athleteMilestones
+                  .filter((m: any) => !m.completed && new Date(m.target_date) >= today)
+                  .sort((a: any, b: any) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime())[0];
+                if (!next) return null;
+                const daysLeft = Math.ceil((new Date(next.target_date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const isUrgent = daysLeft <= 14;
+                const label = daysLeft === 0 ? "Aujourd'hui" : daysLeft === 1 ? "Demain" : `J-${daysLeft}`;
+                return (
+                  <span
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border cursor-pointer ${
+                      isUrgent
+                        ? "bg-amber-500/20 text-amber-400 border-amber-500/40"
+                        : "bg-primary/10 text-primary border-primary/30"
+                    }`}
+                    title={`${next.label} — ${new Date(next.target_date).toLocaleDateString("fr-FR")}`}
+                    onClick={() => setActiveTab("objectifs")}
+                  >
+                    🎯 {label} · {next.label}
+                  </span>
+                );
+              })()}
+
               {/* Cycles actifs inline */}
               {(() => {
                 const today = new Date();
