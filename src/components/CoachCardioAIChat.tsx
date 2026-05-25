@@ -8,13 +8,13 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Send, Loader2, Trash2, Bot, User, ChevronDown, Zap } from "lucide-react";
+import { Send, Loader2, Trash2, Bot, User, ChevronDown, Zap, X } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import type { CardioData } from "@/components/CardioStepBuilder";
 
 // ─── OpenAI config ────────────────────────────────────────────────────────────
@@ -1034,20 +1034,36 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-lg flex flex-col p-0 gap-0">
+    <>
+      {/* Mobile backdrop (click to close) */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 sm:hidden"
+          onClick={() => onOpenChange(false)}
+        />
+      )}
+
+      {/* Panel — fixed right sidebar */}
+      <div
+        className={cn(
+          "fixed top-16 right-0 bottom-0 z-50 flex flex-col bg-background border-l shadow-xl",
+          "w-full sm:w-[440px]",
+          "transition-transform duration-300 ease-in-out",
+          open ? "translate-x-0" : "translate-x-full pointer-events-none"
+        )}
+      >
 
         {/* Header */}
-        <SheetHeader className="px-4 py-3 border-b shrink-0">
+        <div className="px-4 py-3 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <Bot className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <SheetTitle className="text-sm font-semibold leading-tight">
+                <p className="text-sm font-semibold leading-tight">
                   IA Cardio & Course
-                </SheetTitle>
+                </p>
                 <p className="text-[10px] text-muted-foreground leading-tight">
                   Conseils programmation — S{context.selectedWeek.week}
                   {context.athleteName ? ` · ${context.athleteName}` : ""}
@@ -1071,9 +1087,18 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => onOpenChange(false)}
+                title="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
-        </SheetHeader>
+        </div>
 
         {/* Context pills */}
         {(() => {
@@ -1371,7 +1396,7 @@ export function CoachCardioAIChat({ open, onOpenChange, context, athleteId, onAp
           </p>
         </div>
 
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   );
 }

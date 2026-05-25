@@ -4062,7 +4062,7 @@ export default function ClientDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="programmation" className="space-y-4">
+        <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>
           {/* Boutons flottants en haut - scrollable sur mobile */}
           <div className="fixed top-16 left-0 right-0 z-50 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:w-auto overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 sm:gap-2 w-max mx-auto sm:w-auto">
