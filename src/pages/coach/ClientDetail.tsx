@@ -3826,7 +3826,7 @@ export default function ClientDetail() {
 
       // Construire l'ordre dynamiquement selon si l'exo est unilatéral
       const exercise = sessionExercises[sessionId]?.find((ex) => ex.id === exerciseId);
-      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration"];
+      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance"];
       if (exercise?.is_unilateral) fieldOrder.push("per_side");
       fieldOrder.push("rpe", "charge", "tempo", "commentaire", "series");
 
