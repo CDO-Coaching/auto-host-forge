@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -10,7 +10,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Wind, Timer, Play, Pause, RotateCcw, ChevronUp, ChevronDown, Volume2, VolumeX } from "lucide-react";
+import { Wind, Timer, Play, Pause, RotateCcw, ChevronUp, ChevronDown, Volume2, VolumeX, ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useWakeLock } from "@/hooks/useWakeLock";
 type BreathPhase = "preparation" | "inhale" | "holdIn" | "exhale" | "holdOut" | "finished";
 
@@ -64,6 +65,7 @@ const PHASE_COLORS: Record<BreathPhase, string> = {
 };
 
 export default function Meditation() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const presetApplied = useRef(false);
   
@@ -332,9 +334,14 @@ export default function Meditation() {
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold">Méditation</h1>
-        <p className="text-muted-foreground">Exercice de respiration guidée</p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold">Méditation</h1>
+          <p className="text-muted-foreground text-sm">Exercice de respiration guidée</p>
+        </div>
       </div>
 
       {/* Timer Display */}

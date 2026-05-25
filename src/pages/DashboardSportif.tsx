@@ -91,7 +91,7 @@ export default function DashboardSportif() {
               Prêt à donner le meilleur de toi-même aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-3 sm:p-4 md:p-6 app-container smooth-scroll">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-20 sm:pb-6 app-container smooth-scroll">
             <PageErrorBoundary fallbackPath="/sportif/seances">
               <Routes>
                 <Route path="/" element={<Navigate to="/sportif/dashboard" replace />} />
@@ -122,7 +122,7 @@ export default function DashboardSportif() {
           </main>
         </div>
         <ChatBubble />
-        {/* SportifBottomNav supprimé — navigation via burger en haut */}
+        <SportifBottomNav />
       </div>
       <DailyFatigueDialog 
         open={shouldShowDialog && !isChecking} 

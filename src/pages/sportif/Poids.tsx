@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Scale, Trash2, Bell } from "lucide-react";
+import { Plus, Scale, Trash2, Bell, ChevronLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function Poids() {
+  const navigate = useNavigate();
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -189,7 +191,10 @@ export default function Poids() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
           <Scale className="h-8 w-8 text-primary" />
           <h1 className="text-3xl font-bold">Suivi du poids</h1>
         </div>

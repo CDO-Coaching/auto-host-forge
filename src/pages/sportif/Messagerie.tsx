@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Video, Loader2, User } from "lucide-react";
+import { Send, Video, Loader2, User, ChevronLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 
 export default function Messagerie() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [coachId, setCoachId] = useState<string | null>(null);
   const [coachName, setCoachName] = useState<string>("ton coach");
@@ -143,11 +145,16 @@ export default function Messagerie() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Messagerie</h1>
-        <p className="text-muted-foreground mt-2">
-          Échange avec {coachName}
-        </p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold">Messagerie</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Échange avec {coachName}
+          </p>
+        </div>
       </div>
 
       <Card>

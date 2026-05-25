@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Download, Check } from "lucide-react";
+import { Smartphone, Download, Check, ChevronLeft } from "lucide-react";
 
 export default function Install() {
+  const navigate = useNavigate();
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
@@ -44,11 +46,16 @@ export default function Install() {
 
   return (
     <div className="space-y-4 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-bold">Installer l'application</h1>
-        <p className="text-sm sm:text-base text-muted-foreground mt-2">
-          Installe CDO Coaching sur ton téléphone pour un accès rapide
-        </p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Installer l'application</h1>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Installe CDO Coaching sur ton téléphone pour un accès rapide
+          </p>
+        </div>
       </div>
 
       <Card>

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { FileText, Loader2, RefreshCw, Download, Calendar, CheckCircle } from "lucide-react";
+import { FileText, Loader2, RefreshCw, Download, Calendar, CheckCircle, ChevronLeft } from "lucide-react";
 import jsPDF from "jspdf";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -22,6 +23,7 @@ interface Invoice {
 }
 
 export default function MesFactures() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
@@ -229,14 +231,19 @@ export default function MesFactures() {
   return (
     <div className="container max-w-2xl mx-auto py-8 px-4 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="h-6 w-6 text-primary" />
-            Mes factures
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Historique de vos factures
-          </p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <FileText className="h-6 w-6 text-primary" />
+              Mes factures
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Historique de vos factures
+            </p>
+          </div>
         </div>
         <Button
           variant="outline"

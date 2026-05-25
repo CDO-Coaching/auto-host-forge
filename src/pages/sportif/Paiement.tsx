@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat, XCircle } from "lucide-react";
+import { CreditCard, Check, ExternalLink, Loader2, RefreshCw, Calendar, Repeat, XCircle, ChevronLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPaymentLinkWithParams, getProductByPriceId, STRIPE_PRODUCTS } from "@/lib/stripeConfig";
 import {
@@ -43,6 +43,7 @@ interface ActiveSubscription {
 }
 
 export default function Paiement() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [assignedSubscriptions, setAssignedSubscriptions] = useState<AssignedSubscription[]>([]);
   const [activeSubscriptions, setActiveSubscriptions] = useState<ActiveSubscription[]>([]);
@@ -303,14 +304,19 @@ export default function Paiement() {
     <>
       <div className="container max-w-2xl mx-auto py-8 px-4 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CreditCard className="h-6 w-6 text-primary" />
-            Mes paiements
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gérez vos abonnements et paiements
-          </p>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <CreditCard className="h-6 w-6 text-primary" />
+              Mes paiements
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Gérez vos abonnements et paiements
+            </p>
+          </div>
         </div>
         <Button
           variant="outline"

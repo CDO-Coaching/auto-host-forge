@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, TrendingUp } from "lucide-react";
+import { Plus, TrendingUp, ChevronLeft } from "lucide-react";
 import { MaxDialog } from "@/components/MaxDialog";
 import { MaxesList } from "@/components/MaxesList";
 import { MaxProgressChart } from "@/components/MaxProgressChart";
@@ -39,6 +40,7 @@ interface MaxHistory {
 }
 
 export default function Maxes() {
+  const navigate = useNavigate();
   const [maxes, setMaxes] = useState<Max[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -246,7 +248,12 @@ export default function Maxes() {
       {userId && <VmaCard athleteId={userId} />}
       
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Mes Max</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigate(-1)}>
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-3xl font-bold">Mes Max</h1>
+        </div>
         <Button onClick={() => setDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau max
