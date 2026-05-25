@@ -3155,10 +3155,10 @@ export default function ClientDetail() {
   };
 
   const handleAddExercise = (sessionId: number) => {
-    const currentExercises = sessionExercises[sessionId] || [];
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
 
+    const currentExercises = sessionExercises[sessionId] || [];
     const maxId = currentExercises.reduce((max, ex) => Math.max(max, ex.id), 0);
     const newExerciseId = maxId + 1;
     const newExercise: Exercise = {
@@ -3166,7 +3166,7 @@ export default function ClientDetail() {
       exercice: isCardio ? "Séance Cardio" : "",
       recuperation: isCardio ? "" : "1min30s",
       reps: "",
-      series: "",
+      series: "1",
       charge: "",
       rpe: "",
       tempo: "",
@@ -3176,10 +3176,10 @@ export default function ClientDetail() {
       cardio_pace: isCardio ? "" : undefined,
     };
 
-    setSessionExercises({
-      ...sessionExercises,
-      [sessionId]: [...currentExercises, newExercise],
-    });
+    setSessionExercises((prev) => ({
+      ...prev,
+      [sessionId]: [...(prev[sessionId] || []), newExercise],
+    }));
 
     // Après insertion, descendre automatiquement en bas et amener la nouvelle ligne à l'écran
     setTimeout(() => {
@@ -3559,39 +3559,32 @@ export default function ClientDetail() {
     // Sauvegarder l'état avant suppression pour undo
     setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
 
-    const currentExercises = sessionExercises[sessionId] || [];
-    const exerciseToDelete = currentExercises.find((ex) => ex.id === exerciseId);
+    setSessionExercises((prev) => {
+      const currentExercises = prev[sessionId] || [];
+      const exerciseToDelete = currentExercises.find((ex) => ex.id === exerciseId);
 
-    // Si l'exercice supprimé fait partie d'un super-set, retirer aussi le groupe des autres
-    if (exerciseToDelete?.super_set_group) {
-      const groupExercises = currentExercises.filter((ex) => ex.super_set_group === exerciseToDelete.super_set_group);
+      let updatedExercises: Exercise[];
 
-      // Si le groupe n'a plus que 2 exercices après suppression, retirer le groupe
-      if (groupExercises.length === 2) {
-        const updatedExercises = currentExercises
-          .filter((ex) => ex.id !== exerciseId)
-          .map((ex) =>
-            ex.super_set_group === exerciseToDelete.super_set_group ? { ...ex, super_set_group: null } : ex,
-          );
+      // Si l'exercice supprimé fait partie d'un super-set, retirer aussi le groupe des autres
+      if (exerciseToDelete?.super_set_group) {
+        const groupExercises = currentExercises.filter((ex) => ex.super_set_group === exerciseToDelete.super_set_group);
 
-        setSessionExercises({
-          ...sessionExercises,
-          [sessionId]: updatedExercises,
-        });
+        // Si le groupe n'a plus que 2 exercices après suppression, retirer le groupe
+        if (groupExercises.length === 2) {
+          updatedExercises = currentExercises
+            .filter((ex) => ex.id !== exerciseId)
+            .map((ex) =>
+              ex.super_set_group === exerciseToDelete.super_set_group ? { ...ex, super_set_group: null } : ex,
+            );
+        } else {
+          updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
+        }
       } else {
-        const updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
-        setSessionExercises({
-          ...sessionExercises,
-          [sessionId]: updatedExercises,
-        });
+        updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
       }
-    } else {
-      const updatedExercises = currentExercises.filter((ex) => ex.id !== exerciseId);
-      setSessionExercises({
-        ...sessionExercises,
-        [sessionId]: updatedExercises,
-      });
-    }
+
+      return { ...prev, [sessionId]: updatedExercises };
+    });
 
     toast.success("Ligne supprimée");
   };
