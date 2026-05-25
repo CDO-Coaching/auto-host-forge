@@ -3159,8 +3159,10 @@ export default function ClientDetail() {
     const isCardio = session?.session_type === "cardio";
 
     const currentExercises = sessionExercises[sessionId] || [];
-    const maxId = currentExercises.reduce((max, ex) => Math.max(max, ex.id), 0);
-    const newExerciseId = maxId + 1;
+    // Use Date.now() as a unique temporary numeric ID.
+    // Exercise IDs from Supabase are UUID strings; Math.max on strings yields NaN,
+    // making ex.id === NaN always false and breaking handleExerciseChange lookups.
+    const newExerciseId = Date.now();
     const newExercise: Exercise = {
       id: newExerciseId,
       exercice: isCardio ? "Séance Cardio" : "",
