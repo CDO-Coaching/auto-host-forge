@@ -3374,14 +3374,6 @@ export default function ClientDetail() {
 
           const update: Partial<Exercise> = { [field]: finalValue, ...extraUpdates };
 
-          // Auto-estimate RPE when charge or reps changes (only if a 1RM is known)
-          if (field === "charge" || field === "reps") {
-            const newCharge = field === "charge" ? (finalValue as string) : ex.charge;
-            const newReps   = field === "reps"   ? (value as string)      : ex.reps;
-            const estimated = estimateRpe(newCharge, newReps, ex.exercice);
-            if (estimated !== null) update.rpe = estimated;
-          }
-
           // Propagate main-line value changes to all serie_details.
           // Skipped for tempo which is intentionally per-serie.
           if (
@@ -3455,14 +3447,6 @@ export default function ClientDetail() {
               : value;
 
           const serieUpdate: Partial<SerieDetail> = { [field]: finalValue };
-
-          // Auto-estimate RPE per-serie when charge or reps changes
-          if (field === "charge" || field === "reps") {
-            const newCharge = field === "charge" ? finalValue : (details[serieIndex].charge || ex.charge);
-            const newReps   = field === "reps"   ? finalValue : (details[serieIndex].reps   || ex.reps);
-            const estimated = estimateRpe(newCharge, newReps, ex.exercice);
-            if (estimated !== null) serieUpdate.rpe = estimated;
-          }
 
           details[serieIndex] = { ...details[serieIndex], ...serieUpdate };
         }
