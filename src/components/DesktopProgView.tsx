@@ -238,7 +238,7 @@ export interface DesktopProgViewProps {
     sportif_rpe?: string | null;
     sportif_comment?: string | null;
     skipped?: boolean;
-    serie_rpe_details?: { rpe: number | null }[] | null;
+    serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] | null;
   }>;
   setCopiedWeekFeedback: React.Dispatch<React.SetStateAction<any>>;
   getExerciseFeedback: (sessionId: number, name: string) => any;
@@ -1367,7 +1367,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                 <TableRow key={`${ex.id}-ss-serie-${si}`} className="bg-muted/20">
                                                   <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                     Série {si + 1}
-                                                    {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const rpe = fb?.serie_rpe_details?.[si]?.rpe; return rpe != null ? <span className="ml-2 text-[10px] text-orange-500">RPE {rpe}</span> : null; })()}
+                                                    {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; return (<span className="ml-2 inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500">RPE {sd.rpe}</span>}{sd.actual_reps && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_reps} reps (prévu {serie.reps || ex.reps})</span>}{sd.actual_charge && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_charge} (prévu {serie.charge || ex.charge})</span>}</span>); })()}
                                                   </TableCell>
                                                   <TableCell className="py-1">
                                                     <Select value={serie.recuperation || ex.recuperation || ""} onValueChange={(v) => onSerieDetailChange(selectedSession.id, ex.id, si, "recuperation", v)} disabled={isValidated}>
@@ -1532,9 +1532,9 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                           return (
                                             <TableRow key={`${exercise.id}-serie-${si}`} className="bg-muted/20">
                                               <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
-                                                <span className="flex items-center gap-2">
+                                                <span className="flex items-center flex-wrap gap-1">
                                                   Série {si + 1}
-                                                  {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const rpe = fb?.serie_rpe_details?.[si]?.rpe; return rpe != null ? <span className="text-[10px] text-orange-500">RPE {rpe}</span> : null; })()}
+                                                  {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const sd = fb?.serie_rpe_details?.[si]; if (!sd) return null; return (<span className="inline-flex flex-wrap gap-1">{sd.rpe != null && <span className="text-[10px] text-orange-500">RPE {sd.rpe}</span>}{sd.actual_reps && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_reps} reps (prévu {serie.reps || exercise.reps})</span>}{sd.actual_charge && <span className="text-[10px] text-red-500 font-semibold">⚠ {sd.actual_charge} (prévu {serie.charge || exercise.charge})</span>}</span>); })()}
                                                 </span>
                                               </TableCell>
                                               <TableCell className="py-1">

@@ -200,7 +200,7 @@ export default function ClientDetail() {
     sportif_rpe?: string | null; 
     sportif_comment?: string | null; 
     skipped?: boolean;
-    serie_rpe_details?: { rpe: number | null }[] | null;
+    serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] | null;
   }>>({});
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [collapsedSeriesExercises, setCollapsedSeriesExercises] = useState<Record<string, boolean>>({});
@@ -863,7 +863,7 @@ export default function ClientDetail() {
         sportif_rpe?: string | null;
         sportif_comment?: string | null;
         skipped?: boolean;
-        serie_rpe_details?: { rpe: number | null }[] | null;
+        serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] | null;
       }> = {};
       sessionsData.forEach((s, sessionIdx) => {
         const sessionId = sessionIdx + 1;

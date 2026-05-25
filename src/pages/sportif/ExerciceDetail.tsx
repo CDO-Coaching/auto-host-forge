@@ -33,6 +33,8 @@ import {
 interface SerieValidation {
   validated: boolean;
   rpe: number | null;
+  actual_reps?: string | null;
+  actual_charge?: string | null;
 }
 
 export default function ExerciceDetail() {
@@ -67,6 +69,8 @@ export default function ExerciceDetail() {
   const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
+  const [rpeActualReps, setRpeActualReps] = useState("");
+  const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -390,10 +394,13 @@ export default function ExerciceDetail() {
   // Handle clicking validate on a serie
   const handleValidateSerie = (serieIndex: number) => {
     setRpeDialogSerieIndex(serieIndex);
-    // Pre-fill with coach's RPE for this serie, or default to 5
+    // Pre-fill with coach's RPE for this serie, or default to 7
     const coachRpe = seriesData[serieIndex]?.rpe;
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
+    // Reset actual reps/charge fields
+    setRpeActualReps("");
+    setRpeActualCharge("");
     setRpeDialogOpen(true);
   };
 
@@ -407,13 +414,20 @@ export default function ExerciceDetail() {
     if (rpeDialogSerieIndex === null) return;
 
     const newValidations = [...serieValidations];
-    newValidations[rpeDialogSerieIndex] = { validated: true, rpe: rpeNumber };
+    newValidations[rpeDialogSerieIndex] = {
+      validated: true,
+      rpe: rpeNumber,
+      actual_reps: rpeActualReps.trim() || null,
+      actual_charge: rpeActualCharge.trim() || null,
+    };
     setSerieValidations(newValidations);
     setCompletedSets(newValidations.filter(s => s.validated).length);
 
     setRpeDialogOpen(false);
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
+    setRpeActualReps("");
+    setRpeActualCharge("");
 
     // Check if this was the last serie
     const allNowValidated = newValidations.every(s => s.validated);
@@ -488,8 +502,12 @@ export default function ExerciceDetail() {
       ? Math.round(serieRpes.reduce((a, b) => a + b, 0) / serieRpes.length)
       : rpeValue;
 
-    // Build per-serie RPE details for persistence
-    const serieRpeDetails = serieValidations.map(s => ({ rpe: s.rpe }));
+    // Build per-serie details for persistence (rpe + actual reps/charge if reported)
+    const serieRpeDetails = serieValidations.map(s => ({
+      rpe: s.rpe,
+      actual_reps: s.actual_reps ?? null,
+      actual_charge: s.actual_charge ?? null,
+    }));
 
     const { error } = await supabase
       .from("session_exercises")
@@ -665,13 +683,14 @@ export default function ExerciceDetail() {
 
       {/* RPE Dialog for serie validation */}
       <Dialog open={rpeDialogOpen} onOpenChange={setRpeDialogOpen}>
-        <DialogContent className="sm:max-w-[320px]">
+        <DialogContent className="sm:max-w-[340px]">
           <DialogHeader>
             <DialogTitle>
               Série {rpeDialogSerieIndex !== null ? rpeDialogSerieIndex + 1 : ""} terminée
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* RPE */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
@@ -714,6 +733,43 @@ export default function ExerciceDetail() {
                 </div>
               </div>
             </div>
+
+            {/* Corrections optionnelles */}
+            {(() => {
+              const currentSerie = rpeDialogSerieIndex !== null ? seriesData[rpeDialogSerieIndex] : null;
+              const prescribedReps = currentSerie?.reps || exercise?.reps;
+              const prescribedCharge = currentSerie?.charge || exercise?.charge;
+              if (!prescribedReps && !prescribedCharge) return null;
+              return (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium">En échec ? Signale ce que tu as réellement fait :</p>
+                  {prescribedReps && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Reps effectuées <span className="text-muted-foreground">(prévu : {prescribedReps})</span></Label>
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        value={rpeActualReps}
+                        onChange={(e) => setRpeActualReps(e.target.value)}
+                        placeholder={prescribedReps}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  )}
+                  {prescribedCharge && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Charge utilisée <span className="text-muted-foreground">(prévu : {prescribedCharge})</span></Label>
+                      <Input
+                        value={rpeActualCharge}
+                        onChange={(e) => setRpeActualCharge(e.target.value)}
+                        placeholder={prescribedCharge}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRpeDialogOpen(false)} className="w-full sm:w-auto">
@@ -887,6 +943,16 @@ export default function ExerciceDetail() {
                           {isValidated && validation.rpe !== null && (
                             <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 text-xs font-semibold">
                               <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
+                            </span>
+                          )}
+                          {isValidated && validation.actual_reps && (
+                            <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
+                              <span className="text-[10px] uppercase opacity-70">Réalisé</span>{validation.actual_reps} reps
+                            </span>
+                          )}
+                          {isValidated && validation.actual_charge && (
+                            <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
+                              <span className="text-[10px] uppercase opacity-70">Charge</span>{validation.actual_charge}
                             </span>
                           )}
                           {serie.tempo && (

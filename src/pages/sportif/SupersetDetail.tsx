@@ -7,6 +7,7 @@ import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
@@ -39,6 +40,8 @@ interface SerieDetail {
 interface SerieValidation {
   validated: boolean;
   rpe: number | null;
+  actual_reps?: string | null;
+  actual_charge?: string | null;
 }
 
 export default function SupersetDetail() {
@@ -66,6 +69,8 @@ export default function SupersetDetail() {
   const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
+  const [rpeActualReps, setRpeActualReps] = useState("");
+  const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
 
   const {
@@ -224,6 +229,8 @@ export default function SupersetDetail() {
     const coachRpe = seriesData[roundIdx]?.rpe;
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
+    setRpeActualReps("");
+    setRpeActualCharge("");
     setRpeDialogOpen(true);
   };
 
@@ -236,12 +243,19 @@ export default function SupersetDetail() {
     if (rpeDialogSerieIndex === null) return;
 
     const newValidations = [...serieValidations];
-    newValidations[rpeDialogSerieIndex] = { validated: true, rpe: rpeNumber };
+    newValidations[rpeDialogSerieIndex] = {
+      validated: true,
+      rpe: rpeNumber,
+      actual_reps: rpeActualReps.trim() || null,
+      actual_charge: rpeActualCharge.trim() || null,
+    };
     setSerieValidations(newValidations);
 
     setRpeDialogOpen(false);
     setRpeDialogSerieIndex(null);
     setRpeInputValue("");
+    setRpeActualReps("");
+    setRpeActualCharge("");
 
     // Figure out position
     const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
@@ -315,11 +329,16 @@ export default function SupersetDetail() {
       const exercise = allExerciseRows[i];
       // Build per-serie RPE for this exercise (rounds where this exercise was validated)
       const exIdx = exercises.findIndex(e => e.id === exercise.id);
-      const perSerieRpe: { rpe: number | null }[] = [];
+      const perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null }[] = [];
       if (exIdx >= 0) {
         for (let r = 0; r < totalRounds; r++) {
           const vIdx = r * exercises.length + exIdx;
-          perSerieRpe.push({ rpe: serieValidations[vIdx]?.rpe ?? null });
+          const sv = serieValidations[vIdx];
+          perSerieRpe.push({
+            rpe: sv?.rpe ?? null,
+            actual_reps: sv?.actual_reps ?? null,
+            actual_charge: sv?.actual_charge ?? null,
+          });
         }
       }
 
@@ -536,6 +555,34 @@ export default function SupersetDetail() {
                 </div>
               </div>
             </div>
+
+            {/* Corrections optionnelles */}
+            {rpeDialogSerieIndex !== null && (() => {
+              const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
+              const exIdx = rpeDialogSerieIndex % exercises.length;
+              const ex = exercises[exIdx];
+              const seriesData = getSeriesDataForExercise(ex);
+              const prescribedReps = seriesData[roundIdx]?.reps || ex?.reps;
+              const prescribedCharge = seriesData[roundIdx]?.charge || ex?.charge;
+              if (!prescribedReps && !prescribedCharge) return null;
+              return (
+                <div className="border-t pt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground font-medium">En échec ? Signale ce que tu as réellement fait :</p>
+                  {prescribedReps && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Reps effectuées <span className="text-muted-foreground">(prévu : {prescribedReps})</span></Label>
+                      <Input type="number" inputMode="numeric" value={rpeActualReps} onChange={(e) => setRpeActualReps(e.target.value)} placeholder={prescribedReps} className="h-8 text-sm" />
+                    </div>
+                  )}
+                  {prescribedCharge && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Charge utilisée <span className="text-muted-foreground">(prévu : {prescribedCharge})</span></Label>
+                      <Input value={rpeActualCharge} onChange={(e) => setRpeActualCharge(e.target.value)} placeholder={prescribedCharge} className="h-8 text-sm" />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setRpeDialogOpen(false)} className="w-full sm:w-auto">
