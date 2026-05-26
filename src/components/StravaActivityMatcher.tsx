@@ -257,6 +257,9 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
           .eq("id", ex.id);
       }
 
+      // Ne PAS écraser cardio_total_distance_km / cardio_total_duration_minutes :
+      // ces champs contiennent les valeurs PLANIFIÉES par le coach.
+      // Les données réelles Strava sont dans session_exercises.actual_distance_km / actual_duration_minutes.
       await (supabase
         .from("training_sessions")
         .update({
@@ -264,8 +267,6 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
           completed_at: new Date().toISOString(),
           session_rpe: rpeNum,
           duration_minutes: durationMin,
-          cardio_total_distance_km: distanceKm,
-          cardio_total_duration_minutes: durationMin,
         })
         .eq("id", selectedSession.id) as any);
 
