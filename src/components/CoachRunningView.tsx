@@ -240,10 +240,18 @@ export function CoachRunningView({
       const plannedDuration = session.cardio_total_duration_minutes || 0;
       const plannedIntensity = session.cardio_average_intensity || 0;
 
-      // Vérifier si la séance est validée (a des données ET n'est pas skipped)
-      const exercise = session.session_exercises?.[0];
+      // Trouver l'exercice qui a des données réelles (Strava ou saisie manuelle)
+      // La session peut avoir plusieurs exercices (blocs), on prend celui avec le plus de données
+      const exerciseWithData = session.session_exercises?.find((ex: any) =>
+        ex.actual_distance_km !== null ||
+        ex.actual_duration_minutes !== null ||
+        ex.actual_pace_min_per_km !== null ||
+        ex.actual_avg_heart_rate !== null ||
+        ex.sportif_rpe !== null
+      ) || session.session_exercises?.[0];
+      const exercise = exerciseWithData;
       const isValidated = exercise && !exercise.skipped && (
-        exercise.sportif_rpe !== null || 
+        exercise.sportif_rpe !== null ||
         exercise.actual_distance_km !== null ||
         exercise.actual_duration_minutes !== null ||
         exercise.actual_pace_min_per_km !== null ||
@@ -260,11 +268,12 @@ export function CoachRunningView({
       let validatedSessionsWithPace = 0;
       let validatedSessionsWithHR = 0;
       let validatedSessionsWithRpe = 0;
-      
+
       if (isValidated) {
-        // Prioriser les données réelles saisies par le sportif
-        actualDistance = exercise.actual_distance_km || plannedDistance;
-        actualDuration = exercise.actual_duration_minutes || plannedDuration;
+        // Utiliser uniquement les données réelles (Strava ou saisie manuelle)
+        // Ne PAS fallback sur les valeurs planifiées pour ne pas biaiser le graphique
+        actualDistance = exercise.actual_distance_km ?? 0;
+        actualDuration = exercise.actual_duration_minutes ?? 0;
         actualIntensity = plannedIntensity; // L'intensité reste celle programmée sauf si calculée autrement
         
         if (exercise.actual_pace_min_per_km) {

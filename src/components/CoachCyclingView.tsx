@@ -193,9 +193,15 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       const plannedDuration = session.cardio_total_duration_minutes || 0;
       const plannedIntensity = session.cardio_average_intensity || 0;
 
-      const exercise = session.session_exercises?.[0];
+      const exerciseWithData = session.session_exercises?.find((ex: any) =>
+        ex.actual_distance_km !== null ||
+        ex.actual_duration_minutes !== null ||
+        ex.actual_avg_heart_rate !== null ||
+        ex.sportif_rpe !== null
+      ) || session.session_exercises?.[0];
+      const exercise = exerciseWithData;
       const isValidated = exercise && !exercise.skipped && (
-        exercise.sportif_rpe !== null || 
+        exercise.sportif_rpe !== null ||
         exercise.actual_distance_km !== null ||
         exercise.actual_duration_minutes !== null ||
         exercise.actual_avg_heart_rate !== null
@@ -207,10 +213,10 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       let actualSpeed = 0;
       let actualHeartRate = 0;
       let actualRpe = 0;
-      
+
       if (isValidated) {
-        actualDistance = exercise.actual_distance_km || plannedDistance;
-        actualDuration = exercise.actual_duration_minutes || plannedDuration;
+        actualDistance = exercise.actual_distance_km ?? 0;
+        actualDuration = exercise.actual_duration_minutes ?? 0;
         actualIntensity = plannedIntensity;
         
         // Calculer vitesse moyenne en km/h si on a distance et durée
