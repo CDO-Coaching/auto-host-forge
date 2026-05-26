@@ -291,9 +291,9 @@ export function CoachRunningView({
         existing.plannedDistanceKm += plannedDistance;
         existing.plannedDurationMinutes += plannedDuration;
         const totalPlannedDuration = existing.plannedDurationMinutes;
-        existing.plannedAverageIntensity = Math.round(
+        existing.plannedAverageIntensity = totalPlannedDuration > 0 ? Math.round(
           ((existing.plannedAverageIntensity * (totalPlannedDuration - plannedDuration)) + (plannedIntensity * plannedDuration)) / totalPlannedDuration
-        );
+        ) : existing.plannedAverageIntensity;
         existing.plannedSessionCount++;
 
         // Cumuler les données réalisées
@@ -536,8 +536,10 @@ export function CoachRunningView({
   const totalActualDistance = mergedCardioSessions.reduce((sum, s) => sum + s.actualDistanceKm, 0);
   const totalActualDuration = mergedCardioSessions.reduce((sum, s) => sum + s.actualDurationMinutes, 0);
   const totalWeeks = mergedCardioSessions.length;
-  const avgPlannedIntensity = mergedCardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks;
-  const avgActualIntensity = mergedCardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks;
+  const avgPlannedIntensityRaw = totalWeeks > 0 ? mergedCardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks : 0;
+  const avgPlannedIntensity = isNaN(avgPlannedIntensityRaw) ? 0 : avgPlannedIntensityRaw;
+  const avgActualIntensityRaw = totalWeeks > 0 ? mergedCardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks : 0;
+  const avgActualIntensity = isNaN(avgActualIntensityRaw) ? 0 : avgActualIntensityRaw;
 
   // Calculer les métriques de la semaine précédente pour comparaison
   const lastWeek = mergedCardioSessions[mergedCardioSessions.length - 1];
@@ -647,7 +649,7 @@ export function CoachRunningView({
                     <td className="py-3 px-4 text-lg font-bold">{plannedVolume.sessionCount}</td>
                     <td className="py-3 px-4 text-lg font-bold">{plannedVolume.distanceKm.toFixed(1)} km</td>
                     <td className="py-3 px-4 text-lg font-bold">
-                      {Math.floor(plannedVolume.durationMinutes / 60)}h{(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}
+                      {Math.floor(plannedVolume.durationMinutes / 60)}h{Math.round(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}
                     </td>
                     <td className="py-3 px-4 text-lg font-bold">{plannedVolume.averageIntensity}% VMA</td>
                   </tr>
@@ -693,10 +695,10 @@ export function CoachRunningView({
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              {Math.floor(totalActualDuration / 60)}h{(totalActualDuration % 60).toString().padStart(2, '0')}
+              {Math.floor(totalActualDuration / 60)}h{Math.round(totalActualDuration % 60).toString().padStart(2, '0')}
             </div>
             <p className="text-xs text-muted-foreground">
-              Réalisé · Prévu: {Math.floor(totalPlannedDuration / 60)}h{(totalPlannedDuration % 60).toString().padStart(2, '0')}
+              Réalisé · Prévu: {Math.floor(totalPlannedDuration / 60)}h{Math.round(totalPlannedDuration % 60).toString().padStart(2, '0')}
             </p>
           </CardContent>
         </Card>
@@ -785,7 +787,7 @@ export function CoachRunningView({
             <CardTitle>Durée par semaine</CardTitle>
             {durationChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
-                Dernière semaine : {Math.floor(previousWeek.actualDurationMinutes / 60)}h{(previousWeek.actualDurationMinutes % 60).toString().padStart(2, '0')} (réalisée, {previousWeek.week}) vs {Math.floor(lastWeek.plannedDurationMinutes / 60)}h{(lastWeek.plannedDurationMinutes % 60).toString().padStart(2, '0')} (programmée, {lastWeek.week})
+                Dernière semaine : {Math.floor(previousWeek.actualDurationMinutes / 60)}h{Math.round(previousWeek.actualDurationMinutes % 60).toString().padStart(2, '0')} (réalisée, {previousWeek.week}) vs {Math.floor(lastWeek.plannedDurationMinutes / 60)}h{Math.round(lastWeek.plannedDurationMinutes % 60).toString().padStart(2, '0')} (programmée, {lastWeek.week})
                 <span className={durationChangeVsPlanned.isIncrease ? "text-green-600 ml-2" : "text-red-600 ml-2"}>
                   {durationChangeVsPlanned.isIncrease ? "↑" : "↓"} {durationChangeVsPlanned.value.toFixed(1)}%
                 </span>
@@ -817,10 +819,10 @@ export function CoachRunningView({
                             {isProgramming && <Badge variant="outline" className="ml-2 text-xs">En cours</Badge>}
                           </p>
                           <p className="text-sm text-yellow-600">
-                            Programmée: {Math.floor(plannedMinutes / 60)}h{(plannedMinutes % 60).toString().padStart(2, '0')}
+                            Programmée: {Math.floor(plannedMinutes / 60)}h{Math.round(plannedMinutes % 60).toString().padStart(2, '0')}
                           </p>
                           <p className="text-sm text-green-600">
-                            Réalisée: {Math.floor(actualMinutes / 60)}h{(actualMinutes % 60).toString().padStart(2, '0')}
+                            Réalisée: {Math.floor(actualMinutes / 60)}h{Math.round(actualMinutes % 60).toString().padStart(2, '0')}
                           </p>
                         </div>
                       );
