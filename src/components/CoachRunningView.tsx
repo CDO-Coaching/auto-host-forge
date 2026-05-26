@@ -239,7 +239,8 @@ export function CoachRunningView({
       // Recalculer les métriques planifiées depuis les exercices (cardio_content)
       // pour éviter de lire cardio_total_duration_minutes qui peut avoir été
       // écrasé par Strava lors d'une liaison (bug antérieur, maintenant corrigé).
-      const vma = athleteVma;
+      // Utiliser la VMA locale (pas le state React qui est encore null au premier render)
+      const vma = profileData?.vma || null;
       let computedPlannedDistance = 0;
       let computedPlannedDuration = 0;
       let computedIntensityWeighted = 0;
