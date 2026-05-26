@@ -343,6 +343,51 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       }
     });
 
+    // Séances perso vélo
+    const { data: customData } = await supabase
+      .from("custom_sessions")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, cardio_type")
+      .eq("user_id", athleteId)
+      .eq("cardio_type", "velo")
+      .not("completed_at", "is", null);
+
+    (customData || []).forEach((cs: any) => {
+      if (!cs.duration_minutes && !cs.distance_km) return;
+      const dateStr = cs.completed_at ? cs.completed_at.split("T")[0] : cs.scheduled_date;
+      if (!dateStr) return;
+      const date = new Date(dateStr + "T12:00:00");
+      const weekNumber = getWeekNumber(date);
+      const isoYear = getWeekYear(date);
+      const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, "0")}`;
+      const dist = Number(cs.distance_km || 0);
+      const dur = Number(cs.duration_minutes || 0);
+      if (weeklyData.has(weekKey)) {
+        const existing = weeklyData.get(weekKey)!;
+        existing.actualDistanceKm += dist;
+        existing.actualDurationMinutes += dur;
+        if (dur > 0) existing.actualSessionCount++;
+      } else {
+        weeklyData.set(weekKey, {
+          week: weekKey,
+          weekNumber,
+          year: isoYear,
+          plannedDistanceKm: 0,
+          plannedDurationMinutes: 0,
+          plannedAverageIntensity: 0,
+          plannedSessionCount: 0,
+          actualDistanceKm: dist,
+          actualDurationMinutes: dur,
+          actualAverageIntensity: 0,
+          actualSessionCount: dur > 0 ? 1 : 0,
+          actualAveragePace: null,
+          actualAverageHeartRate: null,
+          actualAverageRpe: null,
+          actualIntensityKarvonen: null,
+          intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
+        });
+      }
+    });
+
     const sortedWeeklyData = Array.from(weeklyData.values()).sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
       return a.weekNumber - b.weekNumber;
