@@ -198,6 +198,7 @@ export function CoachRunningView({
         session_exercises!inner(
           id,
           cardio_sport,
+          cardio_content,
           sportif_rpe,
           sportif_feedback_at,
           actual_distance_km,
@@ -235,10 +236,33 @@ export function CoachRunningView({
       
       const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, '0')}`;
 
-      // Données programmées (toujours incluses)
-      const plannedDistance = session.cardio_total_distance_km || 0;
-      const plannedDuration = session.cardio_total_duration_minutes || 0;
-      const plannedIntensity = session.cardio_average_intensity || 0;
+      // Recalculer les métriques planifiées depuis les exercices (cardio_content)
+      // pour éviter de lire cardio_total_duration_minutes qui peut avoir été
+      // écrasé par Strava lors d'une liaison (bug antérieur, maintenant corrigé).
+      const vma = athleteVma;
+      let computedPlannedDistance = 0;
+      let computedPlannedDuration = 0;
+      let computedIntensityWeighted = 0;
+      let computedDurationForIntensity = 0;
+      (session.session_exercises || []).forEach((ex: any) => {
+        if (ex.cardio_sport !== "course" || !ex.cardio_content) return;
+        try {
+          const cardioData = JSON.parse(ex.cardio_content) as CardioData;
+          const m = calculateCardioMetrics(cardioData, vma);
+          computedPlannedDistance += m.totalDistanceKm;
+          computedPlannedDuration += m.totalDurationMinutes;
+          if (m.averageIntensity > 0) {
+            computedIntensityWeighted += m.averageIntensity * m.totalDurationMinutes;
+            computedDurationForIntensity += m.totalDurationMinutes;
+          }
+        } catch (_) { /* ignorer les erreurs de parsing */ }
+      });
+      // Fallback sur les valeurs DB si aucun cardio_content exploitable
+      const plannedDistance = computedPlannedDistance > 0 ? computedPlannedDistance : (session.cardio_total_distance_km || 0);
+      const plannedDuration = computedPlannedDuration > 0 ? computedPlannedDuration : (session.cardio_total_duration_minutes || 0);
+      const plannedIntensity = computedDurationForIntensity > 0
+        ? Math.round(computedIntensityWeighted / computedDurationForIntensity)
+        : (session.cardio_average_intensity || 0);
 
       // Trouver l'exercice qui a des données réelles (Strava ou saisie manuelle)
       // La session peut avoir plusieurs exercices (blocs), on prend celui avec le plus de données

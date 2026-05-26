@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Bike, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
+import { calculateCardioMetrics } from "@/lib/cardioCalculations";
+import { CardioData } from "@/components/CardioStepBuilder";
 
 interface IntensityZones {
   zoneLow: number;
@@ -154,6 +156,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
         session_exercises!inner(
           id,
           cardio_sport,
+          cardio_content,
           sportif_rpe,
           sportif_feedback_at,
           actual_distance_km,
@@ -189,9 +192,28 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       
       const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, '0')}`;
 
-      const plannedDistance = session.cardio_total_distance_km || 0;
-      const plannedDuration = session.cardio_total_duration_minutes || 0;
-      const plannedIntensity = session.cardio_average_intensity || 0;
+      let computedPlannedDistance = 0;
+      let computedPlannedDuration = 0;
+      let computedIntensityWeighted = 0;
+      let computedDurationForIntensity = 0;
+      (session.session_exercises || []).forEach((ex: any) => {
+        if (ex.cardio_sport !== "velo" || !ex.cardio_content) return;
+        try {
+          const cardioData = JSON.parse(ex.cardio_content) as CardioData;
+          const m = calculateCardioMetrics(cardioData, null);
+          computedPlannedDistance += m.totalDistanceKm;
+          computedPlannedDuration += m.totalDurationMinutes;
+          if (m.averageIntensity > 0) {
+            computedIntensityWeighted += m.averageIntensity * m.totalDurationMinutes;
+            computedDurationForIntensity += m.totalDurationMinutes;
+          }
+        } catch (_) {}
+      });
+      const plannedDistance = computedPlannedDistance > 0 ? computedPlannedDistance : (session.cardio_total_distance_km || 0);
+      const plannedDuration = computedPlannedDuration > 0 ? computedPlannedDuration : (session.cardio_total_duration_minutes || 0);
+      const plannedIntensity = computedDurationForIntensity > 0
+        ? Math.round(computedIntensityWeighted / computedDurationForIntensity)
+        : (session.cardio_average_intensity || 0);
 
       const exerciseWithData = session.session_exercises?.find((ex: any) =>
         ex.actual_distance_km !== null ||
