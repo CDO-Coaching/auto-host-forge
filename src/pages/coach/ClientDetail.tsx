@@ -1170,17 +1170,29 @@ export default function ClientDetail() {
         .eq("has_injury", true)
         .gte("date", format(sevenDaysAgo, "yyyy-MM-dd"))
         .lte("date", format(today, "yyyy-MM-dd"))
-        .not("injury_level", "is", null);
+        .not("injury_level", "is", null)
+        .order("date", { ascending: false }); // Plus récent en premier
 
       if (error || !data || data.length === 0) {
         setHeaderInjury(null);
         return;
       }
 
-      // Calculer la moyenne de la douleur et récupérer la localisation la plus récente
-      const totalPain = data.reduce((sum, d) => sum + (d.injury_level || 0), 0);
-      const avgPain = totalPain / data.length;
-      const location = data[0]?.injury_location || "Non précisé";
+      // Si la dernière entrée est "Terminée" (injury_level = 0), pas de badge
+      if (data[0].injury_level === 0) {
+        setHeaderInjury(null);
+        return;
+      }
+
+      // Calculer la moyenne uniquement sur les entrées actives (injury_level > 0)
+      const activeEntries = data.filter((d) => (d.injury_level || 0) > 0);
+      if (activeEntries.length === 0) {
+        setHeaderInjury(null);
+        return;
+      }
+      const totalPain = activeEntries.reduce((sum, d) => sum + (d.injury_level || 0), 0);
+      const avgPain = totalPain / activeEntries.length;
+      const location = activeEntries[0]?.injury_location || "Non précisé";
 
       setHeaderInjury({ avgPain, location });
     } catch (error) {
