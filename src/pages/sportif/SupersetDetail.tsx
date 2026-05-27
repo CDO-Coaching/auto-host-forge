@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
+import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft, Plus, Minus } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -74,6 +74,9 @@ export default function SupersetDetail() {
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
   const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
+  // "??" charge management: per exercise index
+  const [isChargeRequired, setIsChargeRequired] = useState(false);
+  const [suggestedChargeByExIdx, setSuggestedChargeByExIdx] = useState<Record<number, string>>({});
 
   const {
     timers,
@@ -225,14 +228,21 @@ export default function SupersetDetail() {
   const handleValidateSerie = (roundIdx: number, exIdx: number) => {
     const idx = getValidationIndex(roundIdx, exIdx);
     setRpeDialogSerieIndex(idx);
-    
+
     // Get coach RPE for this specific series
     const seriesData = getSeriesDataForExercise(exercises[exIdx]);
     const coachRpe = seriesData[roundIdx]?.rpe;
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
+
+    // Detect "??" charge → required input
+    const serieCharge = (seriesData[roundIdx]?.charge || exercises[exIdx]?.charge || "").trim();
+    const chargeIsUnknown = serieCharge === "??";
+    setIsChargeRequired(chargeIsUnknown);
+
+    // Pre-fill with suggestion from previous round (same exercise)
+    setRpeActualCharge(chargeIsUnknown && suggestedChargeByExIdx[exIdx] ? suggestedChargeByExIdx[exIdx] : "");
     setRpeActualReps("");
-    setRpeActualCharge("");
     setModificationType("none");
     setRpeDialogOpen(true);
   };
@@ -245,16 +255,32 @@ export default function SupersetDetail() {
     }
     if (rpeDialogSerieIndex === null) return;
 
+    // Validate mandatory charge when coach set "??"
+    if (isChargeRequired && !rpeActualCharge.trim()) {
+      toast({ title: "Charge requise", description: "Indique la charge que tu as utilisée pour cette série", variant: "destructive" });
+      return;
+    }
+
+    const exIdx = rpeDialogSerieIndex % exercises.length;
     const hasModif = modificationType !== "none";
+    const actualCharge = isChargeRequired && rpeActualCharge.trim()
+      ? rpeActualCharge.trim()
+      : (hasModif && rpeActualCharge.trim() ? rpeActualCharge.trim() : null);
+
     const newValidations = [...serieValidations];
     newValidations[rpeDialogSerieIndex] = {
       validated: true,
       rpe: rpeNumber,
       actual_reps: (hasModif && rpeActualReps.trim()) ? rpeActualReps.trim() : null,
-      actual_charge: (hasModif && rpeActualCharge.trim()) ? rpeActualCharge.trim() : null,
+      actual_charge: actualCharge,
       modification_type: hasModif ? modificationType : null,
     };
     setSerieValidations(newValidations);
+
+    // Propagate charge as suggestion for next round (same exercise)
+    if (isChargeRequired && rpeActualCharge.trim()) {
+      setSuggestedChargeByExIdx(prev => ({ ...prev, [exIdx]: rpeActualCharge.trim() }));
+    }
 
     setRpeDialogOpen(false);
     setRpeDialogSerieIndex(null);
@@ -262,6 +288,7 @@ export default function SupersetDetail() {
     setRpeActualReps("");
     setRpeActualCharge("");
     setModificationType("none");
+    setIsChargeRequired(false);
 
     // Figure out position
     const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
@@ -534,6 +561,73 @@ export default function SupersetDetail() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Charge obligatoire si coach a mis "??" */}
+            {isChargeRequired && rpeDialogSerieIndex !== null && (() => {
+              const exIdx = rpeDialogSerieIndex % exercises.length;
+              const suggested = suggestedChargeByExIdx[exIdx];
+              return (
+                <div className="rounded-lg border border-orange-400/40 bg-orange-500/8 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Weight className="h-4 w-4 text-orange-600" />
+                    <Label className="text-sm font-semibold text-orange-700">
+                      Charge utilisée <span className="text-destructive">*</span>
+                    </Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Le coach n'a pas fixé de charge — indique ce que tu as mis.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 p-0 shrink-0"
+                      onClick={() => {
+                        const current = parseFloat(rpeActualCharge) || 0;
+                        const step = current >= 40 ? 5 : 2.5;
+                        setRpeActualCharge(String(Math.max(0, Math.round((current - step) * 4) / 4)));
+                      }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <div className="relative flex-1">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={rpeActualCharge}
+                        onChange={(e) => setRpeActualCharge(e.target.value)}
+                        placeholder={suggested || "ex: 60"}
+                        className="h-10 text-center text-base font-bold pr-8"
+                      />
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-10 w-10 p-0 shrink-0"
+                      onClick={() => {
+                        const current = parseFloat(rpeActualCharge) || 0;
+                        const step = current >= 40 ? 5 : 2.5;
+                        setRpeActualCharge(String(Math.round((current + step) * 4) / 4));
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {suggested && rpeActualCharge !== suggested && (
+                    <button
+                      type="button"
+                      className="text-xs text-primary underline"
+                      onClick={() => setRpeActualCharge(suggested)}
+                    >
+                      Reprendre {suggested} kg (série précédente)
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
@@ -572,7 +666,7 @@ export default function SupersetDetail() {
               const prescribedReps = seriesData[roundIdx]?.reps || ex?.reps;
               const prescribedCharge = seriesData[roundIdx]?.charge || ex?.charge;
               const prescribedRpe = seriesData[roundIdx]?.rpe || ex?.rpe;
-              if (!prescribedReps && !prescribedCharge) return null;
+              if (!prescribedReps && (!prescribedCharge || isChargeRequired)) return null;
 
               const modFields = (
                 <div className="space-y-2 mt-2 pl-1">
@@ -582,7 +676,7 @@ export default function SupersetDetail() {
                       <Input type="number" inputMode="numeric" value={rpeActualReps} onChange={(e) => setRpeActualReps(e.target.value)} placeholder={prescribedReps} className="h-8 text-sm" />
                     </div>
                   )}
-                  {prescribedCharge && (
+                  {prescribedCharge && !isChargeRequired && (
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Charge réellement utilisée <span className="font-medium text-foreground">(prévu : {prescribedCharge})</span></Label>
                       <Input value={rpeActualCharge} onChange={(e) => setRpeActualCharge(e.target.value)} placeholder={prescribedCharge} className="h-8 text-sm" />
@@ -761,10 +855,24 @@ export default function SupersetDetail() {
                                     </span>
                                   )}
                                   {serieData.charge && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                                      <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                      {serieData.charge}{/^\d+(\.\d+)?$/.test(serieData.charge.trim()) ? " kg" : ""}
-                                    </span>
+                                    serieData.charge.trim() === "??" ? (
+                                      isValidated && validation?.actual_charge ? (
+                                        <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                                          <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                          {validation.actual_charge} kg
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
+                                          <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                          À définir
+                                        </span>
+                                      )
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                                        <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                        {serieData.charge}{/^\d+(\.\d+)?$/.test(serieData.charge.trim()) ? " kg" : ""}
+                                      </span>
+                                    )
                                   )}
                                   {serieData.rpe && !isValidated && (
                                     <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
