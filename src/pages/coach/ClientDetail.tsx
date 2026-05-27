@@ -1163,29 +1163,35 @@ export default function ClientDetail() {
       const today = new Date();
       const sevenDaysAgo = subDays(today, 6);
 
+      // Récupérer TOUTES les entrées (y compris "Terminée" avec has_injury=false)
       const { data, error } = await supabase
         .from("daily_fatigue_log")
-        .select("injury_level, injury_location")
+        .select("injury_level, injury_location, has_injury, date")
         .eq("user_id", athleteId)
-        .eq("has_injury", true)
         .gte("date", format(sevenDaysAgo, "yyyy-MM-dd"))
         .lte("date", format(today, "yyyy-MM-dd"))
-        .not("injury_level", "is", null)
         .order("date", { ascending: false }); // Plus récent en premier
+
+      console.log("[loadHeaderInjury] raw data from supabase:", JSON.stringify(data));
+      console.log("[loadHeaderInjury] error:", error);
 
       if (error || !data || data.length === 0) {
         setHeaderInjury(null);
         return;
       }
 
-      // Si la dernière entrée est "Terminée" (injury_level = 0), pas de badge
-      if (data[0].injury_level === 0) {
+      // L'entrée la plus récente : si c'est "Terminée" (has_injury=false ou injury_level=0), pas de badge
+      const mostRecent = data[0];
+      console.log("[loadHeaderInjury] mostRecent:", JSON.stringify(mostRecent));
+      if (!mostRecent.has_injury || (mostRecent.injury_level ?? 0) === 0) {
         setHeaderInjury(null);
         return;
       }
 
-      // Calculer la moyenne uniquement sur les entrées actives (injury_level > 0)
-      const activeEntries = data.filter((d) => (d.injury_level || 0) > 0);
+      // Calculer la moyenne uniquement sur les entrées actives (has_injury=true et injury_level > 0)
+      const activeEntries = data.filter(
+        (d) => d.has_injury && (d.injury_level || 0) > 0
+      );
       if (activeEntries.length === 0) {
         setHeaderInjury(null);
         return;

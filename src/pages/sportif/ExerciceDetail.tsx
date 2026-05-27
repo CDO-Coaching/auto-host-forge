@@ -73,6 +73,9 @@ export default function ExerciceDetail() {
   const [rpeActualReps, setRpeActualReps] = useState("");
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
+  // "??" charge management
+  const [isChargeRequired, setIsChargeRequired] = useState(false);
+  const [suggestedCharge, setSuggestedCharge] = useState<string | null>(null);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -400,9 +403,15 @@ export default function ExerciceDetail() {
     const coachRpe = seriesData[serieIndex]?.rpe;
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
-    // Reset actual reps/charge fields
+
+    // Detect "??" charge → required input
+    const serieCharge = (seriesData[serieIndex]?.charge || exercise?.charge || "").trim();
+    const chargeIsUnknown = serieCharge === "??";
+    setIsChargeRequired(chargeIsUnknown);
+
+    // Pre-fill charge with suggestion from previous serie (if any)
+    setRpeActualCharge(chargeIsUnknown && suggestedCharge ? suggestedCharge : "");
     setRpeActualReps("");
-    setRpeActualCharge("");
     setModificationType("none");
     setRpeDialogOpen(true);
   };
@@ -416,17 +425,33 @@ export default function ExerciceDetail() {
     }
     if (rpeDialogSerieIndex === null) return;
 
+    // Validate mandatory charge when coach set "??"
+    if (isChargeRequired && !rpeActualCharge.trim()) {
+      toast({ title: "Charge requise", description: "Indique la charge que tu as utilisée pour cette série", variant: "destructive" });
+      return;
+    }
+
     const hasModif = modificationType !== "none";
+    // actual_charge is always saved when isChargeRequired, otherwise only when modification
+    const actualCharge = isChargeRequired && rpeActualCharge.trim()
+      ? rpeActualCharge.trim()
+      : (hasModif && rpeActualCharge.trim() ? rpeActualCharge.trim() : null);
+
     const newValidations = [...serieValidations];
     newValidations[rpeDialogSerieIndex] = {
       validated: true,
       rpe: rpeNumber,
       actual_reps: (hasModif && rpeActualReps.trim()) ? rpeActualReps.trim() : null,
-      actual_charge: (hasModif && rpeActualCharge.trim()) ? rpeActualCharge.trim() : null,
+      actual_charge: actualCharge,
       modification_type: hasModif ? modificationType : null,
     };
     setSerieValidations(newValidations);
     setCompletedSets(newValidations.filter(s => s.validated).length);
+
+    // Propagate charge as suggestion for next series
+    if (isChargeRequired && rpeActualCharge.trim()) {
+      setSuggestedCharge(rpeActualCharge.trim());
+    }
 
     setRpeDialogOpen(false);
     setRpeDialogSerieIndex(null);
@@ -434,6 +459,7 @@ export default function ExerciceDetail() {
     setRpeActualReps("");
     setRpeActualCharge("");
     setModificationType("none");
+    setIsChargeRequired(false);
 
     // Check if this was the last serie
     const allNowValidated = newValidations.every(s => s.validated);
@@ -697,6 +723,69 @@ export default function ExerciceDetail() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Charge obligatoire si coach a mis "??" */}
+            {isChargeRequired && (
+              <div className="rounded-lg border border-orange-400/40 bg-orange-500/8 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Weight className="h-4 w-4 text-orange-600" />
+                  <Label className="text-sm font-semibold text-orange-700">
+                    Charge utilisée <span className="text-destructive">*</span>
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le coach n'a pas fixé de charge — indique ce que tu as mis.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => {
+                      const current = parseFloat(rpeActualCharge) || 0;
+                      const step = current >= 40 ? 5 : 2.5;
+                      setRpeActualCharge(String(Math.max(0, Math.round((current - step) * 4) / 4)));
+                    }}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <div className="relative flex-1">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={rpeActualCharge}
+                      onChange={(e) => setRpeActualCharge(e.target.value)}
+                      placeholder={suggestedCharge || "ex: 60"}
+                      className="h-10 text-center text-base font-bold pr-8"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => {
+                      const current = parseFloat(rpeActualCharge) || 0;
+                      const step = current >= 40 ? 5 : 2.5;
+                      setRpeActualCharge(String(Math.round((current + step) * 4) / 4));
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                {suggestedCharge && rpeActualCharge !== suggestedCharge && (
+                  <button
+                    type="button"
+                    className="text-xs text-primary underline"
+                    onClick={() => setRpeActualCharge(suggestedCharge!)}
+                  >
+                    Reprendre {suggestedCharge} kg (série précédente)
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* RPE */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -747,7 +836,8 @@ export default function ExerciceDetail() {
               const prescribedReps = currentSerie?.reps || exercise?.reps;
               const prescribedCharge = currentSerie?.charge || exercise?.charge;
               const prescribedRpe = currentSerie?.rpe || exercise?.rpe;
-              if (!prescribedReps && !prescribedCharge) return null;
+              // Masquer les accordéons si charge ?? (pas de prescribedReps et charge déjà gérée)
+              if (!prescribedReps && (!prescribedCharge || isChargeRequired)) return null;
 
               const modFields = (
                 <div className="space-y-2 mt-2 pl-1">
@@ -764,7 +854,7 @@ export default function ExerciceDetail() {
                       />
                     </div>
                   )}
-                  {prescribedCharge && (
+                  {prescribedCharge && !isChargeRequired && (
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Charge réellement utilisée <span className="font-medium text-foreground">(prévu : {prescribedCharge})</span></Label>
                       <Input
@@ -996,10 +1086,24 @@ export default function ExerciceDetail() {
                             </span>
                           )}
                           {serie.charge && (
-                            <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                              <span className="text-[10px] uppercase opacity-70">Charge</span>
-                              {serie.charge}{/^\d+(\.\d+)?$/.test(serie.charge.trim()) ? " kg" : ""}
-                            </span>
+                            serie.charge.trim() === "??" ? (
+                              isValidated && validation?.actual_charge ? (
+                                <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                                  <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                  {validation.actual_charge} kg
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
+                                  <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                  À définir
+                                </span>
+                              )
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
+                                <span className="text-[10px] uppercase opacity-70">Charge</span>
+                                {serie.charge}{/^\d+(\.\d+)?$/.test(serie.charge.trim()) ? " kg" : ""}
+                              </span>
+                            )
                           )}
                           {serie.rpe && !isValidated && (
                             <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 text-xs font-medium">
@@ -1016,7 +1120,7 @@ export default function ExerciceDetail() {
                               <span className="text-[10px] uppercase opacity-70">Réalisé</span>{validation.actual_reps} reps
                             </span>
                           )}
-                          {isValidated && validation.actual_charge && (
+                          {isValidated && validation.actual_charge && serie.charge?.trim() !== "??" && (
                             <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
                               <span className="text-[10px] uppercase opacity-70">Charge</span>{validation.actual_charge}
                             </span>
