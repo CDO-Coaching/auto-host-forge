@@ -262,6 +262,7 @@ export default function SupersetDetail() {
     }
 
     const exIdx = rpeDialogSerieIndex % exercises.length;
+    const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
     const hasModif = modificationType !== "none";
     const actualCharge = isChargeRequired && rpeActualCharge.trim()
       ? rpeActualCharge.trim()
@@ -290,9 +291,7 @@ export default function SupersetDetail() {
     setModificationType("none");
     setIsChargeRequired(false);
 
-    // Figure out position
-    const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
-    const exIdx = rpeDialogSerieIndex % exercises.length;
+    // Position already computed above (exIdx, roundIdx)
 
     // Check if all validated → feedback dialog
     const allNowValidated = newValidations.every(s => s.validated);
