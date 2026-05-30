@@ -593,32 +593,55 @@ function SessionCard({
         })()}
 
         {/* Preview cardio */}
-        {session.session_type === "cardio" && (
-          <div className="mt-2 space-y-1">
-            <p className="text-xs text-muted-foreground">
-              {cardioData.steps.length > 0
-                ? `${cardioData.steps.length} étape${cardioData.steps.length > 1 ? "s" : ""}`
-                : "Tap pour configurer"}
-            </p>
-            {/* Commentaire coach */}
-            {cardioExercise?.commentaire && (
-              <p className="text-xs text-muted-foreground/70 italic truncate">📝 {cardioExercise.commentaire}</p>
-            )}
-            {/* Retour sportif en preview */}
-            {cardioExercise && (cardioExercise.actual_distance_km != null || cardioExercise.actual_duration_minutes != null) && (
-              <div className="flex items-center gap-2 text-xs text-green-500 font-medium">
-                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                {cardioExercise.actual_distance_km != null && <span>{Number(cardioExercise.actual_distance_km).toFixed(1)} km réalisé</span>}
-                {cardioExercise.actual_duration_minutes != null && <span>· {Math.floor(Number(cardioExercise.actual_duration_minutes) / 60)}h{Math.round(Number(cardioExercise.actual_duration_minutes) % 60).toString().padStart(2, "0")}</span>}
-                {(cardioExercise as any).linked_strava_activity_id && <span className="text-orange-400">· Strava</span>}
-              </div>
-            )}
-            {/* Commentaire sportif en preview */}
-            {cardioExercise && (cardioExercise as any).sportif_comment && (
-              <p className="text-xs text-green-600/80 italic truncate">💬 "{(cardioExercise as any).sportif_comment}"</p>
-            )}
-          </div>
-        )}
+        {session.session_type === "cardio" && (() => {
+          const rpe = (cardioExercise as any)?.sportif_rpe != null ? Number((cardioExercise as any).sportif_rpe) : null;
+          const rpeColor = rpe === null ? "text-green-400"
+            : rpe <= 4 ? "text-green-400"
+            : rpe <= 6 ? "text-yellow-400"
+            : rpe <= 8 ? "text-orange-400"
+            : "text-red-400";
+          const rpeDot = rpe === null ? "bg-green-400"
+            : rpe <= 4 ? "bg-green-400"
+            : rpe <= 6 ? "bg-yellow-400"
+            : rpe <= 8 ? "bg-orange-400"
+            : "bg-red-400";
+
+          return (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-muted-foreground">
+                {cardioData.steps.length > 0
+                  ? `${cardioData.steps.length} étape${cardioData.steps.length > 1 ? "s" : ""}`
+                  : "Tap pour configurer"}
+              </p>
+              {/* Commentaire coach */}
+              {cardioExercise?.commentaire && (
+                <p className={`text-xs italic truncate ${rpe !== null ? rpeColor + "/80" : "text-muted-foreground/70"}`}>
+                  📝 {cardioExercise.commentaire}
+                </p>
+              )}
+              {/* Retour sportif en preview */}
+              {cardioExercise && (cardioExercise.actual_distance_km != null || cardioExercise.actual_duration_minutes != null) && (
+                <div className={`flex items-center gap-2 text-xs font-medium ${rpeColor}`}>
+                  <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${rpeDot}`} />
+                  {cardioExercise.actual_distance_km != null && (
+                    <span>{Number(cardioExercise.actual_distance_km).toFixed(1)} km réalisé</span>
+                  )}
+                  {cardioExercise.actual_duration_minutes != null && (
+                    <span>· {Math.floor(Number(cardioExercise.actual_duration_minutes) / 60)}h{Math.round(Number(cardioExercise.actual_duration_minutes) % 60).toString().padStart(2, "0")}</span>
+                  )}
+                  {rpe !== null && <span className="opacity-70">· RPE {rpe}</span>}
+                  {(cardioExercise as any).linked_strava_activity_id && <span className="text-orange-400">· Strava</span>}
+                </div>
+              )}
+              {/* Commentaire sportif en preview */}
+              {cardioExercise && (cardioExercise as any).sportif_comment && (
+                <p className={`text-xs italic truncate ${rpeColor}/80`}>
+                  💬 "{(cardioExercise as any).sportif_comment}"
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Sheet détail session ─────────────────────────────────────── */}
