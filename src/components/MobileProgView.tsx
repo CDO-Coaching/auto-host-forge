@@ -455,6 +455,7 @@ function SessionCard({
   onToggleSuperSet?: (exerciseId: number) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
 
   // Données cardio du premier exercice
@@ -756,6 +757,86 @@ function SessionCard({
             {/* ─── Cardio : CardioStepBuilder complet ─── */}
             {session.session_type === "cardio" && (
               <div className="px-4 py-4 space-y-4">
+
+                {/* ── Retours du sportif — collapsible en haut ── */}
+                {cardioExercise && (
+                  cardioExercise.actual_distance_km != null ||
+                  cardioExercise.actual_duration_minutes != null ||
+                  (cardioExercise as any).actual_avg_heart_rate != null ||
+                  (cardioExercise as any).sportif_rpe != null ||
+                  (cardioExercise as any).sportif_comment
+                ) && (() => {
+                  const feedbackDate = (cardioExercise as any).sportif_feedback_at
+                    ? new Date((cardioExercise as any).sportif_feedback_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
+                    : null;
+                  return (
+                    <div className="rounded-xl border border-green-500/30 bg-green-500/8 overflow-hidden">
+                      {/* Header cliquable */}
+                      <button
+                        type="button"
+                        className="w-full flex items-center gap-2 px-4 py-3 active:bg-green-500/10 transition-colors"
+                        onClick={() => setFeedbackOpen((v) => !v)}
+                      >
+                        <div className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                        <div className="flex-1 text-left">
+                          <span className="text-xs font-semibold text-green-600 uppercase tracking-wide">
+                            Retour du sportif
+                          </span>
+                          {feedbackDate && (
+                            <span className="ml-2 text-[10px] font-normal text-green-600/70">· {feedbackDate}</span>
+                          )}
+                          {(cardioExercise as any).linked_strava_activity_id && (
+                            <span className="ml-2 text-[10px] font-normal text-orange-500">via Strava</span>
+                          )}
+                        </div>
+                        {feedbackOpen
+                          ? <ChevronUp className="h-4 w-4 text-green-600/70 shrink-0" />
+                          : <ChevronDown className="h-4 w-4 text-green-600/70 shrink-0" />
+                        }
+                      </button>
+
+                      {/* Contenu dépliable */}
+                      {feedbackOpen && (
+                        <div className="px-4 pb-4 space-y-3 border-t border-green-500/20">
+                          <div className="grid grid-cols-2 gap-2 pt-3">
+                            {cardioExercise.actual_distance_km != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">Distance</p>
+                                <p className="text-base font-bold">{Number(cardioExercise.actual_distance_km).toFixed(1)} <span className="text-xs font-normal text-muted-foreground">km</span></p>
+                              </div>
+                            )}
+                            {cardioExercise.actual_duration_minutes != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">Durée</p>
+                                <p className="text-base font-bold">
+                                  {Math.floor(Number(cardioExercise.actual_duration_minutes) / 60)}h{Math.round(Number(cardioExercise.actual_duration_minutes) % 60).toString().padStart(2, "0")}
+                                </p>
+                              </div>
+                            )}
+                            {(cardioExercise as any).actual_avg_heart_rate != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">FC moy.</p>
+                                <p className="text-base font-bold">{(cardioExercise as any).actual_avg_heart_rate} <span className="text-xs font-normal text-muted-foreground">bpm</span></p>
+                              </div>
+                            )}
+                            {(cardioExercise as any).sportif_rpe != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">RPE ressenti</p>
+                                <p className="text-base font-bold">{(cardioExercise as any).sportif_rpe} <span className="text-xs font-normal text-muted-foreground">/10</span></p>
+                              </div>
+                            )}
+                          </div>
+                          {(cardioExercise as any).sportif_comment && (
+                            <p className="text-xs text-muted-foreground italic border-t border-green-500/20 pt-2">
+                              "{(cardioExercise as any).sportif_comment}"
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <CardioStepBuilder
                   steps={cardioData.steps}
                   blocks={cardioData.blocks}
@@ -778,60 +859,6 @@ function SessionCard({
                     disabled={isValidated}
                   />
                 </div>
-
-                {/* ── Retours du sportif (si données réelles disponibles) ── */}
-                {cardioExercise && (
-                  cardioExercise.actual_distance_km != null ||
-                  cardioExercise.actual_duration_minutes != null ||
-                  (cardioExercise as any).actual_avg_heart_rate != null ||
-                  (cardioExercise as any).sportif_rpe != null ||
-                  (cardioExercise as any).sportif_comment
-                ) && (
-                  <div className="rounded-xl border border-green-500/30 bg-green-500/8 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">
-                        Retour du sportif
-                        {(cardioExercise as any).linked_strava_activity_id && (
-                          <span className="ml-2 text-[10px] font-normal text-orange-500">via Strava</span>
-                        )}
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {cardioExercise.actual_distance_km != null && (
-                        <div className="bg-background/60 rounded-lg px-3 py-2">
-                          <p className="text-[10px] text-muted-foreground uppercase">Distance</p>
-                          <p className="text-base font-bold">{Number(cardioExercise.actual_distance_km).toFixed(1)} <span className="text-xs font-normal text-muted-foreground">km</span></p>
-                        </div>
-                      )}
-                      {cardioExercise.actual_duration_minutes != null && (
-                        <div className="bg-background/60 rounded-lg px-3 py-2">
-                          <p className="text-[10px] text-muted-foreground uppercase">Durée</p>
-                          <p className="text-base font-bold">
-                            {Math.floor(Number(cardioExercise.actual_duration_minutes) / 60)}h{Math.round(Number(cardioExercise.actual_duration_minutes) % 60).toString().padStart(2, "0")}
-                          </p>
-                        </div>
-                      )}
-                      {(cardioExercise as any).actual_avg_heart_rate != null && (
-                        <div className="bg-background/60 rounded-lg px-3 py-2">
-                          <p className="text-[10px] text-muted-foreground uppercase">FC moy.</p>
-                          <p className="text-base font-bold">{(cardioExercise as any).actual_avg_heart_rate} <span className="text-xs font-normal text-muted-foreground">bpm</span></p>
-                        </div>
-                      )}
-                      {(cardioExercise as any).sportif_rpe != null && (
-                        <div className="bg-background/60 rounded-lg px-3 py-2">
-                          <p className="text-[10px] text-muted-foreground uppercase">RPE ressenti</p>
-                          <p className="text-base font-bold">{(cardioExercise as any).sportif_rpe} <span className="text-xs font-normal text-muted-foreground">/10</span></p>
-                        </div>
-                      )}
-                    </div>
-                    {(cardioExercise as any).sportif_comment && (
-                      <p className="text-xs text-muted-foreground italic border-t border-green-500/20 pt-2">
-                        "{(cardioExercise as any).sportif_comment}"
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
             )}
 
