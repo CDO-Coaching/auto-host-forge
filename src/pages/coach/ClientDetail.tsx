@@ -848,6 +848,8 @@ export default function ClientDetail() {
               actual_pace_min_per_km: ex.actual_pace_min_per_km || null,
               actual_avg_heart_rate: ex.actual_avg_heart_rate || null,
               serie_rpe_details: ex.serie_rpe_details || null,
+              sportif_feedback_at: ex.sportif_feedback_at || null,
+              linked_strava_activity_id: ex.linked_strava_activity_id || null,
             }));
         }
       });
