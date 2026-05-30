@@ -416,6 +416,14 @@ export default function Seances() {
                     ? getCardioEstimatedDuration(session.session_exercises || [], (profile as any)?.vma || null)
                     : null;
 
+                // RPE moyen de la séance
+                const rpeValues = (session.session_exercises || [])
+                  .map((ex: any) => ex.sportif_rpe)
+                  .filter((v: any) => v !== null && v !== undefined && !isNaN(Number(v)));
+                const avgRpe = rpeValues.length > 0
+                  ? Math.round(rpeValues.reduce((s: number, v: any) => s + Number(v), 0) / rpeValues.length)
+                  : null;
+
                 const borderCls = completed
                   ? "border-green-500/40 bg-green-500/5"
                   : hasSchedule
@@ -492,6 +500,14 @@ export default function Seances() {
                         {exCount} exercice{exCount > 1 ? "s" : ""}
                         {completed && session.duration_minutes ? ` · ${session.duration_minutes} min` : ""}
                         {cardioDur ? ` · ⏱ ${cardioDur}` : ""}
+                        {avgRpe !== null && (
+                          <span className={`ml-1 font-semibold ${
+                            avgRpe <= 4 ? "text-green-500" :
+                            avgRpe <= 6 ? "text-yellow-500" :
+                            avgRpe <= 8 ? "text-orange-500" :
+                            "text-red-500"
+                          }`}>· RPE {avgRpe}/10</span>
+                        )}
                       </p>
                     </div>
 
