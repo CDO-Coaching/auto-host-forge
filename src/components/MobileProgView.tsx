@@ -598,8 +598,12 @@ function SessionCard({
             <p className="text-xs text-muted-foreground">
               {cardioData.steps.length > 0
                 ? `${cardioData.steps.length} étape${cardioData.steps.length > 1 ? "s" : ""}`
-                : cardioExercise?.commentaire || "Tap pour configurer"}
+                : "Tap pour configurer"}
             </p>
+            {/* Commentaire coach */}
+            {cardioExercise?.commentaire && (
+              <p className="text-xs text-muted-foreground/70 italic truncate">📝 {cardioExercise.commentaire}</p>
+            )}
             {/* Retour sportif en preview */}
             {cardioExercise && (cardioExercise.actual_distance_km != null || cardioExercise.actual_duration_minutes != null) && (
               <div className="flex items-center gap-2 text-xs text-green-500 font-medium">
@@ -608,6 +612,10 @@ function SessionCard({
                 {cardioExercise.actual_duration_minutes != null && <span>· {Math.floor(Number(cardioExercise.actual_duration_minutes) / 60)}h{Math.round(Number(cardioExercise.actual_duration_minutes) % 60).toString().padStart(2, "0")}</span>}
                 {(cardioExercise as any).linked_strava_activity_id && <span className="text-orange-400">· Strava</span>}
               </div>
+            )}
+            {/* Commentaire sportif en preview */}
+            {cardioExercise && (cardioExercise as any).sportif_comment && (
+              <p className="text-xs text-green-600/80 italic truncate">💬 "{(cardioExercise as any).sportif_comment}"</p>
             )}
           </div>
         )}
