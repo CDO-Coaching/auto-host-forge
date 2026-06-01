@@ -82,14 +82,29 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from("user_profiles")
-        .update({ 
-          vma: vmaValue,
-          fc_max: fcMaxValue,
-          fc_repos: fcReposValue
-        })
-        .eq("id", athleteId);
+      let error: any = null;
+
+      if (isCoachView) {
+        // Coach view: update via RPC (contourne RLS qui bloque les updates cross-user)
+        const result = await supabase.rpc("update_athlete_physio", {
+          p_athlete_id: athleteId,
+          p_vma: vmaValue,
+          p_fc_max: fcMaxValue,
+          p_fc_repos: fcReposValue,
+        } as any);
+        error = result.error;
+      } else {
+        // Athlete view: mise à jour directe (auth.uid() = athleteId)
+        const result = await supabase
+          .from("user_profiles")
+          .update({
+            vma: vmaValue,
+            fc_max: fcMaxValue,
+            fc_repos: fcReposValue,
+          })
+          .eq("id", athleteId);
+        error = result.error;
+      }
 
       if (error) throw error;
 
