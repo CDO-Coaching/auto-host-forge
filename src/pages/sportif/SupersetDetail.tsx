@@ -603,286 +603,158 @@ export default function SupersetDetail() {
               })()}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            {/* Charge obligatoire si coach a mis "??" ou une fourchette */}
+          <div className="space-y-3">
+            {/* ── Charge requise ── */}
             {isChargeRequired && rpeDialogSerieIndex !== null && (() => {
               const exIdx = rpeDialogSerieIndex % exercises.length;
               const suggested = suggestedChargeByExIdx[exIdx];
               return (
-                <div className="rounded-lg border border-orange-400/40 bg-orange-500/8 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Weight className="h-4 w-4 text-orange-600" />
-                    <Label className="text-sm font-semibold text-orange-700">
-                      Charge utilisée <span className="text-destructive">*</span>
-                    </Label>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-orange-600 uppercase tracking-wide">⚖️ Charge *</span>
+                    {chargeRangeOptions && <span className="text-[11px] text-muted-foreground">({chargeRangeOptions[0]}–{chargeRangeOptions[1]} kg)</span>}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {chargeRangeOptions
-                      ? `Le coach propose ${chargeRangeOptions[0]}-${chargeRangeOptions[1]} kg — quelle charge as-tu utilisée ?`
-                      : "Le coach n'a pas fixé de charge — indique ce que tu as mis."}
-                  </p>
-                  {/* Boutons sélection rapide fourchette */}
                   {chargeRangeOptions && (
-                    <div className="flex gap-2">
-                      {chargeRangeOptions.map((val) => (
-                        <button
-                          key={val}
-                          type="button"
-                          onClick={() => setRpeActualCharge(val)}
-                          className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
-                            rpeActualCharge === val
-                              ? "border-orange-400 bg-orange-400/20 text-orange-700"
-                              : "border-border bg-secondary text-foreground active:bg-muted"
-                          }`}
-                        >
+                    <div className="flex gap-1.5">
+                      {chargeRangeOptions.map(val => (
+                        <button key={val} type="button" onClick={() => setRpeActualCharge(val)}
+                          className={`flex-1 h-9 rounded-lg border text-sm font-bold transition-colors ${rpeActualCharge === val ? "border-orange-400 bg-orange-400/20 text-orange-700" : "border-border bg-secondary"}`}>
                           {val} kg
                         </button>
                       ))}
-                      <button
-                        type="button"
-                        onClick={() => setRpeActualCharge("")}
-                        className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
-                          rpeActualCharge !== "" && !chargeRangeOptions.includes(rpeActualCharge)
-                            ? "border-orange-400 bg-orange-400/20 text-orange-700"
-                            : "border-border bg-secondary text-muted-foreground"
-                        }`}
-                      >
+                      <button type="button" onClick={() => setRpeActualCharge(chargeRangeOptions.includes(rpeActualCharge) ? "" : rpeActualCharge)}
+                        className={`px-2.5 h-9 rounded-lg border text-xs transition-colors ${rpeActualCharge !== "" && !chargeRangeOptions.includes(rpeActualCharge) ? "border-orange-400 bg-orange-400/20 text-orange-700" : "border-border bg-secondary text-muted-foreground"}`}>
                         Autre
                       </button>
                     </div>
                   )}
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 w-10 p-0 shrink-0"
-                      onClick={() => {
-                        const current = parseFloat(rpeActualCharge) || 0;
-                        const step = current >= 40 ? 5 : 2.5;
-                        setRpeActualCharge(String(Math.max(0, Math.round((current - step) * 4) / 4)));
-                      }}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <div className="relative flex-1">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={rpeActualCharge}
-                        onChange={(e) => setRpeActualCharge(e.target.value)}
-                        placeholder={suggested || (chargeRangeOptions ? chargeRangeOptions[0] : "ex: 60")}
-                        className="h-10 text-center text-base font-bold pr-8"
-                      />
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                  {(!chargeRangeOptions || !chargeRangeOptions.includes(rpeActualCharge)) && (
+                    <div className="flex items-center gap-1.5">
+                      <button type="button" onClick={() => { const c=parseFloat(rpeActualCharge)||0; const s=c>=40?5:2.5; setRpeActualCharge(String(Math.max(0,Math.round((c-s)*4)/4))); }}
+                        className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">−</button>
+                      <div className="relative flex-1">
+                        <Input type="number" inputMode="decimal" value={rpeActualCharge}
+                          onChange={e => setRpeActualCharge(e.target.value)}
+                          placeholder={suggested || chargeRangeOptions?.[0] || "ex: 60"}
+                          className="h-9 text-center font-bold pr-6 text-sm" />
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
+                      </div>
+                      <button type="button" onClick={() => { const c=parseFloat(rpeActualCharge)||0; const s=c>=40?5:2.5; setRpeActualCharge(String(Math.round((c+s)*4)/4)); }}
+                        className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">+</button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-10 w-10 p-0 shrink-0"
-                      onClick={() => {
-                        const current = parseFloat(rpeActualCharge) || 0;
-                        const step = current >= 40 ? 5 : 2.5;
-                        setRpeActualCharge(String(Math.round((current + step) * 4) / 4));
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  )}
                   {suggested && rpeActualCharge !== suggested && (
-                    <button
-                      type="button"
-                      className="text-xs text-primary underline"
-                      onClick={() => setRpeActualCharge(suggested)}
-                    >
-                      Reprendre {suggested} kg (série précédente)
+                    <button type="button" onClick={() => setRpeActualCharge(suggested)} className="text-[11px] text-primary underline">
+                      ← {suggested} kg (série préc.)
                     </button>
                   )}
                 </div>
               );
             })()}
 
-            {/* Reps obligatoires si coach a mis une fourchette */}
+            {/* ── Reps requises ── */}
             {isRepsRequired && repsRangeOptions && (
-              <div className="rounded-lg border border-blue-400/40 bg-blue-500/8 p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm font-semibold text-blue-700">
-                    Reps réalisées <span className="text-destructive">*</span>
-                  </Label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Le coach propose {repsRangeOptions[0]}-{repsRangeOptions[1]} reps — combien en as-tu fait ?
-                </p>
-                <div className="flex gap-2">
-                  {repsRangeOptions.map((val) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setRpeActualReps(val)}
-                      className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
-                        rpeActualReps === val
-                          ? "border-blue-400 bg-blue-400/20 text-blue-700"
-                          : "border-border bg-secondary text-foreground active:bg-muted"
-                      }`}
-                    >
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-blue-600 uppercase tracking-wide">Reps * ({repsRangeOptions[0]}–{repsRangeOptions[1]})</span>
+                <div className="flex gap-1.5">
+                  {repsRangeOptions.map(val => (
+                    <button key={val} type="button" onClick={() => setRpeActualReps(val)}
+                      className={`flex-1 h-9 rounded-lg border text-sm font-bold transition-colors ${rpeActualReps === val ? "border-blue-400 bg-blue-400/20 text-blue-700" : "border-border bg-secondary"}`}>
                       {val}
                     </button>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setRpeActualReps("")}
-                    className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
-                      rpeActualReps !== "" && !repsRangeOptions.includes(rpeActualReps)
-                        ? "border-blue-400 bg-blue-400/20 text-blue-700"
-                        : "border-border bg-secondary text-muted-foreground"
-                    }`}
-                  >
+                  <button type="button" onClick={() => setRpeActualReps(repsRangeOptions.includes(rpeActualReps) ? "" : rpeActualReps)}
+                    className={`px-2.5 h-9 rounded-lg border text-xs transition-colors ${rpeActualReps !== "" && !repsRangeOptions.includes(rpeActualReps) ? "border-blue-400 bg-blue-400/20 text-blue-700" : "border-border bg-secondary text-muted-foreground"}`}>
                     Autre
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" size="sm" className="h-10 w-10 p-0 shrink-0"
-                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; if (cur > 0) setRpeActualReps(String(cur - 1)); }}>
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    value={rpeActualReps}
-                    onChange={(e) => setRpeActualReps(e.target.value)}
-                    placeholder={repsRangeOptions[0]}
-                    className="h-10 text-center text-base font-bold"
-                  />
-                  <Button type="button" variant="outline" size="sm" className="h-10 w-10 p-0 shrink-0"
-                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; setRpeActualReps(String(cur + 1)); }}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                {!repsRangeOptions.includes(rpeActualReps) && (
+                  <div className="flex items-center gap-1.5">
+                    <button type="button" onClick={() => { const c=parseInt(rpeActualReps)||0; if(c>0) setRpeActualReps(String(c-1)); }}
+                      className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">−</button>
+                    <Input type="number" inputMode="numeric" value={rpeActualReps}
+                      onChange={e => setRpeActualReps(e.target.value)}
+                      placeholder={repsRangeOptions[0]} className="h-9 text-center font-bold text-sm" />
+                    <button type="button" onClick={() => setRpeActualReps(String((parseInt(rpeActualReps)||0)+1))}
+                      className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">+</button>
+                  </div>
+                )}
               </div>
             )}
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
+            {/* ── RPE — pas de slider, boutons 1-10 ── */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-wide">RPE *</span>
                 <RPEExplanationDialog />
               </div>
-              <div className="flex flex-col items-center gap-3">
-                <span className={`text-4xl font-bold ${
+              <div className="flex items-center gap-2">
+                <span className={`text-3xl font-black w-9 text-center tabular-nums shrink-0 ${
                   Number(rpeInputValue) <= 3 ? "text-green-500" :
                   Number(rpeInputValue) <= 6 ? "text-yellow-500" :
-                  Number(rpeInputValue) <= 8 ? "text-orange-500" :
-                  "text-red-500"
-                }`}>
-                  {rpeInputValue || "7"}
-                </span>
-                <Slider
-                  min={1}
-                  max={10}
-                  step={1}
-                  value={[Number(rpeInputValue) || 7]}
-                  onValueChange={(val) => setRpeInputValue(String(val[0]))}
-                  className="w-full"
-                />
-                <div className="flex justify-between w-full text-xs text-muted-foreground">
-                  <span>Facile</span>
-                  <span>Maximum</span>
+                  Number(rpeInputValue) <= 8 ? "text-orange-500" : "text-red-500"
+                }`}>{rpeInputValue || "–"}</span>
+                <div className="flex flex-1 gap-1">
+                  {[1,2,3,4,5,6,7,8,9,10].map(v => (
+                    <button key={v} type="button" onClick={() => setRpeInputValue(String(v))}
+                      className={`flex-1 h-9 rounded text-xs font-bold border transition-colors ${
+                        Number(rpeInputValue) === v
+                          ? (v<=3?"border-green-400 bg-green-400/20 text-green-700":v<=6?"border-yellow-400 bg-yellow-400/20 text-yellow-700":v<=8?"border-orange-400 bg-orange-400/20 text-orange-700":"border-red-400 bg-red-400/20 text-red-700")
+                          : "border-border bg-secondary"
+                      }`}>{v}</button>
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Corrections optionnelles — accordéons */}
+            {/* ── Modifications — 2 chips compacts ── */}
             {rpeDialogSerieIndex !== null && (() => {
               const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
               const exIdx = rpeDialogSerieIndex % exercises.length;
               const ex = exercises[exIdx];
-              const seriesData = getSeriesDataForExercise(ex);
-              const prescribedReps = seriesData[roundIdx]?.reps || ex?.reps;
-              const prescribedCharge = seriesData[roundIdx]?.charge || ex?.charge;
-              const prescribedRpe = seriesData[roundIdx]?.rpe || ex?.rpe;
-              if (!prescribedReps && (!prescribedCharge || isChargeRequired)) return null;
-
-              const modFields = (
-                <div className="space-y-2 mt-2 pl-1">
-                  {prescribedReps && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Reps réellement faites <span className="font-medium text-foreground">(prévu : {prescribedReps})</span></Label>
-                      <Input type="number" inputMode="numeric" value={rpeActualReps} onChange={(e) => setRpeActualReps(e.target.value)} placeholder={prescribedReps} className="h-8 text-sm" />
-                    </div>
-                  )}
-                  {prescribedCharge && !isChargeRequired && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Charge réellement utilisée <span className="font-medium text-foreground">(prévu : {prescribedCharge})</span></Label>
-                      <Input value={rpeActualCharge} onChange={(e) => setRpeActualCharge(e.target.value)} placeholder={prescribedCharge} className="h-8 text-sm" />
-                    </div>
-                  )}
-                </div>
-              );
-
+              const sd = getSeriesDataForExercise(ex);
+              const prescribedReps = sd[roundIdx]?.reps || ex?.reps;
+              const prescribedCharge = sd[roundIdx]?.charge || ex?.charge;
+              if ((!prescribedReps || isRepsRequired) && (!prescribedCharge || isChargeRequired)) return null;
               return (
-                <div className="border-t pt-3 space-y-2">
-                  {/* Échec */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModificationType(prev => prev === "failure" ? "none" : "failure");
-                      setRpeActualReps("");
-                      setRpeActualCharge("");
-                    }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-sm transition-colors ${
-                      modificationType === "failure"
-                        ? "border-red-400/60 bg-red-500/10 text-red-700"
-                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 font-medium">
-                      <span>😓</span>
-                      <span>Pas réussi — j'ai fait moins</span>
-                    </span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${modificationType === "failure" ? "rotate-180" : ""}`} />
-                  </button>
-                  {modificationType === "failure" && modFields}
-
-                  {/* Trop facile */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setModificationType(prev => prev === "too_easy" ? "none" : "too_easy");
-                      setRpeActualReps("");
-                      setRpeActualCharge("");
-                    }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg border text-sm transition-colors ${
-                      modificationType === "too_easy"
-                        ? "border-blue-400/60 bg-blue-500/10 text-blue-700"
-                        : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 font-medium">
-                      <span>💪</span>
-                      <span>Trop facile — j'ai ajusté</span>
-                    </span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${modificationType === "too_easy" ? "rotate-180" : ""}`} />
-                  </button>
-                  {modificationType === "too_easy" && (
-                    <div className="space-y-2 mt-1">
-                      <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-400/30 rounded-lg text-xs text-amber-700">
-                        <span className="shrink-0 mt-0.5">⚠️</span>
-                        <span>
-                          Attention : reste dans ta zone RPE{prescribedRpe ? ` ${prescribedRpe}` : ""}. Augmenter la charge ou les reps doit être cohérent avec ton ressenti — ne force pas au-delà de tes capacités du moment.
-                        </span>
-                      </div>
-                      {modFields}
+                <div className="border-t pt-2 space-y-2">
+                  <div className="flex gap-2">
+                    <button type="button"
+                      onClick={() => { setModificationType(p => p==="failure"?"none":"failure"); setRpeActualReps(""); setRpeActualCharge(""); }}
+                      className={`flex-1 h-8 rounded-lg border text-xs font-medium transition-colors ${modificationType==="failure"?"border-red-400 bg-red-500/10 text-red-700":"border-border text-muted-foreground"}`}>
+                      😓 Fait moins
+                    </button>
+                    <button type="button"
+                      onClick={() => { setModificationType(p => p==="too_easy"?"none":"too_easy"); setRpeActualReps(""); setRpeActualCharge(""); }}
+                      className={`flex-1 h-8 rounded-lg border text-xs font-medium transition-colors ${modificationType==="too_easy"?"border-blue-400 bg-blue-500/10 text-blue-700":"border-border text-muted-foreground"}`}>
+                      💪 Ajusté
+                    </button>
+                  </div>
+                  {modificationType !== "none" && (
+                    <div className="space-y-1.5">
+                      {prescribedReps && !isRepsRequired && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0">Reps (prévu: {prescribedReps})</span>
+                          <Input type="number" inputMode="numeric" value={rpeActualReps}
+                            onChange={e => setRpeActualReps(e.target.value)}
+                            placeholder={prescribedReps} className="h-7 text-sm flex-1 min-w-0" />
+                        </div>
+                      )}
+                      {prescribedCharge && !isChargeRequired && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground shrink-0">Charge (prévu: {prescribedCharge})</span>
+                          <Input value={rpeActualCharge} onChange={e => setRpeActualCharge(e.target.value)}
+                            placeholder={prescribedCharge} className="h-7 text-sm flex-1 min-w-0" />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })()}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRpeDialogOpen(false)} className="w-full sm:w-auto">
-              Annuler
-            </Button>
-            <Button onClick={handleRpeSubmit} className="w-full sm:w-auto">
+          <DialogFooter className="mt-3">
+            <Button onClick={handleRpeSubmit} className="w-full">
               Valider
             </Button>
           </DialogFooter>
