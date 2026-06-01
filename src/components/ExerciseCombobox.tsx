@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Check, ChevronsUpDown, Plus, Clock } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Clock, VideoOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +46,7 @@ export interface LibraryExercise {
   name: string;
   muscle_principal?: string | null;
   muscles_second?: string[] | null;
+  video_url?: string | null;
 }
 
 interface ExerciseComboboxProps {
@@ -204,6 +205,9 @@ export function ExerciseCombobox({
                   >
                     <Check className={cn("h-4 w-4 shrink-0", value === ex.name ? "opacity-100" : "opacity-0")} />
                     <span className="font-medium uppercase text-sm flex-1 truncate">{ex.name}</span>
+                    {!ex.video_url && (
+                      <VideoOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" title="Pas de vidéo" />
+                    )}
                     {ex.muscle_principal && (
                       <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">
                         {ex.muscle_principal}
@@ -226,7 +230,12 @@ export function ExerciseCombobox({
                   >
                     <Check className={cn("h-4 w-4 mt-0.5 shrink-0", value === ex.name ? "opacity-100" : "opacity-0")} />
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium uppercase text-sm">{ex.name}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium uppercase text-sm">{ex.name}</span>
+                        {!ex.video_url && (
+                          <VideoOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" title="Pas de vidéo" />
+                        )}
+                      </div>
                       {ex.muscles_second && ex.muscles_second.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-0.5">
                           {ex.muscles_second.map((m, i) => (
