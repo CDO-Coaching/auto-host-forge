@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Plus, Search, Dumbbell, ExternalLink, Trash2,
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Youtube,
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Youtube, VideoOff, ShieldCheck, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -97,6 +97,12 @@ export default function BibliothequeExercices() {
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<Exercise | null>(null);
+
+  // Video audit
+  type AuditResult = { name: string; url: string; status: "ok" | "broken" | "private"; title?: string };
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditResults, setAuditResults] = useState<AuditResult[] | null>(null);
 
   const pendingHandled = useRef(false);
 
@@ -218,6 +224,36 @@ export default function BibliothequeExercices() {
     }
   };
 
+  const runVideoAudit = async () => {
+    setAuditRunning(true);
+    setAuditResults(null);
+    const withVideo = exercises.filter((ex) => !!ex.video_url);
+    const results: AuditResult[] = [];
+    for (const ex of withVideo) {
+      const url = ex.video_url!;
+      try {
+        const r = await fetch(
+          `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        if (r.ok) {
+          const data = await r.json();
+          results.push({ name: ex.name, url, status: "ok", title: data.title });
+        } else if (r.status === 401) {
+          results.push({ name: ex.name, url, status: "private" });
+        } else {
+          results.push({ name: ex.name, url, status: "broken" });
+        }
+      } catch {
+        results.push({ name: ex.name, url, status: "broken" });
+      }
+      // avoid hammering YouTube
+      await new Promise((res) => setTimeout(res, 150));
+    }
+    setAuditResults(results);
+    setAuditRunning(false);
+  };
+
   const toggleSecondaryMuscle = (muscle: string, isEditing = false) => {
     if (isEditing && editingExercise) {
       const current = editingExercise.muscles_second || [];
@@ -248,10 +284,21 @@ export default function BibliothequeExercices() {
           )}
         </div>
 
+        <div className="flex gap-2 w-full sm:w-auto">
+          {/* Video audit button */}
+          <Button
+            variant="outline"
+            className="flex-1 sm:flex-none"
+            onClick={() => { setAuditOpen(true); if (!auditResults) runVideoAudit(); }}
+          >
+            <ShieldCheck className="h-4 w-4 mr-2" />
+            Vérifier les vidéos
+          </Button>
+
         {/* Add dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto"><Plus className="h-4 w-4 mr-2" />Ajouter un exercice</Button>
+            <Button className="flex-1 sm:flex-none"><Plus className="h-4 w-4 mr-2" />Ajouter un exercice</Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Nouvel exercice</DialogTitle></DialogHeader>
@@ -264,7 +311,83 @@ export default function BibliothequeExercices() {
             />
           </DialogContent>
         </Dialog>
+        </div>{/* end flex gap-2 */}
       </div>
+
+      {/* Video audit dialog */}
+      <Dialog open={auditOpen} onOpenChange={setAuditOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Audit des vidéos YouTube
+            </DialogTitle>
+          </DialogHeader>
+          {auditRunning && (
+            <div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin" />
+              <p className="text-sm">Vérification en cours…</p>
+              {auditResults && (
+                <p className="text-xs">{auditResults.length} / {exercises.filter(e => e.video_url).length} vidéos vérifiées</p>
+              )}
+            </div>
+          )}
+          {!auditRunning && auditResults && (() => {
+            const broken = auditResults.filter(r => r.status !== "ok");
+            const ok = auditResults.filter(r => r.status === "ok");
+            return (
+              <div className="space-y-4 py-2">
+                {/* Summary */}
+                <div className="flex gap-3">
+                  <div className="flex-1 rounded-lg bg-green-500/10 border border-green-500/20 p-3 text-center">
+                    <p className="text-2xl font-bold text-green-500">{ok.length}</p>
+                    <p className="text-xs text-muted-foreground">disponibles</p>
+                  </div>
+                  <div className="flex-1 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-center">
+                    <p className="text-2xl font-bold text-destructive">{broken.length}</p>
+                    <p className="text-xs text-muted-foreground">problèmes</p>
+                  </div>
+                </div>
+
+                {/* Broken videos */}
+                {broken.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-destructive flex items-center gap-1.5">
+                      <VideoOff className="h-4 w-4" /> Vidéos indisponibles
+                    </p>
+                    {broken.map((r, i) => (
+                      <div key={i} className="flex items-start gap-2 rounded-md bg-destructive/5 border border-destructive/20 p-2.5">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{r.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{r.url}</p>
+                        </div>
+                        <span className="text-xs shrink-0 px-1.5 py-0.5 rounded bg-destructive/20 text-destructive font-medium">
+                          {r.status === "private" ? "Privée" : "Supprimée"}
+                        </span>
+                        <a href={r.url} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                          <ExternalLink className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {broken.length === 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-green-500/10 border border-green-500/20 p-4">
+                    <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
+                    <p className="text-sm text-green-600 dark:text-green-400">Toutes les vidéos sont disponibles 🎉</p>
+                  </div>
+                )}
+
+                <Button variant="outline" size="sm" className="w-full" onClick={runVideoAudit}>
+                  <Loader2 className="h-3.5 w-3.5 mr-2" />
+                  Relancer l'audit
+                </Button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Filters */}
       <Card>
