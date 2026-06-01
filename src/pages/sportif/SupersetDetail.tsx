@@ -74,6 +74,8 @@ export default function SupersetDetail() {
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
   const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
+  // AMRAP counter (simple round count, no per-exercise validation)
+  const [amrapRounds, setAmrapRounds] = useState(0);
   // "??" / range charge management: per exercise index
   const [isChargeRequired, setIsChargeRequired] = useState(false);
   const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
@@ -397,22 +399,14 @@ export default function SupersetDetail() {
 
     for (let i = 0; i < allExerciseRows.length; i++) {
       const exercise = allExerciseRows[i];
-      // Build per-serie RPE for this exercise (rounds where this exercise was validated)
+      // Build per-serie RPE for this exercise
       const exIdx = exercises.findIndex(e => e.id === exercise.id);
-      const perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: string | null }[] = [];
-      if (exIdx >= 0) {
-        // For AMRAP: only save completed rounds (not the 30-round cap)
-        const saveRounds = isAmrap
-          ? (() => {
-              let count = 0;
-              for (let r = 0; r < AMRAP_CAP; r++) {
-                const allDone = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
-                if (allDone) count = r + 1; else break;
-              }
-              return count;
-            })()
-          : totalRounds;
-        for (let r = 0; r < saveRounds; r++) {
+      let perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: string | null }[] = [];
+      if (isAmrap) {
+        // AMRAP: encode round count as an array of nulls (length = rounds done)
+        perSerieRpe = Array.from({ length: amrapRounds }, () => ({ rpe: null }));
+      } else if (exIdx >= 0) {
+        for (let r = 0; r < totalRounds; r++) {
           const vIdx = r * exercises.length + exIdx;
           const sv = serieValidations[vIdx];
           perSerieRpe.push({
@@ -906,11 +900,6 @@ export default function SupersetDetail() {
 
         {/* ── AMRAP hero card ─────────────────────────────────────────── */}
         {isAmrap && (() => {
-          let doneRounds = 0;
-          for (let r = 0; r < AMRAP_CAP; r++) {
-            const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
-            if (ok) doneRounds = r + 1; else break;
-          }
           return (
             <>
               {/* Gros encadré durée */}
@@ -921,10 +910,10 @@ export default function SupersetDetail() {
                 </div>
                 <p className="text-5xl font-black text-primary tracking-tight">{amrapLabel}</p>
                 <p className="text-sm text-muted-foreground mt-1">Fais le circuit le plus de fois possible en {amrapLabel}</p>
-                {doneRounds > 0 && (
+                {amrapRounds > 0 && (
                   <div className="mt-3 inline-flex items-center gap-1.5 bg-green-500/15 text-green-600 rounded-full px-3 py-1">
                     <Check className="h-3.5 w-3.5" />
-                    <span className="text-sm font-bold">{doneRounds} tour{doneRounds > 1 ? "s" : ""} complété{doneRounds > 1 ? "s" : ""}</span>
+                    <span className="text-sm font-bold">{amrapRounds} tour{amrapRounds > 1 ? "s" : ""} complété{amrapRounds > 1 ? "s" : ""}</span>
                   </div>
                 )}
               </div>
@@ -983,14 +972,26 @@ export default function SupersetDetail() {
                 </CardContent>
               </Card>
 
-              {/* Tours complétés + collapse */}
-              <div className="flex items-center justify-between px-1">
-                <p className="text-sm font-semibold">Tours complétés — {doneRounds}</p>
-                {completedCount > 0 && (
-                  <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
-                    {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  </Button>
-                )}
+              {/* Compteur de tours */}
+              <div className="flex flex-col items-center gap-2 py-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Tours complétés</p>
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setAmrapRounds(r => Math.max(0, r - 1))}
+                    className="h-12 w-12 rounded-2xl border-2 border-border bg-secondary flex items-center justify-center text-2xl font-bold active:bg-muted transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="text-5xl font-black w-16 text-center tabular-nums">{amrapRounds}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAmrapRounds(r => r + 1)}
+                    className="h-12 w-12 rounded-2xl border-2 border-primary bg-primary/10 text-primary flex items-center justify-center text-2xl font-bold active:bg-primary/20 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </>
           );
@@ -1037,8 +1038,8 @@ export default function SupersetDetail() {
           </Card>
         )}
 
-        {/* Series rounds */}
-        {!seriesCollapsed && (
+        {/* Series rounds — hidden in AMRAP mode (counter replaces per-round cards) */}
+        {!isAmrap && !seriesCollapsed && (
           <div className="space-y-4">
             {Array.from({ length: totalRounds }, (_, roundIdx) => {
               const roundValidations = exercises.map((_, exIdx) => {
@@ -1205,34 +1206,25 @@ export default function SupersetDetail() {
           </div>
         )}
 
-        {seriesCollapsed && (
+        {!isAmrap && seriesCollapsed && (
           <div className="text-sm text-muted-foreground text-center py-2">
             {completedCount} exercice{completedCount > 1 ? "s" : ""} validé{completedCount > 1 ? "s" : ""} sur {totalValidationSlots}
           </div>
         )}
 
-        {/* Finish button — AMRAP mode: show when at least 1 round complete */}
-        {isAmrap && (() => {
-          let doneRounds = 0;
-          for (let r = 0; r < AMRAP_CAP; r++) {
-            const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
-            if (ok) doneRounds = r + 1; else break;
-          }
-          if (doneRounds === 0) return null;
-          return (
-            <Button
-              size="lg"
-              className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
-              onClick={() => {
-                const rpes = serieValidations.filter(s => s.validated && s.rpe !== null).map(s => s.rpe!);
-                if (rpes.length > 0) setComputedAvgRpe(String(Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length)));
-                setDialogOpen(true);
-              }}
-            >
-              Terminer l'AMRAP — {doneRounds} tour{doneRounds > 1 ? "s" : ""} complété{doneRounds > 1 ? "s" : ""} ✓
-            </Button>
-          );
-        })()}
+        {/* Finish button — AMRAP mode */}
+        {isAmrap && (
+          <Button
+            size="lg"
+            className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
+            disabled={amrapRounds === 0}
+            onClick={() => setDialogOpen(true)}
+          >
+            {amrapRounds === 0
+              ? "Ajoute au moins 1 tour pour terminer"
+              : `Terminer l'AMRAP — ${amrapRounds} tour${amrapRounds > 1 ? "s" : ""} ✓`}
+          </Button>
+        )}
 
         {/* Finish button — normal mode */}
         {!isAmrap && allValidated && (
