@@ -901,72 +901,141 @@ export default function SupersetDetail() {
           <Button variant="ghost" size="sm" onClick={handleBack} className="h-8 w-8 sm:h-10 sm:w-10 p-0">
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl sm:text-2xl font-bold">Superset</h1>
-          <Badge variant="secondary" className="ml-auto text-xs">
-            {exercises.map(ex => ex.exercice).join(" + ")}
-          </Badge>
+          <h1 className="text-xl sm:text-2xl font-bold">{isAmrap ? "AMRAP" : "Superset"}</h1>
         </div>
 
-        {/* Exercise names summary */}
-        <Card className="border-2 border-primary/30">
-          <CardContent className="p-3 sm:p-4">
-            <div className="space-y-2">
-              {exercises.map((ex, idx) => (
-                <div key={ex.id} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-primary">{idx + 1}</span>
-                    <span className="font-medium uppercase">{ex.exercice}</span>
-                    {videoUrls[ex.exercice] && (
-                      <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
-                        🎥
-                      </a>
+        {/* ── AMRAP hero card ─────────────────────────────────────────── */}
+        {isAmrap && (() => {
+          let doneRounds = 0;
+          for (let r = 0; r < AMRAP_CAP; r++) {
+            const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
+            if (ok) doneRounds = r + 1; else break;
+          }
+          return (
+            <>
+              {/* Gros encadré durée */}
+              <div className="rounded-2xl border-2 border-primary bg-primary/10 p-5 text-center">
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Timer className="h-5 w-5 text-primary" />
+                  <span className="text-xs font-bold text-primary uppercase tracking-widest">AMRAP</span>
+                </div>
+                <p className="text-5xl font-black text-primary tracking-tight">{amrapLabel}</p>
+                <p className="text-sm text-muted-foreground mt-1">Fais le circuit le plus de fois possible en {amrapLabel}</p>
+                {doneRounds > 0 && (
+                  <div className="mt-3 inline-flex items-center gap-1.5 bg-green-500/15 text-green-600 rounded-full px-3 py-1">
+                    <Check className="h-3.5 w-3.5" />
+                    <span className="text-sm font-bold">{doneRounds} tour{doneRounds > 1 ? "s" : ""} complété{doneRounds > 1 ? "s" : ""}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Circuit : exercices avec détails */}
+              <Card className="border border-border/60">
+                <CardContent className="p-3 sm:p-4">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Le circuit</p>
+                  <div className="space-y-3">
+                    {exercises.map((ex, idx) => {
+                      const serieRef = allSeriesData[idx]?.[0] || {};
+                      const reps = serieRef.reps || (ex as any).reps;
+                      const charge = serieRef.charge || (ex as any).charge;
+                      const rpe = serieRef.rpe || (ex as any).rpe;
+                      const tempo = serieRef.tempo || (ex as any).tempo;
+                      const recup = serieRef.recuperation || (ex as any).recuperation;
+                      return (
+                        <div key={ex.id} className="flex items-start gap-3">
+                          <span className="h-6 w-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                            {idx + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-sm uppercase">{ex.exercice}</span>
+                              {videoUrls[ex.exercice] && (
+                                <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-base" onClick={(e) => e.stopPropagation()}>🎥</a>
+                              )}
+                            </div>
+                            {/* Détails en pills */}
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {reps && (
+                                <span className="text-[11px] bg-muted rounded px-1.5 py-0.5 font-medium">
+                                  {reps}{(ex as any).is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
+                                </span>
+                              )}
+                              {charge && charge !== "??" && (
+                                <span className="text-[11px] bg-muted rounded px-1.5 py-0.5 font-medium">{charge}{/^\d+(\.\d+)?$/.test(charge.trim()) ? " kg" : ""}</span>
+                              )}
+                              {charge === "??" && (
+                                <span className="text-[11px] bg-orange-500/15 text-orange-600 rounded px-1.5 py-0.5 font-medium">charge libre</span>
+                              )}
+                              {rpe && <span className="text-[11px] bg-muted rounded px-1.5 py-0.5 font-medium">RPE {rpe}</span>}
+                              {tempo && <span className="text-[11px] bg-muted rounded px-1.5 py-0.5 font-mono">{tempo}</span>}
+                              {recup && idx < exercises.length - 1 && (
+                                <span className="text-[11px] text-muted-foreground">· {recup} récup</span>
+                              )}
+                            </div>
+                            {(ex as any).commentaire && (
+                              <p className="text-[11px] text-muted-foreground italic mt-1">📝 {(ex as any).commentaire}</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tours complétés + collapse */}
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm font-semibold">Tours complétés — {doneRounds}</p>
+                {completedCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
+                    {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
+            </>
+          );
+        })()}
+
+        {/* ── Superset normal — Exercise names summary ─────────────────── */}
+        {!isAmrap && (
+          <Card className="border-2 border-primary/30">
+            <CardContent className="p-3 sm:p-4">
+              <div className="space-y-2">
+                {exercises.map((ex, idx) => (
+                  <div key={ex.id} className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-primary">{idx + 1}</span>
+                      <span className="font-medium uppercase">{ex.exercice}</span>
+                      {videoUrls[ex.exercice] && (
+                        <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
+                          🎥
+                        </a>
+                      )}
+                    </div>
+                    {(ex as any).commentaire && (
+                      <div className="ml-7 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
+                        <span className="text-base">📝</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
+                          <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{(ex as any).commentaire}</p>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {(ex as any).commentaire && (
-                    <div className="ml-7 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                      <span className="text-base">📝</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
-                        <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{(ex as any).commentaire}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <Separator className="my-3" />
-            {/* Bannière AMRAP */}
-            {isAmrap && (
-              <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2 mb-1">
-                <Timer className="h-4 w-4 text-primary shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-primary">AMRAP · {amrapLabel}</p>
-                  <p className="text-[11px] text-muted-foreground">Fais un max de tours en {amrapLabel} !</p>
-                </div>
+                ))}
               </div>
-            )}
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">
-                {isAmrap
-                  ? (() => {
-                      let doneRounds = 0;
-                      for (let r = 0; r < AMRAP_CAP; r++) {
-                        const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
-                        if (ok) doneRounds = r + 1; else break;
-                      }
-                      return `Tours complétés — ${doneRounds}`;
-                    })()
-                  : `Progression — ${completedCount}/${totalValidationSlots}`
-                }
-              </p>
-              {completedCount > 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
-                  {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+              <Separator className="my-3" />
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Progression — {completedCount}/{totalValidationSlots}</p>
+                {completedCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
+                    {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Series rounds */}
         {!seriesCollapsed && (
