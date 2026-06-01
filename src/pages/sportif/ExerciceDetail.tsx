@@ -77,6 +77,9 @@ export default function ExerciceDetail() {
   const [isChargeRequired, setIsChargeRequired] = useState(false);
   const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
   const [suggestedCharge, setSuggestedCharge] = useState<string | null>(null);
+  // range reps management
+  const [isRepsRequired, setIsRepsRequired] = useState(false);
+  const [repsRangeOptions, setRepsRangeOptions] = useState<[string, string] | null>(null);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -407,10 +410,16 @@ export default function ExerciceDetail() {
 
     // Detect "??" or range (e.g. "25-30") charge → required input
     const serieCharge = (seriesData[serieIndex]?.charge || exercise?.charge || "").trim();
-    const rangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
-    const chargeIsUnknown = serieCharge === "??" || !!rangeMatch;
+    const chargeRangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
+    const chargeIsUnknown = serieCharge === "??" || !!chargeRangeMatch;
     setIsChargeRequired(chargeIsUnknown);
-    setChargeRangeOptions(rangeMatch ? [rangeMatch[1].replace(",", "."), rangeMatch[2].replace(",", ".")] : null);
+    setChargeRangeOptions(chargeRangeMatch ? [chargeRangeMatch[1].replace(",", "."), chargeRangeMatch[2].replace(",", ".")] : null);
+
+    // Detect range reps (e.g. "8-10") → required input
+    const serieReps = (seriesData[serieIndex]?.reps || exercise?.reps || "").trim();
+    const repsRangeMatch = serieReps.match(/^(\d+)\s*-\s*(\d+)$/);
+    setIsRepsRequired(!!repsRangeMatch);
+    setRepsRangeOptions(repsRangeMatch ? [repsRangeMatch[1], repsRangeMatch[2]] : null);
 
     // Pre-fill charge with suggestion from previous serie (if any)
     setRpeActualCharge(chargeIsUnknown && suggestedCharge ? suggestedCharge : "");
@@ -428,23 +437,32 @@ export default function ExerciceDetail() {
     }
     if (rpeDialogSerieIndex === null) return;
 
-    // Validate mandatory charge when coach set "??"
+    // Validate mandatory charge when coach set "??" or range
     if (isChargeRequired && !rpeActualCharge.trim()) {
       toast({ title: "Charge requise", description: "Indique la charge que tu as utilisée pour cette série", variant: "destructive" });
       return;
     }
+    // Validate mandatory reps when coach set a range
+    if (isRepsRequired && !rpeActualReps.trim()) {
+      toast({ title: "Reps requises", description: "Indique le nombre de répétitions que tu as réalisées", variant: "destructive" });
+      return;
+    }
 
     const hasModif = modificationType !== "none";
-    // actual_charge is always saved when isChargeRequired, otherwise only when modification
+    // actual_charge: always saved when required, otherwise only on modification
     const actualCharge = isChargeRequired && rpeActualCharge.trim()
       ? rpeActualCharge.trim()
       : (hasModif && rpeActualCharge.trim() ? rpeActualCharge.trim() : null);
+    // actual_reps: always saved when required, otherwise only on modification
+    const actualReps = isRepsRequired && rpeActualReps.trim()
+      ? rpeActualReps.trim()
+      : (hasModif && rpeActualReps.trim() ? rpeActualReps.trim() : null);
 
     const newValidations = [...serieValidations];
     newValidations[rpeDialogSerieIndex] = {
       validated: true,
       rpe: rpeNumber,
-      actual_reps: (hasModif && rpeActualReps.trim()) ? rpeActualReps.trim() : null,
+      actual_reps: actualReps,
       actual_charge: actualCharge,
       modification_type: hasModif ? modificationType : null,
     };
@@ -464,6 +482,8 @@ export default function ExerciceDetail() {
     setModificationType("none");
     setIsChargeRequired(false);
     setChargeRangeOptions(null);
+    setIsRepsRequired(false);
+    setRepsRangeOptions(null);
 
     // Check if this was the last serie
     const allNowValidated = newValidations.every(s => s.validated);
@@ -822,6 +842,75 @@ export default function ExerciceDetail() {
               </div>
             )}
 
+            {/* Reps obligatoires si coach a mis une fourchette */}
+            {isRepsRequired && repsRangeOptions && (
+              <div className="rounded-lg border border-blue-400/40 bg-blue-500/8 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-semibold text-blue-700">
+                    Reps réalisées <span className="text-destructive">*</span>
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le coach propose {repsRangeOptions[0]}-{repsRangeOptions[1]} reps — combien en as-tu fait ?
+                </p>
+                <div className="flex gap-2">
+                  {repsRangeOptions.map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setRpeActualReps(val)}
+                      className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
+                        rpeActualReps === val
+                          ? "border-blue-400 bg-blue-400/20 text-blue-700"
+                          : "border-border bg-secondary text-foreground active:bg-muted"
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRpeActualReps("")}
+                    className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
+                      rpeActualReps !== "" && !repsRangeOptions.includes(rpeActualReps)
+                        ? "border-blue-400 bg-blue-400/20 text-blue-700"
+                        : "border-border bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    Autre
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; if (cur > 0) setRpeActualReps(String(cur - 1)); }}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={rpeActualReps}
+                    onChange={(e) => setRpeActualReps(e.target.value)}
+                    placeholder={repsRangeOptions[0]}
+                    className="h-10 text-center text-base font-bold"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; setRpeActualReps(String(cur + 1)); }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* RPE */}
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -872,12 +961,12 @@ export default function ExerciceDetail() {
               const prescribedReps = currentSerie?.reps || exercise?.reps;
               const prescribedCharge = currentSerie?.charge || exercise?.charge;
               const prescribedRpe = currentSerie?.rpe || exercise?.rpe;
-              // Masquer les accordéons si charge ?? (pas de prescribedReps et charge déjà gérée)
-              if (!prescribedReps && (!prescribedCharge || isChargeRequired)) return null;
+              // Masquer les accordéons si tout est déjà géré (charge ?? et/ou reps fourchette)
+              if ((!prescribedReps || isRepsRequired) && (!prescribedCharge || isChargeRequired)) return null;
 
               const modFields = (
                 <div className="space-y-2 mt-2 pl-1">
-                  {prescribedReps && (
+                  {prescribedReps && !isRepsRequired && (
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Reps réellement faites <span className="font-medium text-foreground">(prévu : {prescribedReps})</span></Label>
                       <Input
@@ -1115,12 +1204,25 @@ export default function ExerciceDetail() {
                           {(serie.recuperation || exercise.recuperation) && (
                             <span className="text-muted-foreground text-xs">{serie.recuperation || exercise.recuperation}</span>
                           )}
-                          {serie.reps && (
-                            <span className="font-medium">
-                              {serie.reps}{exercise.is_duration ? "s" : (exercise as any).is_distance ? "m" : " reps"}
-                              {exercise.per_side && " /côté"}
-                            </span>
-                          )}
+                          {serie.reps && (() => {
+                            const sr = serie.reps.trim();
+                            const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
+                            if (isRepsRange) {
+                              return isValidated && validation?.actual_reps ? (
+                                <span className="font-medium">{validation.actual_reps} reps</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-600 font-semibold">
+                                  {sr} reps
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="font-medium">
+                                {sr}{exercise.is_duration ? "s" : (exercise as any).is_distance ? "m" : " reps"}
+                                {exercise.per_side && " /côté"}
+                              </span>
+                            );
+                          })()}
                           {serie.charge && (() => {
                             const sc = serie.charge.trim();
                             const isUnknown = sc === "??";
@@ -1156,7 +1258,7 @@ export default function ExerciceDetail() {
                               <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
                             </span>
                           )}
-                          {isValidated && validation.actual_reps && (
+                          {isValidated && validation.actual_reps && !(/^\d+\s*-\s*\d+$/.test((serie.reps ?? "").trim())) && (
                             <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
                               <span className="text-[10px] uppercase opacity-70">Réalisé</span>{validation.actual_reps} reps
                             </span>

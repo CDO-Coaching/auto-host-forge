@@ -78,6 +78,9 @@ export default function SupersetDetail() {
   const [isChargeRequired, setIsChargeRequired] = useState(false);
   const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
   const [suggestedChargeByExIdx, setSuggestedChargeByExIdx] = useState<Record<number, string>>({});
+  // range reps management
+  const [isRepsRequired, setIsRepsRequired] = useState(false);
+  const [repsRangeOptions, setRepsRangeOptions] = useState<[string, string] | null>(null);
 
   const {
     timers,
@@ -238,10 +241,16 @@ export default function SupersetDetail() {
 
     // Detect "??" or range (e.g. "25-30") charge → required input
     const serieCharge = (seriesData[roundIdx]?.charge || exercises[exIdx]?.charge || "").trim();
-    const rangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
-    const chargeIsUnknown = serieCharge === "??" || !!rangeMatch;
+    const chargeRangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
+    const chargeIsUnknown = serieCharge === "??" || !!chargeRangeMatch;
     setIsChargeRequired(chargeIsUnknown);
-    setChargeRangeOptions(rangeMatch ? [rangeMatch[1].replace(",", "."), rangeMatch[2].replace(",", ".")] : null);
+    setChargeRangeOptions(chargeRangeMatch ? [chargeRangeMatch[1].replace(",", "."), chargeRangeMatch[2].replace(",", ".")] : null);
+
+    // Detect range reps (e.g. "8-10") → required input
+    const serieReps = (seriesData[roundIdx]?.reps || exercises[exIdx]?.reps || "").trim();
+    const repsRangeMatch = serieReps.match(/^(\d+)\s*-\s*(\d+)$/);
+    setIsRepsRequired(!!repsRangeMatch);
+    setRepsRangeOptions(repsRangeMatch ? [repsRangeMatch[1], repsRangeMatch[2]] : null);
 
     // Pre-fill with suggestion from previous round (same exercise)
     setRpeActualCharge(chargeIsUnknown && suggestedChargeByExIdx[exIdx] ? suggestedChargeByExIdx[exIdx] : "");
@@ -258,9 +267,14 @@ export default function SupersetDetail() {
     }
     if (rpeDialogSerieIndex === null) return;
 
-    // Validate mandatory charge when coach set "??"
+    // Validate mandatory charge when coach set "??" or range
     if (isChargeRequired && !rpeActualCharge.trim()) {
       toast({ title: "Charge requise", description: "Indique la charge que tu as utilisée pour cette série", variant: "destructive" });
+      return;
+    }
+    // Validate mandatory reps when coach set a range
+    if (isRepsRequired && !rpeActualReps.trim()) {
+      toast({ title: "Reps requises", description: "Indique le nombre de répétitions que tu as réalisées", variant: "destructive" });
       return;
     }
 
@@ -270,12 +284,15 @@ export default function SupersetDetail() {
     const actualCharge = isChargeRequired && rpeActualCharge.trim()
       ? rpeActualCharge.trim()
       : (hasModif && rpeActualCharge.trim() ? rpeActualCharge.trim() : null);
+    const actualReps = isRepsRequired && rpeActualReps.trim()
+      ? rpeActualReps.trim()
+      : (hasModif && rpeActualReps.trim() ? rpeActualReps.trim() : null);
 
     const newValidations = [...serieValidations];
     newValidations[rpeDialogSerieIndex] = {
       validated: true,
       rpe: rpeNumber,
-      actual_reps: (hasModif && rpeActualReps.trim()) ? rpeActualReps.trim() : null,
+      actual_reps: actualReps,
       actual_charge: actualCharge,
       modification_type: hasModif ? modificationType : null,
     };
@@ -294,6 +311,8 @@ export default function SupersetDetail() {
     setModificationType("none");
     setIsChargeRequired(false);
     setChargeRangeOptions(null);
+    setIsRepsRequired(false);
+    setRepsRangeOptions(null);
 
     // Position already computed above (exIdx, roundIdx)
 
@@ -663,6 +682,65 @@ export default function SupersetDetail() {
               );
             })()}
 
+            {/* Reps obligatoires si coach a mis une fourchette */}
+            {isRepsRequired && repsRangeOptions && (
+              <div className="rounded-lg border border-blue-400/40 bg-blue-500/8 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm font-semibold text-blue-700">
+                    Reps réalisées <span className="text-destructive">*</span>
+                  </Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le coach propose {repsRangeOptions[0]}-{repsRangeOptions[1]} reps — combien en as-tu fait ?
+                </p>
+                <div className="flex gap-2">
+                  {repsRangeOptions.map((val) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setRpeActualReps(val)}
+                      className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
+                        rpeActualReps === val
+                          ? "border-blue-400 bg-blue-400/20 text-blue-700"
+                          : "border-border bg-secondary text-foreground active:bg-muted"
+                      }`}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setRpeActualReps("")}
+                    className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
+                      rpeActualReps !== "" && !repsRangeOptions.includes(rpeActualReps)
+                        ? "border-blue-400 bg-blue-400/20 text-blue-700"
+                        : "border-border bg-secondary text-muted-foreground"
+                    }`}
+                  >
+                    Autre
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; if (cur > 0) setRpeActualReps(String(cur - 1)); }}>
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={rpeActualReps}
+                    onChange={(e) => setRpeActualReps(e.target.value)}
+                    placeholder={repsRangeOptions[0]}
+                    className="h-10 text-center text-base font-bold"
+                  />
+                  <Button type="button" variant="outline" size="sm" className="h-10 w-10 p-0 shrink-0"
+                    onClick={() => { const cur = parseInt(rpeActualReps) || 0; setRpeActualReps(String(cur + 1)); }}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Label>RPE ressenti (1-10) <span className="text-destructive">*</span></Label>
@@ -883,12 +961,25 @@ export default function SupersetDetail() {
                                   {ex.exercice}
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
-                                  {serieData.reps && (
-                                    <span className="font-medium">
-                                      {serieData.reps}{ex.is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
-                                      {ex.per_side && " /côté"}
-                                    </span>
-                                  )}
+                                  {serieData.reps && (() => {
+                                    const sr = serieData.reps.trim();
+                                    const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
+                                    if (isRepsRange) {
+                                      return isValidated && validation?.actual_reps ? (
+                                        <span className="font-medium">{validation.actual_reps} reps</span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-600 font-semibold">
+                                          {sr} reps
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <span className="font-medium">
+                                        {sr}{ex.is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
+                                        {ex.per_side && " /côté"}
+                                      </span>
+                                    );
+                                  })()}
                                   {serieData.charge && (() => {
                                     const sc = serieData.charge.trim();
                                     const isUnknown = sc === "??";
