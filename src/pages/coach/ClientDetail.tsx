@@ -3397,9 +3397,8 @@ export default function ClientDetail() {
           const update: Partial<Exercise> = { [field]: finalValue, ...extraUpdates };
 
           // Propagate main-line value changes to all serie_details.
-          // Skipped for tempo which is intentionally per-serie.
           if (
-            (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation" || field === "commentaire") &&
+            (field === "charge" || field === "reps" || field === "rpe" || field === "recuperation" || field === "commentaire" || field === "tempo") &&
             typeof finalValue === "string"
           ) {
             const details = getSerieDetailsArray(ex.serie_details);
