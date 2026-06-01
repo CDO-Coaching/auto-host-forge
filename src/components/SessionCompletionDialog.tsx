@@ -29,6 +29,7 @@ interface SessionCompletionDialogProps {
   sessionName?: string;
   sessionType?: "renfo" | "cardio" | "recup";
   initialDurationSeconds?: number;
+  defaultRpe?: number;
 }
 
 export function SessionCompletionDialog({
@@ -39,6 +40,7 @@ export function SessionCompletionDialog({
   sessionName,
   sessionType = "renfo",
   initialDurationSeconds = 0,
+  defaultRpe,
 }: SessionCompletionDialogProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [rpe, setRpe] = useState("");
@@ -56,7 +58,8 @@ export function SessionCompletionDialog({
   useEffect(() => {
     if (open) {
       setDate(new Date());
-      setRpe("");
+      // Pré-remplir le RPE avec la moyenne calculée si disponible
+      setRpe(defaultRpe != null ? String(defaultRpe) : "");
       setComment("");
       // Pre-fill duration only if timer was used for at least 20 minutes
       if (isTimerUsed) {
@@ -65,7 +68,7 @@ export function SessionCompletionDialog({
         setDurationMinutes("");
       }
     }
-  }, [open, initialMinutes, isTimerUsed]);
+  }, [open, initialMinutes, isTimerUsed, defaultRpe]);
 
   const isRpeRequired = sessionType !== "recup";
 
@@ -246,16 +249,25 @@ export function SessionCompletionDialog({
               <RPEExplanationDialog isCardio={sessionType === "cardio"} />
               {(sessionType === "renfo" || sessionType === "cardio") && <RPEHistoryChartDialog />}
             </div>
-            <Input
-              id="session-rpe"
-              type="number"
-                inputMode="decimal"
-              min="1"
-              max="10"
-              placeholder="Ex: 7"
-              value={rpe}
-              onChange={(e) => setRpe(e.target.value)}
-            />
+            <div className="flex gap-2 flex-wrap">
+              {[1,2,3,4,5,6,7,8,9,10].map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setRpe(String(v))}
+                  className={`flex-1 min-w-[2rem] h-9 rounded border text-sm font-bold transition-colors ${
+                    Number(rpe) === v
+                      ? (v<=3?"border-green-400 bg-green-400/20 text-green-700":v<=6?"border-yellow-400 bg-yellow-400/20 text-yellow-700":v<=8?"border-orange-400 bg-orange-400/20 text-orange-700":"border-red-400 bg-red-400/20 text-red-700")
+                      : "border-border bg-secondary text-foreground"
+                  }`}
+                >{v}</button>
+              ))}
+            </div>
+            {defaultRpe != null && rpe === String(defaultRpe) && (
+              <p className="text-xs text-primary/70 flex items-center gap-1">
+                ✨ Calculé automatiquement depuis tes retours — modifiable
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
               Ressenti global de la séance (1 = très facile, 10 = maximum)
             </p>

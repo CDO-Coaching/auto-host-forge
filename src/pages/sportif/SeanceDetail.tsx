@@ -1245,6 +1245,21 @@ export default function SeanceDetail() {
         sessionName={session?.name}
         sessionType={getSessionType()}
         initialDurationSeconds={sessionDuration}
+        defaultRpe={(() => {
+          // Calcul du RPE moyen à partir des retours de tous les exercices
+          const rpes: number[] = [];
+          exercises.forEach((item: any) => {
+            if (item.isSuperset) {
+              item.exercises?.forEach((ex: any) => {
+                if (ex.sportif_rpe != null) rpes.push(Number(ex.sportif_rpe));
+              });
+            } else {
+              if (item.sportif_rpe != null) rpes.push(Number(item.sportif_rpe));
+            }
+          });
+          if (rpes.length === 0) return undefined;
+          return Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length);
+        })()}
       />
 
       {/* Dialog de modification de séance validée */}
