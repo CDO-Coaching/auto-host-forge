@@ -73,8 +73,9 @@ export default function ExerciceDetail() {
   const [rpeActualReps, setRpeActualReps] = useState("");
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
-  // "??" charge management
+  // "??" / range charge management
   const [isChargeRequired, setIsChargeRequired] = useState(false);
+  const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
   const [suggestedCharge, setSuggestedCharge] = useState<string | null>(null);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -404,10 +405,12 @@ export default function ExerciceDetail() {
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
 
-    // Detect "??" charge → required input
+    // Detect "??" or range (e.g. "25-30") charge → required input
     const serieCharge = (seriesData[serieIndex]?.charge || exercise?.charge || "").trim();
-    const chargeIsUnknown = serieCharge === "??";
+    const rangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
+    const chargeIsUnknown = serieCharge === "??" || !!rangeMatch;
     setIsChargeRequired(chargeIsUnknown);
+    setChargeRangeOptions(rangeMatch ? [rangeMatch[1].replace(",", "."), rangeMatch[2].replace(",", ".")] : null);
 
     // Pre-fill charge with suggestion from previous serie (if any)
     setRpeActualCharge(chargeIsUnknown && suggestedCharge ? suggestedCharge : "");
@@ -460,6 +463,7 @@ export default function ExerciceDetail() {
     setRpeActualCharge("");
     setModificationType("none");
     setIsChargeRequired(false);
+    setChargeRangeOptions(null);
 
     // Check if this was the last serie
     const allNowValidated = newValidations.every(s => s.validated);
@@ -723,7 +727,7 @@ export default function ExerciceDetail() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Charge obligatoire si coach a mis "??" */}
+            {/* Charge obligatoire si coach a mis "??" ou une fourchette */}
             {isChargeRequired && (
               <div className="rounded-lg border border-orange-400/40 bg-orange-500/8 p-3 space-y-2">
                 <div className="flex items-center gap-2">
@@ -733,8 +737,40 @@ export default function ExerciceDetail() {
                   </Label>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Le coach n'a pas fixé de charge — indique ce que tu as mis.
+                  {chargeRangeOptions
+                    ? `Le coach propose ${chargeRangeOptions[0]}-${chargeRangeOptions[1]} kg — quelle charge as-tu utilisée ?`
+                    : "Le coach n'a pas fixé de charge — indique ce que tu as mis."}
                 </p>
+                {/* Boutons de sélection rapide pour les fourchettes */}
+                {chargeRangeOptions && (
+                  <div className="flex gap-2">
+                    {chargeRangeOptions.map((val) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setRpeActualCharge(val)}
+                        className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
+                          rpeActualCharge === val
+                            ? "border-orange-400 bg-orange-400/20 text-orange-700"
+                            : "border-border bg-secondary text-foreground active:bg-muted"
+                        }`}
+                      >
+                        {val} kg
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setRpeActualCharge("")}
+                      className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
+                        rpeActualCharge !== "" && !chargeRangeOptions.includes(rpeActualCharge)
+                          ? "border-orange-400 bg-orange-400/20 text-orange-700"
+                          : "border-border bg-secondary text-muted-foreground"
+                      }`}
+                    >
+                      Autre
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -755,7 +791,7 @@ export default function ExerciceDetail() {
                       inputMode="decimal"
                       value={rpeActualCharge}
                       onChange={(e) => setRpeActualCharge(e.target.value)}
-                      placeholder={suggestedCharge || "ex: 60"}
+                      placeholder={suggestedCharge || (chargeRangeOptions ? chargeRangeOptions[0] : "ex: 60")}
                       className="h-10 text-center text-base font-bold pr-8"
                     />
                     <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
@@ -1085,9 +1121,13 @@ export default function ExerciceDetail() {
                               {exercise.per_side && " /côté"}
                             </span>
                           )}
-                          {serie.charge && (
-                            serie.charge.trim() === "??" ? (
-                              isValidated && validation?.actual_charge ? (
+                          {serie.charge && (() => {
+                            const sc = serie.charge.trim();
+                            const isUnknown = sc === "??";
+                            const isRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                            const needsInput = isUnknown || isRange;
+                            if (needsInput) {
+                              return isValidated && validation?.actual_charge ? (
                                 <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
                                   <span className="text-[10px] uppercase opacity-70">Charge</span>
                                   {validation.actual_charge} kg
@@ -1095,16 +1135,17 @@ export default function ExerciceDetail() {
                               ) : (
                                 <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
                                   <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                  À définir
+                                  {isRange ? sc + " kg" : "À définir"}
                                 </span>
-                              )
-                            ) : (
+                              );
+                            }
+                            return (
                               <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
                                 <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                {serie.charge}{/^\d+(\.\d+)?$/.test(serie.charge.trim()) ? " kg" : ""}
+                                {sc}{/^\d+(\.\d+)?$/.test(sc) ? " kg" : ""}
                               </span>
-                            )
-                          )}
+                            );
+                          })()}
                           {serie.rpe && !isValidated && (
                             <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 text-xs font-medium">
                               <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serie.rpe}/10
@@ -1120,7 +1161,11 @@ export default function ExerciceDetail() {
                               <span className="text-[10px] uppercase opacity-70">Réalisé</span>{validation.actual_reps} reps
                             </span>
                           )}
-                          {isValidated && validation.actual_charge && serie.charge?.trim() !== "??" && (
+                          {isValidated && validation.actual_charge && (() => {
+                            const sc = serie.charge?.trim() ?? "";
+                            const needsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                            return !needsInput;
+                          })() && (
                             <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
                               <span className="text-[10px] uppercase opacity-70">Charge</span>{validation.actual_charge}
                             </span>

@@ -74,8 +74,9 @@ export default function SupersetDetail() {
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
   const [computedAvgRpe, setComputedAvgRpe] = useState<string | undefined>(undefined);
-  // "??" charge management: per exercise index
+  // "??" / range charge management: per exercise index
   const [isChargeRequired, setIsChargeRequired] = useState(false);
+  const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
   const [suggestedChargeByExIdx, setSuggestedChargeByExIdx] = useState<Record<number, string>>({});
 
   const {
@@ -235,10 +236,12 @@ export default function SupersetDetail() {
     const defaultVal = coachRpe ? String(Math.min(10, Math.max(1, parseInt(coachRpe)))) : "7";
     setRpeInputValue(defaultVal);
 
-    // Detect "??" charge → required input
+    // Detect "??" or range (e.g. "25-30") charge → required input
     const serieCharge = (seriesData[roundIdx]?.charge || exercises[exIdx]?.charge || "").trim();
-    const chargeIsUnknown = serieCharge === "??";
+    const rangeMatch = serieCharge.match(/^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/);
+    const chargeIsUnknown = serieCharge === "??" || !!rangeMatch;
     setIsChargeRequired(chargeIsUnknown);
+    setChargeRangeOptions(rangeMatch ? [rangeMatch[1].replace(",", "."), rangeMatch[2].replace(",", ".")] : null);
 
     // Pre-fill with suggestion from previous round (same exercise)
     setRpeActualCharge(chargeIsUnknown && suggestedChargeByExIdx[exIdx] ? suggestedChargeByExIdx[exIdx] : "");
@@ -290,6 +293,7 @@ export default function SupersetDetail() {
     setRpeActualCharge("");
     setModificationType("none");
     setIsChargeRequired(false);
+    setChargeRangeOptions(null);
 
     // Position already computed above (exIdx, roundIdx)
 
@@ -560,7 +564,7 @@ export default function SupersetDetail() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            {/* Charge obligatoire si coach a mis "??" */}
+            {/* Charge obligatoire si coach a mis "??" ou une fourchette */}
             {isChargeRequired && rpeDialogSerieIndex !== null && (() => {
               const exIdx = rpeDialogSerieIndex % exercises.length;
               const suggested = suggestedChargeByExIdx[exIdx];
@@ -573,8 +577,40 @@ export default function SupersetDetail() {
                     </Label>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Le coach n'a pas fixé de charge — indique ce que tu as mis.
+                    {chargeRangeOptions
+                      ? `Le coach propose ${chargeRangeOptions[0]}-${chargeRangeOptions[1]} kg — quelle charge as-tu utilisée ?`
+                      : "Le coach n'a pas fixé de charge — indique ce que tu as mis."}
                   </p>
+                  {/* Boutons sélection rapide fourchette */}
+                  {chargeRangeOptions && (
+                    <div className="flex gap-2">
+                      {chargeRangeOptions.map((val) => (
+                        <button
+                          key={val}
+                          type="button"
+                          onClick={() => setRpeActualCharge(val)}
+                          className={`flex-1 h-10 rounded-lg border text-sm font-bold transition-colors ${
+                            rpeActualCharge === val
+                              ? "border-orange-400 bg-orange-400/20 text-orange-700"
+                              : "border-border bg-secondary text-foreground active:bg-muted"
+                          }`}
+                        >
+                          {val} kg
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setRpeActualCharge("")}
+                        className={`px-3 h-10 rounded-lg border text-xs transition-colors ${
+                          rpeActualCharge !== "" && !chargeRangeOptions.includes(rpeActualCharge)
+                            ? "border-orange-400 bg-orange-400/20 text-orange-700"
+                            : "border-border bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        Autre
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
@@ -595,7 +631,7 @@ export default function SupersetDetail() {
                         inputMode="decimal"
                         value={rpeActualCharge}
                         onChange={(e) => setRpeActualCharge(e.target.value)}
-                        placeholder={suggested || "ex: 60"}
+                        placeholder={suggested || (chargeRangeOptions ? chargeRangeOptions[0] : "ex: 60")}
                         className="h-10 text-center text-base font-bold pr-8"
                       />
                       <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kg</span>
@@ -853,9 +889,13 @@ export default function SupersetDetail() {
                                       {ex.per_side && " /côté"}
                                     </span>
                                   )}
-                                  {serieData.charge && (
-                                    serieData.charge.trim() === "??" ? (
-                                      isValidated && validation?.actual_charge ? (
+                                  {serieData.charge && (() => {
+                                    const sc = serieData.charge.trim();
+                                    const isUnknown = sc === "??";
+                                    const isRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                                    const needsInput = isUnknown || isRange;
+                                    if (needsInput) {
+                                      return isValidated && validation?.actual_charge ? (
                                         <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
                                           <span className="text-[10px] uppercase opacity-70">Charge</span>
                                           {validation.actual_charge} kg
@@ -863,16 +903,17 @@ export default function SupersetDetail() {
                                       ) : (
                                         <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
                                           <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                          À définir
+                                          {isRange ? sc + " kg" : "À définir"}
                                         </span>
-                                      )
-                                    ) : (
+                                      );
+                                    }
+                                    return (
                                       <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
                                         <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                        {serieData.charge}{/^\d+(\.\d+)?$/.test(serieData.charge.trim()) ? " kg" : ""}
+                                        {sc}{/^\d+(\.\d+)?$/.test(sc) ? " kg" : ""}
                                       </span>
-                                    )
-                                  )}
+                                    );
+                                  })()}
                                   {serieData.rpe && !isValidated && (
                                     <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
                                       <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serieData.rpe}/10
