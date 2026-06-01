@@ -454,15 +454,18 @@ export function DesktopProgView(props: DesktopProgViewProps) {
   };
 
   // ── Inline feedback display (closure over copiedWeekFeedback) ─────────────
-  const FeedbackBadge = ({ sessionId, exerciceName }: { sessionId: number; exerciceName: string }) => {
+  const FeedbackBadge = ({ sessionId, exerciceName, series }: { sessionId: number; exerciceName: string; series?: string }) => {
     const fb = getExerciseFeedback(sessionId, exerciceName);
     if (!fb) return null;
+    const isAmrapEx = parseAmrap(series) !== null;
+    const tours = isAmrapEx ? (fb.serie_rpe_details?.length ?? 0) : 0;
     return (
       <div className="text-[10px] bg-muted/50 rounded px-1.5 py-0.5 mt-0.5 border-l-2 border-primary/50">
         {fb.skipped ? (
           <span className="text-destructive font-medium">⚠️ Non fait</span>
         ) : (
           <div className="flex flex-wrap gap-x-2 text-muted-foreground">
+            {isAmrapEx && tours > 0 && <span className="font-bold text-primary">⏱ {tours} tour{tours > 1 ? "s" : ""}</span>}
             {fb.sportif_rpe && <span>RPE: <span className="font-medium text-foreground">{fb.sportif_rpe}</span></span>}
             {fb.sportif_comment && <span className="italic">"{fb.sportif_comment}"</span>}
           </div>
@@ -1093,7 +1096,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                 </DialogContent>
                               </Dialog>
                             )}
-                            <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} />
+                            <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} series={exercise.series} />
                           </div>
 
                           {/* Données réelles (Strava ou saisie manuelle) */}
@@ -1340,7 +1343,34 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                           );
                                         })()}
                                       </TableCell>
-                                      <TableCell colSpan={2} />
+                                      <TableCell colSpan={2}>
+                                        {/* Retour AMRAP du sportif */}
+                                        {parseAmrap(exercise.series) !== null && (() => {
+                                          const fb = getExerciseFeedback(selectedSession.id, exercise.exercice);
+                                          const tours = fb?.serie_rpe_details?.length ?? 0;
+                                          if (!fb || (!tours && !fb.sportif_rpe && !fb.sportif_comment)) return null;
+                                          return (
+                                            <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                                              {tours > 0 && (
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 text-primary px-2 py-0.5 font-bold">
+                                                  <Timer className="h-3 w-3" />
+                                                  {tours} tour{tours > 1 ? "s" : ""}
+                                                </span>
+                                              )}
+                                              {fb.sportif_rpe && (
+                                                <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-500/15 text-orange-600 px-2 py-0.5 font-bold">
+                                                  RPE {fb.sportif_rpe}
+                                                </span>
+                                              )}
+                                              {fb.sportif_comment && (
+                                                <span className="text-muted-foreground italic truncate max-w-[180px]">
+                                                  "{fb.sportif_comment}"
+                                                </span>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </TableCell>
                                     </TableRow>
 
                                     {groupExercises.map((ex, exIndex) => {
@@ -1374,7 +1404,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                     onAutoOpenHandled={() => setAutoOpenExercise(null)}
                                                     onExerciseCreated={onExerciseCreated}
                                                   />
-                                                  <FeedbackBadge sessionId={selectedSession.id} exerciceName={ex.exercice} />
+                                                  <FeedbackBadge sessionId={selectedSession.id} exerciceName={ex.exercice} series={ex.series} />
                                                 </div>
                                               </div>
                                             </TableCell>
@@ -1512,7 +1542,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               onAutoOpenHandled={() => setAutoOpenExercise(null)}
                                               onExerciseCreated={onExerciseCreated}
                                             />
-                                            <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} />
+                                            <FeedbackBadge sessionId={selectedSession.id} exerciceName={exercise.exercice} series={exercise.series} />
                                           </div>
                                         </div>
                                       </TableCell>
