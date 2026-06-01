@@ -30,6 +30,7 @@ import {
   Minus,
   Link2,
   Unlink2,
+  Timer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -98,6 +99,22 @@ interface Exercise {
   request_video?: boolean;
   serie_details?: SerieDetail[] | string;
 }
+// ── AMRAP helpers ─────────────────────────────────────────────────────────────
+/** Returns duration in seconds if series is in AMRAP format, else null. */
+function parseAmrap(series: string | undefined): number | null {
+  if (!series) return null;
+  const m = String(series).match(/^amrap:(\d+)$/);
+  return m ? parseInt(m[1]) : null;
+}
+function formatAmrapDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}h${m > 0 ? `${m.toString().padStart(2, "0")}min` : ""}`;
+  if (s > 0) return `${m}min ${s}s`;
+  return `${m} min`;
+}
+
 // ── SeriesStepper — defined at module level so React identity is stable ───────
 interface StepperProps {
   sessionId: number;
@@ -112,7 +129,7 @@ function SeriesStepper({
   sessionId, exercise, compact = false,
   isValidated, onExerciseChange, onAddExercise,
 }: StepperProps) {
-  const count = parseInt(exercise.series) || 0;
+  const count = parseAmrap(exercise.series) !== null ? 0 : (parseInt(exercise.series) || 0);
   const btnCls = compact ? "h-6 w-6 p-0 rounded-sm" : "h-7 w-7 p-0";
   const spanCls = compact
     ? "text-xs font-semibold w-5 text-center tabular-nums"
@@ -1256,12 +1273,72 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     <TableRow className="bg-primary/10 border-l-4 border-l-primary">
                                       <TableCell colSpan={7} className="font-semibold">
                                         <Badge variant="default" className="mr-2">Super-set ({groupExercises.length} exercices)</Badge>
+                                        {parseAmrap(exercise.series) !== null && (
+                                          <Badge variant="outline" className="text-primary border-primary/40 gap-1">
+                                            <Timer className="h-3 w-3" />
+                                            AMRAP · {formatAmrapDuration(parseAmrap(exercise.series)!)}
+                                          </Badge>
+                                        )}
                                       </TableCell>
                                       <TableCell>
-                                        <div>
-                                          <label className="text-xs text-muted-foreground mb-1 block">Séries communes</label>
-                                          <SeriesStepper sessionId={selectedSession.id} exercise={exercise} compact isValidated={isValidated} onExerciseChange={onExerciseChange} onAddExercise={onAddExercise} />
-                                        </div>
+                                        {(() => {
+                                          const amrapSec = parseAmrap(exercise.series);
+                                          const isAmrap = amrapSec !== null;
+                                          const amrapMin = isAmrap ? Math.floor(amrapSec / 60) : 0;
+
+                                          const setAmrapMode = (on: boolean) => {
+                                            const val = on ? "amrap:1800" : "4";
+                                            groupExercises.forEach(gex => {
+                                              onExerciseChange(selectedSession.id, gex.id, "series", val);
+                                            });
+                                          };
+
+                                          return (
+                                            <div className="flex items-start gap-2">
+                                              <div>
+                                                <label className="text-xs text-muted-foreground mb-1 block">
+                                                  {isAmrap ? "Durée AMRAP" : "Séries communes"}
+                                                </label>
+                                                {isAmrap ? (
+                                                  <div className="flex items-center gap-1">
+                                                    <Input
+                                                      type="number"
+                                                      min={1}
+                                                      max={180}
+                                                      value={amrapMin}
+                                                      onChange={(e) => {
+                                                        const mins = Math.max(1, parseInt(e.target.value) || 1);
+                                                        const val = `amrap:${mins * 60}`;
+                                                        groupExercises.forEach(gex => {
+                                                          onExerciseChange(selectedSession.id, gex.id, "series", val);
+                                                        });
+                                                      }}
+                                                      disabled={isValidated}
+                                                      className="h-7 w-16 text-center text-xs font-semibold"
+                                                    />
+                                                    <span className="text-xs text-muted-foreground">min</span>
+                                                  </div>
+                                                ) : (
+                                                  <SeriesStepper sessionId={selectedSession.id} exercise={exercise} compact isValidated={isValidated} onExerciseChange={onExerciseChange} onAddExercise={onAddExercise} />
+                                                )}
+                                              </div>
+                                              {!isValidated && (
+                                                <button
+                                                  type="button"
+                                                  title={isAmrap ? "Repasser en séries" : "Mode AMRAP (durée)"}
+                                                  onClick={() => setAmrapMode(!isAmrap)}
+                                                  className={`mt-5 h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${
+                                                    isAmrap
+                                                      ? "border-primary bg-primary/10 text-primary"
+                                                      : "border-border text-muted-foreground hover:text-primary hover:border-primary/50"
+                                                  }`}
+                                                >
+                                                  <Timer className="h-3.5 w-3.5" />
+                                                </button>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell colSpan={2} />
                                     </TableRow>

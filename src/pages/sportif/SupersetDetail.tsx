@@ -196,8 +196,23 @@ export default function SupersetDetail() {
     return series;
   };
 
-  // Total number of rounds (series count from first exercise)
-  const totalRounds = exercises.length > 0 ? (exercises[0].series ? parseInt(exercises[0].series) : 0) : 0;
+  // AMRAP detection
+  const rawSeries = exercises[0]?.series ?? "1";
+  const amrapMatch = String(rawSeries).match(/^amrap:(\d+)$/);
+  const isAmrap = !!amrapMatch;
+  const amrapSeconds = amrapMatch ? parseInt(amrapMatch[1]) : null;
+  const amrapMinutes = amrapSeconds ? Math.floor(amrapSeconds / 60) : null;
+  const amrapLabel = amrapSeconds
+    ? (amrapMinutes && amrapMinutes >= 60
+        ? `${Math.floor(amrapMinutes / 60)}h${amrapMinutes % 60 > 0 ? `${(amrapMinutes % 60).toString().padStart(2, "0")}min` : ""}`
+        : `${amrapMinutes} min`)
+    : null;
+
+  // Total number of rounds (series count from first exercise; AMRAP uses a large cap)
+  const AMRAP_CAP = 30;
+  const totalRounds = exercises.length > 0
+    ? (isAmrap ? AMRAP_CAP : (exercises[0].series ? parseInt(exercises[0].series) || 0 : 0))
+    : 0;
   const totalValidationSlots = totalRounds * exercises.length;
 
   // Initialize validations
@@ -386,7 +401,18 @@ export default function SupersetDetail() {
       const exIdx = exercises.findIndex(e => e.id === exercise.id);
       const perSerieRpe: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: string | null }[] = [];
       if (exIdx >= 0) {
-        for (let r = 0; r < totalRounds; r++) {
+        // For AMRAP: only save completed rounds (not the 30-round cap)
+        const saveRounds = isAmrap
+          ? (() => {
+              let count = 0;
+              for (let r = 0; r < AMRAP_CAP; r++) {
+                const allDone = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
+                if (allDone) count = r + 1; else break;
+              }
+              return count;
+            })()
+          : totalRounds;
+        for (let r = 0; r < saveRounds; r++) {
           const vIdx = r * exercises.length + exIdx;
           const sv = serieValidations[vIdx];
           perSerieRpe.push({
@@ -578,7 +604,8 @@ export default function SupersetDetail() {
               {rpeDialogSerieIndex !== null && (() => {
                 const roundIdx = Math.floor(rpeDialogSerieIndex / exercises.length);
                 const exIdx = rpeDialogSerieIndex % exercises.length;
-                return `S${roundIdx + 1} - ${exercises[exIdx]?.exercice || ""}`;
+                const prefix = isAmrap ? `Tour ${roundIdx + 1}` : `S${roundIdx + 1}`;
+                return `${prefix} — ${exercises[exIdx]?.exercice || ""}`;
               })()}
             </DialogTitle>
           </DialogHeader>
@@ -908,9 +935,29 @@ export default function SupersetDetail() {
               ))}
             </div>
             <Separator className="my-3" />
+            {/* Bannière AMRAP */}
+            {isAmrap && (
+              <div className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/30 px-3 py-2 mb-1">
+                <Timer className="h-4 w-4 text-primary shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-primary">AMRAP · {amrapLabel}</p>
+                  <p className="text-[11px] text-muted-foreground">Fais un max de tours en {amrapLabel} !</p>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">
-                Progression — {completedCount}/{totalValidationSlots}
+                {isAmrap
+                  ? (() => {
+                      let doneRounds = 0;
+                      for (let r = 0; r < AMRAP_CAP; r++) {
+                        const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
+                        if (ok) doneRounds = r + 1; else break;
+                      }
+                      return `Tours complétés — ${doneRounds}`;
+                    })()
+                  : `Progression — ${completedCount}/${totalValidationSlots}`
+                }
               </p>
               {completedCount > 0 && (
                 <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
@@ -931,12 +978,22 @@ export default function SupersetDetail() {
               });
               const roundComplete = roundValidations.every(v => v?.validated);
 
+              // For AMRAP: compute completed rounds so far and only show up to current + 1
+              if (isAmrap) {
+                let doneRounds = 0;
+                for (let r = 0; r < AMRAP_CAP; r++) {
+                  const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
+                  if (ok) doneRounds = r + 1; else break;
+                }
+                if (roundIdx > doneRounds) return null; // hide future rounds
+              }
+
               return (
                 <Card key={roundIdx} className={`border-2 transition-all ${roundComplete ? "border-green-500/30 bg-green-500/5" : "border-primary/20"}`}>
                   <CardContent className="p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Badge variant={roundComplete ? "default" : "outline"} className={roundComplete ? "bg-green-600" : ""}>
-                        Série {roundIdx + 1}
+                        {isAmrap ? `Tour ${roundIdx + 1}` : `Série ${roundIdx + 1}`}
                       </Badge>
                       {roundComplete && <Check className="h-4 w-4 text-green-600" />}
                     </div>
@@ -1063,7 +1120,7 @@ export default function SupersetDetail() {
                                 return lastRecup ? (
                                   <div className="flex items-center gap-2 py-1 px-3 text-xs text-muted-foreground/70">
                                     <Timer className="h-3 w-3" />
-                                    <span>Récup fin de série: {lastRecup}</span>
+                                    <span>Récup fin de {isAmrap ? "tour" : "série"}: {lastRecup}</span>
                                   </div>
                                 ) : null;
                               })()
@@ -1085,8 +1142,31 @@ export default function SupersetDetail() {
           </div>
         )}
 
-        {/* Finish button */}
-        {allValidated && (
+        {/* Finish button — AMRAP mode: show when at least 1 round complete */}
+        {isAmrap && (() => {
+          let doneRounds = 0;
+          for (let r = 0; r < AMRAP_CAP; r++) {
+            const ok = exercises.every((_, ei) => serieValidations[r * exercises.length + ei]?.validated === true);
+            if (ok) doneRounds = r + 1; else break;
+          }
+          if (doneRounds === 0) return null;
+          return (
+            <Button
+              size="lg"
+              className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
+              onClick={() => {
+                const rpes = serieValidations.filter(s => s.validated && s.rpe !== null).map(s => s.rpe!);
+                if (rpes.length > 0) setComputedAvgRpe(String(Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length)));
+                setDialogOpen(true);
+              }}
+            >
+              Terminer l'AMRAP — {doneRounds} tour{doneRounds > 1 ? "s" : ""} complété{doneRounds > 1 ? "s" : ""} ✓
+            </Button>
+          );
+        })()}
+
+        {/* Finish button — normal mode */}
+        {!isAmrap && allValidated && (
           <Button
             size="lg"
             className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
@@ -1096,7 +1176,7 @@ export default function SupersetDetail() {
           </Button>
         )}
 
-        {!allValidated && (
+        {!isAmrap && !allValidated && (
           <Button
             size="lg"
             variant="outline"

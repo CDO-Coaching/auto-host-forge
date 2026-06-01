@@ -3323,6 +3323,13 @@ export default function ClientDetail() {
       const currentExercises = prev[sessionId] || [];
       
       if (field === "series" && typeof value === "string") {
+        // AMRAP mode: store the special string without resizing serie_details
+        if (String(value).startsWith("amrap:")) {
+          const updatedExercises = currentExercises.map((ex) =>
+            ex.id === exerciseId ? { ...ex, series: value, serie_details: [] } : ex
+          );
+          return { ...prev, [sessionId]: updatedExercises };
+        }
         const newCount = parseInt(value) || 0;
         const currentExercise = currentExercises.find((ex) => ex.id === exerciseId);
 
