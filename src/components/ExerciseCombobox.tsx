@@ -14,6 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// ─── Accent-insensitive normalization ────────────────────────────────────────
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 // ─── Recent exercises (localStorage) ─────────────────────────────────────────
 
 const RECENT_KEY = "exercise-recent";
@@ -88,14 +91,14 @@ export function ExerciseCombobox({
     let list = exercises;
     if (selectedMuscle !== "all") list = list.filter((e) => e.muscle_principal === selectedMuscle);
     if (search.trim()) {
-      const s = search.toLowerCase().trim();
+      const s = norm(search.trim());
       list = list
         .filter((e) => {
-          const n = e.name.toLowerCase();
+          const n = norm(e.name);
           return n.startsWith(s) || n.split(/\s+/).some((w) => w.startsWith(s)) || n.includes(s);
         })
         .sort((a, b) => {
-          const an = a.name.toLowerCase(), bn = b.name.toLowerCase();
+          const an = norm(a.name), bn = norm(b.name);
           if (an.startsWith(s) && !bn.startsWith(s)) return -1;
           if (bn.startsWith(s) && !an.startsWith(s)) return 1;
           return an.localeCompare(bn);

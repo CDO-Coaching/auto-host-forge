@@ -144,6 +144,8 @@ interface Exercise {
  * never null/undefined, so callers can safely use .map / .length.
  */
 /** Construit la map { exerciceId: true } pour replier toutes les séries individuelles (length > 1). */
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 function buildCollapsedSeriesMap(exercises: Record<number, Exercise[]>): Record<string, boolean> {
   const collapsed: Record<string, boolean> = {};
   Object.values(exercises).forEach((exList) => {
@@ -2233,12 +2235,12 @@ export default function ClientDetail() {
   // Filtrer les templates par sport cardio sélectionné
   const filteredCardioTemplates = sessionTemplates
     .filter(t => t.session_type === "cardio" && t.cardio_sport === selectedCardioSport)
-    .filter(t => templateSearchQuery === "" || t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()));
+    .filter(t => templateSearchQuery === "" || norm(t.name).includes(norm(templateSearchQuery)));
 
   // Filtrer les templates renfo
   const filteredRenfoTemplates = sessionTemplates
     .filter(t => t.session_type === "renfo")
-    .filter(t => templateSearchQuery === "" || t.name.toLowerCase().includes(templateSearchQuery.toLowerCase()));
+    .filter(t => templateSearchQuery === "" || norm(t.name).includes(norm(templateSearchQuery)));
 
   // Importer un template dans une séance existante (cardio)
   const handleImportTemplateToSession = async (templateId: string, sessionId: number, exerciseId: number) => {

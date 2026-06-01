@@ -45,6 +45,8 @@ const CATEGORIES = ['cardio','mobilité-souplesse','renfo','explosivité-vitesse
 const toTitleCase = (str: string) =>
   str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
+const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
 // ─── Completeness helpers ─────────────────────────────────────────────────────
 
 interface MissingField { key: string; label: string; required: boolean }
@@ -130,8 +132,8 @@ export default function BibliothequeExercices() {
   const filterExercises = () => {
     let filtered = exercises;
     if (searchTerm) filtered = filtered.filter((ex) =>
-      ex.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ex.muscle_principal?.toLowerCase().includes(searchTerm.toLowerCase())
+      norm(ex.name).includes(norm(searchTerm)) ||
+      (ex.muscle_principal && norm(ex.muscle_principal).includes(norm(searchTerm)))
     );
     if (selectedMuscle !== "all") filtered = filtered.filter((ex) => ex.muscle_principal === selectedMuscle);
     if (showIncomplete) filtered = filtered.filter((ex) => getMissingFields(ex).length > 0);
