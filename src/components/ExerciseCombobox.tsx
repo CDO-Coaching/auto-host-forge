@@ -206,7 +206,7 @@ export function ExerciseCombobox({
                     <Check className={cn("h-4 w-4 shrink-0", value === ex.name ? "opacity-100" : "opacity-0")} />
                     <span className="font-medium uppercase text-sm flex-1 truncate">{ex.name}</span>
                     {!ex.video_url && (
-                      <VideoOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" title="Pas de vidéo" />
+                      <VideoOff className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Pas de vidéo" />
                     )}
                     {ex.muscle_principal && (
                       <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">
@@ -233,7 +233,7 @@ export function ExerciseCombobox({
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium uppercase text-sm">{ex.name}</span>
                         {!ex.video_url && (
-                          <VideoOff className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" title="Pas de vidéo" />
+                          <VideoOff className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Pas de vidéo" />
                         )}
                       </div>
                       {ex.muscles_second && ex.muscles_second.length > 0 && (
