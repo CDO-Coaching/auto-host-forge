@@ -52,6 +52,10 @@ interface SessionExercise {
   actual_distance_km: number | null;
   actual_pace_min_per_km: string | null;
   actual_avg_heart_rate: number | null;
+  actual_max_heart_rate: number | null;
+  actual_cadence: number | null;
+  actual_elevation_gain: number | null;
+  actual_calories: number | null;
 }
 
 interface SessionDetail {
@@ -146,7 +150,11 @@ export function CoachSessionDetailDialog({
             actual_duration_minutes,
             actual_distance_km,
             actual_pace_min_per_km,
-            actual_avg_heart_rate
+            actual_avg_heart_rate,
+            actual_max_heart_rate,
+            actual_cadence,
+            actual_elevation_gain,
+            actual_calories
           )
         `)
         .eq("id", sessionId)
@@ -412,6 +420,18 @@ export function CoachSessionDetailDialog({
               )}
               {ex.actual_avg_heart_rate != null && (
                 <div className="flex justify-between"><span className="text-muted-foreground">FC moy.</span><span className="font-medium">{ex.actual_avg_heart_rate} bpm</span></div>
+              )}
+              {ex.actual_max_heart_rate != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">FC max</span><span className="font-medium">{ex.actual_max_heart_rate} bpm</span></div>
+              )}
+              {ex.actual_cadence != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Cadence</span><span className="font-medium">{Math.round(ex.actual_cadence)} spm</span></div>
+              )}
+              {ex.actual_elevation_gain != null && ex.actual_elevation_gain > 0 && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Dénivelé</span><span className="font-medium">+{Math.round(ex.actual_elevation_gain)} m</span></div>
+              )}
+              {ex.actual_calories != null && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Calories</span><span className="font-medium">{ex.actual_calories} kcal</span></div>
               )}
             </div>
           </div>

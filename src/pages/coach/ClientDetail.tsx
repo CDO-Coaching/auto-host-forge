@@ -587,6 +587,8 @@ export default function ClientDetail() {
             cardio_content, cardio_sport,
             actual_distance_km, actual_duration_minutes,
             actual_pace_min_per_km, actual_avg_heart_rate,
+            actual_max_heart_rate, actual_cadence,
+            actual_elevation_gain, actual_calories,
             sportif_rpe
           )
         `)
@@ -849,6 +851,10 @@ export default function ClientDetail() {
               actual_duration_minutes: ex.actual_duration_minutes || null,
               actual_pace_min_per_km: ex.actual_pace_min_per_km || null,
               actual_avg_heart_rate: ex.actual_avg_heart_rate || null,
+              actual_max_heart_rate: ex.actual_max_heart_rate || null,
+              actual_cadence: ex.actual_cadence || null,
+              actual_elevation_gain: ex.actual_elevation_gain || null,
+              actual_calories: ex.actual_calories || null,
               serie_rpe_details: ex.serie_rpe_details || null,
               sportif_feedback_at: ex.sportif_feedback_at || null,
               linked_strava_activity_id: ex.linked_strava_activity_id || null,
@@ -4549,6 +4555,30 @@ export default function ClientDetail() {
                                           <div className="flex items-center gap-1">
                                             <span className="text-muted-foreground">FC moy:</span>
                                             <span className="font-medium">{ex.actual_avg_heart_rate} bpm</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_max_heart_rate != null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">FC max:</span>
+                                            <span className="font-medium">{ex.actual_max_heart_rate} bpm</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_cadence != null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Cadence:</span>
+                                            <span className="font-medium">{Math.round(ex.actual_cadence)} spm</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_elevation_gain != null && ex.actual_elevation_gain > 0 && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Dénivelé:</span>
+                                            <span className="font-medium">+{Math.round(ex.actual_elevation_gain)} m</span>
+                                          </div>
+                                        )}
+                                        {ex.actual_calories != null && (
+                                          <div className="flex items-center gap-1">
+                                            <span className="text-muted-foreground">Calories:</span>
+                                            <span className="font-medium">{ex.actual_calories} kcal</span>
                                           </div>
                                         )}
                                       </div>
