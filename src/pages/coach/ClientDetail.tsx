@@ -87,6 +87,7 @@ import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDu
 import { CardioStepBuilder, CardioStep, CardioData, CardioBlock } from "@/components/CardioStepBuilder";
 import { formatCardioTime, formatCardioDistance, calculatePace, calculateCardioSessionDuration, formatCardioSessionDuration, calculateCardioMetrics, formatCardioStepsForAI } from "@/lib/cardioCalculations";
 import { getISOWeek, subDays, format, startOfDay, endOfDay } from "date-fns";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 
 interface AthleteProfile {
   id: string;
@@ -589,6 +590,7 @@ export default function ClientDetail() {
             actual_pace_min_per_km, actual_avg_heart_rate,
             actual_max_heart_rate, actual_cadence,
             actual_elevation_gain, actual_calories,
+            actual_heart_rate_zones,
             sportif_rpe
           )
         `)
@@ -855,6 +857,7 @@ export default function ClientDetail() {
               actual_cadence: ex.actual_cadence || null,
               actual_elevation_gain: ex.actual_elevation_gain || null,
               actual_calories: ex.actual_calories || null,
+              actual_heart_rate_zones: ex.actual_heart_rate_zones || null,
               serie_rpe_details: ex.serie_rpe_details || null,
               sportif_feedback_at: ex.sportif_feedback_at || null,
               linked_strava_activity_id: ex.linked_strava_activity_id || null,
@@ -4532,7 +4535,8 @@ export default function ClientDetail() {
                                     
                                     {/* Données cardio complètes */}
                                     {isCardioSession && (
-                                      <div className="flex flex-wrap gap-3 text-xs mt-2 p-2 bg-background/50 rounded">
+                                      <div className="mt-2 space-y-2">
+                                      <div className="flex flex-wrap gap-3 text-xs p-2 bg-background/50 rounded">
                                         {ex.actual_distance_km !== null && (
                                           <div className="flex items-center gap-1">
                                             <span className="text-muted-foreground">Distance:</span>
@@ -4582,8 +4586,14 @@ export default function ClientDetail() {
                                           </div>
                                         )}
                                       </div>
+                                      {ex.actual_heart_rate_zones?.length > 0 && (
+                                        <div className="px-2 pb-2">
+                                          <HeartRateZonesBar zones={ex.actual_heart_rate_zones} />
+                                        </div>
+                                      )}
+                                      </div>
                                     )}
-                                    
+
                                     {/* Données renfo */}
                                     {!isCardioSession && !ex.skipped && (
                                       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mt-1">
