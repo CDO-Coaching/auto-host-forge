@@ -69,6 +69,7 @@ import {
   formatCardioSessionDuration,
 } from "@/lib/cardioCalculations";
 import { formatWeekRange } from "@/lib/weekUtils";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 
 // ── Local types (mirror ClientDetail) ────────────────────────────────────────
 interface SerieDetail {
@@ -1131,6 +1132,30 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     <span className="font-medium text-xs">{exercise.actual_avg_heart_rate} bpm</span>
                                   </div>
                                 )}
+                                {(exercise as any).actual_max_heart_rate != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">FC max</span>
+                                    <span className="font-medium text-xs">{(exercise as any).actual_max_heart_rate} bpm</span>
+                                  </div>
+                                )}
+                                {(exercise as any).actual_cadence != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Cadence</span>
+                                    <span className="font-medium text-xs">{Math.round((exercise as any).actual_cadence)} spm</span>
+                                  </div>
+                                )}
+                                {(exercise as any).actual_elevation_gain != null && (exercise as any).actual_elevation_gain > 0 && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Dénivelé</span>
+                                    <span className="font-medium text-xs">+{Math.round((exercise as any).actual_elevation_gain)} m</span>
+                                  </div>
+                                )}
+                                {(exercise as any).actual_calories != null && (
+                                  <div className="flex justify-between gap-2">
+                                    <span className="text-muted-foreground text-xs">Calories</span>
+                                    <span className="font-medium text-xs">{(exercise as any).actual_calories} kcal</span>
+                                  </div>
+                                )}
                                 {exercise.sportif_rpe != null && (
                                   <div className="flex justify-between gap-2">
                                     <span className="text-muted-foreground text-xs">RPE</span>
@@ -1138,6 +1163,11 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                   </div>
                                 )}
                               </div>
+                              {(exercise as any).actual_heart_rate_zones?.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-emerald-500/20">
+                                  <HeartRateZonesBar zones={(exercise as any).actual_heart_rate_zones} />
+                                </div>
+                              )}
                             </div>
                           )}
 
