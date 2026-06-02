@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
-import { Bike, Clock, MapPin, TrendingUp, Calendar, Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bike, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
+import { InfoButton } from "@/components/InfoButton";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 import { calculateCardioMetrics } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
@@ -467,16 +467,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Distance par semaine
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Évolution des km par semaine. Règle des 10% : ne pas augmenter de plus de 10%/semaine pour éviter les blessures. Barres jaunes = semaine en cours de programmation.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Évolution des km par semaine. Règle des 10% : ne pas augmenter de plus de 10%/semaine pour éviter les blessures. Barres jaunes = semaine en cours de programmation." />
             </CardTitle>
             {distanceChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -491,7 +482,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis />
                 <RechartsTooltip
                   content={({ active, payload }) => {
@@ -519,16 +510,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Durée par semaine
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Cumul du temps de cyclisme par semaine. Même règle des 10% que pour la distance.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Cumul du temps de cyclisme par semaine. Même règle des 10% que pour la distance." />
             </CardTitle>
             {durationChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -543,7 +525,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={cardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis />
                 <RechartsTooltip
                   content={({ active, payload }) => {
@@ -576,16 +558,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Vitesse moyenne par semaine
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Vitesse réalisée vs programmée. Une vitesse plus élevée que prévue indique que les zones sont peut-être sous-estimées ou que l'athlète force.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Vitesse réalisée vs programmée. Une vitesse plus élevée que prévue indique que les zones sont peut-être sous-estimées ou que l'athlète force." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Données saisies par le sportif</p>
           </CardHeader>
@@ -593,7 +566,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={cardioSessions.filter(s => s.actualAverageSpeed)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis />
                 <RechartsTooltip
                   content={({ active, payload }) => {
@@ -619,16 +592,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               FC moyenne par semaine
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Fréquence cardiaque moyenne réalisée. Comparée à la FC max, elle indique l'intensité réelle de l'entraînement.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Fréquence cardiaque moyenne réalisée. Comparée à la FC max, elle indique l'intensité réelle de l'entraînement." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Fréquence cardiaque moyenne</p>
           </CardHeader>
@@ -636,7 +600,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={cardioSessions.filter(s => s.actualAverageHeartRate)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis domain={['dataMin - 10', 'dataMax + 10']} />
                 <RechartsTooltip
                   content={({ active, payload }) => {
@@ -662,16 +626,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               RPE moyen par semaine
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Perception subjective de l'effort (1-10). &lt; 6 = léger, 6-8 = modéré, &gt; 8 = élevé. Fiable si l'athlète renseigne systématiquement après chaque séance.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Perception subjective de l'effort (1-10). < 6 = léger, 6-8 = modéré, > 8 = élevé. Fiable si l'athlète renseigne systématiquement après chaque séance." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Effort perçu</p>
           </CardHeader>
@@ -679,7 +634,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={cardioSessions.filter(s => s.actualAverageRpe)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis domain={[0, 10]} />
                 <RechartsTooltip
                   content={({ active, payload }) => {
@@ -711,16 +666,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <CardHeader>
               <CardTitle className="flex items-center gap-2 flex-wrap">
                 Charge d'entraînement hebdo (sRPE)
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-xs">
-                      <p>Charge = Σ(Durée × RPE) par séance. Méthode validée scientifiquement (Foster 2001). Zone cible : 800-1200 UA/semaine pour un athlète entraîné. ⚠️ Fiable uniquement si le RPE est renseigné après chaque séance.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <InfoButton text="Charge = Σ(Durée × RPE) par séance. Méthode validée scientifiquement (Foster 2001). Zone cible : 800-1200 UA/semaine pour un athlète entraîné. ⚠️ Fiable uniquement si le RPE est renseigné après chaque séance." />
                 <Badge className={
                   rpeReliabilityLabel === "good"
                     ? "bg-green-500/20 text-green-500 border-green-500/50 text-xs"
@@ -738,7 +684,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={srpeData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis label={{ value: "UA", angle: -90, position: "insideLeft", offset: 10 }} />
                   <RechartsTooltip
                     content={({ active, payload }) => {
@@ -772,16 +718,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   Charge Edwards (zones cardiaques)
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs text-xs">
-                        <p>Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <InfoButton text="Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava." />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -795,16 +732,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Charge Edwards (zones cardiaques)
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-xs">
-                      <p>Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <InfoButton text="Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava." />
               </CardTitle>
               <p className="text-xs text-muted-foreground">Score = Σ(min en zone × multiplicateur : Z1×1, Z2×2, Z3×3, Z4×4, Z5×5)</p>
             </CardHeader>
@@ -812,7 +740,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={edwardsData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis />
                   <RechartsTooltip
                     content={({ active, payload }) => {
@@ -874,23 +802,14 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 Répartition des zones d'intensité par semaine
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-xs">
-                      <p>Distribution idéale : 80% du temps en Z1-Z2 (vert) et 20% en Z3-Z5. Si trop de Z3-Z4 (jaune) = entraînement 'gris' risquant la fatigue chronique sans progression optimale.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <InfoButton text="Distribution idéale : 80% du temps en Z1-Z2 (vert) et 20% en Z3-Z5. Si trop de Z3-Z4 (jaune) = entraînement 'gris' risquant la fatigue chronique sans progression optimale." />
               </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={stackedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }} barSize={30}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
                   <RechartsTooltip content={({ active, payload }) => {
                     if (active && payload && payload.length) {
@@ -938,16 +857,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
               <CardTitle className="flex items-center gap-2 text-sm font-medium text-yellow-600">
                 <Calendar className="h-4 w-4" />
                 Volume prévu cette semaine
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-xs text-xs">
-                      <p>Données calculées depuis le programme de la semaine en cours. Permet d'anticiper la récupération et la nutrition.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <InfoButton text="Données calculées depuis le programme de la semaine en cours. Permet d'anticiper la récupération et la nutrition." />
               </CardTitle>
             </CardHeader>
           </Card>
@@ -976,16 +886,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-1">
               Semaines d'entraînement
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Nombre de semaines où au moins une séance a été validée par l'athlète.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Nombre de semaines où au moins une séance a été validée par l'athlète." />
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -999,16 +900,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-1">
               Distance totale
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Total des kilomètres réalisés depuis le début. Comparé au volume prévu pour mesurer l'adhérence au programme.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Total des kilomètres réalisés depuis le début. Comparé au volume prévu pour mesurer l'adhérence au programme." />
             </CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -1024,16 +916,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-1">
               Durée totale
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Temps total d'entraînement réalisé. Indicateur de volume global saison.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Temps total d'entraînement réalisé. Indicateur de volume global saison." />
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -1051,16 +934,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-1">
               Intensité moyenne
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Moyenne pondérée par la durée des séances. Indicateur de l'intensité globale de la saison de cyclisme.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Moyenne pondérée par la durée des séances. Indicateur de l'intensité globale de la saison de cyclisme." />
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>

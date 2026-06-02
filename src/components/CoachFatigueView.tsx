@@ -6,8 +6,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, Activity, Info } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { AlertCircle, TrendingUp, Activity } from "lucide-react";
+import { InfoButton } from "@/components/InfoButton";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 import { CoachSfmsRequestToggle } from "@/components/CoachSfmsRequestToggle";
 
@@ -335,16 +335,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Score de préparation
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Score synthétique 0-100 combinant : ACWR (30%), Monotonie (25%), Fatigue subjective (25%), Sommeil (20%). ⚠️ Nécessite au moins 4 semaines de données et ≥ 4 jours/semaine de saisie pour être fiable. Un score élevé avec peu de données n'est pas significatif.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Score synthétique 0-100 combinant : ACWR (30%), Monotonie (25%), Fatigue subjective (25%), Sommeil (20%). ⚠️ Nécessite au moins 4 semaines de données et ≥ 4 jours/semaine de saisie pour être fiable. Un score élevé avec peu de données n'est pas significatif." />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -435,16 +426,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Évolution du score de fatigue
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs text-xs">
-                  <p>Score Cooper 28 (questionnaire Hooper) : 4 items × 7 points max = 28. Score &lt; 12 = bien récupéré, 12-20 = fatigue modérée, &gt; 20 = fatigue élevée. Fiable si renseigné chaque matin avant l'entraînement.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <InfoButton text="Score Cooper 28 (questionnaire Hooper) : 4 items × 7 points max = 28. Score < 12 = bien récupéré, 12-20 = fatigue modérée, > 20 = fatigue élevée. Fiable si renseigné chaque matin avant l'entraînement." />
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -556,16 +538,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               ACWR — Ratio Charge Aiguë / Chronique
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 21 jours de séances avec RPE renseigné pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 21 jours de séances avec RPE renseigné pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé." />
               {/* B. Badge fiabilité ACWR */}
               <Badge className={
                 acwrData.daysWithData >= 14
@@ -594,7 +567,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                   <div className="text-center p-3 rounded-lg bg-muted/50">
                     <p className="text-2xl font-bold">{acwrData.acute.toFixed(0)}</p>
                     <p className="text-xs text-muted-foreground">Charge 7j (UA)</p>
@@ -636,16 +609,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
               Indice de Monotonie (7 derniers jours)
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs text-xs">
-                    <p>Monotonie = Charge moy. / Écart-type. Mesure la répétitivité. Contrainte = Charge totale × Monotonie. ⚠️ Les jours sans saisie de séance comptent comme repos (charge = 0), ce qui peut artificiellement baisser la monotonie. Interpréter avec le taux de saisie des RPE.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <InfoButton text="Monotonie = Charge moy. / Écart-type. Mesure la répétitivité. Contrainte = Charge totale × Monotonie. ⚠️ Les jours sans saisie de séance comptent comme repos (charge = 0), ce qui peut artificiellement baisser la monotonie. Interpréter avec le taux de saisie des RPE." />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
