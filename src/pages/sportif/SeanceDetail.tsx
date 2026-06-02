@@ -1178,30 +1178,28 @@ export default function SeanceDetail() {
                                 <div className="text-xs font-medium text-green-700 dark:text-green-400 mb-1">Tes données de la séance</div>
                                 <div className="flex gap-3 flex-wrap text-xs">
                                   {item.actual_distance_km && (
-                                    <div>
-                                      <span className="text-muted-foreground">Distance: </span>
-                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_distance_km} km</span>
-                                    </div>
+                                    <div><span className="text-muted-foreground">Distance: </span><span className="font-medium text-green-900 dark:text-green-100">{item.actual_distance_km} km</span></div>
                                   )}
                                   {item.actual_duration_minutes && (
-                                    <div>
-                                      <span className="text-muted-foreground">Durée: </span>
-                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_duration_minutes} min</span>
-                                    </div>
+                                    <div><span className="text-muted-foreground">Durée: </span><span className="font-medium text-green-900 dark:text-green-100">{item.actual_duration_minutes} min</span></div>
                                   )}
                                   {item.actual_pace_min_per_km && (
-                                    <div>
-                                      <span className="text-muted-foreground">Allure: </span>
-                                      <span className="font-medium text-green-900 dark:text-green-100">
-                                        {formatPaceFromDecimal(parsePaceToDecimal(item.actual_pace_min_per_km)) || `${item.actual_pace_min_per_km}`}
-                                      </span>
-                                    </div>
+                                    <div><span className="text-muted-foreground">Allure: </span><span className="font-medium text-green-900 dark:text-green-100">{formatPaceFromDecimal(parsePaceToDecimal(item.actual_pace_min_per_km)) || `${item.actual_pace_min_per_km}`}</span></div>
                                   )}
                                   {item.actual_avg_heart_rate && (
-                                    <div>
-                                      <span className="text-muted-foreground">FC moy: </span>
-                                      <span className="font-medium text-green-900 dark:text-green-100">{item.actual_avg_heart_rate} bpm</span>
-                                    </div>
+                                    <div><span className="text-muted-foreground">FC moy: </span><span className="font-medium text-green-900 dark:text-green-100">{item.actual_avg_heart_rate} bpm</span></div>
+                                  )}
+                                  {(item as any).actual_max_heart_rate && (
+                                    <div><span className="text-muted-foreground">FC max: </span><span className="font-medium text-green-900 dark:text-green-100">{(item as any).actual_max_heart_rate} bpm</span></div>
+                                  )}
+                                  {(item as any).actual_cadence && (
+                                    <div><span className="text-muted-foreground">Cadence: </span><span className="font-medium text-green-900 dark:text-green-100">{Math.round((item as any).actual_cadence)} spm</span></div>
+                                  )}
+                                  {(item as any).actual_elevation_gain != null && (item as any).actual_elevation_gain > 0 && (
+                                    <div><span className="text-muted-foreground">Dénivelé: </span><span className="font-medium text-green-900 dark:text-green-100">+{Math.round((item as any).actual_elevation_gain)} m</span></div>
+                                  )}
+                                  {(item as any).actual_calories && (
+                                    <div><span className="text-muted-foreground">Calories: </span><span className="font-medium text-green-900 dark:text-green-100">{(item as any).actual_calories} kcal</span></div>
                                   )}
                                 </div>
                               </div>

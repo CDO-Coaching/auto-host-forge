@@ -819,6 +819,30 @@ function SessionCard({
                                 <p className="text-base font-bold">{(cardioExercise as any).actual_avg_heart_rate} <span className="text-xs font-normal text-muted-foreground">bpm</span></p>
                               </div>
                             )}
+                            {(cardioExercise as any).actual_max_heart_rate != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">FC max</p>
+                                <p className="text-base font-bold">{(cardioExercise as any).actual_max_heart_rate} <span className="text-xs font-normal text-muted-foreground">bpm</span></p>
+                              </div>
+                            )}
+                            {(cardioExercise as any).actual_cadence != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">Cadence</p>
+                                <p className="text-base font-bold">{Math.round((cardioExercise as any).actual_cadence)} <span className="text-xs font-normal text-muted-foreground">spm</span></p>
+                              </div>
+                            )}
+                            {(cardioExercise as any).actual_elevation_gain != null && (cardioExercise as any).actual_elevation_gain > 0 && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">Dénivelé</p>
+                                <p className="text-base font-bold">+{Math.round((cardioExercise as any).actual_elevation_gain)} <span className="text-xs font-normal text-muted-foreground">m</span></p>
+                              </div>
+                            )}
+                            {(cardioExercise as any).actual_calories != null && (
+                              <div className="bg-background/60 rounded-lg px-3 py-2">
+                                <p className="text-[10px] text-muted-foreground uppercase">Calories</p>
+                                <p className="text-base font-bold">{(cardioExercise as any).actual_calories} <span className="text-xs font-normal text-muted-foreground">kcal</span></p>
+                              </div>
+                            )}
                             {(cardioExercise as any).sportif_rpe != null && (
                               <div className="bg-background/60 rounded-lg px-3 py-2">
                                 <p className="text-[10px] text-muted-foreground uppercase">RPE ressenti</p>

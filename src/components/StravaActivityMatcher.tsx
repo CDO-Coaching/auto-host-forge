@@ -33,9 +33,16 @@ interface StravaActivity {
   start_date: string;
   distance_meters: number;
   moving_time_seconds: number;
-  average_heartrate: number | null;
   average_speed_ms: number | null;
-  linkedSessionName?: string; // nom de la séance liée si déjà associée
+  max_speed_ms: number | null;
+  average_heartrate: number | null;
+  max_heartrate: number | null;
+  total_elevation_gain: number | null;
+  average_cadence: number | null;
+  calories: number | null;
+  suffer_score: number | null;
+  average_watts: number | null;
+  linkedSessionName?: string;
 }
 
 interface Session {
@@ -269,6 +276,12 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
             actual_avg_heart_rate: selectedActivity.average_heartrate
               ? Math.round(selectedActivity.average_heartrate)
               : null,
+            actual_max_heart_rate: selectedActivity.max_heartrate
+              ? Math.round(selectedActivity.max_heartrate)
+              : null,
+            actual_elevation_gain: selectedActivity.total_elevation_gain ?? null,
+            actual_cadence: selectedActivity.average_cadence ?? null,
+            actual_calories: selectedActivity.calories ?? null,
             sportif_rpe: rpeNum,
             sportif_comment: comment.trim() || null,
             sportif_feedback_at: new Date().toISOString(),
