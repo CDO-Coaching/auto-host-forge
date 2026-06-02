@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Link2, ChevronRight } from "lucide-react";
+import { Loader2, Link2, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -110,6 +110,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [hasStrava, setHasStrava] = useState(false);
   const [stravaCustomData, setStravaCustomData] = useState<StravaSessionData | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (athleteId) checkStravaConnection();
@@ -163,6 +164,24 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
     }));
 
     setActivities(enriched);
+  };
+
+  const syncActivities = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(`https://api.cdocoaching.com/strava/sync/${athleteId}`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        await loadActivities();
+        toast.success(`${data.imported} activité(s) synchronisée(s)`);
+      } else {
+        toast.error(data.error || "Erreur de synchronisation");
+      }
+    } catch {
+      toast.error("Impossible de contacter le serveur Strava");
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const openList = async () => {
@@ -333,6 +352,14 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                 <StravaLogo />
               </div>
               Activités Strava récentes
+              <button
+                onClick={syncActivities}
+                disabled={syncing}
+                className="ml-auto p-1 rounded hover:bg-muted transition-colors disabled:opacity-50"
+                title="Synchroniser depuis Strava"
+              >
+                <RefreshCw className={`h-4 w-4 text-muted-foreground ${syncing ? "animate-spin" : ""}`} />
+              </button>
             </DialogTitle>
           </DialogHeader>
 
