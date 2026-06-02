@@ -12,9 +12,9 @@ interface TriathlonWeeklyData {
   year: number;
   // Durée totale en minutes
   totalDurationMinutes: number;
-  // Intensité Karvonen moyenne
-  avgIntensityKarvonen: number | null;
-  intensityCount: number;
+  // Intensité VMA% moyenne programmée
+  avgPlannedIntensity: number | null;
+  plannedIntensityCount: number;
   // RPE moyen
   avgRpe: number | null;
   rpeCount: number;
@@ -25,7 +25,7 @@ interface TriathlonWeeklyData {
   runningCount: number;
   cyclingCount: number;
   swimmingCount: number;
-  // Répartition des zones Karvonen (en minutes)
+  // Répartition des zones VMA% (en minutes)
   zoneZ1Z2Minutes: number; // <70%
   zoneZ3Z4Minutes: number; // 70-90%
   zoneZ5Minutes: number;   // >90%
@@ -39,8 +39,6 @@ interface CoachTriathlonViewProps {
 export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonViewProps) {
   const [loading, setLoading] = useState(true);
   const [weeklyData, setWeeklyData] = useState<TriathlonWeeklyData[]>([]);
-  const [fcMax, setFcMax] = useState<number | null>(null);
-  const [fcRepos, setFcRepos] = useState<number | null>(null);
 
   useEffect(() => {
     loadData();
@@ -49,18 +47,6 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
   const loadData = async () => {
     setLoading(true);
 
-    // Charger FCmax et FC repos de l'athlète
-    const { data: profileData } = await supabase
-      .from("user_profiles")
-      .select("fc_max, fc_repos")
-      .eq("id", athleteId)
-      .single();
-    
-    const athleteFcMax = profileData?.fc_max || null;
-    const athleteFcRepos = profileData?.fc_repos || null;
-    setFcMax(athleteFcMax);
-    setFcRepos(athleteFcRepos);
-
     // Charger toutes les séances cardio (course, vélo, natation) validées
     const { data: sessions, error } = await supabase
       .from("training_sessions")
@@ -68,6 +54,7 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         id,
         name,
         cardio_total_duration_minutes,
+        cardio_average_intensity,
         week_id,
         session_exercises!inner(
           id,
@@ -117,37 +104,32 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
       const actualDuration = exercise.actual_duration_minutes || session.cardio_total_duration_minutes || 0;
       const actualHeartRate = exercise.actual_avg_heart_rate || 0;
       const actualRpe = exercise.sportif_rpe || 0;
-
-      // Calculer intensité Karvonen si possible
-      let sessionIntensityKarvonen: number | null = null;
-      if (actualHeartRate > 0 && athleteFcMax && athleteFcRepos && athleteFcMax > athleteFcRepos) {
-        sessionIntensityKarvonen = Math.round(((actualHeartRate - athleteFcRepos) / (athleteFcMax - athleteFcRepos)) * 100);
-      }
+      const plannedIntensity = session.cardio_average_intensity || 0;
 
       if (weeklyMap.has(weekKey)) {
         const existing = weeklyMap.get(weekKey)!;
-        
+
         existing.totalDurationMinutes += actualDuration;
-        
+
         // Cumuler FC moyenne
         if (actualHeartRate > 0) {
           const currentHRSum = (existing.avgHeartRate || 0) * existing.hrCount;
           existing.hrCount++;
           existing.avgHeartRate = Math.round((currentHRSum + actualHeartRate) / existing.hrCount);
-          
-          // Recalculer intensité Karvonen moyenne
-          if (sessionIntensityKarvonen !== null) {
-            const currentIntensitySum = (existing.avgIntensityKarvonen || 0) * existing.intensityCount;
-            existing.intensityCount++;
-            existing.avgIntensityKarvonen = Math.round((currentIntensitySum + sessionIntensityKarvonen) / existing.intensityCount);
-            
-            // Ajouter aux zones appropriées
-            if (sessionIntensityKarvonen < 70) existing.zoneZ1Z2Minutes += actualDuration;
-            else if (sessionIntensityKarvonen <= 90) existing.zoneZ3Z4Minutes += actualDuration;
-            else existing.zoneZ5Minutes += actualDuration;
-          }
         }
-        
+
+        // Cumuler intensité VMA% programmée
+        if (plannedIntensity > 0) {
+          const currentIntensitySum = (existing.avgPlannedIntensity || 0) * existing.plannedIntensityCount;
+          existing.plannedIntensityCount++;
+          existing.avgPlannedIntensity = Math.round((currentIntensitySum + plannedIntensity) / existing.plannedIntensityCount);
+
+          // Ajouter aux zones appropriées
+          if (plannedIntensity < 70) existing.zoneZ1Z2Minutes += actualDuration;
+          else if (plannedIntensity <= 90) existing.zoneZ3Z4Minutes += actualDuration;
+          else existing.zoneZ5Minutes += actualDuration;
+        }
+
         // Cumuler RPE moyen
         if (actualRpe > 0) {
           const currentRpeSum = (existing.avgRpe || 0) * existing.rpeCount;
@@ -159,13 +141,13 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         if (sport === 'course') existing.runningCount++;
         else if (sport === 'velo') existing.cyclingCount++;
         else if (sport === 'natation') existing.swimmingCount++;
-        
+
       } else {
         // Déterminer la zone pour cette séance
         let zoneZ1Z2 = 0, zoneZ3Z4 = 0, zoneZ5 = 0;
-        if (sessionIntensityKarvonen !== null) {
-          if (sessionIntensityKarvonen < 70) zoneZ1Z2 = actualDuration;
-          else if (sessionIntensityKarvonen <= 90) zoneZ3Z4 = actualDuration;
+        if (plannedIntensity > 0) {
+          if (plannedIntensity < 70) zoneZ1Z2 = actualDuration;
+          else if (plannedIntensity <= 90) zoneZ3Z4 = actualDuration;
           else zoneZ5 = actualDuration;
         }
 
@@ -174,8 +156,8 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
           weekNumber,
           year,
           totalDurationMinutes: actualDuration,
-          avgIntensityKarvonen: sessionIntensityKarvonen,
-          intensityCount: sessionIntensityKarvonen !== null ? 1 : 0,
+          avgPlannedIntensity: plannedIntensity > 0 ? plannedIntensity : null,
+          plannedIntensityCount: plannedIntensity > 0 ? 1 : 0,
           avgRpe: actualRpe > 0 ? actualRpe : null,
           rpeCount: actualRpe > 0 ? 1 : 0,
           avgHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
@@ -232,13 +214,13 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
   // Calculer les totaux
   const totalDuration = weeklyData.reduce((sum, w) => sum + w.totalDurationMinutes, 0);
   const totalWeeks = weeklyData.length;
-  
+
   // Moyenne des métriques
-  const weeksWithKarvonen = weeklyData.filter(w => w.avgIntensityKarvonen !== null);
-  const avgKarvonen = weeksWithKarvonen.length > 0 
-    ? Math.round(weeksWithKarvonen.reduce((sum, w) => sum + (w.avgIntensityKarvonen || 0), 0) / weeksWithKarvonen.length)
+  const weeksWithPlannedIntensity = weeklyData.filter(w => w.avgPlannedIntensity !== null);
+  const avgPlannedIntensity = weeksWithPlannedIntensity.length > 0
+    ? Math.round(weeksWithPlannedIntensity.reduce((sum, w) => sum + (w.avgPlannedIntensity || 0), 0) / weeksWithPlannedIntensity.length)
     : null;
-    
+
   const weeksWithRpe = weeklyData.filter(w => w.avgRpe !== null);
   const avgRpe = weeksWithRpe.length > 0
     ? Math.round(weeksWithRpe.reduce((sum, w) => sum + (w.avgRpe || 0), 0) / weeksWithRpe.length * 10) / 10
@@ -257,7 +239,6 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
   const chartData = weeklyData.map(w => ({
     week: `S${w.weekNumber}`,
     duration: Math.round(w.totalDurationMinutes),
-    karvonen: w.avgIntensityKarvonen,
     rpe: w.avgRpe,
     hr: w.avgHeartRate,
   }));
@@ -265,9 +246,8 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
   // Préparer données pour le graphique d'intensité avec zones
   const intensityChartData = weeklyData.map(w => {
     const totalZoneMinutes = w.zoneZ1Z2Minutes + w.zoneZ3Z4Minutes + w.zoneZ5Minutes;
-    // Calculer les pourcentages de chaque zone proportionnellement à l'intensité moyenne
-    const avgIntensity = w.avgIntensityKarvonen || 0;
-    
+    const avgIntensity = w.avgPlannedIntensity || 0;
+
     if (totalZoneMinutes === 0 || avgIntensity === 0) {
       return {
         week: `S${w.weekNumber}`,
@@ -275,10 +255,12 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         z1z2Percent: 0,
         z3z4Percent: 0,
         z5Percent: 0,
+        z1z2Label: 0,
+        z3z4Label: 0,
+        z5Label: 0,
       };
     }
 
-    // Répartition proportionnelle des zones dans la barre
     const z1z2Ratio = w.zoneZ1Z2Minutes / totalZoneMinutes;
     const z3z4Ratio = w.zoneZ3Z4Minutes / totalZoneMinutes;
     const z5Ratio = w.zoneZ5Minutes / totalZoneMinutes;
@@ -289,7 +271,6 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
       z1z2Percent: Math.round(z1z2Ratio * avgIntensity),
       z3z4Percent: Math.round(z3z4Ratio * avgIntensity),
       z5Percent: Math.round(z5Ratio * avgIntensity),
-      // Pour les labels
       z1z2Label: Math.round(z1z2Ratio * 100),
       z3z4Label: Math.round(z3z4Ratio * 100),
       z5Label: Math.round(z5Ratio * 100),
@@ -317,12 +298,12 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-2">
               <TrendingUp className="h-4 w-4" />
-              <span className="text-sm">Intensité Karvonen</span>
+              <span className="text-sm">Intensité moyenne</span>
             </div>
             <p className="text-2xl font-bold">
-              {avgKarvonen !== null ? `${avgKarvonen}%` : '-'}
+              {avgPlannedIntensity !== null ? `${avgPlannedIntensity}%` : '-'}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">moyenne</p>
+            <p className="text-xs text-muted-foreground mt-1">% VMA programmé</p>
           </CardContent>
         </Card>
         
@@ -372,7 +353,7 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
           <CardTitle className="text-base">Durée totale par semaine (min)</CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="week" tick={{ fontSize: 12 }} />
@@ -380,7 +361,6 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
               <Tooltip
                 formatter={(value: number, name: string) => {
                   if (name === 'duration') return [`${formatDuration(value)}`, 'Durée'];
-                  if (name === 'karvonen') return [`${value}%`, 'Karvonen'];
                   if (name === 'rpe') return [value, 'RPE'];
                   if (name === 'hr') return [`${value} bpm`, 'FC'];
                   return [value, name];
@@ -405,10 +385,10 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
         </CardContent>
       </Card>
 
-      {/* Graphique intensité Karvonen avec répartition des zones */}
+      {/* Graphique intensité avec répartition des zones */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Intensité moyenne par semaine (Karvonen)</CardTitle>
+          <CardTitle className="text-base">Répartition des zones d'intensité par semaine</CardTitle>
           <p className="text-sm text-muted-foreground">
             {intensityChartData.length >= 2 && intensityChartData[intensityChartData.length - 2]?.avgIntensity && intensityChartData[intensityChartData.length - 1]?.avgIntensity ? (
               <>
@@ -427,7 +407,7 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
           </p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={intensityChartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="week" tick={{ fontSize: 12 }} />
