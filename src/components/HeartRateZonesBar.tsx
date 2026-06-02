@@ -47,13 +47,13 @@ export function HeartRateZonesBar({ zones, compact = false }: HeartRateZonesBarP
 
       {/* Barre empilée */}
       <div className="flex h-3 w-full rounded-full overflow-hidden gap-px">
-        {zones.map((z, i) => {
+        {zones.map((z) => {
           const pct = totalSeconds > 0 ? (z.time_seconds / totalSeconds) * 100 : 0;
           if (pct === 0) return null;
-          const color = ZONE_COLORS[i] ?? ZONE_COLORS[4];
+          const color = ZONE_COLORS[z.zone - 1] ?? ZONE_COLORS[4];
           return (
             <div
-              key={i}
+              key={z.zone}
               className={`${color.bg} transition-all`}
               style={{ width: `${pct}%` }}
               title={`${color.label} · ${formatTime(z.time_seconds)}`}
