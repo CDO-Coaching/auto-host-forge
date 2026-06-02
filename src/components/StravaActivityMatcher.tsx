@@ -42,6 +42,7 @@ interface StravaActivity {
   calories: number | null;
   suffer_score: number | null;
   average_watts: number | null;
+  heart_rate_zones: { zone: number; min: number; max: number; time_seconds: number }[] | null;
   linkedSessionName?: string;
 }
 
@@ -282,6 +283,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
             actual_elevation_gain: selectedActivity.total_elevation_gain ?? null,
             actual_cadence: selectedActivity.average_cadence ?? null,
             actual_calories: selectedActivity.calories ?? null,
+            actual_heart_rate_zones: selectedActivity.heart_rate_zones ?? null,
             sportif_rpe: rpeNum,
             sportif_comment: comment.trim() || null,
             sportif_feedback_at: new Date().toISOString(),

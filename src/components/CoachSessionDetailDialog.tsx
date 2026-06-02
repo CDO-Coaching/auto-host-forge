@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +57,7 @@ interface SessionExercise {
   actual_cadence: number | null;
   actual_elevation_gain: number | null;
   actual_calories: number | null;
+  actual_heart_rate_zones: { zone: number; min: number; max: number; time_seconds: number }[] | null;
 }
 
 interface SessionDetail {
@@ -154,7 +156,8 @@ export function CoachSessionDetailDialog({
             actual_max_heart_rate,
             actual_cadence,
             actual_elevation_gain,
-            actual_calories
+            actual_calories,
+            actual_heart_rate_zones
           )
         `)
         .eq("id", sessionId)
@@ -434,6 +437,11 @@ export function CoachSessionDetailDialog({
                 <div className="flex justify-between"><span className="text-muted-foreground">Calories</span><span className="font-medium">{ex.actual_calories} kcal</span></div>
               )}
             </div>
+            {ex.actual_heart_rate_zones && ex.actual_heart_rate_zones.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-emerald-500/20">
+                <HeartRateZonesBar zones={ex.actual_heart_rate_zones} />
+              </div>
+            )}
           </div>
         )}
 

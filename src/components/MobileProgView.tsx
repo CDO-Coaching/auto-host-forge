@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
 import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardioCalculations";
@@ -850,6 +851,11 @@ function SessionCard({
                               </div>
                             )}
                           </div>
+                          {(cardioExercise as any).actual_heart_rate_zones?.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-green-500/20">
+                              <HeartRateZonesBar zones={(cardioExercise as any).actual_heart_rate_zones} compact />
+                            </div>
+                          )}
                           {(cardioExercise as any).sportif_comment && (
                             <p className="text-xs text-muted-foreground italic border-t border-green-500/20 pt-2">
                               "{(cardioExercise as any).sportif_comment}"

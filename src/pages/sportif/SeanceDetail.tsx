@@ -39,6 +39,7 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import { exportSessionToPdf } from "@/lib/sessionPdfExport";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { EditExerciseFeedbackDialog } from "@/components/EditExerciseFeedbackDialog";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -1202,6 +1203,11 @@ export default function SeanceDetail() {
                                     <div><span className="text-muted-foreground">Calories: </span><span className="font-medium text-green-900 dark:text-green-100">{(item as any).actual_calories} kcal</span></div>
                                   )}
                                 </div>
+                                {(item as any).actual_heart_rate_zones?.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+                                    <HeartRateZonesBar zones={(item as any).actual_heart_rate_zones} />
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
