@@ -355,10 +355,10 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
               <button
                 onClick={syncActivities}
                 disabled={syncing}
-                className="ml-auto p-1 rounded hover:bg-muted transition-colors disabled:opacity-50"
-                title="Synchroniser depuis Strava"
+                className="ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-secondary hover:bg-muted transition-colors disabled:opacity-50"
               >
-                <RefreshCw className={`h-4 w-4 text-muted-foreground ${syncing ? "animate-spin" : ""}`} />
+                <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
+                {syncing ? "Sync…" : "Actualiser"}
               </button>
             </DialogTitle>
           </DialogHeader>
