@@ -1,11 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { formatCardioTime, formatCardioDistance, parsePaceToDecimal, calculateCardioMetrics } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
-import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
+import { Activity, Clock, MapPin, TrendingUp, Calendar, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 
 interface IntensityZones {
@@ -694,104 +695,23 @@ export function CoachRunningView({
         </Card>
       )}
 
-      {/* Volume prévu cette semaine (depuis la DB) */}
-      {plannedVolume && !programmingWeekMetrics && (
-        <Card className="bg-muted/50 border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Volume prévu cette semaine
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-sm">Séances</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Distance totale</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Durée totale</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Intensité moyenne</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.sessionCount}</td>
-                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.distanceKm.toFixed(1)} km</td>
-                    <td className="py-3 px-4 text-lg font-bold">
-                      {Math.floor(plannedVolume.durationMinutes / 60)}h{Math.round(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}
-                    </td>
-                    <td className="py-3 px-4 text-lg font-bold">{plannedVolume.averageIntensity}% VMA</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Statistiques globales */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Semaines d'entraînement</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalWeeks}</div>
-            <p className="text-xs text-muted-foreground">
-              Total de semaines complétées
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Distance totale</CardTitle>
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{totalActualDistance.toFixed(1)} km</div>
-            <p className="text-xs text-muted-foreground">
-              Réalisé · Prévu: {totalPlannedDistance.toFixed(1)} km
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Durée totale</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {Math.floor(totalActualDuration / 60)}h{Math.round(totalActualDuration % 60).toString().padStart(2, '0')}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Réalisé · Prévu: {Math.floor(totalPlannedDuration / 60)}h{Math.round(totalPlannedDuration % 60).toString().padStart(2, '0')}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Intensité moyenne</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{Math.round(avgActualIntensity)}% VMA</div>
-            <p className="text-xs text-muted-foreground">
-              Réalisé · Prévu: {Math.round(avgPlannedIntensity)}% VMA
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Graphiques */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Distance par semaine</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Distance par semaine
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Évolution des km par semaine. Règle des 10% : ne pas augmenter de plus de 10%/semaine pour éviter les blessures. Barres jaunes = semaine en cours de programmation.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             {distanceChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
                 Dernière semaine : {previousWeek.actualDistanceKm.toFixed(1)} km (réalisée, {previousWeek.week}) vs {lastWeek.plannedDistanceKm.toFixed(1)} km (programmée, {lastWeek.week})
@@ -813,7 +733,7 @@ export function CoachRunningView({
                   height={80}
                 />
                 <YAxis />
-                <Tooltip
+                <RechartsTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const isProgramming = payload[0].payload.isProgramming;
@@ -854,7 +774,19 @@ export function CoachRunningView({
 
         <Card>
           <CardHeader>
-            <CardTitle>Durée par semaine</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Durée par semaine
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Cumul du temps de course par semaine. Même règle des 10% que pour la distance.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             {durationChangeVsPlanned && previousWeek && (
               <p className="text-sm text-muted-foreground mt-1">
                 Dernière semaine : {Math.floor(previousWeek.actualDurationMinutes / 60)}h{Math.round(previousWeek.actualDurationMinutes % 60).toString().padStart(2, '0')} (réalisée, {previousWeek.week}) vs {Math.floor(lastWeek.plannedDurationMinutes / 60)}h{Math.round(lastWeek.plannedDurationMinutes % 60).toString().padStart(2, '0')} (programmée, {lastWeek.week})
@@ -876,7 +808,7 @@ export function CoachRunningView({
                   height={80}
                 />
                 <YAxis />
-                <Tooltip
+                <RechartsTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const plannedMinutes = payload[0].payload.plannedDurationMinutes;
@@ -923,7 +855,19 @@ export function CoachRunningView({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Allure moyenne par semaine</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Allure moyenne par semaine
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Allure réalisée vs programmée. Une allure plus rapide que prévue indique que les zones sont peut-être sous-estimées ou que l'athlète force.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             <p className="text-sm text-muted-foreground">Données saisies par le sportif</p>
           </CardHeader>
           <CardContent>
@@ -941,7 +885,7 @@ export function CoachRunningView({
                   domain={['dataMin - 0.5', 'dataMax + 0.5']}
                   tickFormatter={(value) => `${value.toFixed(2)}`}
                 />
-                <Tooltip 
+                <RechartsTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const pace = payload[0].payload.actualAveragePace;
@@ -975,7 +919,19 @@ export function CoachRunningView({
 
         <Card>
           <CardHeader>
-            <CardTitle>FC moyenne par semaine</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              FC moyenne par semaine
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Fréquence cardiaque moyenne réalisée. Comparée à la FC max, elle indique l'intensité réelle de l'entraînement.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             <p className="text-sm text-muted-foreground">Fréquence cardiaque moyenne</p>
           </CardHeader>
           <CardContent>
@@ -990,7 +946,7 @@ export function CoachRunningView({
                   height={80}
                 />
                 <YAxis domain={['dataMin - 10', 'dataMax + 10']} />
-                <Tooltip 
+                <RechartsTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       return (
@@ -1021,7 +977,19 @@ export function CoachRunningView({
 
         <Card>
           <CardHeader>
-            <CardTitle>RPE moyen par semaine</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              RPE moyen par semaine
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Perception subjective de l'effort (1-10). &lt; 6 = léger, 6-8 = modéré, &gt; 8 = élevé. Fiable si l'athlète renseigne systématiquement après chaque séance.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
             <p className="text-sm text-muted-foreground">Effort perçu</p>
           </CardHeader>
           <CardContent>
@@ -1036,7 +1004,7 @@ export function CoachRunningView({
                   height={80}
                 />
                 <YAxis domain={[0, 10]} />
-                <Tooltip 
+                <RechartsTooltip
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       return (
@@ -1073,7 +1041,19 @@ export function CoachRunningView({
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Charge d'entraînement hebdo (sRPE)</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Charge d'entraînement hebdo (sRPE)
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      <p>Charge = Σ(Durée × RPE) par séance. Méthode validée scientifiquement (Foster 2001). Zone cible : 800-1200 UA/semaine pour un athlète entraîné. ⚠️ Fiable uniquement si le RPE est renseigné après chaque séance.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -1081,7 +1061,7 @@ export function CoachRunningView({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                   <YAxis label={{ value: "UA", angle: -90, position: "insideLeft", offset: 10 }} />
-                  <Tooltip
+                  <RechartsTooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         return (
@@ -1111,7 +1091,19 @@ export function CoachRunningView({
           return (
             <Card>
               <CardHeader>
-                <CardTitle>Charge Edwards (zones cardiaques)</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  Charge Edwards (zones cardiaques)
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        <p>Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">Connectez Strava pour voir la charge Edwards</p>
@@ -1122,7 +1114,19 @@ export function CoachRunningView({
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Charge Edwards (zones cardiaques)</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Charge Edwards (zones cardiaques)
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      <p>Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
               <p className="text-xs text-muted-foreground">Score = Σ(min en zone × multiplicateur : Z1×1, Z2×2, Z3×3, Z4×4, Z5×5)</p>
             </CardHeader>
             <CardContent>
@@ -1131,7 +1135,7 @@ export function CoachRunningView({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                   <YAxis />
-                  <Tooltip
+                  <RechartsTooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         return (
@@ -1193,7 +1197,19 @@ export function CoachRunningView({
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Répartition des zones d'intensité par semaine</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Répartition des zones d'intensité par semaine
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      <p>Distribution idéale : 80% du temps en Z1-Z2 (vert) et 20% en Z3-Z5. Si trop de Z3-Z4 (jaune) = entraînement 'gris' risquant la fatigue chronique sans progression optimale.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
@@ -1201,7 +1217,7 @@ export function CoachRunningView({
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
                   <YAxis domain={[0, 100]} tickFormatter={(value) => `${value}%`} />
-                  <Tooltip
+                  <RechartsTooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload;
@@ -1242,6 +1258,151 @@ export function CoachRunningView({
           </Card>
         );
       })()}
+
+      {/* Volume prévu cette semaine (depuis la DB) */}
+      {plannedVolume && !programmingWeekMetrics && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-yellow-500/5 border-yellow-500/20 col-span-2 md:col-span-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-yellow-600">
+                <Calendar className="h-4 w-4" />
+                Volume prévu cette semaine
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs text-xs">
+                      <p>Données calculées depuis le programme de la semaine en cours. Permet d'anticiper la récupération et la nutrition.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card className="bg-yellow-500/5 border-yellow-500/20">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Séances prévues</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{plannedVolume.sessionCount}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+          </Card>
+          <Card className="bg-yellow-500/5 border-yellow-500/20">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Distance prévue</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{plannedVolume.distanceKm.toFixed(1)} km</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+          </Card>
+          <Card className="bg-yellow-500/5 border-yellow-500/20">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Durée prévue</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{Math.floor(plannedVolume.durationMinutes / 60)}h{Math.round(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+          </Card>
+          <Card className="bg-yellow-500/5 border-yellow-500/20">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Intensité prévue</CardTitle></CardHeader>
+            <CardContent><div className="text-2xl font-bold">{plannedVolume.averageIntensity}% VMA</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Statistiques globales */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-1">
+              Semaines d'entraînement
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Nombre de semaines où au moins une séance a été validée par l'athlète.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalWeeks}</div>
+            <p className="text-xs text-muted-foreground">
+              Total de semaines complétées
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-1">
+              Distance totale
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Total des kilomètres réalisés depuis le début. Comparé au volume prévu pour mesurer l'adhérence au programme.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{totalActualDistance.toFixed(1)} km</div>
+            <p className="text-xs text-muted-foreground">
+              Réalisé · Prévu: {totalPlannedDistance.toFixed(1)} km
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-1">
+              Durée totale
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Temps total d'entraînement réalisé. Indicateur de volume global saison.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">
+              {Math.floor(totalActualDuration / 60)}h{Math.round(totalActualDuration % 60).toString().padStart(2, '0')}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Réalisé · Prévu: {Math.floor(totalPlannedDuration / 60)}h{Math.round(totalPlannedDuration % 60).toString().padStart(2, '0')}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium flex items-center gap-1">
+              Intensité moyenne
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Moyenne pondérée par la durée des séances. Idéalement 65-75% VMA pour un entraînement à dominante aérobie.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{Math.round(avgActualIntensity)}% VMA</div>
+            <p className="text-xs text-muted-foreground">
+              Réalisé · Prévu: {Math.round(avgPlannedIntensity)}% VMA
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

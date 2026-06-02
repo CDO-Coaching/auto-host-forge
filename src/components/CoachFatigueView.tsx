@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, Activity } from "lucide-react";
+import { AlertCircle, TrendingUp, Activity, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 import { CoachSfmsRequestToggle } from "@/components/CoachSfmsRequestToggle";
 
@@ -326,6 +327,16 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Score de préparation
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Score synthétique 0-100 combinant : ACWR (30%), Monotonie (25%), Fatigue subjective (25%), Sommeil (20%). ⚠️ Nécessite au moins 4 semaines de données et ≥ 4 jours/semaine de saisie pour être fiable. Un score élevé avec peu de données n'est pas significatif.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -397,7 +408,19 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
       <Card>
         <CardHeader>
-          <CardTitle>Évolution du score de fatigue</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Évolution du score de fatigue
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs text-xs">
+                  <p>Score Cooper 28 (questionnaire Hooper) : 4 items × 7 points max = 28. Score &lt; 12 = bien récupéré, 12-20 = fatigue modérée, &gt; 20 = fatigue élevée. Fiable si renseigné chaque matin avant l'entraînement.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
@@ -413,7 +436,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                 className="text-xs"
                 tick={{ fill: 'hsl(var(--muted-foreground))' }}
               />
-              <Tooltip 
+              <RechartsTooltip
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
@@ -455,7 +478,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                   className="text-xs"
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 />
-                <Tooltip 
+                <RechartsTooltip
                   contentStyle={{
                     backgroundColor: 'hsl(var(--card))',
                     border: '1px solid hsl(var(--border))',
@@ -506,7 +529,19 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       {acwrData && acwrData.chronic > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>ACWR — Ratio Charge Aiguë / Chronique</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              ACWR — Ratio Charge Aiguë / Chronique
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 28 jours de RPE renseignés pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 mb-4">
@@ -549,6 +584,16 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
               Indice de Monotonie (7 derniers jours)
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs text-xs">
+                    <p>Monotonie = Charge moy. / Écart-type. Mesure la répétitivité. Contrainte = Charge totale × Monotonie. ⚠️ Les jours sans saisie de séance comptent comme repos (charge = 0), ce qui peut artificiellement baisser la monotonie. Interpréter avec le taux de saisie des RPE.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -614,7 +659,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                   />
                   <ReferenceLine y={1.5} stroke="hsl(38 92% 50%)" strokeDasharray="5 5" />
                   <ReferenceLine y={2} stroke="hsl(var(--destructive))" strokeDasharray="5 5" />
-                  <Tooltip 
+                  <RechartsTooltip
                     contentStyle={{
                       backgroundColor: 'hsl(var(--card))',
                       border: '1px solid hsl(var(--border))',
