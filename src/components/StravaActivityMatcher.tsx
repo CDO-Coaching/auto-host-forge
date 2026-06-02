@@ -358,7 +358,7 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
                 className="ml-auto flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md border border-border bg-secondary hover:bg-muted transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Sync…" : "Actualiser"}
+                {syncing ? "Synchronisation…" : "Synchroniser"}
               </button>
             </DialogTitle>
           </DialogHeader>
