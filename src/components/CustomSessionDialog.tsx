@@ -66,6 +66,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
   const [distanceKm, setDistanceKm] = useState("");
   const [avgPace, setAvgPace] = useState("");
   const [avgHeartRate, setAvgHeartRate] = useState("");
+  const [sessionRpe, setSessionRpe] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   // "plan" = planning only, "validate" = completing now
   const [mode, setMode] = useState<"plan" | "validate">("plan");
@@ -79,6 +80,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSessionName(editSession.session_name);
       setDescription(editSession.description || "");
       setDuration(editSession.duration_minutes?.toString() || "");
+      setSessionRpe((editSession as any).session_rpe?.toString() || "");
       setSelectedDate(editSession.scheduled_date ? new Date(editSession.scheduled_date) : editSession.completed_at ? new Date(editSession.completed_at) : new Date());
       setMode(editSession.completed_at ? "validate" : "plan");
       setShowValidatePrompt(false);
@@ -113,6 +115,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setDistanceKm(stravaData.distanceKm);
       setAvgPace(stravaData.avgPace);
       setAvgHeartRate(stravaData.avgHeartRate);
+      setSessionRpe("");
       setSelectedDate(stravaData.date);
       setMode("validate");
       setShowValidatePrompt(false);
@@ -126,6 +129,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSessionName(validateSession.session_name);
       setDescription(validateSession.description || "");
       setDuration("");
+      setSessionRpe("");
       setSelectedDate(new Date());
       setCardioType((validateSession as any).cardio_type || "");
       setMode("validate");
@@ -151,6 +155,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
     setDistanceKm("");
     setAvgPace("");
     setAvgHeartRate("");
+    setSessionRpe("");
     setMode("plan");
     setShowValidatePrompt(false);
   };
@@ -210,6 +215,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
             distance_km: distanceKm ? parseFloat(distanceKm) : null,
             avg_pace: avgPace.trim() || null,
             avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
+            session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
           })
           .eq("id", validateSession.id);
 
@@ -222,6 +228,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           session_name: sessionName.trim(),
           description: description.trim() || null,
           scheduled_date: dateStr,
+          session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
         };
         if (isCompleting) {
           updateData.duration_minutes = parseInt(duration);
@@ -251,6 +258,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           insertData.distance_km = distanceKm ? parseFloat(distanceKm) : null;
           insertData.avg_pace = avgPace.trim() || null;
           insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
+          insertData.session_rpe = sessionRpe ? parseInt(sessionRpe) : null;
         }
 
         const { error } = await (supabase.from("custom_sessions") as any)
@@ -418,6 +426,33 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                   step="1"
                   required
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="session-rpe">Effort perçu — RPE (1-10)</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="session-rpe"
+                    type="number"
+                    inputMode="numeric"
+                    placeholder="Ex: 7"
+                    value={sessionRpe}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      if (val === '' || (Number(val) >= 1 && Number(val) <= 10)) setSessionRpe(val);
+                    }}
+                    min="1"
+                    max="10"
+                    step="1"
+                    className="w-24"
+                  />
+                  <span className="text-xs text-muted-foreground">
+                    {sessionRpe === "" ? "" :
+                     Number(sessionRpe) <= 3 ? "Facile 🟢" :
+                     Number(sessionRpe) <= 6 ? "Modéré 🟡" :
+                     Number(sessionRpe) <= 8 ? "Difficile 🟠" : "Très difficile 🔴"}
+                  </span>
+                </div>
               </div>
 
               {cardioType && cardioType !== "none" && (

@@ -81,6 +81,7 @@ import type { VoiceChanges } from "@/lib/parseVoiceCommand";
 import { MobileProgView } from "@/components/MobileProgView";
 import { DesktopProgView } from "@/components/DesktopProgView";
 import { CoachCardioAIChat, type AIChatContext } from "@/components/CoachCardioAIChat";
+import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -192,6 +193,8 @@ export default function ClientDetail() {
   const [selectedHistoricalWeek, setSelectedHistoricalWeek] = useState<any>(null);
   const [historicalSessions, setHistoricalSessions] = useState<any[]>([]);
   const [customSessions, setCustomSessions] = useState<any[]>([]);
+  const [coachCustomSessions, setCoachCustomSessions] = useState<any[]>([]);
+  const [editingCoachCustomSession, setEditingCoachCustomSession] = useState<any>(null);
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
@@ -461,6 +464,7 @@ export default function ClientDetail() {
     loadAllTrainingWeeks();
     loadAthleteMaxes();
     loadCustomSessions();
+    loadCoachCustomSessions();
     loadLastWeekFeedback();
     loadAthleteObjectives();
     loadHeaderMonotony();
@@ -918,6 +922,16 @@ export default function ClientDetail() {
     } else {
       setCustomSessions(data || []);
     }
+  };
+
+  const loadCoachCustomSessions = async () => {
+    if (!athleteId) return;
+    const { data } = await (supabase.from("custom_sessions") as any)
+      .select("id, session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, session_rpe, description, completed_at, scheduled_date")
+      .eq("user_id", athleteId)
+      .order("completed_at", { ascending: false })
+      .limit(50);
+    setCoachCustomSessions(data || []);
   };
 
   const loadLastWeekFeedback = async () => {
@@ -5309,9 +5323,61 @@ export default function ClientDetail() {
             />
           )}
           {selectedEffortType === "triathlon" && (
-            <CoachTriathlonView 
-              athleteId={athleteId!} 
-              athleteName={athlete.first_name || "l'athlète"} 
+            <CoachTriathlonView
+              athleteId={athleteId!}
+              athleteName={athlete.first_name || "l'athlète"}
+            />
+          )}
+
+          {/* Séances perso */}
+          {coachCustomSessions.length > 0 && (
+            <div className="space-y-3 mt-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Séances personnelles ({coachCustomSessions.length})</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {coachCustomSessions.slice(0, 20).map((cs) => {
+                  const dateStr = cs.completed_at ?? cs.scheduled_date;
+                  const isCompleted = !!cs.completed_at;
+                  return (
+                    <div
+                      key={cs.id}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/40 transition-colors"
+                      onClick={() => setEditingCoachCustomSession(cs)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-medium text-sm truncate">{cs.session_name}</span>
+                          {cs.cardio_type && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">{cs.cardio_type}</Badge>
+                          )}
+                          {!isCompleted && (
+                            <Badge variant="outline" className="text-[10px] border-orange-500 text-orange-600 px-1.5 py-0 h-4">Planifiée</Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          {dateStr ? new Date(dateStr).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                          {cs.duration_minutes ? ` · ${cs.duration_minutes} min` : ""}
+                          {cs.distance_km ? ` · ${cs.distance_km} km` : ""}
+                          {cs.session_rpe ? ` · RPE ${cs.session_rpe}` : ""}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Dialog edit séance perso (coach) */}
+          {editingCoachCustomSession && (
+            <CustomSessionDialog
+              editSession={editingCoachCustomSession}
+              onClose={() => setEditingCoachCustomSession(null)}
+              onSessionCreated={() => {
+                setEditingCoachCustomSession(null);
+                loadCoachCustomSessions();
+              }}
+              hideTrigger
             />
           )}
         </TabsContent>

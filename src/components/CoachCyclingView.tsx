@@ -349,7 +349,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
     // Séances perso vélo
     const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, cardio_type")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate, cardio_type, session_rpe")
       .eq("user_id", athleteId)
       .eq("cardio_type", "velo")
       .not("completed_at", "is", null);
@@ -364,11 +364,36 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
       const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, "0")}`;
       const dist = Number(cs.distance_km || 0);
       const dur = Number(cs.duration_minutes || 0);
+      const rpe = cs.session_rpe ? Number(cs.session_rpe) : 0;
+      // For cycling, avg_pace stores speed in km/h as a string (e.g. "28.5")
+      const speed = cs.avg_pace ? Number(cs.avg_pace) || 0 : 0;
+      const hr = cs.avg_heart_rate ? Number(cs.avg_heart_rate) : 0;
+      const loadUA = (dur > 0 && rpe > 0) ? dur * rpe : 0;
+
       if (weeklyData.has(weekKey)) {
         const existing = weeklyData.get(weekKey)!;
         existing.actualDistanceKm += dist;
         existing.actualDurationMinutes += dur;
         if (dur > 0) existing.actualSessionCount++;
+        if (loadUA > 0) {
+          existing.actualLoadUA += loadUA;
+          existing.actualSessionsWithRpe++;
+        }
+        if (speed > 0) {
+          const prevSpeed = existing.actualAverageSpeed ?? 0;
+          const prevCount = existing.actualAverageSpeed ? existing.actualSessionCount - 1 : 0;
+          existing.actualAverageSpeed = (prevSpeed * prevCount + speed) / (prevCount + 1);
+        }
+        if (hr > 0) {
+          const prevHR = existing.actualAverageHeartRate ?? 0;
+          const prevCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
+          existing.actualAverageHeartRate = Math.round((prevHR * prevCount + hr) / (prevCount + 1));
+        }
+        if (rpe > 0) {
+          const prevRpe = existing.actualAverageRpe ?? 0;
+          const prevCount = existing.actualAverageRpe ? existing.actualSessionCount - 1 : 0;
+          existing.actualAverageRpe = Math.round((prevRpe * prevCount + rpe) / (prevCount + 1));
+        }
       } else {
         weeklyData.set(weekKey, {
           week: weekKey,
@@ -382,13 +407,13 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           actualDurationMinutes: dur,
           actualAverageIntensity: 0,
           actualSessionCount: dur > 0 ? 1 : 0,
-          actualAverageSpeed: null,
-          actualAverageHeartRate: null,
-          actualAverageRpe: null,
+          actualAverageSpeed: speed > 0 ? speed : null,
+          actualAverageHeartRate: hr > 0 ? hr : null,
+          actualAverageRpe: rpe > 0 ? rpe : null,
           intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
-          actualLoadUA: 0,
+          actualLoadUA: loadUA,
           edwardsLoad: 0,
-          actualSessionsWithRpe: 0,
+          actualSessionsWithRpe: (loadUA > 0) ? 1 : 0,
         });
       }
     });

@@ -565,11 +565,12 @@ export default function Seances() {
                     return (
                       <div
                         key={cs.id}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border ${
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer hover:bg-muted/40 transition-colors ${
                           isPlanned
                             ? "border-orange-500/30 bg-orange-500/5"
                             : "border-primary/30 bg-primary/5"
                         }`}
+                        onClick={() => setEditingCustomSession(cs)}
                       >
                         {/* Status */}
                         <div className="shrink-0">

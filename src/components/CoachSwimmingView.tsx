@@ -345,7 +345,7 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
     // Séances perso natation
     const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, cardio_type")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, distance_km, avg_pace, avg_heart_rate, cardio_type, session_rpe")
       .eq("user_id", athleteId)
       .eq("cardio_type", "natation")
       .not("completed_at", "is", null);
@@ -360,11 +360,35 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
       const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, "0")}`;
       const dist = Number(cs.distance_km || 0);
       const dur = Number(cs.duration_minutes || 0);
+      const rpe = cs.session_rpe ? Number(cs.session_rpe) : 0;
+      const pace = cs.avg_pace ? parsePaceToDecimal(cs.avg_pace) : null;
+      const hr = cs.avg_heart_rate ? Number(cs.avg_heart_rate) : 0;
+      const loadUA = (dur > 0 && rpe > 0) ? dur * rpe : 0;
+
       if (weeklyData.has(weekKey)) {
         const existing = weeklyData.get(weekKey)!;
         existing.actualDistanceKm += dist;
         existing.actualDurationMinutes += dur;
         if (dur > 0) existing.actualSessionCount++;
+        if (loadUA > 0) {
+          existing.actualLoadUA += loadUA;
+          existing.actualSessionsWithRpe++;
+        }
+        if (pace !== null && pace > 0) {
+          const prevPace = existing.actualAveragePace ?? 0;
+          const prevCount = existing.actualAveragePace ? existing.actualSessionCount - 1 : 0;
+          existing.actualAveragePace = (prevPace * prevCount + pace) / (prevCount + 1);
+        }
+        if (hr > 0) {
+          const prevHR = existing.actualAverageHeartRate ?? 0;
+          const prevCount = existing.actualAverageHeartRate ? existing.actualSessionCount - 1 : 0;
+          existing.actualAverageHeartRate = Math.round((prevHR * prevCount + hr) / (prevCount + 1));
+        }
+        if (rpe > 0) {
+          const prevRpe = existing.actualAverageRpe ?? 0;
+          const prevCount = existing.actualAverageRpe ? existing.actualSessionCount - 1 : 0;
+          existing.actualAverageRpe = Math.round((prevRpe * prevCount + rpe) / (prevCount + 1));
+        }
       } else {
         weeklyData.set(weekKey, {
           week: weekKey,
@@ -378,13 +402,13 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
           actualDurationMinutes: dur,
           actualAverageIntensity: 0,
           actualSessionCount: dur > 0 ? 1 : 0,
-          actualAveragePace: null,
-          actualAverageHeartRate: null,
-          actualAverageRpe: null,
+          actualAveragePace: (pace !== null && pace > 0) ? pace : null,
+          actualAverageHeartRate: hr > 0 ? hr : null,
+          actualAverageRpe: rpe > 0 ? rpe : null,
           intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
-          actualLoadUA: 0,
+          actualLoadUA: loadUA,
           edwardsLoad: 0,
-          actualSessionsWithRpe: 0,
+          actualSessionsWithRpe: (loadUA > 0) ? 1 : 0,
         });
       }
     });
