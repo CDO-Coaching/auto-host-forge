@@ -238,7 +238,7 @@ export default function ClientDetail() {
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
-  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon">("renfo");
+  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon">("course");
   const [sessionTemplates, setSessionTemplates] = useState<Array<{ id: string; name: string; session_type: string; cardio_sport: string | null }>>([]);
   const [selectedCardioSport, setSelectedCardioSport] = useState<"course" | "velo" | "natation">("course");
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
@@ -4088,7 +4088,7 @@ export default function ClientDetail() {
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
               <TabsTrigger value="resume" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Résumé</TabsTrigger>
               <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
-              <TabsTrigger value="efforts" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Efforts</TabsTrigger>
+              <TabsTrigger value="efforts" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Données</TabsTrigger>
               <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
@@ -5242,14 +5242,6 @@ export default function ClientDetail() {
           {/* Menu de sélection du type d'effort */}
           <div className="flex flex-wrap gap-2 mb-4">
             <Button
-              variant={selectedEffortType === "renfo" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedEffortType("renfo")}
-            >
-              <Dumbbell className="h-4 w-4 mr-2" />
-              Renfo
-            </Button>
-            <Button
               variant={selectedEffortType === "course" ? "default" : "outline"}
               size="sm"
               onClick={() => setSelectedEffortType("course")}
@@ -5272,6 +5264,14 @@ export default function ClientDetail() {
             >
               <Activity className="h-4 w-4 mr-2" />
               Natation
+            </Button>
+            <Button
+              variant={selectedEffortType === "renfo" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("renfo")}
+            >
+              <Dumbbell className="h-4 w-4 mr-2" />
+              Renfo
             </Button>
             <Button
               variant={selectedEffortType === "triathlon" ? "default" : "outline"}
