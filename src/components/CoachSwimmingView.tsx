@@ -29,6 +29,8 @@ interface CardioSessionData {
   actualAverageHeartRate: number | null;
   actualAverageRpe: number | null;
   intensityZones: IntensityZones;
+  actualLoadUA: number;
+  edwardsLoad: number;
 }
 
 interface PlannedVolume {
@@ -143,7 +145,8 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
           actual_distance_km,
           actual_duration_minutes,
           actual_pace_min_per_km,
-          actual_avg_heart_rate
+          actual_avg_heart_rate,
+          actual_heart_rate_zones
         ),
         training_weeks!inner(
           athlete_id,
@@ -236,9 +239,19 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
         }
       }
 
+      // Compute Edwards score from actual_heart_rate_zones
+      let edwardsScore = 0;
+      if (exercise?.actual_heart_rate_zones && Array.isArray(exercise.actual_heart_rate_zones)) {
+        for (const zone of exercise.actual_heart_rate_zones) {
+          const minutes = (zone.time_seconds || 0) / 60;
+          const multiplier = zone.zone;
+          edwardsScore += minutes * multiplier;
+        }
+      }
+
       if (weeklyData.has(weekKey)) {
         const existing = weeklyData.get(weekKey)!;
-        
+
         existing.plannedDistanceKm += plannedDistance;
         existing.plannedDurationMinutes += plannedDuration;
         const totalPlannedDuration = existing.plannedDurationMinutes;
@@ -285,6 +298,14 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
             const currentRpeSum = (existing.actualAverageRpe || 0) * currentRpeCount;
             existing.actualAverageRpe = Math.round((currentRpeSum + actualRpe) / (currentRpeCount + 1));
           }
+
+          // Charge sRPE
+          if (actualDuration > 0 && actualRpe > 0) {
+            existing.actualLoadUA += actualDuration * actualRpe;
+          }
+
+          // Charge Edwards
+          if (edwardsScore > 0) existing.edwardsLoad += edwardsScore;
         }
       } else {
         const intensityZones: IntensityZones = { zoneLow: 0, zoneMid: 0, zoneHigh: 0 };
@@ -308,7 +329,9 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
           actualAveragePace: actualPace > 0 ? actualPace : null,
           actualAverageHeartRate: actualHeartRate > 0 ? actualHeartRate : null,
           actualAverageRpe: actualRpe > 0 ? actualRpe : null,
-          intensityZones
+          intensityZones,
+          actualLoadUA: (isValidated && actualDuration > 0 && actualRpe > 0) ? actualDuration * actualRpe : 0,
+          edwardsLoad: edwardsScore,
         });
       }
     });
@@ -353,6 +376,8 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
           actualAverageHeartRate: null,
           actualAverageRpe: null,
           intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
+          actualLoadUA: 0,
+          edwardsLoad: 0,
         });
       }
     });
@@ -705,6 +730,94 @@ export function CoachSwimmingView({ athleteId, athleteName }: CoachSwimmingViewP
           </CardContent>
         </Card>
       </div>
+
+      {/* Charge sRPE hebdomadaire */}
+      {(() => {
+        const srpeData = cardioSessions.filter(s => s.actualLoadUA > 0);
+        if (srpeData.length === 0) return null;
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Charge d'entraînement hebdo (sRPE)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={srpeData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <YAxis label={{ value: "UA", angle: -90, position: "insideLeft", offset: 10 }} />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border rounded-lg p-3 shadow-lg">
+                            <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                            <p className="text-sm" style={{ color: "hsl(262 80% 60%)" }}>
+                              Charge sRPE: {Math.round(payload[0].payload.actualLoadUA)} UA
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="actualLoadUA" fill="hsl(262 80% 60%)" name="Charge sRPE (UA)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Charge Edwards hebdomadaire */}
+      {(() => {
+        const edwardsData = cardioSessions.filter(s => s.edwardsLoad > 0);
+        if (edwardsData.length === 0) {
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle>Charge Edwards (zones cardiaques)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">Connectez Strava pour voir la charge Edwards</p>
+              </CardContent>
+            </Card>
+          );
+        }
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Charge Edwards (zones cardiaques)</CardTitle>
+              <p className="text-xs text-muted-foreground">Score = Σ(min en zone × multiplicateur : Z1×1, Z2×2, Z3×3, Z4×4, Z5×5)</p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={edwardsData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="week" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} />
+                  <YAxis />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-background border rounded-lg p-3 shadow-lg">
+                            <p className="font-medium mb-2">{payload[0].payload.week}</p>
+                            <p className="text-sm" style={{ color: "hsl(25 95% 53%)" }}>
+                              Score Edwards: {Math.round(payload[0].payload.edwardsLoad)}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="edwardsLoad" fill="hsl(25 95% 53%)" name="Charge Edwards" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Répartition des zones d'intensité par semaine */}
       {(() => {

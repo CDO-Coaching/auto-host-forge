@@ -63,6 +63,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const [loading, setLoading] = useState(true);
   const [hasInjuryTracking, setHasInjuryTracking] = useState(false);
   const [monotonyData, setMonotonyData] = useState<MonotonyData | null>(null);
+  const [acwrData, setAcwrData] = useState<{ acwr: number | null; acute: number; chronic: number } | null>(null);
 
   useEffect(() => {
     loadFatigueLogs();
@@ -96,8 +97,8 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const loadMonotonyData = async () => {
     try {
       const today = new Date();
-      // Récupérer 21 jours pour calculer la monotonie glissante sur 14 jours
-      const twentyOneDaysAgo = subDays(today, 20);
+      // Récupérer 35 jours pour calculer la monotonie glissante sur 14 jours + ACWR (28j chronique)
+      const thirtyFiveDaysAgo = subDays(today, 34);
 
       // Récupérer les semaines de l'athlète
       const { data: weeks, error: weeksError } = await supabase
@@ -111,26 +112,27 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
       if (weekIds.length === 0) {
         setMonotonyData(null);
+        setAcwrData(null);
         return;
       }
 
-      // Récupérer les sessions des 21 derniers jours via week_id
+      // Récupérer les sessions des 35 derniers jours via week_id
       const { data, error } = await supabase
         .from("training_sessions")
         .select("id, completed_at, duration_minutes, session_rpe")
         .in("week_id", weekIds)
         .not("completed_at", "is", null)
-        .gte("completed_at", startOfDay(twentyOneDaysAgo).toISOString())
+        .gte("completed_at", startOfDay(thirtyFiveDaysAgo).toISOString())
         .lte("completed_at", endOfDay(today).toISOString());
 
       if (error) throw error;
 
       const sessions = (data || []) as TrainingSession[];
-      
-      // Calculer les charges journalières pour tous les 21 jours
+
+      // Calculer les charges journalières pour tous les 35 jours
       const allDailyLoadsMap = new Map<string, { load: number; sessions: number }>();
-      
-      for (let i = 20; i >= 0; i--) {
+
+      for (let i = 34; i >= 0; i--) {
         const date = format(subDays(today, i), "yyyy-MM-dd");
         allDailyLoadsMap.set(date, { load: 0, sessions: 0 });
       }
@@ -155,10 +157,22 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         }))
         .sort((a, b) => a.date.localeCompare(b.date));
 
+      // Calculer ACWR
+      // acute = somme des 7 derniers jours, chronic = somme des 28 derniers jours / 4
+      const last35 = allDailyLoads; // 35 days sorted asc
+      const acuteLoads = last35.slice(-7).map(d => d.load);
+      const chronicLoads = last35.slice(-28).map(d => d.load);
+      const acuteSum = acuteLoads.reduce((s, l) => s + l, 0);
+      const chronicSum = chronicLoads.reduce((s, l) => s + l, 0);
+      const chronic = chronicSum / 4;
+      const acwr = chronic > 0 ? acuteSum / chronic : null;
+      setAcwrData({ acwr, acute: acuteSum, chronic });
+
       // Calculer la monotonie glissante pour les 14 derniers jours
+      // On utilise seulement les 21 derniers jours pour la fenêtre glissante (index 14..34)
       const monotonyHistory: MonotonyPoint[] = [];
-      
-      for (let i = 6; i <= 20; i++) {
+
+      for (let i = 20; i <= 34; i++) {
         const windowLoads = allDailyLoads.slice(i - 6, i + 1).map(d => d.load);
         const windowWeeklyLoad = windowLoads.reduce((sum, l) => sum + l, 0);
         const windowMeanLoad = windowWeeklyLoad / 7;
@@ -178,7 +192,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         });
       }
 
-      // Données actuelles (7 derniers jours)
+      // Données actuelles pour la carte Monotonie (7 derniers jours)
       const currentDailyLoads = allDailyLoads.slice(-7);
       const loads = currentDailyLoads.map(d => d.load);
       const weeklyLoad = loads.reduce((sum, l) => sum + l, 0);
@@ -251,8 +265,108 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
     );
   }
 
+  // Score de préparation
+  const readinessScore = (() => {
+    if (logs.length === 0 || !monotonyData) return null;
+
+    // ACWR (30%)
+    let acwrScore = 50;
+    if (acwrData?.acwr !== null && acwrData?.acwr !== undefined) {
+      const r = acwrData.acwr;
+      if (r >= 0.8 && r <= 1.3) acwrScore = 100;
+      else if (r >= 0.6 && r < 0.8) acwrScore = 70;
+      else if (r > 1.3 && r <= 1.5) acwrScore = 70;
+      else acwrScore = 30;
+    }
+
+    // Monotonie (25%)
+    let monotonyScore = 50;
+    if (monotonyData?.monotony !== undefined) {
+      const m = monotonyData.monotony;
+      if (m < 1.5) monotonyScore = 100;
+      else if (m < 2) monotonyScore = 60;
+      else monotonyScore = 20;
+    }
+
+    // Fatigue questionnaire (25%)
+    let fatigueScore = 50;
+    if (logs.length > 0) {
+      const latest = logs[0];
+      const normalized = (28 - latest.score_total) / 24 * 100;
+      fatigueScore = Math.max(0, Math.min(100, normalized));
+    }
+
+    // Sommeil (20%)
+    let sommeilScore = 50;
+    if (logs.length > 0) {
+      const recent = logs.slice(0, 7);
+      const avgSommeil = recent.reduce((s, l) => s + l.sommeil, 0) / recent.length;
+      sommeilScore = Math.max(0, Math.min(100, (7 - avgSommeil) / 6 * 100));
+    }
+
+    return {
+      score: Math.round(acwrScore * 0.30 + monotonyScore * 0.25 + fatigueScore * 0.25 + sommeilScore * 0.20),
+      acwrScore,
+      monotonyScore,
+      fatigueScore,
+      sommeilScore,
+    };
+  })();
+
   return (
     <div className="space-y-6">
+      {/* Score de préparation */}
+      {readinessScore && (
+        <Card className={
+          readinessScore.score >= 80 ? "border-green-500/50 bg-green-500/5" :
+          readinessScore.score >= 60 ? "border-orange-500/50 bg-orange-500/5" :
+          "border-red-500/50 bg-red-500/5"
+        }>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Score de préparation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-6 mb-4">
+              <p className={`text-5xl font-bold ${
+                readinessScore.score >= 80 ? "text-green-500" :
+                readinessScore.score >= 60 ? "text-orange-500" :
+                "text-red-500"
+              }`}>{readinessScore.score}<span className="text-2xl text-muted-foreground">/100</span></p>
+              <p className={`text-lg font-medium ${
+                readinessScore.score >= 80 ? "text-green-500" :
+                readinessScore.score >= 60 ? "text-orange-500" :
+                "text-red-500"
+              }`}>
+                {readinessScore.score >= 80 ? "Prêt à performer" :
+                 readinessScore.score >= 60 ? "Entraînement modéré conseillé" :
+                 "Récupération recommandée"}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "ACWR", score: readinessScore.acwrScore, weight: "30%" },
+                { label: "Monotonie", score: readinessScore.monotonyScore, weight: "25%" },
+                { label: "Fatigue", score: readinessScore.fatigueScore, weight: "25%" },
+                { label: "Sommeil", score: readinessScore.sommeilScore, weight: "20%" },
+              ].map(({ label, score, weight }) => (
+                <div key={label} className="text-center p-3 rounded-lg bg-muted/50">
+                  <p className={`text-xl font-bold ${
+                    score >= 80 ? "text-green-500" :
+                    score >= 60 ? "text-orange-500" :
+                    "text-red-500"
+                  }`}>{Math.round(score)}</p>
+                  <p className="text-xs text-muted-foreground">{label}</p>
+                  <p className="text-xs text-muted-foreground/60">{weight}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
 
       {recentHighFatigue.length > 0 && (
@@ -383,6 +497,46 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                   )}
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ACWR */}
+      {acwrData && acwrData.chronic > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>ACWR — Ratio Charge Aiguë / Chronique</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-2xl font-bold">{acwrData.acute.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Charge 7j (UA)</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-2xl font-bold">{acwrData.chronic.toFixed(0)}</p>
+                <p className="text-xs text-muted-foreground">Charge chronique (UA)</p>
+              </div>
+              <div className={`text-center p-3 rounded-lg ${
+                acwrData.acwr === null ? 'bg-muted/50' :
+                acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'bg-red-500/10 border border-red-500/30' :
+                acwrData.acwr > 1.3 ? 'bg-orange-500/10 border border-orange-500/30' :
+                'bg-green-500/10 border border-green-500/30'
+              }`}>
+                <p className={`text-2xl font-bold ${
+                  acwrData.acwr === null ? 'text-muted-foreground' :
+                  acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'text-red-500' :
+                  acwrData.acwr > 1.3 ? 'text-orange-500' :
+                  'text-green-500'
+                }`}>{acwrData.acwr?.toFixed(2) ?? '—'}</p>
+                <p className="text-xs text-muted-foreground">ACWR</p>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p><span className="text-green-500 font-medium">0.8 – 1.3</span> : Zone optimale</p>
+              <p><span className="text-orange-500 font-medium">1.3 – 1.5</span> : Attention</p>
+              <p><span className="text-red-500 font-medium">&gt;1.5 ou &lt;0.6</span> : Risque de blessure</p>
             </div>
           </CardContent>
         </Card>
