@@ -39,6 +39,8 @@ interface CardioSessionData {
   actualLoadUA: number;
   // Charge Edwards (zones cardiaques)
   edwardsLoad: number;
+  // Sessions avec RPE renseigné (pour fiabilité)
+  actualSessionsWithRpe: number;
   // Flag pour indiquer si c'est la semaine en cours de programmation
   isProgramming?: boolean;
 }
@@ -380,6 +382,7 @@ export function CoachRunningView({
           // Charge sRPE
           if (actualDuration > 0 && actualRpe > 0) {
             existing.actualLoadUA += actualDuration * actualRpe;
+            existing.actualSessionsWithRpe++;
           }
 
           // Charge Edwards
@@ -417,6 +420,7 @@ export function CoachRunningView({
           intensityZones,
           actualLoadUA: (isValidated && actualDuration > 0 && actualRpe > 0) ? actualDuration * actualRpe : 0,
           edwardsLoad: edwardsScore,
+          actualSessionsWithRpe: (isValidated && actualRpe > 0) ? 1 : 0,
         });
       }
     });
@@ -464,6 +468,7 @@ export function CoachRunningView({
           intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
           actualLoadUA: 0,
           edwardsLoad: 0,
+          actualSessionsWithRpe: 0,
         });
       }
     });
@@ -569,6 +574,7 @@ export function CoachRunningView({
       intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
       actualLoadUA: 0,
       edwardsLoad: 0,
+      actualSessionsWithRpe: 0,
       isProgramming: true
     };
 
@@ -626,6 +632,12 @@ export function CoachRunningView({
   const avgPlannedIntensity = isNaN(avgPlannedIntensityRaw) ? 0 : avgPlannedIntensityRaw;
   const avgActualIntensityRaw = totalWeeks > 0 ? mergedCardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks : 0;
   const avgActualIntensity = isNaN(avgActualIntensityRaw) ? 0 : avgActualIntensityRaw;
+
+  // A. Fiabilité RPE : % des séances validées avec RPE renseigné
+  const totalValidatedSessions = mergedCardioSessions.reduce((s, w) => s + w.actualSessionCount, 0);
+  const totalSessionsWithRpe = mergedCardioSessions.reduce((s, w) => s + w.actualSessionsWithRpe, 0);
+  const rpeReliabilityPct = totalValidatedSessions > 0 ? Math.round((totalSessionsWithRpe / totalValidatedSessions) * 100) : 0;
+  const rpeReliabilityLabel = rpeReliabilityPct >= 80 ? "good" : rpeReliabilityPct >= 50 ? "partial" : "poor";
 
   // Calculer les métriques de la semaine précédente pour comparaison
   const lastWeek = mergedCardioSessions[mergedCardioSessions.length - 1];
@@ -1041,7 +1053,7 @@ export function CoachRunningView({
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 flex-wrap">
                 Charge d'entraînement hebdo (sRPE)
                 <TooltipProvider>
                   <Tooltip>
@@ -1053,6 +1065,17 @@ export function CoachRunningView({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <Badge className={
+                  rpeReliabilityLabel === "good"
+                    ? "bg-green-500/20 text-green-500 border-green-500/50 text-xs"
+                    : rpeReliabilityLabel === "partial"
+                      ? "bg-orange-500/20 text-orange-500 border-orange-500/50 text-xs"
+                      : "bg-red-500/20 text-red-500 border-red-500/50 text-xs"
+                }>
+                  {rpeReliabilityPct >= 80 ? `✓ RPE fiable (${rpeReliabilityPct}%)` :
+                   rpeReliabilityPct >= 50 ? `⚠ Partiel (${rpeReliabilityPct}%)` :
+                   `✗ Insuffisant (${rpeReliabilityPct}%)`}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>

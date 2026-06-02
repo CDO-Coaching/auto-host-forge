@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
+import { Badge } from "@/components/ui/badge";
 import { Bike, Clock, MapPin, TrendingUp, Calendar, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
@@ -32,6 +33,8 @@ interface CardioSessionData {
   intensityZones: IntensityZones;
   actualLoadUA: number;
   edwardsLoad: number;
+  // Sessions avec RPE renseigné (pour fiabilité)
+  actualSessionsWithRpe: number;
 }
 
 interface PlannedVolume {
@@ -301,6 +304,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           // Charge sRPE
           if (actualDuration > 0 && actualRpe > 0) {
             existing.actualLoadUA += actualDuration * actualRpe;
+            existing.actualSessionsWithRpe++;
           }
 
           // Charge Edwards
@@ -337,6 +341,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           intensityZones,
           actualLoadUA: (isValidated && actualDuration > 0 && actualRpe > 0) ? actualDuration * actualRpe : 0,
           edwardsLoad: edwardsScore,
+          actualSessionsWithRpe: (isValidated && actualRpe > 0) ? 1 : 0,
         });
       }
     });
@@ -383,6 +388,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
           intensityZones: { zoneLow: 0, zoneMid: 0, zoneHigh: 0 },
           actualLoadUA: 0,
           edwardsLoad: 0,
+          actualSessionsWithRpe: 0,
         });
       }
     });
@@ -421,6 +427,13 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
   const totalActualDistance = cardioSessions.reduce((sum, s) => sum + s.actualDistanceKm, 0);
   const totalActualDuration = cardioSessions.reduce((sum, s) => sum + s.actualDurationMinutes, 0);
   const totalWeeks = cardioSessions.length;
+
+  // A. Fiabilité RPE : % des séances validées avec RPE renseigné
+  const totalValidatedSessions = cardioSessions.reduce((s, w) => s + w.actualSessionCount, 0);
+  const totalSessionsWithRpe = cardioSessions.reduce((s, w) => s + w.actualSessionsWithRpe, 0);
+  const rpeReliabilityPct = totalValidatedSessions > 0 ? Math.round((totalSessionsWithRpe / totalValidatedSessions) * 100) : 0;
+  const rpeReliabilityLabel = rpeReliabilityPct >= 80 ? "good" : rpeReliabilityPct >= 50 ? "partial" : "poor";
+
   const avgPlannedIntensityRaw = totalWeeks > 0 ? cardioSessions.reduce((sum, s) => sum + s.plannedAverageIntensity, 0) / totalWeeks : 0;
   const avgPlannedIntensity = isNaN(avgPlannedIntensityRaw) ? 0 : avgPlannedIntensityRaw;
   const avgActualIntensityRaw = totalWeeks > 0 ? cardioSessions.reduce((sum, s) => sum + s.actualAverageIntensity, 0) / totalWeeks : 0;
@@ -696,7 +709,7 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
         return (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 flex-wrap">
                 Charge d'entraînement hebdo (sRPE)
                 <TooltipProvider>
                   <Tooltip>
@@ -708,6 +721,17 @@ export function CoachCyclingView({ athleteId, athleteName }: CoachCyclingViewPro
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+                <Badge className={
+                  rpeReliabilityLabel === "good"
+                    ? "bg-green-500/20 text-green-500 border-green-500/50 text-xs"
+                    : rpeReliabilityLabel === "partial"
+                      ? "bg-orange-500/20 text-orange-500 border-orange-500/50 text-xs"
+                      : "bg-red-500/20 text-red-500 border-red-500/50 text-xs"
+                }>
+                  {rpeReliabilityPct >= 80 ? `✓ RPE fiable (${rpeReliabilityPct}%)` :
+                   rpeReliabilityPct >= 50 ? `⚠ Partiel (${rpeReliabilityPct}%)` :
+                   `✗ Insuffisant (${rpeReliabilityPct}%)`}
+                </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent>

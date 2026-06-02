@@ -64,7 +64,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const [loading, setLoading] = useState(true);
   const [hasInjuryTracking, setHasInjuryTracking] = useState(false);
   const [monotonyData, setMonotonyData] = useState<MonotonyData | null>(null);
-  const [acwrData, setAcwrData] = useState<{ acwr: number | null; acute: number; chronic: number } | null>(null);
+  const [acwrData, setAcwrData] = useState<{ acwr: number | null; acute: number; chronic: number; daysWithData: number } | null>(null);
 
   useEffect(() => {
     loadFatigueLogs();
@@ -167,7 +167,9 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       const chronicSum = chronicLoads.reduce((s, l) => s + l, 0);
       const chronic = chronicSum / 4;
       const acwr = chronic > 0 ? acuteSum / chronic : null;
-      setAcwrData({ acwr, acute: acuteSum, chronic });
+      // Nombre de jours avec au moins une séance dans la fenêtre de 35 jours
+      const daysWithData = allDailyLoads.filter(d => d.load > 0).length;
+      setAcwrData({ acwr, acute: acuteSum, chronic, daysWithData });
 
       // Calculer la monotonie glissante pour les 14 derniers jours
       // On utilise seulement les 21 derniers jours pour la fenêtre glissante (index 14..34)
@@ -266,6 +268,12 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
     );
   }
 
+  // C. Jours de fatigue renseignés ces 7 derniers jours
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const logsLast7Count = logs.filter(log => new Date(log.date) >= sevenDaysAgo).length;
+  const fatigueDataQuality = logsLast7Count >= 6 ? "good" : logsLast7Count >= 4 ? "partial" : "poor";
+
   // Score de préparation
   const readinessScore = (() => {
     if (logs.length === 0 || !monotonyData) return null;
@@ -340,21 +348,38 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-6 mb-4">
+            <div className="flex items-center gap-6 mb-4 flex-wrap">
               <p className={`text-5xl font-bold ${
                 readinessScore.score >= 80 ? "text-green-500" :
                 readinessScore.score >= 60 ? "text-orange-500" :
                 "text-red-500"
               }`}>{readinessScore.score}<span className="text-2xl text-muted-foreground">/100</span></p>
-              <p className={`text-lg font-medium ${
-                readinessScore.score >= 80 ? "text-green-500" :
-                readinessScore.score >= 60 ? "text-orange-500" :
-                "text-red-500"
-              }`}>
-                {readinessScore.score >= 80 ? "Prêt à performer" :
-                 readinessScore.score >= 60 ? "Entraînement modéré conseillé" :
-                 "Récupération recommandée"}
-              </p>
+              <div className="flex flex-col gap-1">
+                <p className={`text-lg font-medium ${
+                  readinessScore.score >= 80 ? "text-green-500" :
+                  readinessScore.score >= 60 ? "text-orange-500" :
+                  "text-red-500"
+                }`}>
+                  {readinessScore.score >= 80 ? "Prêt à performer" :
+                   readinessScore.score >= 60 ? "Entraînement modéré conseillé" :
+                   "Récupération recommandée"}
+                </p>
+                {/* C. Badge fiabilité données fatigue */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Données fatigue 7j :</span>
+                  <Badge className={
+                    fatigueDataQuality === "good"
+                      ? "bg-green-500/20 text-green-500 border-green-500/50 text-xs"
+                      : fatigueDataQuality === "partial"
+                        ? "bg-orange-500/20 text-orange-500 border-orange-500/50 text-xs"
+                        : "bg-red-500/20 text-red-500 border-red-500/50 text-xs"
+                  }>
+                    {logsLast7Count}/7 jours
+                    {fatigueDataQuality === "partial" && " · données partielles"}
+                    {fatigueDataQuality === "poor" && " · insuffisant"}
+                  </Badge>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
@@ -526,7 +551,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       )}
 
       {/* ACWR */}
-      {acwrData && acwrData.chronic > 0 && (
+      {acwrData && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -537,42 +562,69 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                     <Info className="h-4 w-4 text-muted-foreground cursor-help shrink-0" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs text-xs">
-                    <p>Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 28 jours de RPE renseignés pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé.</p>
+                    <p>Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 21 jours de séances avec RPE renseigné pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+              {/* B. Badge fiabilité ACWR */}
+              <Badge className={
+                acwrData.daysWithData >= 14
+                  ? "bg-green-500/20 text-green-500 border-green-500/50 text-xs ml-auto"
+                  : acwrData.daysWithData >= 7
+                    ? "bg-orange-500/20 text-orange-500 border-orange-500/50 text-xs ml-auto"
+                    : "bg-red-500/20 text-red-500 border-red-500/50 text-xs ml-auto"
+              }>
+                {acwrData.daysWithData >= 14 ? "✓ Données fiables" :
+                 acwrData.daysWithData >= 7 ? "⚠ Données partielles" :
+                 "✗ Données insuffisantes"}
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-4 mb-4">
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{acwrData.acute.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">Charge 7j (UA)</p>
+            {/* B. Seuil minimum : au moins 7 jours de séances avec RPE */}
+            {acwrData.daysWithData < 7 ? (
+              <div className="flex items-center gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-500">Historique insuffisant ({acwrData.daysWithData}/21 jours requis)</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    L'ACWR nécessite au moins 21 jours de séances avec RPE renseigné pour être significatif. Continuez à faire renseigner le RPE après chaque séance.
+                  </p>
+                </div>
               </div>
-              <div className="text-center p-3 rounded-lg bg-muted/50">
-                <p className="text-2xl font-bold">{acwrData.chronic.toFixed(0)}</p>
-                <p className="text-xs text-muted-foreground">Charge chronique (UA)</p>
-              </div>
-              <div className={`text-center p-3 rounded-lg ${
-                acwrData.acwr === null ? 'bg-muted/50' :
-                acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'bg-red-500/10 border border-red-500/30' :
-                acwrData.acwr > 1.3 ? 'bg-orange-500/10 border border-orange-500/30' :
-                'bg-green-500/10 border border-green-500/30'
-              }`}>
-                <p className={`text-2xl font-bold ${
-                  acwrData.acwr === null ? 'text-muted-foreground' :
-                  acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'text-red-500' :
-                  acwrData.acwr > 1.3 ? 'text-orange-500' :
-                  'text-green-500'
-                }`}>{acwrData.acwr?.toFixed(2) ?? '—'}</p>
-                <p className="text-xs text-muted-foreground">ACWR</p>
-              </div>
-            </div>
-            <div className="text-xs text-muted-foreground space-y-1">
-              <p><span className="text-green-500 font-medium">0.8 – 1.3</span> : Zone optimale</p>
-              <p><span className="text-orange-500 font-medium">1.3 – 1.5</span> : Attention</p>
-              <p><span className="text-red-500 font-medium">&gt;1.5 ou &lt;0.6</span> : Risque de blessure</p>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-2xl font-bold">{acwrData.acute.toFixed(0)}</p>
+                    <p className="text-xs text-muted-foreground">Charge 7j (UA)</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <p className="text-2xl font-bold">{acwrData.chronic.toFixed(0)}</p>
+                    <p className="text-xs text-muted-foreground">Charge chronique (UA)</p>
+                  </div>
+                  <div className={`text-center p-3 rounded-lg ${
+                    acwrData.acwr === null ? 'bg-muted/50' :
+                    acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'bg-red-500/10 border border-red-500/30' :
+                    acwrData.acwr > 1.3 ? 'bg-orange-500/10 border border-orange-500/30' :
+                    'bg-green-500/10 border border-green-500/30'
+                  }`}>
+                    <p className={`text-2xl font-bold ${
+                      acwrData.acwr === null ? 'text-muted-foreground' :
+                      acwrData.acwr > 1.5 || acwrData.acwr < 0.6 ? 'text-red-500' :
+                      acwrData.acwr > 1.3 ? 'text-orange-500' :
+                      'text-green-500'
+                    }`}>{acwrData.acwr?.toFixed(2) ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">ACWR</p>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  <p><span className="text-green-500 font-medium">0.8 – 1.3</span> : Zone optimale</p>
+                  <p><span className="text-orange-500 font-medium">1.3 – 1.5</span> : Attention</p>
+                  <p><span className="text-red-500 font-medium">&gt;1.5 ou &lt;0.6</span> : Risque de blessure</p>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
