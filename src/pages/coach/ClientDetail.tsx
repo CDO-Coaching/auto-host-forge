@@ -930,7 +930,7 @@ export default function ClientDetail() {
   const loadCoachCustomSessions = async () => {
     if (!athleteId) return;
     const { data } = await (supabase.from("custom_sessions") as any)
-      .select("id, session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, session_rpe, description, completed_at, scheduled_date")
+      .select("id, session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, session_rpe, description, completed_at, scheduled_date, max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id")
       .eq("user_id", athleteId)
       .order("completed_at", { ascending: false })
       .limit(50);
@@ -5375,29 +5375,6 @@ export default function ClientDetail() {
             </div>
           )}
 
-          {/* Détail séance perso coach (vue lecture) */}
-          <CustomSessionDetailDialog
-            session={viewingCoachCustomSession}
-            open={!!viewingCoachCustomSession}
-            onClose={() => setViewingCoachCustomSession(null)}
-            onEdit={() => {
-              setEditingCoachCustomSession(viewingCoachCustomSession);
-              setViewingCoachCustomSession(null);
-            }}
-          />
-
-          {/* Dialog edit séance perso (coach) */}
-          {editingCoachCustomSession && (
-            <CustomSessionDialog
-              editSession={editingCoachCustomSession}
-              onClose={() => setEditingCoachCustomSession(null)}
-              onSessionCreated={() => {
-                setEditingCoachCustomSession(null);
-                loadCoachCustomSessions();
-              }}
-              hideTrigger
-            />
-          )}
         </TabsContent>
 
         <TabsContent value="max" className="space-y-4">
@@ -5631,6 +5608,28 @@ export default function ClientDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialogs séances perso coach — hors TabsContent pour ne pas bloquer la navigation */}
+      <CustomSessionDetailDialog
+        session={viewingCoachCustomSession}
+        open={!!viewingCoachCustomSession}
+        onClose={() => setViewingCoachCustomSession(null)}
+        onEdit={() => {
+          setEditingCoachCustomSession(viewingCoachCustomSession);
+          setViewingCoachCustomSession(null);
+        }}
+      />
+      {editingCoachCustomSession && (
+        <CustomSessionDialog
+          editSession={editingCoachCustomSession}
+          onClose={() => setEditingCoachCustomSession(null)}
+          onSessionCreated={() => {
+            setEditingCoachCustomSession(null);
+            loadCoachCustomSessions();
+          }}
+          hideTrigger
+        />
+      )}
     </div>
   );
 }
