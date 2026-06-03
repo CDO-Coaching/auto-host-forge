@@ -75,6 +75,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
+import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
 import type { VoiceChanges } from "@/lib/parseVoiceCommand";
@@ -4116,6 +4117,10 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-4">
+          <CoachAthleteStatusCard
+            athleteId={athleteId!}
+            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
+          />
           <CoachClientSummaryView
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
