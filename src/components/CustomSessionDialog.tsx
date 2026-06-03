@@ -246,7 +246,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           duration_minutes: parseInt(duration),
           completed_at: completedAtForDate(dateStr),
           description: description.trim() || null,
-          distance_km: distanceKm ? parseFloat(distanceKm) : null,
+          distance_km: distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null,
           avg_pace: avgPace.trim() || null,
           avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
           session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
@@ -307,7 +307,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
         if (isCompleting) {
           insertData.duration_minutes = parseInt(duration);
           insertData.completed_at = completedAtForDate(dateStr);
-          insertData.distance_km = distanceKm ? parseFloat(distanceKm) : null;
+          insertData.distance_km = distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null;
           insertData.avg_pace = avgPace.trim() || null;
           insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
           insertData.session_rpe = sessionRpe ? parseInt(sessionRpe) : null;
@@ -541,14 +541,11 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                     </Label>
                     <Input
                       id="distance"
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      step={cardioType === "natation" ? "50" : "0.1"}
-                      placeholder={cardioType === "natation" ? "Ex: 1500" : "Ex: 10"}
+                      placeholder={cardioType === "natation" ? "Ex: 1500" : "Ex: 10.5"}
                       value={distanceKm}
-                      onChange={(e) => setDistanceKm(e.target.value)}
-                      min="0"
-                      max={cardioType === "natation" ? "50000" : "500"}
+                      onChange={(e) => setDistanceKm(e.target.value.replace(",", "."))}
                     />
                   </div>
                   <div className="space-y-2">
@@ -557,22 +554,19 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                     </Label>
                     <Input
                       id="avg-pace"
-                      type={cardioType === "velo" ? "number" : "text"}
+                      type="text"
                       inputMode={cardioType === "velo" ? "decimal" : "text"}
-                      step={cardioType === "velo" ? "0.1" : undefined}
                       placeholder={cardioType === "velo" ? "Ex: 28.5" : cardioType === "natation" ? "Ex: 2:10" : "Ex: 5:30"}
                       value={avgPace}
                       onChange={(e) => {
                         if (cardioType === "velo") {
-                          setAvgPace(e.target.value);
+                          setAvgPace(e.target.value.replace(",", "."));
                         } else {
                           const val = e.target.value.replace(/[^0-9:]/g, '');
                           setAvgPace(val);
                         }
                       }}
-                      maxLength={cardioType === "velo" ? undefined : 6}
-                      min={cardioType === "velo" ? "0" : undefined}
-                      max={cardioType === "velo" ? "120" : undefined}
+                      maxLength={cardioType === "velo" ? 6 : 6}
                     />
                   </div>
                   <div className="space-y-2">
