@@ -238,24 +238,27 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       if (validateSession) {
         // Completing a planned session — use scheduled_date as the completion date
         const dateStr = validateSession.scheduled_date ?? format(new Date(), "yyyy-MM-dd");
-        const { error } = await (supabase.from("custom_sessions") as any)
-          .update({
-            duration_minutes: parseInt(duration),
-            completed_at: completedAtForDate(dateStr),
-            description: description.trim() || null,
-            distance_km: distanceKm ? parseFloat(distanceKm) : null,
-            avg_pace: avgPace.trim() || null,
-            avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
-            session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
-            max_heart_rate: maxHeartRate ?? null,
-            cadence: cadence ?? null,
-            calories: sessionCalories ?? null,
-            elevation_gain: elevationGain ?? null,
-            heart_rate_zones: heartRateZones ?? null,
-            strava_activity_id: stravaActivityId ?? null,
-          })
-          .eq("id", validateSession.id);
-
+        const updatePayload: any = {
+          duration_minutes: parseInt(duration),
+          completed_at: completedAtForDate(dateStr),
+          description: description.trim() || null,
+          distance_km: distanceKm ? parseFloat(distanceKm) : null,
+          avg_pace: avgPace.trim() || null,
+          avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
+          session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
+          max_heart_rate: maxHeartRate ?? null,
+          cadence: cadence ?? null,
+          calories: sessionCalories ?? null,
+          elevation_gain: elevationGain ?? null,
+          heart_rate_zones: heartRateZones ?? null,
+          strava_activity_id: stravaActivityId ?? null,
+        };
+        let { error } = await (supabase.from("custom_sessions") as any).update(updatePayload).eq("id", validateSession.id);
+        if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safePayload } = updatePayload;
+          const retry = await (supabase.from("custom_sessions") as any).update(safePayload).eq("id", validateSession.id);
+          error = retry.error;
+        }
         if (error) throw error;
         toast.success("Séance perso validée ! 💪");
       } else if (editSession) {
@@ -278,10 +281,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           updateData.completed_at = completedAtForDate(dateStr);
         }
 
-        const { error } = await (supabase.from("custom_sessions") as any)
-          .update(updateData)
-          .eq("id", editSession.id);
-
+        let { error } = await (supabase.from("custom_sessions") as any).update(updateData).eq("id", editSession.id);
+        if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safeData } = updateData;
+          const retry = await (supabase.from("custom_sessions") as any).update(safeData).eq("id", editSession.id);
+          error = retry.error;
+        }
         if (error) throw error;
         toast.success("Séance perso modifiée !");
       } else {
@@ -310,8 +315,14 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           insertData.strava_activity_id = stravaActivityId ?? null;
         }
 
-        const { error } = await (supabase.from("custom_sessions") as any)
-          .insert(insertData);
+        let { error } = await (supabase.from("custom_sessions") as any).insert(insertData);
+
+        // Si erreur de colonne manquante (SQL pas encore lancé), retry sans les nouvelles colonnes
+        if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safeData } = insertData;
+          const retry = await (supabase.from("custom_sessions") as any).insert(safeData);
+          error = retry.error;
+        }
 
         if (error) throw error;
         toast.success(isCompleting ? "Séance perso enregistrée !" : "Séance perso planifiée ! 📅");
@@ -477,31 +488,44 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="session-rpe">Effort perçu — RPE (1-10)</Label>
-                <div className="flex items-center gap-3">
-                  <Input
-                    id="session-rpe"
-                    type="number"
-                    inputMode="numeric"
-                    placeholder="Ex: 7"
-                    value={sessionRpe}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      if (val === '' || (Number(val) >= 1 && Number(val) <= 10)) setSessionRpe(val);
-                    }}
-                    min="1"
-                    max="10"
-                    step="1"
-                    className="w-24"
-                  />
-                  <span className="text-xs text-muted-foreground">
-                    {sessionRpe === "" ? "" :
-                     Number(sessionRpe) <= 3 ? "Facile 🟢" :
-                     Number(sessionRpe) <= 6 ? "Modéré 🟡" :
-                     Number(sessionRpe) <= 8 ? "Difficile 🟠" : "Très difficile 🔴"}
-                  </span>
+              {/* RPE — grande grille 1-10 */}
+              <div className="space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+                <div>
+                  <Label className="text-base font-semibold">Comment tu as ressenti l'effort ? *</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">1 = très facile · 10 = effort maximal</p>
                 </div>
+                <div className="grid grid-cols-5 gap-2">
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setSessionRpe(String(n))}
+                      className={`h-12 rounded-xl font-bold text-lg border-2 transition-all ${
+                        sessionRpe === String(n)
+                          ? n <= 3 ? "bg-green-500 border-green-500 text-white shadow-lg scale-105"
+                            : n <= 6 ? "bg-yellow-400 border-yellow-400 text-black shadow-lg scale-105"
+                            : n <= 8 ? "bg-orange-500 border-orange-500 text-white shadow-lg scale-105"
+                            : "bg-red-500 border-red-500 text-white shadow-lg scale-105"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+                {sessionRpe && (
+                  <p className={`text-center font-semibold text-sm ${
+                    Number(sessionRpe) <= 3 ? "text-green-500"
+                    : Number(sessionRpe) <= 6 ? "text-yellow-500"
+                    : Number(sessionRpe) <= 8 ? "text-orange-500"
+                    : "text-red-500"
+                  }`}>
+                    {Number(sessionRpe) <= 3 ? "🟢 Facile — Effort léger, tu aurais pu continuer longtemps"
+                     : Number(sessionRpe) <= 6 ? "🟡 Modéré — Bon rythme, conversation possible"
+                     : Number(sessionRpe) <= 8 ? "🟠 Difficile — Effort soutenu, essoufflement marqué"
+                     : "🔴 Très difficile — Effort maximal ou quasi-maximal"}
+                  </p>
+                )}
               </div>
 
               {cardioType && cardioType !== "none" && (
@@ -568,10 +592,10 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description (optionnel)</Label>
+            <Label htmlFor="description">Résumé de ta séance <span className="text-muted-foreground font-normal text-xs">(optionnel)</span></Label>
             <Textarea
               id="description"
-              placeholder="Décrivez brièvement votre séance..."
+              placeholder="Comment s'est passée ta séance ? Points forts, difficultés, sensations..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               maxLength={500}
