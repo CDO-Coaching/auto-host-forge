@@ -553,11 +553,6 @@ export default function CoachDashboard() {
         </Card>
       )}
 
-      {/* Dernières activités */}
-      {/* ACWR Card */}
-      {acwrAthleteIds.length > 0 && (
-        <AcwrDashboardCard athleteIds={acwrAthleteIds} profileMap={acwrProfileMap} />
-      )}
 
       <Card>
         <CardHeader className="pb-3">
