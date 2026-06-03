@@ -24,6 +24,7 @@ import {
   getSundayOfWeek,
 } from "@/lib/weekUtils";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
+import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
 import { StravaActivityMatcher } from "@/components/StravaActivityMatcher";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
@@ -88,6 +89,7 @@ export default function Seances() {
   const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingCustomSession, setEditingCustomSession] = useState<any>(null);
+  const [viewingCustomSession, setViewingCustomSession] = useState<any>(null);
   const [validatingCustomSession, setValidatingCustomSession] = useState<any>(null);
   const [schedulingSession, setSchedulingSession] = useState<any>(null);
   const [openCustomDialog, setOpenCustomDialog] = useState(false);
@@ -347,6 +349,17 @@ export default function Seances() {
         </div>
       )}
 
+      {/* Détail séance perso (vue lecture) */}
+      <CustomSessionDetailDialog
+        session={viewingCustomSession}
+        open={!!viewingCustomSession}
+        onClose={() => setViewingCustomSession(null)}
+        onEdit={() => {
+          setEditingCustomSession(viewingCustomSession);
+          setViewingCustomSession(null);
+        }}
+      />
+
       {/* CustomSessionDialog (triggered by "+ Perso" button or editing) */}
       <CustomSessionDialog
         hideTrigger
@@ -570,7 +583,7 @@ export default function Seances() {
                             ? "border-orange-500/30 bg-orange-500/5"
                             : "border-primary/30 bg-primary/5"
                         }`}
-                        onClick={() => setEditingCustomSession(cs)}
+                        onClick={() => isPlanned ? setEditingCustomSession(cs) : setViewingCustomSession(cs)}
                       >
                         {/* Status */}
                         <div className="shrink-0">

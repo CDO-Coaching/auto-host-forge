@@ -83,6 +83,7 @@ import { MobileProgView } from "@/components/MobileProgView";
 import { DesktopProgView } from "@/components/DesktopProgView";
 import { CoachCardioAIChat, type AIChatContext } from "@/components/CoachCardioAIChat";
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
+import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialog";
 
 import { calculate1RM } from "@/lib/maxCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
@@ -196,6 +197,7 @@ export default function ClientDetail() {
   const [customSessions, setCustomSessions] = useState<any[]>([]);
   const [coachCustomSessions, setCoachCustomSessions] = useState<any[]>([]);
   const [editingCoachCustomSession, setEditingCoachCustomSession] = useState<any>(null);
+  const [viewingCoachCustomSession, setViewingCoachCustomSession] = useState<any>(null);
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
@@ -5346,7 +5348,7 @@ export default function ClientDetail() {
                     <div
                       key={cs.id}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-card cursor-pointer hover:bg-muted/40 transition-colors"
-                      onClick={() => setEditingCoachCustomSession(cs)}
+                      onClick={() => isCompleted ? setViewingCoachCustomSession(cs) : setEditingCoachCustomSession(cs)}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -5372,6 +5374,17 @@ export default function ClientDetail() {
               </div>
             </div>
           )}
+
+          {/* Détail séance perso coach (vue lecture) */}
+          <CustomSessionDetailDialog
+            session={viewingCoachCustomSession}
+            open={!!viewingCoachCustomSession}
+            onClose={() => setViewingCoachCustomSession(null)}
+            onEdit={() => {
+              setEditingCoachCustomSession(viewingCoachCustomSession);
+              setViewingCoachCustomSession(null);
+            }}
+          />
 
           {/* Dialog edit séance perso (coach) */}
           {editingCoachCustomSession && (
