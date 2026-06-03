@@ -239,6 +239,13 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
         ? String(Math.round(selectedActivity.average_heartrate))
         : "",
       date: new Date(selectedActivity.start_date),
+      // Extra Strava data
+      maxHeartRate: selectedActivity.max_heartrate ?? null,
+      cadence: selectedActivity.average_cadence ?? null,
+      calories: selectedActivity.calories ?? null,
+      elevationGain: selectedActivity.total_elevation_gain ?? null,
+      heartRateZones: selectedActivity.heart_rate_zones ?? null,
+      stravaActivityId: selectedActivity.strava_activity_id ?? null,
     });
 
     setLinkDialogOpen(false);

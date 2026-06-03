@@ -6,9 +6,10 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, MapPin, Clock, Heart, Gauge, Flame, Footprints, Bike, Waves, Activity, Zap } from "lucide-react";
+import { Pencil, MapPin, Clock, Heart, Gauge, Flame, Footprints, Bike, Waves, Activity, Zap, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 
 interface CustomSession {
   id: string;
@@ -107,6 +108,26 @@ export function CustomSessionDetailDialog({ session, open, onClose, onEdit }: Cu
       label: "FC moyenne",
       value: `${session.avg_heart_rate} bpm`,
     },
+    session.max_heart_rate && {
+      icon: <Heart className="h-4 w-4 text-muted-foreground" />,
+      label: "FC max",
+      value: `${session.max_heart_rate} bpm`,
+    },
+    session.cadence && {
+      icon: <Activity className="h-4 w-4 text-muted-foreground" />,
+      label: "Cadence",
+      value: `${session.cadence} spm`,
+    },
+    session.calories && {
+      icon: <Flame className="h-4 w-4 text-muted-foreground" />,
+      label: "Calories",
+      value: `${session.calories} kcal`,
+    },
+    session.elevation_gain && session.elevation_gain > 0 && {
+      icon: <TrendingUp className="h-4 w-4 text-muted-foreground" />,
+      label: "Dénivelé",
+      value: `${session.elevation_gain} m`,
+    },
     session.session_rpe && {
       icon: <Zap className="h-4 w-4 text-muted-foreground" />,
       label: "RPE ressenti",
@@ -169,6 +190,14 @@ export function CustomSessionDetailDialog({ session, open, onClose, onEdit }: Cu
               Aucune donnée enregistrée
             </div>
           ) : null}
+
+          {/* Zones de fréquence cardiaque */}
+          {session.heart_rate_zones && Array.isArray(session.heart_rate_zones) && session.heart_rate_zones.length > 0 && (
+            <div className="rounded-xl bg-muted/40 border border-border px-4 py-3 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Zones de fréquence cardiaque</p>
+              <HeartRateZonesBar zones={session.heart_rate_zones} />
+            </div>
+          )}
 
           {/* Description */}
           {session.description && (

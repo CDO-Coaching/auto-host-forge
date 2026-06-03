@@ -38,6 +38,13 @@ export interface StravaSessionData {
   avgPace: string;
   avgHeartRate: string;
   date: Date;
+  // New Strava fields
+  maxHeartRate?: number | null;
+  cadence?: number | null;
+  calories?: number | null;
+  elevationGain?: number | null;
+  heartRateZones?: { zone: number; min: number; max: number; time_seconds: number }[] | null;
+  stravaActivityId?: number | null;
 }
 
 interface CustomSessionDialogProps {
@@ -67,6 +74,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
   const [avgPace, setAvgPace] = useState("");
   const [avgHeartRate, setAvgHeartRate] = useState("");
   const [sessionRpe, setSessionRpe] = useState<string>("");
+  const [maxHeartRate, setMaxHeartRate] = useState<number | null>(null);
+  const [cadence, setCadence] = useState<number | null>(null);
+  const [sessionCalories, setSessionCalories] = useState<number | null>(null);
+  const [elevationGain, setElevationGain] = useState<number | null>(null);
+  const [heartRateZones, setHeartRateZones] = useState<any[] | null>(null);
+  const [stravaActivityId, setStravaActivityId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   // "plan" = planning only, "validate" = completing now
   const [mode, setMode] = useState<"plan" | "validate">("plan");
@@ -84,6 +97,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSelectedDate(editSession.scheduled_date ? new Date(editSession.scheduled_date) : editSession.completed_at ? new Date(editSession.completed_at) : new Date());
       setMode(editSession.completed_at ? "validate" : "plan");
       setShowValidatePrompt(false);
+      setMaxHeartRate((editSession as any).max_heart_rate ?? null);
+      setCadence((editSession as any).cadence ?? null);
+      setSessionCalories((editSession as any).calories ?? null);
+      setElevationGain((editSession as any).elevation_gain ?? null);
+      setHeartRateZones((editSession as any).heart_rate_zones ?? null);
+      setStravaActivityId((editSession as any).strava_activity_id ?? null);
     }
   }, [editSession]);
 
@@ -119,6 +138,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSelectedDate(stravaData.date);
       setMode("validate");
       setShowValidatePrompt(false);
+      setMaxHeartRate(stravaData.maxHeartRate ?? null);
+      setCadence(stravaData.cadence ?? null);
+      setSessionCalories(stravaData.calories ?? null);
+      setElevationGain(stravaData.elevationGain ?? null);
+      setHeartRateZones(stravaData.heartRateZones ?? null);
+      setStravaActivityId(stravaData.stravaActivityId ?? null);
     }
   }, [stravaData]);
 
@@ -156,6 +181,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
     setAvgPace("");
     setAvgHeartRate("");
     setSessionRpe("");
+    setMaxHeartRate(null);
+    setCadence(null);
+    setSessionCalories(null);
+    setElevationGain(null);
+    setHeartRateZones(null);
+    setStravaActivityId(null);
     setMode("plan");
     setShowValidatePrompt(false);
   };
@@ -216,6 +247,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
             avg_pace: avgPace.trim() || null,
             avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
             session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
+            max_heart_rate: maxHeartRate ?? null,
+            cadence: cadence ?? null,
+            calories: sessionCalories ?? null,
+            elevation_gain: elevationGain ?? null,
+            heart_rate_zones: heartRateZones ?? null,
+            strava_activity_id: stravaActivityId ?? null,
           })
           .eq("id", validateSession.id);
 
@@ -229,6 +266,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           description: description.trim() || null,
           scheduled_date: dateStr,
           session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
+          max_heart_rate: maxHeartRate ?? null,
+          cadence: cadence ?? null,
+          calories: sessionCalories ?? null,
+          elevation_gain: elevationGain ?? null,
+          heart_rate_zones: heartRateZones ?? null,
+          strava_activity_id: stravaActivityId ?? null,
         };
         if (isCompleting) {
           updateData.duration_minutes = parseInt(duration);
@@ -259,6 +302,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           insertData.avg_pace = avgPace.trim() || null;
           insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
           insertData.session_rpe = sessionRpe ? parseInt(sessionRpe) : null;
+          insertData.max_heart_rate = maxHeartRate ?? null;
+          insertData.cadence = cadence ?? null;
+          insertData.calories = sessionCalories ?? null;
+          insertData.elevation_gain = elevationGain ?? null;
+          insertData.heart_rate_zones = heartRateZones ?? null;
+          insertData.strava_activity_id = stravaActivityId ?? null;
         }
 
         const { error } = await (supabase.from("custom_sessions") as any)
