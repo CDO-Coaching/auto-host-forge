@@ -9,7 +9,7 @@ import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } fro
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { CoachCardioSummaryCard } from "@/components/CoachCardioSummaryCard";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialog";
 
 interface CoachClientSummaryViewProps {
   athleteId: string;
@@ -53,6 +53,12 @@ interface SessionInfo {
   avg_pace?: string | null;
   avg_heart_rate?: number | null;
   description?: string | null;
+  max_heart_rate?: number | null;
+  cadence?: number | null;
+  calories?: number | null;
+  elevation_gain?: number | null;
+  heart_rate_zones?: any[] | null;
+  strava_activity_id?: number | null;
 }
 
 interface Milestone {
@@ -246,7 +252,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
 
     const { data: customData } = await supabase
       .from("custom_sessions")
-      .select("id, session_name, duration_minutes, completed_at, scheduled_date")
+      .select("id, session_name, duration_minutes, completed_at, scheduled_date, cardio_type, distance_km, avg_pace, avg_heart_rate, session_rpe, description, max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id")
       .eq("user_id", athleteId)
       .or(`completed_at.gte.${weekStart.toISOString()},scheduled_date.gte.${format(weekStart, "yyyy-MM-dd")}`)
       .or(`completed_at.lte.${weekEnd.toISOString()},scheduled_date.lte.${format(weekEnd, "yyyy-MM-dd")}`);
@@ -267,7 +273,7 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
           name: cs.session_name,
           session_type: "custom",
           completed_at: cs.completed_at,
-          session_rpe: null,
+          session_rpe: cs.session_rpe ?? null,
           duration_minutes: cs.duration_minutes,
           scheduled_date: cs.scheduled_date,
           isCustom: true,
@@ -276,6 +282,12 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
           avg_pace: cs.avg_pace ?? null,
           avg_heart_rate: cs.avg_heart_rate ?? null,
           description: cs.description ?? null,
+          max_heart_rate: cs.max_heart_rate ?? null,
+          cadence: cs.cadence ?? null,
+          calories: cs.calories ?? null,
+          elevation_gain: cs.elevation_gain ?? null,
+          heart_rate_zones: cs.heart_rate_zones ?? null,
+          strava_activity_id: cs.strava_activity_id ?? null,
         }));
     }
 
@@ -510,78 +522,31 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
       </div>
     </div>
 
-    {/* Dialog séance perso */}
-    <Dialog open={!!selectedCustomSessionDetail} onOpenChange={(open) => !open && setSelectedCustomSessionDetail(null)}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <span>{selectedCustomSessionDetail?.cardio_type === "course" ? "🏃" : selectedCustomSessionDetail?.cardio_type === "velo" ? "🚴" : selectedCustomSessionDetail?.cardio_type === "natation" ? "🏊" : "🏋️"}</span>
-            {selectedCustomSessionDetail?.name}
-          </DialogTitle>
-        </DialogHeader>
-        {selectedCustomSessionDetail && (
-          <div className="space-y-3 text-sm">
-            <div className="rounded-lg bg-muted/40 p-3 space-y-2">
-              {(selectedCustomSessionDetail.scheduled_date || selectedCustomSessionDetail.completed_at) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Date</span>
-                  <span className="font-medium">
-                    {new Date(selectedCustomSessionDetail.scheduled_date || selectedCustomSessionDetail.completed_at!).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
-                  </span>
-                </div>
-              )}
-              {selectedCustomSessionDetail.cardio_type && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="font-medium capitalize">{selectedCustomSessionDetail.cardio_type === "course" ? "Course à pied" : selectedCustomSessionDetail.cardio_type === "velo" ? "Vélo" : selectedCustomSessionDetail.cardio_type === "natation" ? "Natation" : selectedCustomSessionDetail.cardio_type}</span>
-                </div>
-              )}
-              {selectedCustomSessionDetail.duration_minutes && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Durée</span>
-                  <span className="font-medium">{selectedCustomSessionDetail.duration_minutes} min</span>
-                </div>
-              )}
-              {selectedCustomSessionDetail.distance_km && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Distance</span>
-                  <span className="font-medium">{selectedCustomSessionDetail.distance_km} km</span>
-                </div>
-              )}
-              {selectedCustomSessionDetail.avg_pace && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    {selectedCustomSessionDetail.cardio_type === "velo" ? "Vitesse moy." : selectedCustomSessionDetail.cardio_type === "natation" ? "Allure" : "Allure moy."}
-                  </span>
-                  <span className="font-medium">
-                    {selectedCustomSessionDetail.avg_pace}
-                    {selectedCustomSessionDetail.cardio_type === "velo" ? " km/h" : selectedCustomSessionDetail.cardio_type === "natation" ? " /100m" : " /km"}
-                  </span>
-                </div>
-              )}
-              {selectedCustomSessionDetail.avg_heart_rate && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">FC moyenne</span>
-                  <span className="font-medium">{selectedCustomSessionDetail.avg_heart_rate} bpm</span>
-                </div>
-              )}
-              {!selectedCustomSessionDetail.duration_minutes && !selectedCustomSessionDetail.distance_km && (
-                <p className="text-muted-foreground text-xs italic">Séance planifiée — pas encore réalisée</p>
-              )}
-            </div>
-            {selectedCustomSessionDetail.description && (
-              <div className="rounded-lg bg-muted/20 border border-border/40 p-3">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Commentaire</p>
-                <p className="text-sm italic">{selectedCustomSessionDetail.description}</p>
-              </div>
-            )}
-            {selectedCustomSessionDetail.completed_at && (
-              <Badge className="bg-green-500/20 text-green-600 border-green-500/30">✅ Validée</Badge>
-            )}
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    {/* Dialog séance perso — utilise CustomSessionDetailDialog pour afficher toutes les données */}
+    <CustomSessionDetailDialog
+      session={selectedCustomSessionDetail ? {
+        id: selectedCustomSessionDetail.id,
+        session_name: selectedCustomSessionDetail.name,
+        cardio_type: selectedCustomSessionDetail.cardio_type,
+        duration_minutes: selectedCustomSessionDetail.duration_minutes,
+        distance_km: selectedCustomSessionDetail.distance_km,
+        avg_pace: selectedCustomSessionDetail.avg_pace,
+        avg_heart_rate: selectedCustomSessionDetail.avg_heart_rate,
+        session_rpe: selectedCustomSessionDetail.session_rpe,
+        description: selectedCustomSessionDetail.description,
+        completed_at: selectedCustomSessionDetail.completed_at,
+        scheduled_date: selectedCustomSessionDetail.scheduled_date,
+        max_heart_rate: selectedCustomSessionDetail.max_heart_rate,
+        cadence: selectedCustomSessionDetail.cadence,
+        calories: selectedCustomSessionDetail.calories,
+        elevation_gain: selectedCustomSessionDetail.elevation_gain,
+        heart_rate_zones: selectedCustomSessionDetail.heart_rate_zones,
+        strava_activity_id: selectedCustomSessionDetail.strava_activity_id,
+      } : null}
+      open={!!selectedCustomSessionDetail}
+      onClose={() => setSelectedCustomSessionDetail(null)}
+      onEdit={() => setSelectedCustomSessionDetail(null)}
+    />
 
     <CoachSessionDetailDialog
       open={!!selectedSession}
