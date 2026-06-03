@@ -192,7 +192,7 @@ export default function DashboardCoach() {
               <Route path="/profil" element={<Profil />} />
             </Routes>
           </main>
-          {/* CoachBottomNav supprimé — navigation via burger en haut */}
+          <CoachBottomNav />
         </div>
       </div>
     </SidebarProvider>

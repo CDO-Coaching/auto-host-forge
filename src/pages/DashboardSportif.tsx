@@ -122,7 +122,6 @@ export default function DashboardSportif() {
           </main>
         </div>
         <ChatBubble />
-        <SportifBottomNav />
       </div>
       <DailyFatigueDialog 
         open={shouldShowDialog && !isChecking} 

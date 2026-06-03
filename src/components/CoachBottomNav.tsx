@@ -26,23 +26,23 @@ export function CoachBottomNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Navigation principale"
     >
-      <div className="grid grid-cols-5 h-16">
+      <div className="grid grid-cols-5 h-20">
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-0.5 app-tap relative ${
+              `flex flex-col items-center justify-center gap-1 relative touch-manipulation select-none ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`
             }
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-6 w-6" />
             <span className="text-[10px] font-medium leading-none">{item.label}</span>
             {item.showBadge && unreadCount > 0 && (
               <Badge
                 variant="destructive"
-                className="absolute top-1 right-1/2 translate-x-3 h-4 min-w-[16px] px-1 text-[9px] flex items-center justify-center"
+                className="absolute top-2 right-1/2 translate-x-3 h-4 min-w-[16px] px-1 text-[9px] flex items-center justify-center"
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
               </Badge>
@@ -52,10 +52,10 @@ export function CoachBottomNav() {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="flex flex-col items-center justify-center gap-0.5 text-muted-foreground app-tap"
+          className="flex flex-col items-center justify-center gap-1 text-muted-foreground touch-manipulation select-none"
           aria-label="Menu"
         >
-          <Menu className="h-5 w-5" />
+          <Menu className="h-6 w-6" />
           <span className="text-[10px] font-medium leading-none">Menu</span>
         </button>
       </div>
