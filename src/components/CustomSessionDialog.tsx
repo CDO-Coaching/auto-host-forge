@@ -331,9 +331,10 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       resetForm();
       setOpen(false);
       onSessionCreated?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de l'enregistrement:", error);
-      toast.error("Erreur lors de l'enregistrement de la séance");
+      const msg = error?.message || error?.details || JSON.stringify(error);
+      toast.error(`Erreur : ${msg}`);
     } finally {
       setSubmitting(false);
     }
