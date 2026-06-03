@@ -898,15 +898,61 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                     <span className="font-medium">{selectedCustomSession.avg_heart_rate} bpm</span>
                   </div>
                 )}
+                {selectedCustomSession.max_heart_rate && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">❤️ FC max</span>
+                    <span className="font-medium">{selectedCustomSession.max_heart_rate} bpm</span>
+                  </div>
+                )}
+                {selectedCustomSession.cadence && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">👟 Cadence</span>
+                    <span className="font-medium">{selectedCustomSession.cadence} spm</span>
+                  </div>
+                )}
+                {selectedCustomSession.calories && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">🔥 Calories</span>
+                    <span className="font-medium">{selectedCustomSession.calories} kcal</span>
+                  </div>
+                )}
+                {selectedCustomSession.elevation_gain > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">⛰ Dénivelé</span>
+                    <span className="font-medium">{selectedCustomSession.elevation_gain} m</span>
+                  </div>
+                )}
+                {selectedCustomSession.session_rpe && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">⚡ RPE ressenti</span>
+                    <span className="font-medium">
+                      {selectedCustomSession.session_rpe}/10
+                      <span className="text-muted-foreground text-xs ml-2">
+                        {selectedCustomSession.session_rpe <= 3 ? "Facile 🟢"
+                          : selectedCustomSession.session_rpe <= 6 ? "Modéré 🟡"
+                          : selectedCustomSession.session_rpe <= 8 ? "Difficile 🟠"
+                          : "Très difficile 🔴"}
+                      </span>
+                    </span>
+                  </div>
+                )}
                 {!selectedCustomSession.duration_minutes && !selectedCustomSession.distance_km && (
                   <p className="text-xs text-muted-foreground">Aucune donnée enregistrée</p>
                 )}
               </div>
 
+              {/* Zones FC */}
+              {selectedCustomSession.heart_rate_zones && Array.isArray(selectedCustomSession.heart_rate_zones) && selectedCustomSession.heart_rate_zones.length > 0 && (
+                <div className="rounded-lg bg-muted/30 border border-border/40 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Zones de fréquence cardiaque</p>
+                  <HeartRateZonesBar zones={selectedCustomSession.heart_rate_zones} />
+                </div>
+              )}
+
               {/* Commentaire */}
               {selectedCustomSession.description && (
                 <div className="rounded-lg bg-muted/30 border border-border/40 p-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Commentaire</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Résumé</p>
                   <p className="text-sm italic text-foreground/80">{selectedCustomSession.description}</p>
                 </div>
               )}
