@@ -94,6 +94,10 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setDescription(editSession.description || "");
       setDuration(editSession.duration_minutes?.toString() || "");
       setSessionRpe((editSession as any).session_rpe?.toString() || "");
+      setCardioType((editSession as any).cardio_type || "");
+      setDistanceKm((editSession as any).distance_km?.toString() || "");
+      setAvgPace((editSession as any).avg_pace || "");
+      setAvgHeartRate((editSession as any).avg_heart_rate?.toString() || "");
       setSelectedDate(editSession.scheduled_date ? new Date(editSession.scheduled_date) : editSession.completed_at ? new Date(editSession.completed_at) : new Date());
       setMode(editSession.completed_at ? "validate" : "plan");
       setShowValidatePrompt(false);
