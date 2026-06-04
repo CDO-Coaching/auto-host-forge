@@ -1,39 +1,61 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Zap, Activity, Heart } from "lucide-react";
+import { Zap, Heart } from "lucide-react";
 
 interface TrainingZonesCardProps {
   athleteId: string;
 }
 
+/**
+ * Zones d'entraînement basées sur la Fréquence Cardiaque de Réserve (Karvonen).
+ * FC cible = fc_repos + FCR × % zone   (FCR = fc_max - fc_repos)
+ */
 const ZONES = [
   {
     shortName: "Z1",
-    name: "Endurance fondamentale",
-    vmaMin: 60,
-    vmaMax: 75,
-    description: "Récupération active, longues sorties",
+    name: "Récupération active",
+    fcrMin: 50,
+    fcrMax: 60,
+    description: "Récup entre les séances, footing très facile",
     accent: "border-l-blue-400",
     label: "text-blue-400",
   },
   {
     shortName: "Z2",
-    name: "Seuil aérobie",
-    vmaMin: 75,
-    vmaMax: 88,
-    description: "Développement aérobie, tempo",
+    name: "Endurance fondamentale",
+    fcrMin: 60,
+    fcrMax: 70,
+    description: "Longues sorties, base aérobie",
     accent: "border-l-emerald-400",
     label: "text-emerald-400",
   },
   {
     shortName: "Z3",
-    name: "Seuil lactique",
-    vmaMin: 88,
-    vmaMax: 100,
-    description: "Allure compétition, fractionné",
+    name: "Allure marathon",
+    fcrMin: 70,
+    fcrMax: 80,
+    description: "Tempo, allure marathon",
+    accent: "border-l-yellow-400",
+    label: "text-yellow-400",
+  },
+  {
+    shortName: "Z4",
+    name: "Seuil anaérobie",
+    fcrMin: 80,
+    fcrMax: 90,
+    description: "Semi-marathon / 10 km, fractionné long",
     accent: "border-l-orange-400",
     label: "text-orange-400",
+  },
+  {
+    shortName: "Z5",
+    name: "VMA / VO₂max",
+    fcrMin: 90,
+    fcrMax: 100,
+    description: "Intervalles courts, effort maximal",
+    accent: "border-l-red-400",
+    label: "text-red-400",
   },
 ];
 
@@ -62,16 +84,18 @@ function raceTime(km: number, kmh: number): string {
 export function TrainingZonesCard({ athleteId }: TrainingZonesCardProps) {
   const [vma, setVma] = useState<number | null>(null);
   const [fcMax, setFcMax] = useState<number | null>(null);
+  const [fcRepos, setFcRepos] = useState<number | null>(null);
 
   useEffect(() => {
     supabase
       .from("user_profiles")
-      .select("vma, fc_max")
+      .select("vma, fc_max, fc_repos")
       .eq("id", athleteId)
       .single()
       .then(({ data }) => {
         if (data?.vma) setVma(data.vma);
         if (data?.fc_max) setFcMax(data.fc_max);
+        if (data?.fc_repos) setFcRepos(data.fc_repos);
       });
   }, [athleteId]);
 
@@ -100,18 +124,33 @@ export function TrainingZonesCard({ athleteId }: TrainingZonesCardProps) {
           <Zap className="h-4 w-4 text-primary" />
           Zones d'entraînement
           <span className="text-xs font-normal text-muted-foreground">
-            {vma.toFixed(1)} km/h{fcMax ? ` · FCmax ${fcMax} bpm` : ""}
+            {vma.toFixed(1)} km/h
+            {fcMax ? ` · FCmax ${fcMax} bpm` : ""}
+            {fcRepos ? ` · FCR ${fcMax ? fcMax - fcRepos : "?"} bpm` : ""}
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
 
+        {/* Indication méthode Karvonen si FC repos disponible */}
+        {fcMax && fcRepos && (
+          <div className="text-[11px] text-muted-foreground bg-secondary/40 rounded-lg px-3 py-2 border border-border/40">
+            <span className="font-semibold text-foreground">Méthode Karvonen (FCR)</span>
+            {" "}· FC cible = {fcRepos} + {fcMax - fcRepos} × % zone
+          </div>
+        )}
+        {fcMax && !fcRepos && (
+          <div className="text-[11px] text-amber-400 bg-amber-400/10 rounded-lg px-3 py-2 border border-amber-400/20">
+            ⚠️ FC de repos non renseignée — zones FC non disponibles. Ajoute-la dans les données physiologiques.
+          </div>
+        )}
+
         <div className="space-y-2">
           {ZONES.map((z) => {
-            const fast = vma * (z.vmaMax / 100);
-            const slow = vma * (z.vmaMin / 100);
-            const fcLow = fcMax ? Math.round(fcMax * z.vmaMin / 100) : null;
-            const fcHigh = fcMax ? Math.round(fcMax * z.vmaMax / 100) : null;
+            // Karvonen : FC cible = fc_repos + FCR × % zone
+            const fcr = (fcMax && fcRepos) ? fcMax - fcRepos : null;
+            const fcLow  = fcr !== null && fcRepos ? Math.round(fcRepos + fcr * z.fcrMin / 100) : null;
+            const fcHigh = fcr !== null && fcRepos ? Math.round(fcRepos + fcr * z.fcrMax / 100) : null;
             return (
               <div
                 key={z.shortName}
@@ -125,19 +164,18 @@ export function TrainingZonesCard({ athleteId }: TrainingZonesCardProps) {
                     </div>
                     <div className="text-[11px] text-muted-foreground">{z.description}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {z.vmaMin}–{z.vmaMax}% VMA{fcMax ? ` · ${z.vmaMin}–${z.vmaMax}% FCmax` : ""}
+                      {z.fcrMin}–{z.fcrMax}% FCR (Karvonen)
                     </div>
                   </div>
                   <div className="shrink-0 text-right space-y-1">
-                    <div className={`flex items-center gap-1 justify-end text-sm font-bold ${z.label}`}>
-                      <Activity className="h-3.5 w-3.5" />
-                      {speedToPace(fast)} – {speedToPace(slow)}
-                    </div>
                     {fcLow && fcHigh && (
-                      <div className={`flex items-center gap-1 justify-end text-xs ${z.label} opacity-75`}>
-                        <Heart className="h-3 w-3" />
+                      <div className={`flex items-center gap-1 justify-end text-sm font-bold ${z.label}`}>
+                        <Heart className="h-3.5 w-3.5" />
                         {fcLow} – {fcHigh} bpm
                       </div>
+                    )}
+                    {!fcLow && (
+                      <div className="text-[11px] text-muted-foreground italic">FC repos manquante</div>
                     )}
                   </div>
                 </div>
