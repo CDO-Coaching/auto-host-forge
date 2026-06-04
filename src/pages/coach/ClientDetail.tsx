@@ -76,6 +76,7 @@ import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager"
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
+import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
 import type { VoiceChanges } from "@/lib/parseVoiceCommand";
@@ -4127,6 +4128,8 @@ export default function ClientDetail() {
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
           />
+
+          <WeeklyHRZonesCard athleteId={athleteId!} />
 
           {/* Alerte questionnaire SFMS surentraînement (en bas, repliable) */}
           {athlete && (
