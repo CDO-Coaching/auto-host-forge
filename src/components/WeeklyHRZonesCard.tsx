@@ -191,12 +191,14 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
       const weekIds = (allWeeks || []).map((w) => w.id);
 
       if (weekIds.length > 0) {
-        // Étape B : séances planifiées dans les 7 derniers jours
+        // Étape B : séances complétées OU planifiées dans les 7 derniers jours
+        // completed_at = quand l'athlète a validé (source de vérité pour les données réelles)
+        // scheduled_date = fallback pour séances avec zones mais sans completed_at
         const { data: recentSessions } = await supabase
           .from("training_sessions")
           .select("id")
           .in("week_id", weekIds)
-          .gte("scheduled_date", sinceDate);
+          .or(`completed_at.gte.${sinceIso},scheduled_date.gte.${sinceDate}`);
 
         const sessionIds = (recentSessions || []).map((s) => s.id);
 
