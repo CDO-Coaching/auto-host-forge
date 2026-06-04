@@ -178,28 +178,29 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
       }
 
       // ── 2. session_exercises cardio ──
-      // training_sessions n'a pas de user_id direct : il faut passer par
-      // training_weeks (athlete_id) → training_sessions (week_id) → session_exercises
+      // training_sessions n'a pas de user_id direct.
+      // Chemin : training_weeks (athlete_id) → ALL week IDs → training_sessions
+      // (filtre scheduled_date côté session) → session_exercises
 
-      // Étape A : récupère les IDs des semaines récentes de l'athlète
-      const { data: recentWeeks } = await supabase
+      // Étape A : TOUS les week IDs de l'athlète (pas de filtre date ici)
+      const { data: allWeeks } = await supabase
         .from("training_weeks")
         .select("id")
-        .eq("athlete_id", athleteId)
-        .gte("start_date", sinceDate);
+        .eq("athlete_id", athleteId);
 
-      const weekIds = (recentWeeks || []).map((w) => w.id);
+      const weekIds = (allWeeks || []).map((w) => w.id);
 
-      // Étape B : récupère les IDs des séances de ces semaines
       if (weekIds.length > 0) {
+        // Étape B : séances planifiées dans les 7 derniers jours
         const { data: recentSessions } = await supabase
           .from("training_sessions")
           .select("id")
-          .in("week_id", weekIds);
+          .in("week_id", weekIds)
+          .gte("scheduled_date", sinceDate);
 
         const sessionIds = (recentSessions || []).map((s) => s.id);
 
-        // Étape C : récupère les exercices avec zones FC
+        // Étape C : exercices avec zones FC
         if (sessionIds.length > 0) {
           const { data: exercises } = await supabase
             .from("session_exercises")
