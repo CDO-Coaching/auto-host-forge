@@ -177,27 +177,41 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
         addZones(zones);
       }
 
-      // ── 2. session_exercises cardio : d'abord récupérer les IDs de séances ──
-      // Filtre sur scheduled_date OU completed_at (completed_at peut être null)
-      const { data: recentSessions } = await supabase
-        .from("training_sessions")
+      // ── 2. session_exercises cardio ──
+      // training_sessions n'a pas de user_id direct : il faut passer par
+      // training_weeks (athlete_id) → training_sessions (week_id) → session_exercises
+
+      // Étape A : récupère les IDs des semaines récentes de l'athlète
+      const { data: recentWeeks } = await supabase
+        .from("training_weeks")
         .select("id")
-        .eq("user_id", athleteId)
-        .or(`scheduled_date.gte.${sinceDate},completed_at.gte.${sinceIso}`);
+        .eq("athlete_id", athleteId)
+        .gte("start_date", sinceDate);
 
-      const sessionIds = (recentSessions || []).map((s) => s.id);
+      const weekIds = (recentWeeks || []).map((w) => w.id);
 
-      if (sessionIds.length > 0) {
-        const { data: exercises } = await supabase
-          .from("session_exercises")
-          .select("actual_heart_rate_zones")
-          .in("session_id", sessionIds)
-          .not("actual_heart_rate_zones", "is", null);
+      // Étape B : récupère les IDs des séances de ces semaines
+      if (weekIds.length > 0) {
+        const { data: recentSessions } = await supabase
+          .from("training_sessions")
+          .select("id")
+          .in("week_id", weekIds);
 
-        for (const ex of exercises || []) {
-          const zones = ex.actual_heart_rate_zones as RawZone[] | null;
-          if (!Array.isArray(zones) || zones.length === 0) continue;
-          addZones(zones);
+        const sessionIds = (recentSessions || []).map((s) => s.id);
+
+        // Étape C : récupère les exercices avec zones FC
+        if (sessionIds.length > 0) {
+          const { data: exercises } = await supabase
+            .from("session_exercises")
+            .select("actual_heart_rate_zones")
+            .in("session_id", sessionIds)
+            .not("actual_heart_rate_zones", "is", null);
+
+          for (const ex of exercises || []) {
+            const zones = ex.actual_heart_rate_zones as RawZone[] | null;
+            if (!Array.isArray(zones) || zones.length === 0) continue;
+            addZones(zones);
+          }
         }
       }
 
