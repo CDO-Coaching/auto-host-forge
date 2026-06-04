@@ -4122,7 +4122,6 @@ export default function ClientDetail() {
 
         <TabsContent value="resume" className="space-y-4">
           <WeeklyHRZonesCard athleteId={athleteId!} />
-          <PlannedCardioZonesCard athleteId={athleteId!} />
           <CoachAthleteStatusCard
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
@@ -4415,9 +4414,10 @@ export default function ClientDetail() {
                     Suivi Course à Pied - {athlete?.first_name}
                   </SheetTitle>
                 </SheetHeader>
-                <div className="mt-4">
-                  <CoachRunningView 
-                    athleteId={athleteId!} 
+                <div className="mt-4 space-y-4">
+                  <PlannedCardioZonesCard athleteId={athleteId!} defaultSport="course" />
+                  <CoachRunningView
+                    athleteId={athleteId!}
                     athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`}
                     programmingWeek={selectedWeekToProgram}
                     programmingSessions={sessions}

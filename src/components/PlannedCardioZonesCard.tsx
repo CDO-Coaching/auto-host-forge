@@ -119,6 +119,7 @@ function computePlannedZones(
 
 interface PlannedCardioZonesCardProps {
   athleteId: string;
+  defaultSport?: SportType;
 }
 
 interface SessionData {
@@ -128,9 +129,9 @@ interface SessionData {
   totalSeconds: number;
 }
 
-export function PlannedCardioZonesCard({ athleteId }: PlannedCardioZonesCardProps) {
+export function PlannedCardioZonesCard({ athleteId, defaultSport = "course" }: PlannedCardioZonesCardProps) {
   const [sessions, setSessions] = useState<SessionData[]>([]);
-  const [selectedSport, setSelectedSport] = useState<SportType>("course");
+  const [selectedSport, setSelectedSport] = useState<SportType>(defaultSport);
   const [vma, setVma] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
