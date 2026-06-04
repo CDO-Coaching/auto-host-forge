@@ -266,6 +266,37 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
           </div>
         )}
 
+        {/* Résumé intensité basse vs haute */}
+        {(() => {
+          const lowSec  = aggregated.filter(z => z.zone <= 3).reduce((s, z) => s + z.time_seconds, 0);
+          const highSec = aggregated.filter(z => z.zone >= 4).reduce((s, z) => s + z.time_seconds, 0);
+          const lowPct  = Math.round((lowSec  / totalTrackedSeconds) * 100);
+          const highPct = Math.round((highSec / totalTrackedSeconds) * 100);
+          return (
+            <div className="flex items-center justify-between text-[11px] px-0.5">
+              <div className="flex items-center gap-1.5">
+                <div className="flex gap-0.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />
+                </div>
+                <span className="text-muted-foreground">Basse intensité (Z1–Z3)</span>
+                <span className="font-bold text-foreground">{lowPct}%</span>
+                <span className="text-muted-foreground">{formatTime(lowSec)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-foreground">{highPct}%</span>
+                <span className="text-muted-foreground">{formatTime(highSec)}</span>
+                <span className="text-muted-foreground">Haute intensité (Z4–Z5)</span>
+                <div className="flex gap-0.5">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" />
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Barre empilée */}
         <div className="flex h-4 w-full rounded-full overflow-hidden gap-px">
           {aggregated.map((z) => {
