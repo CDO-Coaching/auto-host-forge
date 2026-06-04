@@ -144,59 +144,60 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
 
       const since = new Date();
       since.setDate(since.getDate() - 7);
-      const sinceIso = since.toISOString();
+      const sinceIso  = since.toISOString();
+      const sinceDate = since.toISOString().slice(0, 10); // "yyyy-MM-dd"
 
       const totals: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
-      // ── 1. custom_sessions (Strava) ──
+      const addZones = (zones: RawZone[]) => {
+        let contrib: Record<number, number>;
+        if (fMax && fRepos) {
+          contrib = redistributeZone(zones, fRepos, fMax);
+        } else {
+          contrib = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+          for (const z of zones) {
+            const idx = Math.min(Math.max(z.zone, 1), 5);
+            contrib[idx] += z.time_seconds || 0;
+          }
+        }
+        for (let i = 1; i <= 5; i++) totals[i] += contrib[i];
+      };
+
+      // ── 1. custom_sessions (Strava) — filtre sur completed_at OU scheduled_date ──
       const { data: customSessions } = await supabase
         .from("custom_sessions")
-        .select("heart_rate_zones")
+        .select("heart_rate_zones, completed_at, scheduled_date")
         .eq("user_id", athleteId)
-        .gte("completed_at", sinceIso)
-        .not("heart_rate_zones", "is", null);
+        .not("heart_rate_zones", "is", null)
+        .or(`completed_at.gte.${sinceIso},scheduled_date.gte.${sinceDate}`);
 
       for (const cs of customSessions || []) {
         const zones = cs.heart_rate_zones as RawZone[] | null;
         if (!Array.isArray(zones) || zones.length === 0) continue;
-
-        let zoneContrib: Record<number, number>;
-        if (fMax && fRepos) {
-          zoneContrib = redistributeZone(zones, fRepos, fMax);
-        } else {
-          // Fallback sans FCR : zones Strava directes
-          zoneContrib = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-          for (const z of zones) {
-            const idx = Math.min(Math.max(z.zone, 1), 5);
-            zoneContrib[idx] += z.time_seconds || 0;
-          }
-        }
-        for (let i = 1; i <= 5; i++) totals[i] += zoneContrib[i];
+        addZones(zones);
       }
 
-      // ── 2. session_exercises cardio ──
-      const { data: exercises } = await supabase
-        .from("session_exercises")
-        .select("actual_heart_rate_zones, training_sessions!inner(completed_at, user_id)")
-        .eq("training_sessions.user_id", athleteId)
-        .gte("training_sessions.completed_at", sinceIso)
-        .not("actual_heart_rate_zones", "is", null);
+      // ── 2. session_exercises cardio : d'abord récupérer les IDs de séances ──
+      const { data: recentSessions } = await supabase
+        .from("training_sessions")
+        .select("id")
+        .eq("user_id", athleteId)
+        .gte("completed_at", sinceIso);
 
-      for (const ex of exercises || []) {
-        const zones = ex.actual_heart_rate_zones as RawZone[] | null;
-        if (!Array.isArray(zones) || zones.length === 0) continue;
+      const sessionIds = (recentSessions || []).map((s) => s.id);
 
-        let zoneContrib: Record<number, number>;
-        if (fMax && fRepos) {
-          zoneContrib = redistributeZone(zones, fRepos, fMax);
-        } else {
-          zoneContrib = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-          for (const z of zones) {
-            const idx = Math.min(Math.max(z.zone, 1), 5);
-            zoneContrib[idx] += z.time_seconds || 0;
-          }
+      if (sessionIds.length > 0) {
+        const { data: exercises } = await supabase
+          .from("session_exercises")
+          .select("actual_heart_rate_zones")
+          .in("session_id", sessionIds)
+          .not("actual_heart_rate_zones", "is", null);
+
+        for (const ex of exercises || []) {
+          const zones = ex.actual_heart_rate_zones as RawZone[] | null;
+          if (!Array.isArray(zones) || zones.length === 0) continue;
+          addZones(zones);
         }
-        for (let i = 1; i <= 5; i++) totals[i] += zoneContrib[i];
       }
 
       const result = [1, 2, 3, 4, 5].map((z) => ({
