@@ -4415,7 +4415,12 @@ export default function ClientDetail() {
                   </SheetTitle>
                 </SheetHeader>
                 <div className="mt-4 space-y-4">
-                  <PlannedCardioZonesCard athleteId={athleteId!} defaultSport="course" />
+                  <PlannedCardioZonesCard
+                    sessions={sessions}
+                    sessionExercises={sessionExercises}
+                    athleteVma={athleteVma}
+                    defaultSport="course"
+                  />
                   <CoachRunningView
                     athleteId={athleteId!}
                     athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`}
