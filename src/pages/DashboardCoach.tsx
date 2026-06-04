@@ -150,7 +150,7 @@ export default function DashboardCoach() {
               Prêt à accompagner tes athlètes aujourd'hui ?
             </p>
           </header>
-          <main className="flex-1 p-3 sm:p-4 md:p-6 app-container max-w-full overflow-x-hidden">
+          <main className="flex-1 p-3 sm:p-4 md:p-6 pb-24 sm:pb-4 md:pb-6 app-container max-w-full overflow-x-hidden">
             {birthdayAthletes.length > 0 && (
               <div className="mb-4 sm:mb-6">
                 <CoachBirthdayAlert
