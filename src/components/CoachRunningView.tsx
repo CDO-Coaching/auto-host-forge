@@ -689,50 +689,27 @@ export function CoachRunningView({
     : null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Suivi de course - {athleteName}</h2>
+        <h2 className="text-base font-semibold text-muted-foreground">Suivi de course — {athleteName}</h2>
       </div>
 
-      {/* Volume en cours de programmation (temps réel) */}
+      {/* Volume en cours de programmation (temps réel) — compact */}
       {programmingWeekMetrics && (
-        <Card className="bg-yellow-500/10 border-yellow-500/50 border-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-yellow-600" />
-              <span>Programmation en cours - Semaine {programmingWeekMetrics.weekNumber}</span>
-              <Badge variant="outline" className="ml-2 border-yellow-500 text-yellow-600">En direct</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left py-3 px-4 font-medium text-sm">Séances course</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Distance totale</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Durée totale</th>
-                    <th className="text-left py-3 px-4 font-medium text-sm">Intensité moyenne</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.sessionCount}</td>
-                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.distanceKm.toFixed(1)} km</td>
-                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">
-                      {Math.floor(programmingWeekMetrics.durationMinutes / 60)}h{Math.round(programmingWeekMetrics.durationMinutes % 60).toString().padStart(2, '0')}
-                    </td>
-                    <td className="py-3 px-4 text-lg font-bold text-yellow-600">{programmingWeekMetrics.averageIntensity}% VMA</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs">
+          <span className="flex items-center gap-1.5 font-semibold text-yellow-500">
+            <Activity className="h-3.5 w-3.5" />
+            S{programmingWeekMetrics.weekNumber} · En direct
+          </span>
+          <span className="text-muted-foreground">Séances <span className="font-medium text-yellow-500">{programmingWeekMetrics.sessionCount}</span></span>
+          <span className="text-muted-foreground">Distance <span className="font-medium text-yellow-500">{programmingWeekMetrics.distanceKm.toFixed(1)} km</span></span>
+          <span className="text-muted-foreground">Durée <span className="font-medium text-yellow-500">{Math.floor(programmingWeekMetrics.durationMinutes / 60)}h{Math.round(programmingWeekMetrics.durationMinutes % 60).toString().padStart(2, '0')}</span></span>
+          <span className="text-muted-foreground">Intensité moy. <span className="font-medium text-yellow-500">{programmingWeekMetrics.averageIntensity}% VMA</span></span>
+        </div>
       )}
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -870,7 +847,7 @@ export function CoachRunningView({
       </div>
 
       {/* Graphiques des retours sportif */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
