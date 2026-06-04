@@ -178,11 +178,12 @@ export function WeeklyHRZonesCard({ athleteId }: WeeklyHRZonesCardProps) {
       }
 
       // ── 2. session_exercises cardio : d'abord récupérer les IDs de séances ──
+      // Filtre sur scheduled_date OU completed_at (completed_at peut être null)
       const { data: recentSessions } = await supabase
         .from("training_sessions")
         .select("id")
         .eq("user_id", athleteId)
-        .gte("completed_at", sinceIso);
+        .or(`scheduled_date.gte.${sinceDate},completed_at.gte.${sinceIso}`);
 
       const sessionIds = (recentSessions || []).map((s) => s.id);
 
