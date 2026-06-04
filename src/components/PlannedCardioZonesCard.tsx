@@ -164,13 +164,13 @@ export function PlannedCardioZonesCard({ athleteId, defaultSport = "course" }: P
       const weekIds = (weekRows || []).map((w) => w.id);
       if (weekIds.length === 0) { setLoading(false); return; }
 
-      // Séances cardio non encore validées (completed_at IS NULL)
+      // Toutes les séances cardio de la semaine (planifiées ET validées)
+      // On affiche la structure planifiée (cardio_content) indépendamment du statut
       const { data: trainingSessions } = await supabase
         .from("training_sessions")
         .select("id, name, session_type")
         .in("week_id", weekIds)
-        .eq("session_type", "cardio")
-        .is("completed_at", null);
+        .eq("session_type", "cardio");
 
       const sessionIds = (trainingSessions || []).map((s) => s.id);
       if (sessionIds.length === 0) { setLoading(false); return; }
@@ -239,7 +239,7 @@ export function PlannedCardioZonesCard({ athleteId, defaultSport = "course" }: P
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
-          Intensité planifiée — semaine en cours
+          Intensité programmée — semaine en cours
           {vma && <span className="text-xs font-normal text-muted-foreground">VMA {vma} km/h</span>}
         </CardTitle>
       </CardHeader>
