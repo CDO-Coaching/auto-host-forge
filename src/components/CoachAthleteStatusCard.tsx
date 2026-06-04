@@ -539,152 +539,77 @@ export function CoachAthleteStatusCard({ athleteId, athleteName }: CoachAthleteS
 
   return (
     <Card className={`border-2 ${borderClass}`}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-3">
-            <div className={`text-4xl font-bold ${scoreColorClass}`}>{score}</div>
+      <CardContent className="py-3 px-4 space-y-2">
+
+        {/* Ligne 1 : score + statut + badge + métriques clés */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className={`text-2xl font-bold ${scoreColorClass}`}>{score}</div>
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                Score de préparation
-              </p>
-              <p className={`text-base font-semibold ${scoreColorClass}`}>{statusText}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-none">Score prépa</p>
+              <p className={`text-xs font-semibold ${scoreColorClass}`}>{statusText}</p>
             </div>
           </div>
-          <Badge className={`text-sm px-3 py-1 border ${badgeClass}`}>
+          <Badge className={`text-xs px-2 py-0.5 border shrink-0 ${badgeClass}`}>
             {score >= 80 ? "🟢 Prêt" : score >= 60 ? "🟡 Attention" : "🔴 Repos"}
           </Badge>
-        </div>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
-        {/* CHARGE + RÉCUPÉRATION */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Charge */}
-          <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              ⚡ Charge
-            </p>
-            <div className="space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">sRPE semaine</span>
-                <span className="font-medium">
-                  {weeklyLoadUA > 0 ? `${Math.round(weeklyLoadUA)} UA` : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">ACWR</span>
-                <span className={`font-medium ${acwrColor}`}>
-                  {acwr !== null ? acwr.toFixed(2) : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Monotonie</span>
-                <span className={`font-medium ${monotonyColor}`}>{monotony.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Récupération */}
-          <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              😴 Récupération
-            </p>
-            {latestLog ? (
-              <div className="space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Fatigue subjective</span>
-                  <span className={`font-medium ${fatigueColor}`}>
-                    {latestLog.score_total}/28
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Sommeil</span>
-                  <span className="font-medium">{latestLog.sommeil}/7</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Courbatures</span>
-                  <span className="font-medium">{latestLog.courbatures}/7</span>
-                </div>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">Aucun questionnaire récent</p>
-            )}
+          {/* Métriques inline */}
+          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs ml-auto">
+            <span className="text-muted-foreground">⚡ sRPE <span className="font-medium text-foreground">{weeklyLoadUA > 0 ? `${Math.round(weeklyLoadUA)} UA` : "—"}</span></span>
+            <span className={`text-muted-foreground`}>ACWR <span className={`font-medium ${acwrColor}`}>{acwr !== null ? acwr.toFixed(2) : "—"}</span></span>
+            <span className="text-muted-foreground">Mono <span className={`font-medium ${monotonyColor}`}>{monotony.toFixed(2)}</span></span>
+            {latestLog && <>
+              <span className="text-muted-foreground">😴 Fatigue <span className={`font-medium ${fatigueColor}`}>{latestLog.score_total}/28</span></span>
+              <span className="text-muted-foreground">Sommeil <span className="font-medium">{latestLog.sommeil}/7</span></span>
+            </>}
+            {!latestLog && <span className="text-muted-foreground italic">Aucun questionnaire récent</span>}
           </div>
         </div>
 
-        {/* ACTIVITÉ 7 JOURS */}
-        <div className="rounded-lg bg-muted/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-            📅 Activité — 7 derniers jours
-          </p>
-          {totalSessions7Count === 0 ? (
-            <p className="text-xs text-muted-foreground italic">Aucune séance cette semaine</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {(["course", "velo", "natation", "renfo", "recup", "perso"] as SportKey[]).map((sport) => {
-                const text = buildBadgeText(sport);
-                if (!text) return null;
-                return (
-                  <span
-                    key={sport}
-                    className="inline-flex items-center text-xs bg-background/60 border border-border rounded-full px-2.5 py-1 font-medium"
-                  >
-                    {text}
-                  </span>
-                );
-              })}
-            </div>
+        {/* Ligne 2 : activité + dernière séance + alertes */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          {/* Badges activité */}
+          {totalSessions7Count > 0 && (["course", "velo", "natation", "renfo", "recup", "perso"] as SportKey[]).map((sport) => {
+            const text = buildBadgeText(sport);
+            if (!text) return null;
+            return (
+              <span key={sport} className="inline-flex items-center bg-background/60 border border-border rounded-full px-2 py-0.5 font-medium">
+                {text}
+              </span>
+            );
+          })}
+          {/* Dernière séance */}
+          {lastSession && (
+            <span className="text-muted-foreground">
+              ⚡ {lastSession.name}
+              {lastSession.duration && lastSession.duration > 0 && ` · ${lastSessionDurationStr}`}
+              {lastSession.rpe && ` · RPE ${lastSession.rpe}`}
+            </span>
           )}
-          <p className="text-xs text-muted-foreground mt-2">
-            {daysSinceLastSession === 0
-              ? "Séance aujourd'hui ✅"
-              : daysSinceLastSession === 1
-              ? "Dernière séance hier"
-              : daysSinceLastSession < 999
-              ? `Dernière séance il y a ${daysSinceLastSession} jours`
-              : "Aucune séance récente trouvée"}
-          </p>
+          <span>
+            {daysSinceLastSession === 0 ? "Séance aujourd'hui ✅"
+              : daysSinceLastSession === 1 ? "Dernière séance hier"
+              : daysSinceLastSession < 999 ? `Dernière séance il y a ${daysSinceLastSession}j`
+              : ""}
+          </span>
         </div>
 
-        {/* DERNIÈRE SÉANCE */}
-        {lastSession && (
-          <div className="rounded-lg bg-muted/40 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              ⚡ Dernière séance
-            </p>
-            <p className="text-sm font-medium">{lastSession.name}</p>
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground">
-              {lastSession.duration && lastSession.duration > 0 && (
-                <span>⏱ {lastSessionDurationStr}</span>
-              )}
-              {lastSession.distance && lastSession.distance > 0 && (
-                <span>📍 {lastSession.distance.toFixed(1)} km</span>
-              )}
-              {lastSession.rpe && <span>💪 RPE {lastSession.rpe}</span>}
-              {lastSession.hr && <span>❤️ {lastSession.hr} bpm</span>}
-              {lastSession.pace && <span>🏃 {lastSession.pace}</span>}
-            </div>
-          </div>
-        )}
-
-        {/* ALERTES */}
+        {/* Alertes compactes */}
         {alerts.length > 0 && (
-          <div className="space-y-1.5">
+          <div className="flex flex-wrap gap-1.5">
             {alerts.map((alert, i) => (
-              <div
-                key={i}
-                className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${
-                  alert.level === "red"
-                    ? "bg-red-500/10 text-red-600 border border-red-500/20"
-                    : "bg-orange-500/10 text-orange-600 border border-orange-500/20"
-                }`}
-              >
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+              <div key={i} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg ${
+                alert.level === "red"
+                  ? "bg-red-500/10 text-red-500 border border-red-500/20"
+                  : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+              }`}>
+                <AlertTriangle className="h-3 w-3 shrink-0" />
                 {alert.message}
               </div>
             ))}
           </div>
         )}
+
       </CardContent>
     </Card>
   );

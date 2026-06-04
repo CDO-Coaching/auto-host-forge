@@ -4120,6 +4120,7 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-4">
+          <WeeklyHRZonesCard athleteId={athleteId!} />
           <CoachAthleteStatusCard
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
@@ -4128,8 +4129,6 @@ export default function ClientDetail() {
             athleteId={athleteId!}
             athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
           />
-
-          <WeeklyHRZonesCard athleteId={athleteId!} />
 
           {/* Alerte questionnaire SFMS surentraînement (en bas, repliable) */}
           {athlete && (
