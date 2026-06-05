@@ -294,6 +294,25 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
                 </p>
               )}
             </div>
+
+            {/* FCR = FC max - FC repos (Karvonen) */}
+            {fcMax && fcRepos && (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Heart className="h-4 w-4 text-primary" />
+                  FC Réserve (FCR)
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-primary">
+                    {fcMax - fcRepos}
+                  </span>
+                  <span className="text-sm text-muted-foreground">bpm</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {fcMax} − {fcRepos} · base Karvonen
+                </p>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
