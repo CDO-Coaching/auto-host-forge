@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { exportSessionToPdf } from "@/lib/sessionPdfExport";
-import { downloadTCX } from "@/lib/garminExport";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { EditExerciseFeedbackDialog } from "@/components/EditExerciseFeedbackDialog";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
@@ -749,26 +748,6 @@ export default function SeanceDetail() {
           <Download className="h-4 w-4 mr-2" />
           <span className="hidden sm:inline">PDF</span>
         </Button>
-        {isCardioSession && (() => {
-          const cardioEx = exercises.find((ex: any) => ex.cardio_content);
-          if (!cardioEx) return null;
-          let cardioData: CardioData = { steps: [], blocks: [] };
-          try { cardioData = JSON.parse(cardioEx.cardio_content); } catch { return null; }
-          if (!cardioData.steps?.length) return null;
-          const sport = (cardioEx.cardio_sport as "course" | "velo" | "natation") || "course";
-          return (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => downloadTCX(cardioData, { sessionName: session.name, sport, athleteVma, athleteFcMax, athleteFcRepos })}
-              title="Exporter vers Garmin Connect (.tcx)"
-              className="border-[#007CC3]/40 text-[#007CC3] hover:bg-[#007CC3]/10"
-            >
-              <Download className="h-4 w-4 mr-1" />
-              <span className="text-xs font-semibold">Garmin</span>
-            </Button>
-          );
-        })()}
       </div>
 
       <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
