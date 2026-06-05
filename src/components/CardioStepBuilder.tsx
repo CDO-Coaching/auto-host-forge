@@ -544,26 +544,24 @@ export function CardioStepBuilder({
                 const bpm = athleteFcMax && athleteFcRepos
                   ? getFcrBpm(z.zone, athleteFcMax, athleteFcRepos)
                   : null;
+                const label = bpm
+                  ? `Z${z.zone} – ${bpm.low}–${bpm.high} bpm`
+                  : `Z${z.zone} – ${z.pMin}-${z.pMax}% FCR`;
                 return (
                   <SelectItem key={z.zone} value={`Z${z.zone}`} className="text-xs">
-                    <span className={z.color}>Z{z.zone}</span>
-                    {bpm
-                      ? ` – ${bpm.low}–${bpm.high} bpm`
-                      : ` – ${z.pMin}-${z.pMax}% FCR`}
+                    {label}
                   </SelectItem>
                 );
               })}
             </SelectContent>
           </Select>
-          {/* Afficher les BPM sous le select si une zone est choisie */}
-          {step.target_heart_rate && step.target_heart_rate !== "" && (() => {
+          {/* BPM sous le select si zone choisie */}
+          {step.target_heart_rate && step.target_heart_rate !== "" && athleteFcMax && athleteFcRepos && (() => {
             const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
-            const bpm = athleteFcMax && athleteFcRepos ? getFcrBpm(zNum, athleteFcMax, athleteFcRepos) : null;
+            const bpm = getFcrBpm(zNum, athleteFcMax, athleteFcRepos);
             const zDef = FCR_ZONES.find(z => z.zone === zNum);
             if (!bpm || !zDef) return null;
-            return (
-              <p className={`text-[10px] font-medium ${zDef.color}`}>{bpm.low}–{bpm.high} bpm</p>
-            );
+            return <p className={`text-[10px] font-medium ${zDef.color}`}>{bpm.low}–{bpm.high} bpm</p>;
           })()}
         </div>
 
