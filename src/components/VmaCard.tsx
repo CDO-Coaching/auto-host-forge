@@ -50,7 +50,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
         setFcRepos(data.fc_repos);
         setFcReposInputValue(data.fc_repos.toString());
       }
-      // fc_max_updated_at : requête séparée (colonne ajoutée par migration SQL)
+      // fc_max_updated_at : DB d'abord, localStorage en fallback
       try {
         const { data: dateData } = await supabase
           .from("user_profiles")
@@ -59,9 +59,15 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
           .single();
         if ((dateData as any)?.fc_max_updated_at) {
           setFcMaxUpdatedAt((dateData as any).fc_max_updated_at);
+          localStorage.setItem(`fc_max_updated_at_${athleteId}`, (dateData as any).fc_max_updated_at);
+        } else {
+          // Fallback localStorage si DB null
+          const local = localStorage.getItem(`fc_max_updated_at_${athleteId}`);
+          if (local) setFcMaxUpdatedAt(local);
         }
       } catch {
-        // Colonne pas encore créée — pas grave, on affiche juste sans date
+        const local = localStorage.getItem(`fc_max_updated_at_${athleteId}`);
+        if (local) setFcMaxUpdatedAt(local);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
@@ -144,17 +150,11 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       setFcRepos(fcReposValue);
       setIsEditing(false);
 
-      // Relire fc_max_updated_at depuis la DB après sauvegarde
-      const { data: refreshed } = await supabase
-        .from("user_profiles")
-        .select("fc_max_updated_at")
-        .eq("id", athleteId)
-        .single();
-      if ((refreshed as any)?.fc_max_updated_at) {
-        setFcMaxUpdatedAt((refreshed as any).fc_max_updated_at);
-      } else {
-        // Fallback : date locale si la DB ne l'a pas encore
-        setFcMaxUpdatedAt(new Date().toISOString());
+      // Toujours enregistrer la date en localStorage (source fiable)
+      if (fcMaxValue !== null) {
+        const savedDate = new Date().toISOString();
+        localStorage.setItem(`fc_max_updated_at_${athleteId}`, savedDate);
+        setFcMaxUpdatedAt(savedDate);
       }
       toast.success("Données mises à jour !");
       
