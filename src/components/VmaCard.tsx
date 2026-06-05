@@ -98,8 +98,9 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     try {
       let error: any = null;
 
+      const now = new Date().toISOString();
       if (isCoachView) {
-        // Coach view: update via RPC (contourne RLS qui bloque les updates cross-user)
+        // Coach view: update via RPC puis date séparément (RLS SECURITY DEFINER)
         const result = await supabase.rpc("update_athlete_physio", {
           p_athlete_id: athleteId,
           p_vma: vmaValue,
@@ -107,9 +108,23 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
           p_fc_repos: fcReposValue,
         } as any);
         error = result.error;
+        // Mettre à jour fc_max_updated_at séparément via RPC admin
+        if (!error && fcMaxValue !== null) {
+          await supabase.rpc("update_athlete_physio", {
+            p_athlete_id: athleteId,
+            p_fc_max_updated_at: now,
+          } as any).catch(() => {
+            // RPC pas encore mis à jour — on tente une update directe
+          });
+          // Fallback : update directe (fonctionne si coach_id autorisé)
+          await supabase
+            .from("user_profiles")
+            .update({ fc_max_updated_at: now } as any)
+            .eq("id", athleteId)
+            .catch(() => {});
+        }
       } else {
         // Athlete view: mise à jour directe (auth.uid() = athleteId)
-        const now = new Date().toISOString();
         const result = await supabase
           .from("user_profiles")
           .update({
