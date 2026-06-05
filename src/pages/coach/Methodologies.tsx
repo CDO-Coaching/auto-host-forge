@@ -14,6 +14,77 @@ import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Z
 import { MethodologyAIChat } from "@/components/MethodologyAIChat";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+// ── Rendu markdown simple (titres, listes, tableaux, gras) ───────────────────
+function MarkdownContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Tableau markdown
+    if (line.startsWith("|") && i + 1 < lines.length && lines[i + 1]?.startsWith("|---")) {
+      const headers = line.split("|").filter(Boolean).map(h => h.trim());
+      i += 2; // saute la ligne de séparation
+      const rows: string[][] = [];
+      while (i < lines.length && lines[i].startsWith("|")) {
+        rows.push(lines[i].split("|").filter(Boolean).map(c => c.trim()));
+        i++;
+      }
+      elements.push(
+        <div key={i} className="overflow-x-auto my-3">
+          <table className="w-full text-xs border-collapse">
+            <thead>
+              <tr className="bg-muted">
+                {headers.map((h, j) => <th key={j} className="border border-border px-2 py-1.5 text-left font-semibold">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, ri) => (
+                <tr key={ri} className={ri % 2 === 0 ? "" : "bg-muted/30"}>
+                  {row.map((cell, ci) => <td key={ci} className="border border-border px-2 py-1.5">{cell}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
+    // Titre ##
+    if (line.startsWith("## ")) {
+      elements.push(<h3 key={i} className="font-semibold text-sm mt-4 mb-1.5 text-foreground">{line.slice(3)}</h3>);
+    } else if (line.startsWith("# ")) {
+      elements.push(<h2 key={i} className="font-bold text-base mt-3 mb-2">{line.slice(2)}</h2>);
+    }
+    // Liste
+    else if (line.startsWith("- ") || line.startsWith("* ")) {
+      elements.push(
+        <li key={i} className="text-sm text-foreground/85 ml-3 list-disc list-inside"
+          dangerouslySetInnerHTML={{ __html: line.slice(2).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }}
+        />
+      );
+    }
+    // Ligne vide
+    else if (line.trim() === "") {
+      elements.push(<div key={i} className="h-1" />);
+    }
+    // Texte normal
+    else if (line.trim()) {
+      elements.push(
+        <p key={i} className="text-sm text-foreground/85 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }}
+        />
+      );
+    }
+    i++;
+  }
+
+  return <div className="space-y-0.5">{elements}</div>;
+}
+
 // ── Catégories ────────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
@@ -253,8 +324,10 @@ export default function Methodologies() {
             </DialogHeader>
             <div className="space-y-4">
               {/* Contenu */}
-              <div className="whitespace-pre-wrap text-sm text-foreground/90 leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
-                {selectedDoc.content || <span className="text-muted-foreground italic">Aucun contenu</span>}
+              <div className="bg-muted/30 rounded-lg p-4 border border-border">
+                {selectedDoc.content
+                  ? <MarkdownContent content={selectedDoc.content} />
+                  : <span className="text-muted-foreground italic text-sm">Aucun contenu</span>}
               </div>
               {/* Tags */}
               {selectedDoc.tags?.length > 0 && (
