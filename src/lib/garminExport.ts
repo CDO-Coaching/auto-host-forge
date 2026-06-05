@@ -1,9 +1,12 @@
 /**
- * Garmin TCX export — génère un fichier d'entraînement structuré
- * compatible Garmin Connect (import manuel → sync montre).
+ * Garmin TCX export — format Activity (laps par étape)
+ * Importable via connect.garmin.com → Importer les données
  *
- * Format : Training Center XML v2 (TCX)
- * Sport supporté : Running, Biking, Swimming
+ * Chaque étape cardio devient un Lap distinct avec :
+ * - durée réelle
+ * - distance estimée (via VMA si dispo)
+ * - FC cible moyenne (centre de la zone FCR)
+ * - nom de l'étape dans Notes
  */
 
 import type { CardioData, CardioStep, CardioBlock } from "@/components/CardioStepBuilder";
@@ -16,7 +19,7 @@ export interface GarminExportOptions {
   athleteFcRepos?: number | null;
 }
 
-// ── Zones FCR Karvonen ──────────────────────────────────────────────────────
+// ── Zones FCR Karvonen ───────────────────────────────────────────────────────
 
 const FCR_ZONES = [
   { zone: 1, pMin: 50, pMax: 60 },
@@ -33,10 +36,13 @@ function getFcrBpm(zoneNum: number, fcMax: number, fcRepos: number) {
   return {
     low:  Math.round(fcRepos + fcr * z.pMin / 100),
     high: Math.round(fcRepos + fcr * z.pMax / 100),
+    mid:  Math.round(fcRepos + fcr * (z.pMin + z.pMax) / 200),
   };
 }
 
-// ── Helpers XML ─────────────────────────────────────────────────────────────
+function escapeXml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 function sportToTCX(sport: string): string {
   switch (sport) {
@@ -46,109 +52,145 @@ function sportToTCX(sport: string): string {
   }
 }
 
-function escapeXml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// ── Calcul durée d'une étape (secondes) ─────────────────────────────────────
+
+function stepSeconds(step: CardioStep, vma?: number | null): number {
+  if (step.effort_type === "duration" && step.duration) return step.duration;
+  if (step.effort_type === "distance" && step.distance && vma) {
+    const meters = step.distance_unit === "km" ? step.distance * 1000 : step.distance;
+    const speedMs = (vma / 3.6) * (step.vma_percentage ? step.vma_percentage / 100 : 1);
+    return Math.round(meters / speedMs);
+  }
+  return 300; // défaut 5min
 }
 
-// ── Génération des cibles ────────────────────────────────────────────────────
+// Calcul distance d'une étape (mètres)
+function stepMeters(step: CardioStep, vma?: number | null): number {
+  if (step.effort_type === "distance" && step.distance) {
+    return step.distance_unit === "km" ? step.distance * 1000 : step.distance;
+  }
+  if (step.effort_type === "duration" && step.duration && vma && step.vma_percentage) {
+    const speedMs = (vma / 3.6) * step.vma_percentage / 100;
+    return Math.round(speedMs * step.duration);
+  }
+  return 0;
+}
 
-function stepTarget(step: CardioStep, opts: GarminExportOptions): string {
-  // Priorité 1 : zone FC cible (Z1–Z5) avec BPM calculés en Karvonen
+// ── Génération d'un Lap ──────────────────────────────────────────────────────
+
+function lapXml(
+  step: CardioStep,
+  startTime: Date,
+  opts: GarminExportOptions,
+  label: string,
+): { xml: string; durationSeconds: number } {
+  const secs     = stepSeconds(step, opts.athleteVma);
+  const meters   = stepMeters(step, opts.athleteVma);
+  const intensity = step.movement_type === "marche" ? "Resting" : "Active";
+  const iso       = startTime.toISOString();
+
+  // FC cible
+  let hrXml = "";
   if (step.target_heart_rate && opts.athleteFcMax && opts.athleteFcRepos) {
     const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
-    const bpm = getFcrBpm(zNum, opts.athleteFcMax, opts.athleteFcRepos);
+    const bpm  = getFcrBpm(zNum, opts.athleteFcMax, opts.athleteFcRepos);
     if (bpm) {
-      return `<Target xsi:type="HeartRate_t">
-          <HeartRateZone xsi:type="CustomHeartRateZone_t">
-            <Low xsi:type="HeartRateInBeatsPerMinute_t"><Value>${bpm.low}</Value></Low>
-            <High xsi:type="HeartRateInBeatsPerMinute_t"><Value>${bpm.high}</Value></High>
-          </HeartRateZone>
-        </Target>`;
+      hrXml = `
+      <AverageHeartRateBpm><Value>${bpm.mid}</Value></AverageHeartRateBpm>
+      <MaximumHeartRateBpm><Value>${bpm.high}</Value></MaximumHeartRateBpm>`;
     }
   }
 
-  // Priorité 2 : % VMA → plage de vitesse (±5%)
-  if (step.vma_percentage && opts.athleteVma) {
-    const vmaMs   = opts.athleteVma / 3.6;
-    const targetMs = vmaMs * step.vma_percentage / 100;
-    return `<Target xsi:type="Speed_t">
-          <SpeedZone xsi:type="CustomSpeedZone_t">
-            <LowInMetersPerSecond>${(targetMs * 0.95).toFixed(2)}</LowInMetersPerSecond>
-            <HighInMetersPerSecond>${(targetMs * 1.05).toFixed(2)}</HighInMetersPerSecond>
-          </SpeedZone>
-        </Target>`;
+  // Vitesse (m/s) si VMA connue
+  let speedXml = "";
+  if (opts.athleteVma && step.vma_percentage && step.movement_type !== "marche") {
+    const ms = (opts.athleteVma / 3.6) * step.vma_percentage / 100;
+    speedXml = `
+      <MaximumSpeed>${ms.toFixed(2)}</MaximumSpeed>`;
   }
 
-  return `<Target xsi:type="None_t"/>`;
+  // Trackpoint minimal (start + end) pour que Garmin accepte le lap
+  const endTime = new Date(startTime.getTime() + secs * 1000).toISOString();
+  const trackXml = `
+      <Track>
+        <Trackpoint>
+          <Time>${iso}</Time>${hrXml ? `
+          <HeartRateBpm><Value>${hrXml.includes("Average") ? hrXml.match(/<Value>(\d+)<\/Value>/)?.[1] ?? 0 : 0}</Value></HeartRateBpm>` : ""}
+        </Trackpoint>
+        <Trackpoint>
+          <Time>${endTime}</Time>
+        </Trackpoint>
+      </Track>`;
+
+  const xml = `
+    <Lap StartTime="${iso}">
+      <TotalTimeSeconds>${secs}</TotalTimeSeconds>
+      <DistanceMeters>${meters}</DistanceMeters>${speedXml}${hrXml}
+      <Intensity>${intensity}</Intensity>
+      <TriggerMethod>Manual</TriggerMethod>
+      <Notes>${escapeXml(label)}</Notes>${trackXml}
+    </Lap>`;
+
+  return { xml, durationSeconds: secs };
 }
 
-// ── Durée / distance ─────────────────────────────────────────────────────────
+// ── Aplatir les étapes (blocs → répétitions) ────────────────────────────────
 
-function stepDuration(step: CardioStep): string {
-  if (step.effort_type === "duration" && step.duration) {
-    return `<Duration xsi:type="Time_t"><Seconds>${step.duration}</Seconds></Duration>`;
+function flattenSteps(data: CardioData): Array<{ step: CardioStep; label: string }> {
+  const { steps, blocks } = data;
+  const result: Array<{ step: CardioStep; label: string }> = [];
+  const seenBlocks = new Set<number>();
+
+  for (const step of steps) {
+    if (step.block_id) {
+      if (seenBlocks.has(step.block_id)) continue;
+      seenBlocks.add(step.block_id);
+      const block = blocks.find(b => b.id === step.block_id);
+      if (!block) continue;
+      const blockSteps = steps.filter(s => s.block_id === step.block_id);
+      for (let rep = 1; rep <= block.repetitions; rep++) {
+        for (const bs of blockSteps) {
+          const name = bs.movement_type === "marche" ? "Marche"
+                     : bs.movement_type === "velo"   ? "Vélo"
+                     : bs.movement_type === "natation" ? "Natation"
+                     : "Course";
+          const zone = bs.target_heart_rate ? ` ${bs.target_heart_rate}` : "";
+          result.push({ step: bs, label: `[${rep}/${block.repetitions}] ${name}${zone}` });
+        }
+      }
+    } else {
+      const name = step.movement_type === "marche" ? "Marche"
+                 : step.movement_type === "velo"   ? "Vélo"
+                 : step.movement_type === "natation" ? "Natation"
+                 : "Course";
+      const zone = step.target_heart_rate ? ` ${step.target_heart_rate}` : "";
+      result.push({ step, label: `${name}${zone}` });
+    }
   }
-  if (step.effort_type === "distance" && step.distance) {
-    const meters = (step.distance_unit === "km")
-      ? step.distance * 1000
-      : step.distance;
-    return `<Duration xsi:type="Distance_t"><Meters>${Math.round(meters)}</Meters></Duration>`;
-  }
-  return `<Duration xsi:type="UserInitiated_t"/>`;
-}
-
-// ── Étape simple ─────────────────────────────────────────────────────────────
-
-let _id = 1;
-
-function stepXml(step: CardioStep, opts: GarminExportOptions, tag = "Step"): string {
-  const id        = _id++;
-  const intensity = step.movement_type === "marche" ? "Resting" : "Active";
-  const name      = step.movement_type === "marche"   ? "Marche"
-                  : step.movement_type === "velo"    ? "Vélo"
-                  : step.movement_type === "natation" ? "Natation"
-                  : "Course";
-  return `<${tag} xsi:type="Step_t">
-        <StepId>${id}</StepId>
-        <Name>${escapeXml(name)}</Name>
-        ${stepDuration(step)}
-        <Intensity>${intensity}</Intensity>
-        ${stepTarget(step, opts)}
-      </${tag}>`;
-}
-
-// ── Bloc répété ──────────────────────────────────────────────────────────────
-
-function blockXml(block: CardioBlock, steps: CardioStep[], opts: GarminExportOptions): string {
-  const id       = _id++;
-  const children = steps
-    .filter(s => s.block_id === block.id)
-    .map(s => stepXml(s, opts, "Child"))
-    .join("\n      ");
-  return `<Step xsi:type="Repeat_t">
-        <StepId>${id}</StepId>
-        <Repetitions>${block.repetitions}</Repetitions>
-        ${children}
-      </Step>`;
+  return result;
 }
 
 // ── Export principal ─────────────────────────────────────────────────────────
 
 export function exportToTCX(data: CardioData, opts: GarminExportOptions): string {
-  _id = 1;
-  const { steps, blocks } = data;
-  const seenBlocks = new Set<number>();
-  const stepsXml: string[] = [];
+  const flatSteps = flattenSteps(data);
+  if (!flatSteps.length) return "";
 
-  for (const step of steps) {
-    if (step.block_id) {
-      if (seenBlocks.has(step.block_id)) continue;
-      const block = blocks.find(b => b.id === step.block_id);
-      if (block) { stepsXml.push(blockXml(block, steps, opts)); seenBlocks.add(step.block_id); }
-    } else {
-      stepsXml.push(stepXml(step, opts));
-    }
+  // Date de départ = demain à 09:00
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() + 1);
+  startDate.setHours(9, 0, 0, 0);
+
+  let cursor = new Date(startDate);
+  const laps: string[] = [];
+
+  for (const { step, label } of flatSteps) {
+    const { xml, durationSeconds } = lapXml(step, cursor, opts, label);
+    laps.push(xml);
+    cursor = new Date(cursor.getTime() + durationSeconds * 1000);
   }
+
+  const id = startDate.toISOString();
 
   return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <TrainingCenterDatabase
@@ -156,22 +198,23 @@ export function exportToTCX(data: CardioData, opts: GarminExportOptions): string
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2
     http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd">
-  <Workouts>
-    <Workout Sport="${sportToTCX(opts.sport)}">
-      <Name>${escapeXml(opts.sessionName)}</Name>
-      ${stepsXml.join("\n      ")}
-    </Workout>
-  </Workouts>
+  <Activities>
+    <Activity Sport="${sportToTCX(opts.sport)}">
+      <Id>${id}</Id>
+      <Notes>${escapeXml(opts.sessionName)}</Notes>
+      ${laps.join("\n      ")}
+    </Activity>
+  </Activities>
 </TrainingCenterDatabase>`;
 }
 
 export function downloadTCX(data: CardioData, opts: GarminExportOptions): void {
-  const xml      = exportToTCX(data, opts);
-  const blob     = new Blob([xml], { type: "application/octet-stream" });
-  const url      = URL.createObjectURL(blob);
-  const a        = document.createElement("a");
-  a.href         = url;
-  a.download     = `${opts.sessionName.replace(/\s+/g, "_")}.tcx`;
+  const xml  = exportToTCX(data, opts);
+  const blob = new Blob([xml], { type: "application/octet-stream" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = `${opts.sessionName.replace(/\s+/g, "_")}.tcx`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
