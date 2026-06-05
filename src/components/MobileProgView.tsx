@@ -441,13 +441,16 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 // ─── Sous-composant : carte session ──────────────────────────────────────────
 
 function SessionCard({
-  session, exercises, isValidated, athleteVma, libraryExercises, copiedWeekFeedback,
+  session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
+  libraryExercises, copiedWeekFeedback,
   onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
 }: {
   session: Session;
   exercises: Exercise[];
   isValidated: boolean;
   athleteVma?: number | null;
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
   libraryExercises: LibraryExercise[];
   copiedWeekFeedback?: Record<string, ExerciseFeedback>;
   onDelete: (e: React.MouseEvent) => void;
@@ -1052,6 +1055,8 @@ export function MobileProgView({
               exercises={sessionExercises[session.id] || []}
               isValidated={isValidated}
               athleteVma={athleteVma}
+              athleteFcMax={athleteFcMax}
+              athleteFcRepos={athleteFcRepos}
               libraryExercises={libraryExercises}
               copiedWeekFeedback={copiedWeekFeedback}
               onSerieDetailChange={(exId, si, field, value) => onSerieDetailChange(session.id, exId, si, field, value)}
