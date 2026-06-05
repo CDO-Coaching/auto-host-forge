@@ -1042,7 +1042,7 @@ export default function SeanceDetail() {
                                                         return (
                                                           <div
                                                             key={blockStep.id}
-                                                            className="text-xs space-y-1 pl-2 border-l-2 border-primary/30"
+                                                            className={`text-xs rounded-r-md px-3 py-1.5 ${blockStep.movement_type === "marche" ? "border-l-2 border-blue-400/60 bg-blue-500/5" : blockStep.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
                                                           >
                                                             <div className="flex gap-2 flex-wrap items-center">
                                                               <span className="font-medium capitalize">
@@ -1094,7 +1094,7 @@ export default function SeanceDetail() {
                                               return (
                                                 <div
                                                   key={step.id}
-                                                  className="text-xs space-y-1 border-l-2 border-border pl-2"
+                                                  className={`text-xs rounded-r-md px-3 py-2 ${step.movement_type === "marche" ? "border-l-2 border-blue-400/60 bg-blue-500/5" : step.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
                                                 >
                                                   <div className="flex gap-2 flex-wrap items-center">
                                                     <span className="font-medium capitalize">{step.movement_type}</span>
