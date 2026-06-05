@@ -78,7 +78,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     const vmaValue = vmaInputValue ? parseFloat(vmaInputValue) : null;
     const fcMaxValue = fcMaxInputValue ? parseInt(fcMaxInputValue) : null;
     const fcReposValue = fcReposInputValue ? parseInt(fcReposInputValue) : null;
-    
+
     if (vmaInputValue && (isNaN(vmaValue!) || vmaValue! < 8 || vmaValue! > 30)) {
       toast.error("La VMA doit être entre 8 et 30 km/h");
       return;
@@ -94,7 +94,6 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       return;
     }
 
-    // Vérifier que FC repos < FC max si les deux sont renseignées
     if (fcReposValue && fcMaxValue && fcReposValue >= fcMaxValue) {
       toast.error("La FC de repos doit être inférieure à la FC Max");
       return;
@@ -104,9 +103,8 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     try {
       let error: any = null;
 
-      const now = new Date().toISOString();
       if (isCoachView) {
-        // Coach view: update via RPC puis date séparément (RLS SECURITY DEFINER)
+        // Coach view: update via RPC (SECURITY DEFINER, sans fc_max_updated_at pour éviter pb colonne)
         const result = await supabase.rpc("update_athlete_physio", {
           p_athlete_id: athleteId,
           p_vma: vmaValue,
@@ -114,56 +112,52 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
           p_fc_repos: fcReposValue,
         } as any);
         error = result.error;
-        // Mettre à jour fc_max_updated_at séparément via RPC admin
+        // Tenter la mise à jour de la date séparément (silencieuse si RLS bloque)
         if (!error && fcMaxValue !== null) {
-          await supabase.rpc("update_athlete_physio", {
-            p_athlete_id: athleteId,
-            p_fc_max_updated_at: now,
-          } as any).catch(() => {
-            // RPC pas encore mis à jour — on tente une update directe
-          });
-          // Fallback : update directe (fonctionne si coach_id autorisé)
           await supabase
             .from("user_profiles")
-            .update({ fc_max_updated_at: now } as any)
+            .update({ fc_max_updated_at: new Date().toISOString() } as any)
             .eq("id", athleteId)
-            .catch(() => {});
+            .catch(() => {/* silencieux si RLS bloque */});
         }
       } else {
         // Athlete view: mise à jour directe (auth.uid() = athleteId)
+        const updatePayload: Record<string, any> = {
+          vma: vmaValue,
+          fc_max: fcMaxValue,
+          fc_repos: fcReposValue,
+        };
+        if (fcMaxValue !== null) {
+          updatePayload.fc_max_updated_at = new Date().toISOString();
+        }
         const result = await supabase
           .from("user_profiles")
-          .update({
-            vma: vmaValue,
-            fc_max: fcMaxValue,
-            fc_repos: fcReposValue,
-            ...(fcMaxValue !== null ? { fc_max_updated_at: now } : {}),
-          })
+          .update(updatePayload)
           .eq("id", athleteId);
         error = result.error;
       }
 
       if (error) throw error;
 
+      // Succès : mettre à jour l'état local
       setVma(vmaValue);
       setFcMax(fcMaxValue);
       setFcRepos(fcReposValue);
       setIsEditing(false);
 
-      // Toujours enregistrer la date en localStorage (source fiable)
+      // Enregistrer la date en localStorage (fiable même si DB bloquée par RLS)
       if (fcMaxValue !== null) {
         const savedDate = new Date().toISOString();
         localStorage.setItem(`fc_max_updated_at_${athleteId}`, savedDate);
         setFcMaxUpdatedAt(savedDate);
       }
+
       toast.success("Données mises à jour !");
-      
-      // Notifier le parent de la mise à jour
       if (onVmaUpdate && vmaValue) {
         onVmaUpdate(vmaValue);
       }
-    } catch (error) {
-      console.error("Erreur:", error);
+    } catch (err) {
+      console.error("Erreur VmaCard save:", err);
       toast.error("Erreur lors de la mise à jour");
     } finally {
       setLoading(false);

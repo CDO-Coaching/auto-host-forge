@@ -25,3 +25,7 @@ BEGIN
   WHERE id = p_athlete_id;
 END;
 $$;
+
+-- Accorder les permissions d'exécution aux utilisateurs authentifiés
+GRANT EXECUTE ON FUNCTION update_athlete_physio TO authenticated;
+REVOKE EXECUTE ON FUNCTION update_athlete_physio FROM anon;
