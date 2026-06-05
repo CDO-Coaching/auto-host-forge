@@ -96,6 +96,8 @@ interface MobileProgViewProps {
   onCopyPreviousWeek?: () => void;
   onOpenCopyDialog?: () => void;
   athleteVma?: number | null;
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
   copiedWeekFeedback?: Record<string, ExerciseFeedback>;
   onShowFeedback?: () => void;
   hasFeedback?: boolean;
@@ -853,7 +855,7 @@ function SessionCard({
                           </div>
                           {(cardioExercise as any).actual_heart_rate_zones?.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-green-500/20">
-                              <HeartRateZonesBar zones={(cardioExercise as any).actual_heart_rate_zones} compact />
+                              <HeartRateZonesBar zones={(cardioExercise as any).actual_heart_rate_zones} compact fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                             </div>
                           )}
                           {(cardioExercise as any).sportif_comment && (
@@ -936,6 +938,7 @@ export function MobileProgView({
   onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
   onSave, onUnvalidate, isSaving,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
+  athleteFcMax = null, athleteFcRepos = null,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);

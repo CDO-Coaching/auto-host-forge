@@ -31,6 +31,8 @@ interface CustomSessionDetailDialogProps {
   open: boolean;
   onClose: () => void;
   onEdit: () => void;
+  fcMax?: number | null;
+  fcRepos?: number | null;
 }
 
 function SportIcon({ type }: { type?: string | null }) {
@@ -75,7 +77,7 @@ function formatDuration(minutes: number): string {
   return m > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${h}h`;
 }
 
-export function CustomSessionDetailDialog({ session, open, onClose, onEdit }: CustomSessionDetailDialogProps) {
+export function CustomSessionDetailDialog({ session, open, onClose, onEdit, fcMax = null, fcRepos = null }: CustomSessionDetailDialogProps) {
   if (!session) return null;
 
   const dateStr = session.completed_at ?? session.scheduled_date;
@@ -195,7 +197,7 @@ export function CustomSessionDetailDialog({ session, open, onClose, onEdit }: Cu
           {session.heart_rate_zones && Array.isArray(session.heart_rate_zones) && session.heart_rate_zones.length > 0 && (
             <div className="rounded-xl bg-muted/40 border border-border px-4 py-3 space-y-2">
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Zones de fréquence cardiaque</p>
-              <HeartRateZonesBar zones={session.heart_rate_zones} />
+              <HeartRateZonesBar zones={session.heart_rate_zones} fcMax={fcMax} fcRepos={fcRepos} />
             </div>
           )}
 

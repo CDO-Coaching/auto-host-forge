@@ -81,6 +81,8 @@ interface CoachSessionDetailDialogProps {
   sessionType: string;
   athleteId: string;
   athleteName: string;
+  fcMax?: number | null;
+  fcRepos?: number | null;
 }
 
 export function CoachSessionDetailDialog({
@@ -90,6 +92,8 @@ export function CoachSessionDetailDialog({
   sessionType,
   athleteId,
   athleteName,
+  fcMax = null,
+  fcRepos = null,
 }: CoachSessionDetailDialogProps) {
   const { session: authSession } = useAuth();
   const [session, setSession] = useState<SessionDetail | null>(null);
@@ -439,7 +443,7 @@ export function CoachSessionDetailDialog({
             </div>
             {ex.actual_heart_rate_zones && ex.actual_heart_rate_zones.length > 0 && (
               <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                <HeartRateZonesBar zones={ex.actual_heart_rate_zones} />
+                <HeartRateZonesBar zones={ex.actual_heart_rate_zones} fcMax={fcMax} fcRepos={fcRepos} />
               </div>
             )}
           </div>

@@ -4857,6 +4857,8 @@ export default function ClientDetail() {
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
               athleteVma={athleteVma}
+              athleteFcMax={athleteFcMax}
+              athleteFcRepos={athleteFcRepos}
               copiedWeekFeedback={copiedWeekFeedback}
               hasFeedback={lastWeekData != null}
               onShowFeedback={() => setShowFeedbackSheet(true)}
@@ -4906,6 +4908,8 @@ export default function ClientDetail() {
               serieChargeSuggestions={serieChargeSuggestions}
               isInSameGroup={isInSameGroup}
               athleteVma={athleteVma}
+              athleteFcMax={athleteFcMax}
+              athleteFcRepos={athleteFcRepos}
               selectedCardioSport={selectedCardioSport}
               setSelectedCardioSport={setSelectedCardioSport}
               showTemplateSelector={showTemplateSelector}
@@ -5627,6 +5631,8 @@ export default function ClientDetail() {
           setEditingCoachCustomSession(viewingCoachCustomSession);
           setViewingCoachCustomSession(null);
         }}
+        fcMax={athleteFcMax}
+        fcRepos={athleteFcRepos}
       />
       {editingCoachCustomSession && (
         <CustomSessionDialog

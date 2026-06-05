@@ -318,6 +318,10 @@ export interface DesktopProgViewProps {
   // Séances perso de l'athlète
   customSessions?: any[];
 
+  // FCR Karvonen pour redistribution des zones FC
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
+
   // Exercise creation
   onExerciseCreated: (ex: { id: string; name: string; muscle_principal?: string | null; muscles_second?: string[] | null }) => void;
 
@@ -370,6 +374,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     setSelectedMethodologyCycle, setMethodologyStep, setMethodologyMaxes,
     allTrainingWeeks = [], isLoadingWeek = false,
     customSessions = [],
+    athleteFcMax = null,
+    athleteFcRepos = null,
   } = props;
 
   const [selectedCustomSessionId, setSelectedCustomSessionId] = React.useState<string | null>(null);
@@ -945,7 +951,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
               {selectedCustomSession.heart_rate_zones && Array.isArray(selectedCustomSession.heart_rate_zones) && selectedCustomSession.heart_rate_zones.length > 0 && (
                 <div className="rounded-lg bg-muted/30 border border-border/40 p-3 space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Zones de fréquence cardiaque</p>
-                  <HeartRateZonesBar zones={selectedCustomSession.heart_rate_zones} />
+                  <HeartRateZonesBar zones={selectedCustomSession.heart_rate_zones} fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                 </div>
               )}
 
@@ -1211,7 +1217,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                               </div>
                               {(exercise as any).actual_heart_rate_zones?.length > 0 && (
                                 <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                                  <HeartRateZonesBar zones={(exercise as any).actual_heart_rate_zones} />
+                                  <HeartRateZonesBar zones={(exercise as any).actual_heart_rate_zones} fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                                 </div>
                               )}
                             </div>

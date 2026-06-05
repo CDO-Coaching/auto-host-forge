@@ -59,6 +59,8 @@ export default function SeanceDetail() {
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
+  const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
   
   // États pour l'édition des feedbacks
   const [editFeedbackDialogOpen, setEditFeedbackDialogOpen] = useState(false);
@@ -80,10 +82,10 @@ export default function SeanceDetail() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase.from("user_profiles").select("vma").eq("id", user.id).single();
-        if (data?.vma) {
-          setAthleteVma(data.vma);
-        }
+        const { data } = await supabase.from("user_profiles").select("vma, fc_max, fc_repos").eq("id", user.id).single();
+        if (data?.vma) setAthleteVma(data.vma);
+        if (data?.fc_max) setAthleteFcMax(data.fc_max);
+        if (data?.fc_repos) setAthleteFcRepos(data.fc_repos);
       }
     };
     loadVma();
@@ -1205,7 +1207,7 @@ export default function SeanceDetail() {
                                 </div>
                                 {(item as any).actual_heart_rate_zones?.length > 0 && (
                                   <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
-                                    <HeartRateZonesBar zones={(item as any).actual_heart_rate_zones} />
+                                    <HeartRateZonesBar zones={(item as any).actual_heart_rate_zones} fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                                   </div>
                                 )}
                               </div>
