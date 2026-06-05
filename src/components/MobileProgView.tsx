@@ -878,6 +878,8 @@ function SessionCard({
                     }
                   }}
                   athleteVma={athleteVma}
+                  athleteFcMax={athleteFcMax}
+                  athleteFcRepos={athleteFcRepos}
                   disabled={isValidated}
                   sportType={cardioSport !== "yoga" && cardioSport !== "hiit" ? cardioSport : "course"}
                 />

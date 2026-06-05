@@ -38,8 +38,28 @@ interface CardioStepBuilderProps {
   blocks?: CardioBlock[];
   onChange: (data: CardioData) => void;
   athleteVma?: number | null;
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
   disabled?: boolean;
   sportType?: CardioSportType;
+}
+
+const FCR_ZONES = [
+  { zone: 1, label: "Z1 – Récupération",           pMin: 50, pMax: 60,  color: "text-blue-400"   },
+  { zone: 2, label: "Z2 – Endurance fondamentale",  pMin: 60, pMax: 70,  color: "text-green-400"  },
+  { zone: 3, label: "Z3 – Résistance douce",        pMin: 70, pMax: 80,  color: "text-yellow-400" },
+  { zone: 4, label: "Z4 – Résistance dure",         pMin: 80, pMax: 90,  color: "text-orange-400" },
+  { zone: 5, label: "Z5 – Puissance",               pMin: 90, pMax: 100, color: "text-red-400"    },
+];
+
+function getFcrBpm(zone: number, fcMax: number, fcRepos: number) {
+  const z = FCR_ZONES.find(z => z.zone === zone);
+  if (!z) return null;
+  const fcr = fcMax - fcRepos;
+  return {
+    low:  Math.round(fcRepos + fcr * z.pMin / 100),
+    high: Math.round(fcRepos + fcr * z.pMax / 100),
+  };
 }
 
 // Composant interne pour l'input de durée avec état local
@@ -102,11 +122,13 @@ function DurationInput({
   );
 }
 
-export function CardioStepBuilder({ 
-  steps, 
-  blocks: initialBlocks = [], 
-  onChange, 
-  athleteVma, 
+export function CardioStepBuilder({
+  steps,
+  blocks: initialBlocks = [],
+  onChange,
+  athleteVma,
+  athleteFcMax,
+  athleteFcRepos,
   disabled = false,
   sportType = "course"
 }: CardioStepBuilderProps) {
@@ -505,17 +527,44 @@ export function CardioStepBuilder({
           </div>
         )}
 
-        {/* FC cible */}
-        <div className="flex flex-col gap-1 min-w-[110px]">
-          <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">FC cible <span className="normal-case">(opt.)</span></label>
-          <Input
-            type="text"
-            value={step.target_heart_rate || ""}
-            onChange={(e) => handleStepChange(step.id, "target_heart_rate", e.target.value)}
-            placeholder="150 ou Zone 3"
+        {/* FC cible — sélecteur de zone FCR */}
+        <div className="flex flex-col gap-1 min-w-[130px]">
+          <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Zone FC cible <span className="normal-case">(opt.)</span></label>
+          <Select
+            value={step.target_heart_rate || "none"}
+            onValueChange={(v) => handleStepChange(step.id, "target_heart_rate", v === "none" ? "" : v)}
             disabled={disabled}
-            className="h-8 text-xs"
-          />
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue placeholder="Aucune" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">Aucune</SelectItem>
+              {FCR_ZONES.map((z) => {
+                const bpm = athleteFcMax && athleteFcRepos
+                  ? getFcrBpm(z.zone, athleteFcMax, athleteFcRepos)
+                  : null;
+                return (
+                  <SelectItem key={z.zone} value={`Z${z.zone}`} className="text-xs">
+                    <span className={z.color}>Z{z.zone}</span>
+                    {bpm
+                      ? ` – ${bpm.low}–${bpm.high} bpm`
+                      : ` – ${z.pMin}-${z.pMax}% FCR`}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          {/* Afficher les BPM sous le select si une zone est choisie */}
+          {step.target_heart_rate && step.target_heart_rate !== "" && (() => {
+            const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
+            const bpm = athleteFcMax && athleteFcRepos ? getFcrBpm(zNum, athleteFcMax, athleteFcRepos) : null;
+            const zDef = FCR_ZONES.find(z => z.zone === zNum);
+            if (!bpm || !zDef) return null;
+            return (
+              <p className={`text-[10px] font-medium ${zDef.color}`}>{bpm.low}–{bpm.high} bpm</p>
+            );
+          })()}
         </div>
 
         {/* Delete button */}

@@ -1060,12 +1060,20 @@ export default function SeanceDetail() {
                                                                   <span className="text-primary font-medium">{pace}</span>
                                                                 </>
                                                               )}
-                                                              {blockStep.target_heart_rate && (
-                                                                <>
-                                                                  <span className="text-muted-foreground">•</span>
-                                                                  <span>FC: {blockStep.target_heart_rate}</span>
-                                                                </>
-                                                              )}
+                                                              {blockStep.target_heart_rate && (() => {
+                                                                const zNum = parseInt(blockStep.target_heart_rate.replace("Z", ""));
+                                                                const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
+                                                                const zd = FCR_ZONES_DISP.find(z => z.z === zNum);
+                                                                const bpmStr = zd && athleteFcMax && athleteFcRepos
+                                                                  ? ` · ${Math.round(athleteFcRepos + (athleteFcMax - athleteFcRepos) * zd.pMin / 100)}–${Math.round(athleteFcRepos + (athleteFcMax - athleteFcRepos) * zd.pMax / 100)} bpm`
+                                                                  : "";
+                                                                return (
+                                                                  <>
+                                                                    <span className="text-muted-foreground">•</span>
+                                                                    <span className="text-rose-400 font-medium">❤️ {blockStep.target_heart_rate}{bpmStr}</span>
+                                                                  </>
+                                                                );
+                                                              })()}
                                                               {typeof blockStep.rpe === "number" && blockStep.rpe > 0 && (
                                                                 <>
                                                                   <span className="text-muted-foreground">•</span>
@@ -1102,12 +1110,20 @@ export default function SeanceDetail() {
                                                         <span className="text-primary font-medium">{pace}</span>
                                                       </>
                                                     )}
-                                                    {step.target_heart_rate && (
-                                                      <>
-                                                        <span className="text-muted-foreground">•</span>
-                                                        <span>FC: {step.target_heart_rate}</span>
-                                                      </>
-                                                    )}
+                                                    {step.target_heart_rate && (() => {
+                                                      const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
+                                                      const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
+                                                      const zd = FCR_ZONES_DISP.find(z => z.z === zNum);
+                                                      const bpmStr = zd && athleteFcMax && athleteFcRepos
+                                                        ? ` · ${Math.round(athleteFcRepos + (athleteFcMax - athleteFcRepos) * zd.pMin / 100)}–${Math.round(athleteFcRepos + (athleteFcMax - athleteFcRepos) * zd.pMax / 100)} bpm`
+                                                        : "";
+                                                      return (
+                                                        <>
+                                                          <span className="text-muted-foreground">•</span>
+                                                          <span className="text-rose-400 font-medium">❤️ {step.target_heart_rate}{bpmStr}</span>
+                                                        </>
+                                                      );
+                                                    })()}
                                                     {typeof step.rpe === "number" && step.rpe > 0 && (
                                                       <>
                                                         <span className="text-muted-foreground">•</span>

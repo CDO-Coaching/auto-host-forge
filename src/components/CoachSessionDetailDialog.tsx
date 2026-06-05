@@ -312,9 +312,15 @@ export function CoachSessionDetailDialog({
         {step.rpe != null && step.rpe > 0 && (
           <span className="text-orange-400">RPE {step.rpe}</span>
         )}
-        {step.target_heart_rate && (
-          <span className="text-rose-400">FC {step.target_heart_rate}</span>
-        )}
+        {step.target_heart_rate && (() => {
+          const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
+          const FCR_Z = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
+          const zd = FCR_Z.find(z => z.z === zNum);
+          const bpmStr = zd && fcMax && fcRepos
+            ? ` · ${Math.round(fcRepos + (fcMax - fcRepos) * zd.pMin / 100)}–${Math.round(fcRepos + (fcMax - fcRepos) * zd.pMax / 100)} bpm`
+            : "";
+          return <span className="text-rose-400">❤️ {step.target_heart_rate}{bpmStr}</span>;
+        })()}
       </div>
     </div>
   );

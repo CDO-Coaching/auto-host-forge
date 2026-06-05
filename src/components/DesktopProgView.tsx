@@ -1228,6 +1228,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             blocks={cardioData.blocks}
                             onChange={(newData) => onExerciseChange(selectedSession.id, exercise.id, "cardio_content", JSON.stringify(newData))}
                             athleteVma={athleteVma}
+                            athleteFcMax={athleteFcMax}
+                            athleteFcRepos={athleteFcRepos}
                             disabled={isValidated}
                             sportType={currentSportType}
                           />
