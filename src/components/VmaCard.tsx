@@ -327,20 +327,38 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
 
             {/* FCR = FC max - FC repos (Karvonen) */}
             {fcMax && fcRepos && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Heart className="h-4 w-4 text-primary" />
                   FC Réserve (FCR)
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-primary">
-                    {fcMax - fcRepos}
-                  </span>
+                  <span className="text-2xl font-bold text-primary">{fcMax - fcRepos}</span>
                   <span className="text-sm text-muted-foreground">bpm</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {fcMax} − {fcRepos} · base Karvonen
-                </p>
+                <p className="text-[11px] text-muted-foreground">{fcMax} − {fcRepos} · base Karvonen</p>
+
+                {/* 5 zones FCR avec bornes BPM */}
+                <div className="grid grid-cols-1 gap-1 pt-1">
+                  {[
+                    { z: 1, label: "Récupération",          pMin: 50, pMax: 60,  color: "text-blue-400",   dot: "bg-blue-500"   },
+                    { z: 2, label: "Endurance fondamentale", pMin: 60, pMax: 70,  color: "text-green-400",  dot: "bg-green-500"  },
+                    { z: 3, label: "Résistance douce",       pMin: 70, pMax: 80,  color: "text-yellow-400", dot: "bg-yellow-400" },
+                    { z: 4, label: "Résistance dure",        pMin: 80, pMax: 90,  color: "text-orange-400", dot: "bg-orange-500" },
+                    { z: 5, label: "Puissance",              pMin: 90, pMax: 100, color: "text-red-400",    dot: "bg-red-500"    },
+                  ].map(({ z, label, pMin, pMax, color, dot }) => {
+                    const low  = Math.round(fcRepos + (fcMax - fcRepos) * pMin / 100);
+                    const high = Math.round(fcRepos + (fcMax - fcRepos) * pMax / 100);
+                    return (
+                      <div key={z} className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                        <span className={`text-[11px] font-semibold w-4 ${color}`}>Z{z}</span>
+                        <span className="text-[11px] text-muted-foreground flex-1">{label}</span>
+                        <span className={`text-[11px] font-medium tabular-nums ${color}`}>{low} – {high} bpm</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
