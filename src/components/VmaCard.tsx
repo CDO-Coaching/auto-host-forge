@@ -17,7 +17,6 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
   const [vma, setVma] = useState<number | null>(null);
   const [fcMax, setFcMax] = useState<number | null>(null);
   const [fcRepos, setFcRepos] = useState<number | null>(null);
-  const [fcMaxUpdatedAt, setFcMaxUpdatedAt] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [vmaInputValue, setVmaInputValue] = useState("");
   const [fcMaxInputValue, setFcMaxInputValue] = useState("");
@@ -50,25 +49,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
         setFcRepos(data.fc_repos);
         setFcReposInputValue(data.fc_repos.toString());
       }
-      // fc_max_updated_at : DB d'abord, localStorage en fallback
-      try {
-        const { data: dateData } = await supabase
-          .from("user_profiles")
-          .select("fc_max_updated_at")
-          .eq("id", athleteId)
-          .single();
-        if ((dateData as any)?.fc_max_updated_at) {
-          setFcMaxUpdatedAt((dateData as any).fc_max_updated_at);
-          localStorage.setItem(`fc_max_updated_at_${athleteId}`, (dateData as any).fc_max_updated_at);
-        } else {
-          // Fallback localStorage si DB null
-          const local = localStorage.getItem(`fc_max_updated_at_${athleteId}`);
-          if (local) setFcMaxUpdatedAt(local);
-        }
-      } catch {
-        const local = localStorage.getItem(`fc_max_updated_at_${athleteId}`);
-        if (local) setFcMaxUpdatedAt(local);
-      }
+
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
     }
@@ -112,27 +93,11 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
           p_fc_repos: fcReposValue,
         } as any);
         error = result.error;
-        // Tenter la mise à jour de la date séparément (silencieuse si RLS bloque)
-        if (!error && fcMaxValue !== null) {
-          await supabase
-            .from("user_profiles")
-            .update({ fc_max_updated_at: new Date().toISOString() } as any)
-            .eq("id", athleteId)
-            .catch(() => {/* silencieux si RLS bloque */});
-        }
       } else {
         // Athlete view: mise à jour directe (auth.uid() = athleteId)
-        const updatePayload: Record<string, any> = {
-          vma: vmaValue,
-          fc_max: fcMaxValue,
-          fc_repos: fcReposValue,
-        };
-        if (fcMaxValue !== null) {
-          updatePayload.fc_max_updated_at = new Date().toISOString();
-        }
         const result = await supabase
           .from("user_profiles")
-          .update(updatePayload)
+          .update({ vma: vmaValue, fc_max: fcMaxValue, fc_repos: fcReposValue })
           .eq("id", athleteId);
         error = result.error;
       }
@@ -144,13 +109,6 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       setFcMax(fcMaxValue);
       setFcRepos(fcReposValue);
       setIsEditing(false);
-
-      // Enregistrer la date en localStorage (fiable même si DB bloquée par RLS)
-      if (fcMaxValue !== null) {
-        const savedDate = new Date().toISOString();
-        localStorage.setItem(`fc_max_updated_at_${athleteId}`, savedDate);
-        setFcMaxUpdatedAt(savedDate);
-      }
 
       toast.success("Données mises à jour !");
       if (onVmaUpdate && vmaValue) {
@@ -306,31 +264,6 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
                     <span className="text-2xl font-bold text-red-500">{fcMax}</span>
                     <span className="text-sm text-muted-foreground">bpm</span>
                   </div>
-                  {fcMaxUpdatedAt ? (() => {
-                    const date = new Date(fcMaxUpdatedAt);
-                    const nextTest = new Date(date);
-                    nextTest.setMonth(nextTest.getMonth() + 3);
-                    const now = new Date();
-                    const daysUntil = Math.ceil((nextTest.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                    const isOverdue = daysUntil <= 0;
-                    const isSoon = daysUntil > 0 && daysUntil <= 14;
-                    return (
-                      <div className="space-y-0.5">
-                        <p className="text-[11px] text-muted-foreground">
-                          Saisi le {date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-                        </p>
-                        <p className={`text-[11px] font-medium ${isOverdue ? "text-red-400" : isSoon ? "text-orange-400" : "text-muted-foreground"}`}>
-                          {isOverdue
-                            ? `⚠️ Retest conseillé (il y a ${Math.abs(daysUntil)}j)`
-                            : isSoon
-                            ? `⏳ Retest dans ${daysUntil}j`
-                            : `Retest conseillé dans ${daysUntil}j`}
-                        </p>
-                      </div>
-                    );
-                  })() : (
-                    <p className="text-[11px] text-muted-foreground italic">Date de saisie inconnue</p>
-                  )}
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground italic">Non renseignée</p>
