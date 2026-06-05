@@ -1082,12 +1082,6 @@ export default function SeanceDetail() {
                                                               ) : (
                                                                 <span>{formatCardioDistance(blockStep.distance)}</span>
                                                               )}
-                                                              {pace && (
-                                                                <>
-                                                                  <span className="text-muted-foreground">•</span>
-                                                                  <span className="text-primary font-medium">{pace}</span>
-                                                                </>
-                                                              )}
                                                               {blockStep.target_heart_rate && (() => {
                                                                 const zNum = parseInt(blockStep.target_heart_rate.replace("Z", ""));
                                                                 const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
@@ -1131,12 +1125,6 @@ export default function SeanceDetail() {
                                                       <span>{formatCardioTime(step.duration)}</span>
                                                     ) : (
                                                       <span>{formatCardioDistance(step.distance)}</span>
-                                                    )}
-                                                    {pace && (
-                                                      <>
-                                                        <span className="text-muted-foreground">•</span>
-                                                        <span className="text-primary font-medium">{pace}</span>
-                                                      </>
                                                     )}
                                                     {step.target_heart_rate && (() => {
                                                       const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
