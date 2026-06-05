@@ -32,7 +32,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("vma, fc_max, fc_repos, fc_max_updated_at")
+        .select("vma, fc_max, fc_repos")
         .eq("id", athleteId)
         .single();
 
@@ -50,8 +50,18 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
         setFcRepos(data.fc_repos);
         setFcReposInputValue(data.fc_repos.toString());
       }
-      if ((data as any)?.fc_max_updated_at) {
-        setFcMaxUpdatedAt((data as any).fc_max_updated_at);
+      // fc_max_updated_at : requête séparée (colonne ajoutée par migration SQL)
+      try {
+        const { data: dateData } = await supabase
+          .from("user_profiles")
+          .select("fc_max_updated_at")
+          .eq("id", athleteId)
+          .single();
+        if ((dateData as any)?.fc_max_updated_at) {
+          setFcMaxUpdatedAt((dateData as any).fc_max_updated_at);
+        }
+      } catch {
+        // Colonne pas encore créée — pas grave, on affiche juste sans date
       }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
