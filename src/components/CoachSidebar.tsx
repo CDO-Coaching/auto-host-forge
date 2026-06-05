@@ -30,7 +30,7 @@ const menuGroups = [
     label: "Ressources",
     items: [
       { title: "Bibliothèque d'exercices", url: "/coach/bibliotheque-exercices", icon: BookOpen },
-      { title: "Méthodologies", url: "/coach/methodologies", icon: FlaskConical },
+      { title: "Bibliothèque", url: "/coach/methodologies", icon: BookOpen },
     ],
   },
   {
