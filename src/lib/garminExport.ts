@@ -167,7 +167,7 @@ export function exportToTCX(data: CardioData, opts: GarminExportOptions): string
 
 export function downloadTCX(data: CardioData, opts: GarminExportOptions): void {
   const xml      = exportToTCX(data, opts);
-  const blob     = new Blob([xml], { type: "application/xml" });
+  const blob     = new Blob([xml], { type: "application/octet-stream" });
   const url      = URL.createObjectURL(blob);
   const a        = document.createElement("a");
   a.href         = url;
