@@ -142,8 +142,20 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       setVma(vmaValue);
       setFcMax(fcMaxValue);
       setFcRepos(fcReposValue);
-      if (fcMaxValue !== null) setFcMaxUpdatedAt(new Date().toISOString());
       setIsEditing(false);
+
+      // Relire fc_max_updated_at depuis la DB après sauvegarde
+      const { data: refreshed } = await supabase
+        .from("user_profiles")
+        .select("fc_max_updated_at")
+        .eq("id", athleteId)
+        .single();
+      if ((refreshed as any)?.fc_max_updated_at) {
+        setFcMaxUpdatedAt((refreshed as any).fc_max_updated_at);
+      } else {
+        // Fallback : date locale si la DB ne l'a pas encore
+        setFcMaxUpdatedAt(new Date().toISOString());
+      }
       toast.success("Données mises à jour !");
       
       // Notifier le parent de la mise à jour
