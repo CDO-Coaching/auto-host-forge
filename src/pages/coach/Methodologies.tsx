@@ -10,7 +10,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw, Sparkles } from "lucide-react";
+import { MethodologyAIChat } from "@/components/MethodologyAIChat";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ── Catégories ────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,7 @@ export default function Methodologies() {
   const [selectedDoc, setSelectedDoc] = useState<Doc | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Doc | null>(null);
+  const [showAIChat, setShowAIChat] = useState(false);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -137,10 +140,16 @@ export default function Methodologies() {
             <BookOpen className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-bold">Bibliothèque de méthodes</h1>
           </div>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-4 w-4 mr-1" />
-            Nouveau
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setShowAIChat(true)}>
+              <Sparkles className="h-4 w-4 mr-1" />
+              IA
+            </Button>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1" />
+              Nouveau
+            </Button>
+          </div>
         </div>
 
         {/* Barre de recherche + filtre */}
@@ -271,6 +280,43 @@ export default function Methodologies() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Sheet chat IA */}
+      <Sheet open={showAIChat} onOpenChange={setShowAIChat}>
+        <SheetContent side="right" className="w-full sm:w-[480px] p-0 flex flex-col">
+          <SheetHeader className="px-4 py-3 border-b border-border shrink-0">
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Créer une fiche avec l'IA
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-hidden">
+            <MethodologyAIChat
+              onDocumentGenerated={async (doc) => {
+                const tags = doc.tags || [];
+                const { error } = await supabase
+                  .from("coach_resource_docs" as any)
+                  .insert({
+                    coach_id: user?.id,
+                    title: doc.title,
+                    content: doc.content,
+                    category: doc.category,
+                    tags,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  });
+                if (error) {
+                  toast.error("Erreur lors de l'enregistrement");
+                } else {
+                  toast.success("Fiche enregistrée dans la bibliothèque !");
+                  setShowAIChat(false);
+                  loadDocs();
+                }
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Dialog création / édition */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
