@@ -17,6 +17,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
   const [vma, setVma] = useState<number | null>(null);
   const [fcMax, setFcMax] = useState<number | null>(null);
   const [fcRepos, setFcRepos] = useState<number | null>(null);
+  const [fcMaxUpdatedAt, setFcMaxUpdatedAt] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [vmaInputValue, setVmaInputValue] = useState("");
   const [fcMaxInputValue, setFcMaxInputValue] = useState("");
@@ -31,7 +32,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("vma, fc_max, fc_repos")
+        .select("vma, fc_max, fc_repos, fc_max_updated_at")
         .eq("id", athleteId)
         .single();
 
@@ -48,6 +49,9 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       if (data?.fc_repos) {
         setFcRepos(data.fc_repos);
         setFcReposInputValue(data.fc_repos.toString());
+      }
+      if ((data as any)?.fc_max_updated_at) {
+        setFcMaxUpdatedAt((data as any).fc_max_updated_at);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
@@ -95,12 +99,14 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
         error = result.error;
       } else {
         // Athlete view: mise à jour directe (auth.uid() = athleteId)
+        const now = new Date().toISOString();
         const result = await supabase
           .from("user_profiles")
           .update({
             vma: vmaValue,
             fc_max: fcMaxValue,
             fc_repos: fcReposValue,
+            ...(fcMaxValue !== null ? { fc_max_updated_at: now } : {}),
           })
           .eq("id", athleteId);
         error = result.error;
@@ -111,6 +117,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       setVma(vmaValue);
       setFcMax(fcMaxValue);
       setFcRepos(fcReposValue);
+      if (fcMaxValue !== null) setFcMaxUpdatedAt(new Date().toISOString());
       setIsEditing(false);
       toast.success("Données mises à jour !");
       
@@ -263,16 +270,39 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
                 FC Max
               </div>
               {fcMax ? (
-                <div className="flex items-baseline gap-1">
-                  <span className="text-2xl font-bold text-red-500">
-                    {fcMax}
-                  </span>
-                  <span className="text-sm text-muted-foreground">bpm</span>
-                </div>
+                <>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-bold text-red-500">{fcMax}</span>
+                    <span className="text-sm text-muted-foreground">bpm</span>
+                  </div>
+                  {fcMaxUpdatedAt ? (() => {
+                    const date = new Date(fcMaxUpdatedAt);
+                    const nextTest = new Date(date);
+                    nextTest.setMonth(nextTest.getMonth() + 3);
+                    const now = new Date();
+                    const daysUntil = Math.ceil((nextTest.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const isOverdue = daysUntil <= 0;
+                    const isSoon = daysUntil > 0 && daysUntil <= 14;
+                    return (
+                      <div className="space-y-0.5">
+                        <p className="text-[11px] text-muted-foreground">
+                          Saisi le {date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+                        </p>
+                        <p className={`text-[11px] font-medium ${isOverdue ? "text-red-400" : isSoon ? "text-orange-400" : "text-muted-foreground"}`}>
+                          {isOverdue
+                            ? `⚠️ Retest conseillé (il y a ${Math.abs(daysUntil)}j)`
+                            : isSoon
+                            ? `⏳ Retest dans ${daysUntil}j`
+                            : `Retest conseillé dans ${daysUntil}j`}
+                        </p>
+                      </div>
+                    );
+                  })() : (
+                    <p className="text-[11px] text-muted-foreground italic">Date de saisie inconnue</p>
+                  )}
+                </>
               ) : (
-                <p className="text-sm text-muted-foreground italic">
-                  Non renseignée
-                </p>
+                <p className="text-sm text-muted-foreground italic">Non renseignée</p>
               )}
             </div>
             
