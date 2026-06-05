@@ -734,6 +734,8 @@ export default function SeancesProgrammees() {
                             onChange={() => {}}
                             sportType={ex.cardio_sport as any || "course"}
                             athleteVma={null}
+                            athleteFcMax={null}
+                            athleteFcRepos={null}
                             disabled={true}
                           />
                         );
@@ -1182,6 +1184,8 @@ export default function SeancesProgrammees() {
                       }}
                       sportType={activeTab as "course" | "velo" | "natation"}
                       athleteVma={null}
+                      athleteFcMax={null}
+                      athleteFcRepos={null}
                     />
                   );
                 })()}
