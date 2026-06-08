@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle, BarChart3, Eye, EyeOff, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Save, Copy, TrendingUp, TrendingDown, Search, AlertCircle, BarChart3, Eye, EyeOff, FileText, Wallet } from "lucide-react";
 import { format, startOfMonth, addMonths, subMonths } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Switch } from "@/components/ui/switch";
@@ -69,6 +69,9 @@ export default function Comptabilite() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hideClientNames, setHideClientNames] = useState(true);
   const [showUrssafDialog, setShowUrssafDialog] = useState(false);
+  const [showCreditsDialog, setShowCreditsDialog] = useState(false);
+  // Solde global par client (toutes périodes confondues) : > 0 = crédit prépayé, < 0 = dette
+  const [globalBalances, setGlobalBalances] = useState<Record<string, { name: string; balance: number }>>({});
   const { session } = useAuth();
 
   useEffect(() => {
@@ -271,6 +274,27 @@ export default function Comptabilite() {
       formattedEntries.sort((a, b) => a.client_name.localeCompare(b.client_name));
 
       setEntries(formattedEntries);
+
+      // Charger le solde global par client (toutes périodes) pour le suivi des crédits prépayés
+      const { data: allEntriesData } = await supabase
+        .from("accounting_entries")
+        .select("client_id, external_client_id, sessions_paid, sessions_done, user_profiles!accounting_entries_client_id_fkey (first_name, last_name), external_clients (first_name, last_name)")
+        .eq("coach_id", session.user.id);
+
+      if (allEntriesData) {
+        const balanceMap: Record<string, { name: string; balance: number }> = {};
+        for (const e of allEntriesData as any[]) {
+          const key = e.client_id || e.external_client_id;
+          if (!key) continue;
+          const name = e.client_id
+            ? `${e.user_profiles?.first_name || ""} ${e.user_profiles?.last_name || ""}`.trim()
+            : `${e.external_clients?.first_name || ""} ${e.external_clients?.last_name || ""}`.trim();
+          if (!balanceMap[key]) balanceMap[key] = { name, balance: 0 };
+          balanceMap[key].balance += (e.sessions_paid || 0) - (e.sessions_done || 0);
+        }
+        setGlobalBalances(balanceMap);
+      }
+
     } catch (error) {
       console.error("Erreur lors du chargement:", error);
       toast.error("Erreur lors du chargement des données");
@@ -548,9 +572,19 @@ export default function Comptabilite() {
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
   };
 
-  // Calculer le nombre de clients débiteurs
-  const debtorsCount = entries.filter(e => e.sessions_done > e.sessions_paid).length;
-  const debtorsList = entries.filter(e => e.sessions_done > e.sessions_paid);
+  // Impayés : solde global négatif (séances faites > payées sur toute la période)
+  const debtorsCount = Object.values(globalBalances).filter(b => b.balance < 0).length;
+  const debtorsList = entries.filter(e => {
+    const key = e.client_id || e.external_client_id;
+    return key && (globalBalances[key]?.balance ?? 0) < 0;
+  });
+
+  // Crédits prépayés : solde global positif (client a payé des séances pas encore réalisées)
+  const creditsList = Object.entries(globalBalances)
+    .filter(([, b]) => b.balance > 0)
+    .map(([id, b]) => ({ id, ...b }))
+    .sort((a, b) => b.balance - a.balance);
+  const creditsCount = creditsList.length;
 
   // Filtrer et trier les entrées selon la recherche
   const filteredEntries = entries
@@ -738,6 +772,20 @@ export default function Comptabilite() {
                       </Badge>
                     )}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCreditsDialog(true)}
+                    className="gap-2"
+                  >
+                    <Wallet className="h-4 w-4" />
+                    Crédits
+                    {creditsCount > 0 && (
+                      <Badge className="ml-1 bg-green-500/20 text-green-400 border-green-500/30">
+                        {creditsCount}
+                      </Badge>
+                    )}
+                  </Button>
                 </div>
 
                 <div className="space-y-2">
@@ -791,6 +839,7 @@ export default function Comptabilite() {
                             <TableHead className="text-center bg-background sticky top-0 z-20">Séances prévues</TableHead>
                           <TableHead className="text-center bg-background sticky top-0 z-20">Séances réalisées</TableHead>
                           <TableHead className="text-center bg-background sticky top-0 z-20">Séances payées</TableHead>
+                          <TableHead className="text-center bg-background sticky top-0 z-20">Solde global</TableHead>
                           <TableHead className="bg-background sticky top-0 z-20">Type paiement</TableHead>
                           <TableHead className="text-right bg-background sticky top-0 z-20">Espèces (€)</TableHead>
                           <TableHead className="text-right bg-background sticky top-0 z-20">Virement (€)</TableHead>
@@ -843,6 +892,16 @@ export default function Comptabilite() {
                                 onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
                                 className="w-20 text-center"
                               />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              {(() => {
+                                const key = entry.client_id || entry.external_client_id;
+                                const bal = key ? (globalBalances[key]?.balance ?? null) : null;
+                                if (bal === null) return <span className="text-muted-foreground text-xs">—</span>;
+                                if (bal > 0) return <span className="text-green-400 font-semibold text-sm">+{bal} crédit</span>;
+                                if (bal < 0) return <span className="text-red-400 font-semibold text-sm">{bal} impayé</span>;
+                                return <span className="text-muted-foreground text-xs">✓ soldé</span>;
+                              })()}
                             </TableCell>
                             <TableCell>
                               <Select
@@ -1152,31 +1211,61 @@ export default function Comptabilite() {
                             <AlertCircle className="h-5 w-5 text-orange-600" />
                             <h3 className="font-semibold text-lg">{debtor.client_name}</h3>
                           </div>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Séances réalisées</p>
-                              <p className="font-semibold">{debtor.sessions_done}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Séances payées</p>
-                              <p className="font-semibold">{debtor.sessions_paid}</p>
-                            </div>
-                          </div>
+                          <p className="text-xs text-muted-foreground">Solde cumulé toutes périodes</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm text-muted-foreground">Séances impayées</p>
-                          <p className="text-2xl font-bold text-orange-600">
-                            {debtor.sessions_done - debtor.sessions_paid}
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            ≈ {((debtor.sessions_done - debtor.sessions_paid) * 60).toFixed(2)} €
-                          </p>
-                        </div>
+                          {(() => {
+                            const key = debtor.client_id || debtor.external_client_id;
+                            const bal = key ? (globalBalances[key]?.balance ?? 0) : 0;
+                            return <>
+                              <p className="text-sm text-muted-foreground">Séances impayées</p>
+                              <p className="text-2xl font-bold text-orange-600">{Math.abs(bal)}</p>
+                              <p className="text-sm text-muted-foreground mt-1">≈ {(Math.abs(bal) * 60).toFixed(0)} €</p>
+                            </>;
+                          })()}
                       </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog crédits prépayés */}
+      <Dialog open={showCreditsDialog} onOpenChange={setShowCreditsDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-green-400" />
+              Crédits prépayés ({creditsCount})
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground -mt-2">
+            Clients ayant payé des séances pas encore réalisées (solde positif sur toute la période).
+          </p>
+          <div className="space-y-3 overflow-y-auto max-h-[50vh] pr-1">
+            {creditsList.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Aucun client avec crédit prépayé</p>
+            ) : (
+              creditsList.map(c => (
+                <Card key={c.id} className="border-green-500/30">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="h-5 w-5 text-green-400" />
+                        <span className="font-semibold">{c.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-green-400">+{c.balance}</p>
+                        <p className="text-xs text-muted-foreground">séance{c.balance > 1 ? "s" : ""} en crédit</p>
+                        <p className="text-xs text-muted-foreground">≈ {(c.balance * 60).toFixed(0)} € prépayés</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
             )}
           </div>
         </DialogContent>
