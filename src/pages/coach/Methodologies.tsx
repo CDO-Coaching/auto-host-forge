@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -10,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw, Sparkles, Table2 } from "lucide-react";
 import { MethodologyAIChat } from "@/components/MethodologyAIChat";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -127,6 +128,41 @@ export default function Methodologies() {
   const [formCategory, setFormCategory] = useState<Category>("autre");
   const [formTags, setFormTags] = useState("");
   const [saving, setSaving] = useState(false);
+  const excelFileRef = useRef<HTMLInputElement>(null);
+
+  const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+      let markdown = "";
+      for (const sheetName of wb.SheetNames) {
+        const ws = wb.Sheets[sheetName];
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        if (!rows.length) continue;
+        if (wb.SheetNames.length > 1) markdown += `## ${sheetName}\n\n`;
+        const headers = rows[0] as string[];
+        markdown += "| " + headers.join(" | ") + " |\n";
+        markdown += "| " + headers.map(() => "---").join(" | ") + " |\n";
+        for (const row of rows.slice(1)) {
+          const cells = headers.map((_, i) => String((row as any[])[i] ?? ""));
+          markdown += "| " + cells.join(" | ") + " |\n";
+        }
+        markdown += "\n";
+      }
+      const title = file.name.replace(/\.[^/.]+$/, "");
+      setEditing(null);
+      setFormTitle(title);
+      setFormContent(markdown.trim());
+      setFormCategory("autre");
+      setFormTags("");
+      setShowDialog(true);
+    } catch {
+      toast.error("Impossible de lire le fichier Excel");
+    }
+  };
 
   useEffect(() => { loadDocs(); }, []);
 
@@ -212,6 +248,11 @@ export default function Methodologies() {
             <h1 className="text-lg font-bold">Bibliothèque de méthodes</h1>
           </div>
           <div className="flex gap-2">
+            <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
+            <Button size="sm" variant="outline" onClick={() => excelFileRef.current?.click()}>
+              <Table2 className="h-4 w-4 mr-1" />
+              Excel
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setShowAIChat(true)}>
               <Sparkles className="h-4 w-4 mr-1" />
               IA
