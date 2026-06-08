@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCardioTime, formatCardioDistance, parsePaceToDecimal, calculateCardioMetrics } from "@/lib/cardioCalculations";
 import { CardioData } from "@/components/CardioStepBuilder";
 import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
+import { AerobicEfficiencyCard } from "@/components/AerobicEfficiencyCard";
 import { InfoButton } from "@/components/InfoButton";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
 
@@ -1301,6 +1302,10 @@ export function CoachRunningView({
           </CardContent>
         </Card>
       </div>
+
+      {/* Efficience aérobie Strava */}
+      <AerobicEfficiencyCard athleteId={athleteId} />
+
     </div>
   );
 }
