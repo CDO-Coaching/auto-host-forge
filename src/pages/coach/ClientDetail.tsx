@@ -4123,20 +4123,17 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-2">
-          {/* ── Ligne 1 : Score Prépa pleine largeur ── */}
-          {athlete && (
-            <CoachAthleteStatusCard
-              athleteId={athleteId!}
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
-          )}
-          {/* ── Ligne 2 : Analyse du jour collapsible ── */}
+          {/* ── Analyse du jour collapsible ── */}
           <DailyDebriefCard athleteId={athleteId!} />
           {/* ── Grille principale 3 colonnes ── */}
           {athlete ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {/* Col 1 : État de forme + Douleur */}
+              {/* Col 1 : Score Prépa + État de forme + Douleur */}
               <div className="space-y-2">
+                <CoachAthleteStatusCard
+                  athleteId={athleteId!}
+                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+                />
                 <AthleteReadinessCard athleteId={athleteId!} />
                 <CoachClientSummaryView
                   athleteId={athleteId!}

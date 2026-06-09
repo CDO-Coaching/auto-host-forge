@@ -538,73 +538,53 @@ export function CoachAthleteStatusCard({ athleteId, athleteName }: CoachAthleteS
     : null;
 
   return (
-    <Card className={`border-2 ${borderClass}`}>
-      <CardContent className="py-3 px-4 space-y-2">
+    <Card className={`border-2 ${borderClass} h-fit`}>
+      <CardHeader className="pb-1 pt-2.5 px-3">
+        <CardTitle className="text-xs flex items-center gap-1.5">
+          <Activity className="h-3.5 w-3.5" /> Score Prépa
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 pb-2.5 space-y-2">
 
-        {/* Ligne 1 : score + statut + badge + métriques clés */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 shrink-0">
-            <div className={`text-2xl font-bold ${scoreColorClass}`}>{score}</div>
-            <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-none">Score prépa</p>
-              <p className={`text-xs font-semibold ${scoreColorClass}`}>{statusText}</p>
-            </div>
+        {/* Score + badge + statut */}
+        <div className="flex items-center gap-2">
+          <span className={`text-2xl font-bold leading-none ${scoreColorClass}`}>{score}</span>
+          <div className="flex flex-col gap-0.5">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wide leading-none">/ 100</p>
+            <p className={`text-[11px] font-semibold leading-none ${scoreColorClass}`}>{statusText}</p>
           </div>
-          <Badge className={`text-xs px-2 py-0.5 border shrink-0 ${badgeClass}`}>
+          <Badge className={`text-[10px] px-1.5 py-0 border ml-auto shrink-0 ${badgeClass}`}>
             {score >= 80 ? "🟢 Prêt" : score >= 60 ? "🟡 Attention" : "🔴 Repos"}
           </Badge>
-          {/* Métriques inline */}
-          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs ml-auto">
-            <span className="text-muted-foreground">⚡ sRPE <span className="font-medium text-foreground">{weeklyLoadUA > 0 ? `${Math.round(weeklyLoadUA)} UA` : "—"}</span></span>
-            <span className={`text-muted-foreground`}>ACWR <span className={`font-medium ${acwrColor}`}>{acwr !== null ? acwr.toFixed(2) : "—"}</span></span>
-            <span className="text-muted-foreground">Mono <span className={`font-medium ${monotonyColor}`}>{monotony.toFixed(2)}</span></span>
-            {latestLog && <>
-              <span className="text-muted-foreground">😴 Fatigue <span className={`font-medium ${fatigueColor}`}>{latestLog.score_total}/28</span></span>
-              <span className="text-muted-foreground">Sommeil <span className="font-medium">{latestLog.sommeil}/7</span></span>
-            </>}
-            {!latestLog && <span className="text-muted-foreground italic">Aucun questionnaire récent</span>}
+        </div>
+
+        {/* Métriques clés — grille 2×2 */}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
+          <span className="text-muted-foreground">sRPE <span className="font-medium text-foreground">{weeklyLoadUA > 0 ? `${Math.round(weeklyLoadUA)} UA` : "—"}</span></span>
+          <span className="text-muted-foreground">ACWR <span className={`font-medium ${acwrColor}`}>{acwr !== null ? acwr.toFixed(2) : "—"}</span></span>
+          <span className="text-muted-foreground">Mono <span className={`font-medium ${monotonyColor}`}>{monotony.toFixed(2)}</span></span>
+          {latestLog
+            ? <span className="text-muted-foreground">Fatigue <span className={`font-medium ${fatigueColor}`}>{latestLog.score_total}/28</span></span>
+            : <span className="text-muted-foreground italic">Pas de Hooper</span>}
+        </div>
+
+        {/* Dernière séance + activité */}
+        {(lastSession || daysSinceLastSession < 999) && (
+          <div className="text-[10px] text-muted-foreground truncate">
+            {lastSession && <span>⚡ {lastSession.name}{lastSession.rpe ? ` · RPE ${lastSession.rpe}` : ""} · </span>}
+            <span>{daysSinceLastSession === 0 ? "Aujourd'hui ✅" : daysSinceLastSession === 1 ? "Hier" : `Il y a ${daysSinceLastSession}j`}</span>
           </div>
-        </div>
+        )}
 
-        {/* Ligne 2 : activité + dernière séance + alertes */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          {/* Badges activité */}
-          {totalSessions7Count > 0 && (["course", "velo", "natation", "renfo", "recup", "perso"] as SportKey[]).map((sport) => {
-            const text = buildBadgeText(sport);
-            if (!text) return null;
-            return (
-              <span key={sport} className="inline-flex items-center bg-background/60 border border-border rounded-full px-2 py-0.5 font-medium">
-                {text}
-              </span>
-            );
-          })}
-          {/* Dernière séance */}
-          {lastSession && (
-            <span className="text-muted-foreground">
-              ⚡ {lastSession.name}
-              {lastSession.duration && lastSession.duration > 0 && ` · ${lastSessionDurationStr}`}
-              {lastSession.rpe && ` · RPE ${lastSession.rpe}`}
-            </span>
-          )}
-          <span>
-            {daysSinceLastSession === 0 ? "Séance aujourd'hui ✅"
-              : daysSinceLastSession === 1 ? "Dernière séance hier"
-              : daysSinceLastSession < 999 ? `Dernière séance il y a ${daysSinceLastSession}j`
-              : ""}
-          </span>
-        </div>
-
-        {/* Alertes compactes */}
+        {/* Alertes */}
         {alerts.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="space-y-1">
             {alerts.map((alert, i) => (
-              <div key={i} className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg ${
-                alert.level === "red"
-                  ? "bg-red-500/10 text-red-500 border border-red-500/20"
-                  : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+              <div key={i} className={`flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded ${
+                alert.level === "red" ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
               }`}>
                 <AlertTriangle className="h-3 w-3 shrink-0" />
-                {alert.message}
+                <span className="truncate">{alert.message}</span>
               </div>
             ))}
           </div>
