@@ -1223,6 +1223,7 @@ export default function Comptabilite() {
                               <p className="text-sm text-muted-foreground mt-1">≈ {(Math.abs(bal) * 60).toFixed(0)} €</p>
                             </>;
                           })()}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
