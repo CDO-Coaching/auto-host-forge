@@ -4123,36 +4123,49 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-2">
-          <div className="max-w-4xl mx-auto space-y-2">
-            {/* Barre Score Prépa — fine, pleine largeur */}
-            {athlete && (
-              <CoachAthleteStatusCard
-                athleteId={athleteId!}
-                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-              />
-            )}
-            {/* Analyse du jour — collapsible */}
-            <DailyDebriefCard athleteId={athleteId!} />
-            {/* État de forme + Zones FC côte à côte */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {/* ── Ligne 1 : Score Prépa pleine largeur ── */}
+          {athlete && (
+            <CoachAthleteStatusCard
+              athleteId={athleteId!}
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+          {/* ── Ligne 2 : Analyse du jour collapsible ── */}
+          <DailyDebriefCard athleteId={athleteId!} />
+          {/* ── Grille principale 3 colonnes ── */}
+          {athlete ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              {/* Col 1 : État de forme */}
               <AthleteReadinessCard athleteId={athleteId!} />
-              <WeeklyHRZonesCard athleteId={athleteId!} />
-            </div>
-            {/* Course à pied / Vélo */}
-            {athlete && (
+              {/* Col 2 : Répartition FC + Évolution fatigue */}
+              <div className="space-y-2">
+                <WeeklyHRZonesCard athleteId={athleteId!} />
+                <CoachClientSummaryView
+                  athleteId={athleteId!}
+                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+                  column="left"
+                />
+              </div>
+              {/* Col 3 : Séances */}
               <CoachClientSummaryView
                 athleteId={athleteId!}
                 athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+                column="right"
               />
-            )}
-            {/* Alerte SFMS */}
-            {athlete && (
-              <CoachSfmsAlert
-                athleteId={athleteId!}
-                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-              />
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <AthleteReadinessCard athleteId={athleteId!} />
+              <WeeklyHRZonesCard athleteId={athleteId!} />
+            </div>
+          )}
+          {/* ── Alerte SFMS pleine largeur ── */}
+          {athlete && (
+            <CoachSfmsAlert
+              athleteId={athleteId!}
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>

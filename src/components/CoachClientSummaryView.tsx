@@ -14,6 +14,8 @@ import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialo
 interface CoachClientSummaryViewProps {
   athleteId: string;
   athleteName: string;
+  /** Render only one column: "left" (fatigue/cardio), "right" (sessions), or "full" (default, both) */
+  column?: "left" | "right" | "full";
 }
 
 // Primary source (used by athlete Fatigue page)
@@ -71,7 +73,7 @@ type InjuryPoint = {
   douleur: number;
 };
 
-export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSummaryViewProps) {
+export function CoachClientSummaryView({ athleteId, athleteName, column = "full" }: CoachClientSummaryViewProps) {
   const [fatiguePoints, setFatiguePoints] = useState<FatiguePoint[]>([]);
   const [injuryPoints, setInjuryPoints] = useState<InjuryPoint[]>([]);
   const [latestInjury, setLatestInjury] = useState<{ location: string | null; level: number | null } | null>(null);
@@ -356,11 +358,8 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
     </div>
   );
 
-  return (
-    <>
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
-      {/* LEFT COLUMN: Fatigue chart + Injury + Objectives */}
-      <div className="space-y-3">
+  const leftColumn = (
+    <div className="space-y-3">
         {/* Fatigue score chart */}
         <Card className="overflow-hidden">
           <CardHeader className="pb-1 pt-3 px-3">
@@ -468,26 +467,38 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
             </CardContent>
           </Card>
         )}
-      </div>
-
-      {/* RIGHT COLUMN: Sessions */}
-      <div className="space-y-3">
-        <Card>
-          <CardHeader className="pb-1 pt-3 px-3">
-            <CardTitle className="text-xs flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5" />
-              Séances
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 space-y-4">
-            {renderSessionCompact(currentWeekSessions, `S${currentWeekNumber} — en cours`, completedCurrent)}
-            <div className="border-t pt-3">{renderSessionCompact(previousWeekSessions, `S${previousWeekNumber} — précédente`, completedPrevious)}</div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
+  );
 
-    {/* Dialog séance perso — utilise CustomSessionDetailDialog pour afficher toutes les données */}
+  const rightColumn = (
+    <div className="space-y-3">
+      <Card>
+        <CardHeader className="pb-1 pt-3 px-3">
+          <CardTitle className="text-xs flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            Séances
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-3 pb-3 space-y-4">
+          {renderSessionCompact(currentWeekSessions, `S${currentWeekNumber} — en cours`, completedCurrent)}
+          <div className="border-t pt-3">{renderSessionCompact(previousWeekSessions, `S${previousWeekNumber} — précédente`, completedPrevious)}</div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  return (
+    <>
+    {column === "left" && leftColumn}
+    {column === "right" && rightColumn}
+    {column === "full" && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
+        {leftColumn}
+        {rightColumn}
+      </div>
+    )}
+
+    {/* Dialogs */}
     <CustomSessionDetailDialog
       session={selectedCustomSessionDetail ? {
         id: selectedCustomSessionDetail.id,
