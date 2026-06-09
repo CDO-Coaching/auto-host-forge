@@ -35,6 +35,7 @@ interface DebriefData {
   // Sessions semaine
   sessionsThisWeek: number;
   sessionsDoneThisWeek: number;
+  sessionsWithRpe: number; // nb séances avec RPE sur 7 jours → fiabilité monotonie
 }
 
 interface DebriefSection {
@@ -107,19 +108,26 @@ function generateDebrief(d: DebriefData): DebriefSection[] {
     }
   }
 
-  // 2. Monotonie
+  // 2. Monotonie — seulement si données suffisantes (≥4 séances avec RPE sur 7j)
+  const monotonyReliable = d.sessionsWithRpe >= 4;
   if (d.monotony !== null) {
-    if (d.monotony >= 2) {
+    if (!monotonyReliable) {
+      sections.push({
+        icon: "info",
+        title: `Monotonie — données insuffisantes (${d.sessionsWithRpe}/7 séances avec RPE)`,
+        text: `L'indice de monotonie (${d.monotony.toFixed(2)}) est calculé sur seulement ${d.sessionsWithRpe} séance${d.sessionsWithRpe > 1 ? "s" : ""} avec RPE renseigné cette semaine. Ce chiffre n'est pas fiable avec moins de 4 points de données. Pour activer cet indicateur, pense à renseigner le RPE après chaque séance.`,
+      });
+    } else if (d.monotony >= 2) {
       sections.push({
         icon: "warn",
         title: "Monotonie trop élevée",
-        text: `L'indice de monotonie est de ${d.monotony.toFixed(2)} (seuil critique : 2.0). Cela signifie que les séances sont trop similaires en intensité jour après jour, sans alternance suffisante entre effort et récupération. Une monotonie élevée augmente le risque de surentraînement même si la charge totale n'est pas excessive. Recommandation : varier les intensités, intégrer des séances légères entre les séances chargées.`,
+        text: `L'indice de monotonie est de ${d.monotony.toFixed(2)} (seuil critique : 2.0), calculé sur ${d.sessionsWithRpe} séances avec RPE. Les séances sont trop similaires en intensité jour après jour, sans alternance suffisante. Recommandation : varier les intensités, intégrer des séances légères entre les séances chargées.`,
       });
     } else if (d.monotony >= 1.5) {
       sections.push({
         icon: "info",
         title: "Monotonie à surveiller",
-        text: `La monotonie est de ${d.monotony.toFixed(2)}, en zone orange (1.5–2.0). Les séances manquent un peu de variation d'intensité. Pas alarmant, mais il serait bien d'alterner davantage les charges.`,
+        text: `La monotonie est de ${d.monotony.toFixed(2)} (${d.sessionsWithRpe} séances avec RPE). Zone orange (1.5–2.0) : les séances manquent un peu de variation d'intensité. Alterner davantage les charges serait bénéfique.`,
       });
     }
   }
@@ -283,10 +291,11 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
   const chronicAvg = chronicLoads.length ? chronicLoads.reduce((a, b) => a + b, 0) / 28 : null;
   const acwr = acuteAvg !== null && chronicAvg && chronicAvg > 0 ? Math.round((acuteAvg / chronicAvg) * 100) / 100 : null;
 
-  // Monotonie (std des 7j)
+  // Monotonie (std des 7j) — uniquement sur séances avec RPE
   const weekLoads = sessions
     .filter(s => new Date(s.completed_at) >= new Date(iso(7)))
     .map(getLoad).filter((v): v is number => v !== null);
+  const sessionsWithRpe = weekLoads.length; // nombre de séances avec RPE cette semaine
   let monotony: number | null = null;
   if (weekLoads.length >= 2) {
     const mean = weekLoads.reduce((a, b) => a + b, 0) / weekLoads.length;
@@ -349,7 +358,7 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
     sfmsDate: sfmsRow?.completed_at ?? null,
     hasKarvonen, z1pct, z2pct, z3pct, z4pct, z5pct, totalHRSec,
     stravaRunCount, stravaRunKm,
-    sessionsThisWeek, sessionsDoneThisWeek,
+    sessionsThisWeek, sessionsDoneThisWeek, sessionsWithRpe,
   };
 }
 
@@ -363,7 +372,9 @@ async function fetchAIAdvice(data: DebriefData): Promise<string> {
 
   const context = [
     data.acwr !== null ? `ACWR: ${data.acwr.toFixed(2)} (${data.acwr > 1.5 ? "critique" : data.acwr > 1.3 ? "élevé" : data.acwr < 0.8 ? "bas" : "optimal"})` : null,
-    data.monotony !== null ? `Monotonie: ${data.monotony.toFixed(2)}${data.monotony >= 2 ? " ⚠️ critique" : ""}` : null,
+    data.monotony !== null
+      ? `Monotonie: ${data.monotony.toFixed(2)}${data.sessionsWithRpe < 4 ? ` ⚠️ NON FIABLE (seulement ${data.sessionsWithRpe} séances avec RPE sur 7j, minimum requis: 4)` : data.monotony >= 2 ? " ⚠️ critique" : ""}`
+      : null,
     data.weeklyLoadUA ? `Charge semaine: ${Math.round(data.weeklyLoadUA)} UA` : null,
     data.lastHooper ? `Hooper: ${data.lastHooper.score_total}/28 — fatigue ${data.lastHooper.fatigue}/7, sommeil ${data.lastHooper.sommeil}/7, stress ${data.lastHooper.stress}/7, courbatures ${data.lastHooper.courbatures}/7` : "Hooper: pas de données",
     data.sfmsScore !== null ? `SFMS: ${data.sfmsScore}/54${data.sfmsScore >= 35 ? " ⚠️ zone alerte" : ""}` : null,
