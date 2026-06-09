@@ -78,6 +78,7 @@ import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
 import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
 import { AthleteReadinessCard } from "@/components/AthleteReadinessCard";
+import { DailyDebriefCard } from "@/components/DailyDebriefCard";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
@@ -4130,6 +4131,8 @@ export default function ClientDetail() {
                 athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
               />
             )}
+            {/* Analyse du jour — collapsible */}
+            <DailyDebriefCard athleteId={athleteId!} />
             {/* État de forme + Zones FC côte à côte */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <AthleteReadinessCard athleteId={athleteId!} />
