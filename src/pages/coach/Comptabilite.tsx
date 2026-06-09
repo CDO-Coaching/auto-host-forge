@@ -572,14 +572,23 @@ export default function Comptabilite() {
     sessionsPaid: entries.reduce((sum, e) => sum + e.sessions_paid, 0)
   };
 
-  // Impayés : solde global négatif (séances faites > payées sur toute la période)
-  const debtorsCount = Object.values(globalBalances).filter(b => b.balance < 0).length;
-  const debtorsList = entries.filter(e => {
+  // Séances réalisées CE MOIS non couvertes (par le paiement du mois + le crédit reporté).
+  // Les crédits se reportent (cumul positif), mais un impayé = déficit du mois courant
+  // non absorbé par un éventuel crédit antérieur.
+  const monthlyUncovered = (e: AccountingEntry) => {
     const key = e.client_id || e.external_client_id;
-    return key && (globalBalances[key]?.balance ?? 0) < 0;
-  });
+    const balanceAll = key ? (globalBalances[key]?.balance ?? 0) : 0;
+    const creditBefore = balanceAll - ((e.sessions_paid || 0) - (e.sessions_done || 0));
+    const needing = Math.max(0, (e.sessions_done || 0) - (e.sessions_paid || 0));
+    const covered = Math.min(needing, Math.max(0, creditBefore));
+    return needing - covered; // > 0 = impayé ce mois
+  };
 
-  // Crédits prépayés : solde global positif (client a payé des séances pas encore réalisées)
+  // Impayés : déficit du mois courant non couvert par le crédit
+  const debtorsList = entries.filter(e => monthlyUncovered(e) > 0);
+  const debtorsCount = debtorsList.length;
+
+  // Crédits prépayés : solde global positif (client a payé plus de séances qu'il n'en a faites)
   const creditsList = Object.entries(globalBalances)
     .filter(([, b]) => b.balance > 0)
     .map(([id, b]) => ({ id, ...b }))
@@ -885,21 +894,46 @@ export default function Comptabilite() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Input
-                                type="number"
-                                min="0"
-                                value={entry.sessions_paid || ""}
-                                onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
-                                className="w-20 text-center"
-                              />
+                              {(() => {
+                                const key = entry.client_id || entry.external_client_id;
+                                const balanceAll = key ? (globalBalances[key]?.balance ?? 0) : 0;
+                                // Crédit disponible AVANT ce mois = solde global − (payé − réalisé du mois courant)
+                                const creditBefore = balanceAll - ((entry.sessions_paid || 0) - (entry.sessions_done || 0));
+                                // Séances réalisées ce mois couvertes par le crédit reporté
+                                const coveredByCredit = Math.max(0, Math.min(
+                                  (entry.sessions_done || 0) - (entry.sessions_paid || 0),
+                                  Math.max(0, creditBefore)
+                                ));
+                                if (coveredByCredit > 0) {
+                                  // Auto-rempli depuis le crédit : lecture seule + détail
+                                  return (
+                                    <div className="flex flex-col items-center gap-0.5">
+                                      <div className="w-20 text-center rounded-md border border-green-500/40 bg-green-500/10 py-1.5 text-sm font-semibold text-green-400">
+                                        {(entry.sessions_paid || 0) + coveredByCredit}
+                                      </div>
+                                      <span className="text-[10px] text-green-400/80 whitespace-nowrap">dont {coveredByCredit} via crédit</span>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    value={entry.sessions_paid || ""}
+                                    onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
+                                    className="w-20 text-center"
+                                  />
+                                );
+                              })()}
                             </TableCell>
                             <TableCell className="text-center">
                               {(() => {
                                 const key = entry.client_id || entry.external_client_id;
-                                const bal = key ? (globalBalances[key]?.balance ?? null) : null;
-                                if (bal === null) return <span className="text-muted-foreground text-xs">—</span>;
+                                if (!key) return <span className="text-muted-foreground text-xs">—</span>;
+                                const bal = globalBalances[key]?.balance ?? 0;
+                                const uncovered = monthlyUncovered(entry);
+                                if (uncovered > 0) return <span className="text-red-400 font-semibold text-sm">-{uncovered} impayé</span>;
                                 if (bal > 0) return <span className="text-green-400 font-semibold text-sm">+{bal} crédit</span>;
-                                if (bal < 0) return <span className="text-red-400 font-semibold text-sm">{bal} impayé</span>;
                                 return <span className="text-muted-foreground text-xs">✓ soldé</span>;
                               })()}
                             </TableCell>
@@ -1211,16 +1245,15 @@ export default function Comptabilite() {
                             <AlertCircle className="h-5 w-5 text-orange-600" />
                             <h3 className="font-semibold text-lg">{debtor.client_name}</h3>
                           </div>
-                          <p className="text-xs text-muted-foreground">Solde cumulé toutes périodes</p>
+                          <p className="text-xs text-muted-foreground">Déficit du mois (non couvert par le crédit)</p>
                         </div>
                         <div className="text-right">
                           {(() => {
-                            const key = debtor.client_id || debtor.external_client_id;
-                            const bal = key ? (globalBalances[key]?.balance ?? 0) : 0;
+                            const uncovered = monthlyUncovered(debtor);
                             return <>
                               <p className="text-sm text-muted-foreground">Séances impayées</p>
-                              <p className="text-2xl font-bold text-orange-600">{Math.abs(bal)}</p>
-                              <p className="text-sm text-muted-foreground mt-1">≈ {(Math.abs(bal) * 60).toFixed(0)} €</p>
+                              <p className="text-2xl font-bold text-orange-600">{uncovered}</p>
+                              <p className="text-sm text-muted-foreground mt-1">≈ {(uncovered * 60).toFixed(0)} €</p>
                             </>;
                           })()}
                         </div>

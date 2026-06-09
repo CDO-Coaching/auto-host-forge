@@ -710,9 +710,9 @@ export function CoachRunningView({
       )}
 
       {/* Graphiques */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               Distance par semaine
               <InfoButton text="Évolution des km par semaine. Règle des 10% : ne pas augmenter de plus de 10%/semaine pour éviter les blessures. Barres jaunes = semaine en cours de programmation." />
@@ -726,8 +726,8 @@ export function CoachRunningView({
               </p>
             )}
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={150}>
               <BarChart data={mergedCardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
@@ -778,7 +778,7 @@ export function CoachRunningView({
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               Durée par semaine
               <InfoButton text="Cumul du temps de course par semaine. Même règle des 10% que pour la distance." />
@@ -792,8 +792,8 @@ export function CoachRunningView({
               </p>
             )}
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={150}>
               <BarChart data={mergedCardioSessions} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
@@ -848,17 +848,17 @@ export function CoachRunningView({
       </div>
 
       {/* Graphiques des retours sportif */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               Allure moyenne par semaine
               <InfoButton text="Allure réalisée vs programmée. Une allure plus rapide que prévue indique que les zones sont peut-être sous-estimées ou que l'athlète force." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Données saisies par le sportif</p>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={150}>
               <LineChart data={cardioSessions.filter(s => s.actualAveragePace)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -905,15 +905,15 @@ export function CoachRunningView({
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               FC moyenne par semaine
               <InfoButton text="Fréquence cardiaque moyenne réalisée. Comparée à la FC max, elle indique l'intensité réelle de l'entraînement." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Fréquence cardiaque moyenne</p>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={150}>
               <LineChart data={cardioSessions.filter(s => s.actualAverageHeartRate)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -954,15 +954,15 @@ export function CoachRunningView({
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               RPE moyen par semaine
               <InfoButton text="Perception subjective de l'effort (1-10). < 6 = léger, 6-8 = modéré, > 8 = élevé. Fiable si l'athlète renseigne systématiquement après chaque séance." />
             </CardTitle>
             <p className="text-sm text-muted-foreground">Effort perçu</p>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={150}>
               <LineChart data={cardioSessions.filter(s => s.actualAverageRpe)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
@@ -1009,7 +1009,7 @@ export function CoachRunningView({
         if (srpeData.length === 0) return null;
         return (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="flex items-center gap-2 flex-wrap">
                 Charge d'entraînement hebdo (sRPE)
                 <InfoButton text="Charge = Σ(Durée × RPE) par séance. Méthode validée scientifiquement (Foster 2001). Zone cible : 800-1200 UA/semaine pour un athlète entraîné. ⚠️ Fiable uniquement si le RPE est renseigné après chaque séance." />
@@ -1026,8 +1026,8 @@ export function CoachRunningView({
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+            <CardContent className="px-4 pb-4">
+              <ResponsiveContainer width="100%" height={150}>
                 <BarChart data={srpeData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
@@ -1061,13 +1061,13 @@ export function CoachRunningView({
         if (edwardsData.length === 0) {
           return (
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2 pt-4 px-4">
                 <CardTitle className="flex items-center gap-2">
                   Charge Edwards (zones cardiaques)
                   <InfoButton text="Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava." />
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-4 pb-4">
                 <p className="text-sm text-muted-foreground">Connectez Strava pour voir la charge Edwards</p>
               </CardContent>
             </Card>
@@ -1075,15 +1075,15 @@ export function CoachRunningView({
         }
         return (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="flex items-center gap-2">
                 Charge Edwards (zones cardiaques)
                 <InfoButton text="Score basé sur le temps dans chaque zone cardiaque : Z1×1 + Z2×2 + Z3×3 + Z4×4 + Z5×5. Plus précis que le sRPE car objectif. Nécessite un capteur FC connecté à Strava." />
               </CardTitle>
               <p className="text-xs text-muted-foreground">Score = Σ(min en zone × multiplicateur : Z1×1, Z2×2, Z3×3, Z4×4, Z5×5)</p>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+            <CardContent className="px-4 pb-4">
+              <ResponsiveContainer width="100%" height={150}>
                 <BarChart data={edwardsData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} barSize={20}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
@@ -1149,14 +1149,14 @@ export function CoachRunningView({
 
         return (
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="flex items-center gap-2">
                 Répartition des zones d'intensité par semaine
                 <InfoButton text="Distribution idéale : 80% du temps en Z1-Z2 (vert) et 20% en Z3-Z5. Si trop de Z3-Z4 (jaune) = entraînement 'gris' risquant la fatigue chronique sans progression optimale." />
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
+            <CardContent className="px-4 pb-4">
+              <ResponsiveContainer width="100%" height={150}>
                 <BarChart data={stackedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }} barSize={30}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="week" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
@@ -1217,19 +1217,19 @@ export function CoachRunningView({
           </Card>
           <Card className="bg-yellow-500/5 border-yellow-500/20">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Séances prévues</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{plannedVolume.sessionCount}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+            <CardContent className="px-4 pb-4"><div className="text-2xl font-bold">{plannedVolume.sessionCount}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
           </Card>
           <Card className="bg-yellow-500/5 border-yellow-500/20">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Distance prévue</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{plannedVolume.distanceKm.toFixed(1)} km</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+            <CardContent className="px-4 pb-4"><div className="text-2xl font-bold">{plannedVolume.distanceKm.toFixed(1)} km</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
           </Card>
           <Card className="bg-yellow-500/5 border-yellow-500/20">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Durée prévue</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{Math.floor(plannedVolume.durationMinutes / 60)}h{Math.round(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+            <CardContent className="px-4 pb-4"><div className="text-2xl font-bold">{Math.floor(plannedVolume.durationMinutes / 60)}h{Math.round(plannedVolume.durationMinutes % 60).toString().padStart(2, '0')}</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
           </Card>
           <Card className="bg-yellow-500/5 border-yellow-500/20">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-yellow-600">Intensité prévue</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-bold">{plannedVolume.averageIntensity}% VMA</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
+            <CardContent className="px-4 pb-4"><div className="text-2xl font-bold">{plannedVolume.averageIntensity}% VMA</div><p className="text-xs text-muted-foreground">Cette semaine</p></CardContent>
           </Card>
         </div>
       )}
@@ -1244,7 +1244,7 @@ export function CoachRunningView({
             </CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold">{totalWeeks}</div>
             <p className="text-xs text-muted-foreground">
               Total de semaines complétées
@@ -1260,7 +1260,7 @@ export function CoachRunningView({
             </CardTitle>
             <MapPin className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold text-green-600">{totalActualDistance.toFixed(1)} km</div>
             <p className="text-xs text-muted-foreground">
               Réalisé · Prévu: {totalPlannedDistance.toFixed(1)} km
@@ -1276,7 +1276,7 @@ export function CoachRunningView({
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold text-green-600">
               {Math.floor(totalActualDuration / 60)}h{Math.round(totalActualDuration % 60).toString().padStart(2, '0')}
             </div>
@@ -1294,7 +1294,7 @@ export function CoachRunningView({
             </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="text-2xl font-bold text-green-600">{Math.round(avgActualIntensity)}% VMA</div>
             <p className="text-xs text-muted-foreground">
               Réalisé · Prévu: {Math.round(avgPlannedIntensity)}% VMA

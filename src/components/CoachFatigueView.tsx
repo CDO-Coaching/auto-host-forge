@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, Activity } from "lucide-react";
+import { AlertCircle, TrendingUp, Activity, ChevronDown } from "lucide-react";
 import { InfoButton } from "@/components/InfoButton";
 import { FatigueDetailedCharts } from "@/components/FatigueDetailedCharts";
 import { CoachSfmsRequestToggle } from "@/components/CoachSfmsRequestToggle";
@@ -65,6 +65,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   const [hasInjuryTracking, setHasInjuryTracking] = useState(false);
   const [monotonyData, setMonotonyData] = useState<MonotonyData | null>(null);
   const [acwrData, setAcwrData] = useState<{ acwr: number | null; acute: number; chronic: number; daysWithData: number } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     loadFatigueLogs();
@@ -111,24 +112,43 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
       const weekIds = (weeks || []).map(w => w.id);
 
-      if (weekIds.length === 0) {
+      const sinceISO = startOfDay(thirtyFiveDaysAgo).toISOString();
+      const untilISO = endOfDay(today).toISOString();
+
+      // Récupérer en parallèle : séances programmées (training_sessions) + séances perso (custom_sessions)
+      const [trainingRes, customRes] = await Promise.all([
+        weekIds.length > 0
+          ? supabase
+              .from("training_sessions")
+              .select("id, completed_at, duration_minutes, session_rpe")
+              .in("week_id", weekIds)
+              .not("completed_at", "is", null)
+              .gte("completed_at", sinceISO)
+              .lte("completed_at", untilISO)
+          : Promise.resolve({ data: [], error: null } as any),
+        supabase
+          .from("custom_sessions")
+          .select("id, completed_at, duration_minutes, session_rpe")
+          .eq("user_id", athleteId)
+          .not("completed_at", "is", null)
+          .gte("completed_at", sinceISO)
+          .lte("completed_at", untilISO),
+      ]);
+
+      if (trainingRes.error) throw trainingRes.error;
+      if (customRes.error) throw customRes.error;
+
+      // Fusionner les deux sources (mêmes champs : completed_at, duration_minutes, session_rpe)
+      const sessions = [
+        ...((trainingRes.data || []) as TrainingSession[]),
+        ...((customRes.data || []) as any[]),
+      ] as TrainingSession[];
+
+      if (sessions.length === 0) {
         setMonotonyData(null);
         setAcwrData(null);
         return;
       }
-
-      // Récupérer les sessions des 35 derniers jours via week_id
-      const { data, error } = await supabase
-        .from("training_sessions")
-        .select("id, completed_at, duration_minutes, session_rpe")
-        .in("week_id", weekIds)
-        .not("completed_at", "is", null)
-        .gte("completed_at", startOfDay(thirtyFiveDaysAgo).toISOString())
-        .lte("completed_at", endOfDay(today).toISOString());
-
-      if (error) throw error;
-
-      const sessions = (data || []) as TrainingSession[];
 
       // Calculer les charges journalières pour tous les 35 jours
       const allDailyLoadsMap = new Map<string, { load: number; sessions: number }>();
@@ -234,6 +254,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
           : log.has_injury === false
             ? 0
             : null,
+      injuryLocation: log.injury_location ?? null,
     }));
 
   // Inclure les entrées avec douleur active OU douleur terminée (niveau 0)
@@ -255,10 +276,10 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       <div className="space-y-4">
         <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle>Aucune donnée</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <p className="text-muted-foreground">
               {athleteName} n'a pas encore enregistré de données de fatigue.
             </p>
@@ -323,24 +344,25 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
   })();
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 items-start">
       {/* Score de préparation */}
       {readinessScore && (
         <Card className={
+          "lg:col-span-3 md:col-span-2 " + (
           readinessScore.score >= 80 ? "border-green-500/50 bg-green-500/5" :
           readinessScore.score >= 60 ? "border-orange-500/50 bg-orange-500/5" :
-          "border-red-500/50 bg-red-500/5"
+          "border-red-500/50 bg-red-500/5")
         }>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Score de préparation
               <InfoButton text="Score synthétique 0-100 combinant : ACWR (30%), Monotonie (25%), Fatigue subjective (25%), Sommeil (20%). ⚠️ Nécessite au moins 4 semaines de données et ≥ 4 jours/semaine de saisie pour être fiable. Un score élevé avec peu de données n'est pas significatif." />
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="flex items-center gap-6 mb-4 flex-wrap">
-              <p className={`text-5xl font-bold ${
+              <p className={`text-3xl font-bold ${
                 readinessScore.score >= 80 ? "text-green-500" :
                 readinessScore.score >= 60 ? "text-orange-500" :
                 "text-red-500"
@@ -379,7 +401,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                 { label: "Fatigue", score: readinessScore.fatigueScore, weight: "25%" },
                 { label: "Sommeil", score: readinessScore.sommeilScore, weight: "20%" },
               ].map(({ label, score, weight }) => (
-                <div key={label} className="text-center p-3 rounded-lg bg-muted/50">
+                <div key={label} className="text-center p-2 rounded-lg bg-muted/50 text-sm">
                   <p className={`text-xl font-bold ${
                     score >= 80 ? "text-green-500" :
                     score >= 60 ? "text-orange-500" :
@@ -394,17 +416,19 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         </Card>
       )}
 
-      <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
+      <div className="lg:col-span-3 md:col-span-2">
+        <CoachSfmsRequestToggle athleteId={athleteId} athleteName={athleteName} />
+      </div>
 
       {recentHighFatigue.length > 0 && (
         <Card className="border-orange-500/50 bg-orange-500/5">
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2 text-orange-600">
               <AlertCircle className="h-5 w-5" />
               Alertes fatigue élevée
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <p className="text-sm text-muted-foreground mb-3">
               {athleteName} a signalé un niveau de fatigue élevé (score &gt; 20) ces derniers jours :
             </p>
@@ -423,14 +447,14 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       )}
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="flex items-center gap-2">
             Évolution du score de fatigue
             <InfoButton text="Score Cooper 28 (questionnaire Hooper) : 4 items × 7 points max = 28. Score < 12 = bien récupéré, 12-20 = fatigue modérée, > 20 = fatigue élevée. Fiable si renseigné chaque matin avant l'entraînement." />
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
+        <CardContent className="px-4 pb-4">
+          <ResponsiveContainer width="100%" height={150}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis 
@@ -465,14 +489,14 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
 
       {hasInjuryTracking && injuryLogs.length > 0 && (
         <Card className="border-destructive/30">
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-destructive" />
               Blessures / Douleurs signalées
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
+          <CardContent className="px-4 pb-4">
+            <ResponsiveContainer width="100%" height={140}>
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                 <XAxis 
@@ -486,16 +510,28 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                   tick={{ fill: 'hsl(var(--muted-foreground))' }}
                 />
                 <RechartsTooltip
-                  contentStyle={{
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '6px',
+                  content={({ active, payload, label }: any) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload;
+                    if (d.injury == null) return null;
+                    return (
+                      <div className="bg-card border border-border rounded-md px-3 py-2 text-xs shadow-lg">
+                        <p className="font-medium mb-0.5">{label}</p>
+                        <p className="text-destructive">Niveau de douleur : {d.injury}/7</p>
+                        {d.injuryLocation && d.injury !== 0 && (
+                          <p className="text-muted-foreground mt-0.5">📍 {d.injuryLocation}</p>
+                        )}
+                        {d.injury === 0 && (
+                          <p className="text-green-500 mt-0.5">Douleur terminée</p>
+                        )}
+                      </div>
+                    );
                   }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="injury" 
-                  stroke="hsl(var(--destructive))" 
+                <Line
+                  type="monotone"
+                  dataKey="injury"
+                  stroke="hsl(var(--destructive))"
                   strokeWidth={2}
                   dot={{ fill: 'hsl(var(--destructive))' }}
                   name="Niveau de douleur"
@@ -535,7 +571,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       {/* ACWR */}
       {acwrData && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               ACWR — Ratio Charge Aiguë / Chronique
               <InfoButton text="Ratio charge des 7 derniers jours / charge des 28 derniers jours (basé sur sRPE). Zone verte 0.8-1.3 = optimal. ⚠️ Nécessite 21 jours de séances avec RPE renseigné pour être fiable. En reprise d'arrêt ou blessure, l'ACWR peut monter brutalement : c'est normal, mais c'est aussi là que le risque de rechute est le plus élevé." />
@@ -553,7 +589,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
               </Badge>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             {/* B. Seuil minimum : au moins 7 jours de séances avec RPE */}
             {acwrData.daysWithData < 7 ? (
               <div className="flex items-center gap-3 p-4 rounded-lg bg-red-500/10 border border-red-500/20">
@@ -568,11 +604,11 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <div className="text-center p-2 rounded-lg bg-muted/50 text-sm">
                     <p className="text-2xl font-bold">{acwrData.acute.toFixed(0)}</p>
                     <p className="text-xs text-muted-foreground">Charge 7j (UA)</p>
                   </div>
-                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                  <div className="text-center p-2 rounded-lg bg-muted/50 text-sm">
                     <p className="text-2xl font-bold">{acwrData.chronic.toFixed(0)}</p>
                     <p className="text-xs text-muted-foreground">Charge chronique (UA)</p>
                   </div>
@@ -605,7 +641,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
       {/* Indice de Monotonie */}
       {monotonyData && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               <Activity className="h-5 w-5 text-primary" />
               Indice de Monotonie (7 derniers jours)
@@ -615,15 +651,15 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
           <CardContent className="space-y-6">
             {/* Métriques principales */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-lg bg-muted/50 text-center">
+              <div className="p-4 rounded-lg bg-muted/50 text-sm text-center">
                 <p className="text-2xl font-bold text-primary">{monotonyData.weeklyLoad.toFixed(0)}</p>
                 <p className="text-xs text-muted-foreground">Charge hebdo (UA)</p>
               </div>
-              <div className="p-4 rounded-lg bg-muted/50 text-center">
+              <div className="p-4 rounded-lg bg-muted/50 text-sm text-center">
                 <p className="text-2xl font-bold text-primary">{monotonyData.meanLoad.toFixed(0)}</p>
                 <p className="text-xs text-muted-foreground">Charge moy./jour</p>
               </div>
-              <div className="p-4 rounded-lg bg-muted/50 text-center">
+              <div className="p-4 rounded-lg bg-muted/50 text-sm text-center">
                 <p className={`text-2xl font-bold ${
                   monotonyData.monotony > 2 ? 'text-destructive' : 
                   monotonyData.monotony > 1.5 ? 'text-orange-500' : 'text-green-500'
@@ -632,7 +668,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
                 </p>
                 <p className="text-xs text-muted-foreground">Monotonie</p>
               </div>
-              <div className="p-4 rounded-lg bg-muted/50 text-center">
+              <div className="p-4 rounded-lg bg-muted/50 text-sm text-center">
                 <p className={`text-2xl font-bold ${
                   monotonyData.strain > 6000 ? 'text-destructive' : 
                   monotonyData.strain > 4000 ? 'text-orange-500' : 'text-green-500'
@@ -656,7 +692,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             {/* Graphique de l'évolution de la monotonie */}
             <div>
               <p className="text-sm font-medium mb-2">Évolution de la monotonie (14 derniers jours)</p>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={130}>
                 <LineChart data={monotonyData.monotonyHistory.map(d => ({
                   ...d,
                   date: format(new Date(d.date), "dd/MM", { locale: fr }),
@@ -749,13 +785,23 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
         </Card>
       )}
 
-      <FatigueDetailedCharts logs={logs} />
+      <div className="lg:col-span-3 md:col-span-2">
+        <FatigueDetailedCharts logs={logs} />
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Historique détaillé (30 derniers jours)</CardTitle>
+      <Card className="lg:col-span-3 md:col-span-2">
+        <CardHeader className="pb-2 pt-4 px-4">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((v) => !v)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <CardTitle>Historique détaillé (30 derniers jours)</CardTitle>
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+          </button>
         </CardHeader>
-        <CardContent>
+        {historyOpen && (
+        <CardContent className="px-4 pb-4">
           <Table>
             <TableHeader>
               <TableRow>
@@ -801,6 +847,7 @@ export function CoachFatigueView({ athleteId, athleteName }: CoachFatigueViewPro
             </TableBody>
           </Table>
         </CardContent>
+        )}
       </Card>
     </div>
   );

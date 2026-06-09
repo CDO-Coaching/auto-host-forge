@@ -75,6 +75,8 @@ interface CycleSetupGateProps {
   athleteName: string;
   onComplete: () => void;
   onNavigateToObjectives?: () => void;
+  /** Fermeture temporaire : masque le gate pour cette visite (réapparaît au prochain chargement de la page). */
+  onDismiss?: () => void;
 }
 
 type Step = "macro" | "meso" | "done";
@@ -349,7 +351,7 @@ function MesoForm({ form, onChange }: { form: MesoFormData; onChange: (f: MesoFo
 // ─── Composant principal ──────────────────────────────────────────────────────
 
 export function CycleSetupGate({
-  athleteId, athleteName, onComplete, onNavigateToObjectives,
+  athleteId, athleteName, onComplete, onNavigateToObjectives, onDismiss,
 }: CycleSetupGateProps) {
   const [step, setStep] = useState<Step>("macro");
   const [macroForm, setMacroForm] = useState<MacroFormData>(defaultMacroForm(24));
@@ -541,11 +543,11 @@ export function CycleSetupGate({
     : 0;
 
   return (
-    <Dialog open modal>
+    <Dialog open modal onOpenChange={(o) => { if (!o) onDismiss?.(); }}>
       <DialogContent
         className="max-w-2xl w-[95vw] max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden"
         onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => { if (!onDismiss) e.preventDefault(); }}
       >
         {/* Header */}
         <DialogHeader className="px-6 py-5 border-b border-border/40 shrink-0">
@@ -781,6 +783,15 @@ export function CycleSetupGate({
                   className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
                   Gérer dans Objectifs →
+                </button>
+              )}
+              {!showAiChat && onDismiss && (
+                <button
+                  type="button"
+                  onClick={onDismiss}
+                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                >
+                  Plus tard
                 </button>
               )}
             </div>

@@ -28,7 +28,7 @@ interface ExerciseFilterComboboxProps {
 }
 
 // Exercices prioritaires à afficher en premier
-const PRIORITY_EXERCISES = [
+export const PRIORITY_EXERCISES = [
   "DEV COUCHÉ",
   "BACK SQUAT",
   "SOULEVÉ DE TERRE",

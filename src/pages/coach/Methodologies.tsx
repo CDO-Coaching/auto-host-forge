@@ -11,9 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Pencil, Trash2, BookOpen, X, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw, Sparkles, Table2 } from "lucide-react";
-import { MethodologyAIChat } from "@/components/MethodologyAIChat";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Plus, Search, Pencil, Trash2, BookOpen, FileText, Dumbbell, Heart, Zap, Brain, RotateCcw, Table2, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // ── Rendu markdown simple (titres, listes, tableaux, gras) ───────────────────
 function MarkdownContent({ content }: { content: string }) {
@@ -21,16 +20,28 @@ function MarkdownContent({ content }: { content: string }) {
   const elements: React.ReactNode[] = [];
   let i = 0;
 
+  // Ligne de séparation d'un tableau markdown : | --- | --- | (espaces tolérés)
+  const isTableSeparator = (l: string | undefined) =>
+    !!l && /^\s*\|(\s*:?-+:?\s*\|)+\s*$/.test(l);
+
   while (i < lines.length) {
     const line = lines[i];
 
     // Tableau markdown
-    if (line.startsWith("|") && i + 1 < lines.length && lines[i + 1]?.startsWith("|---")) {
-      const headers = line.split("|").filter(Boolean).map(h => h.trim());
+    if (line.trimStart().startsWith("|") && isTableSeparator(lines[i + 1])) {
+      // Découpe une ligne de tableau en cellules sans supprimer les cellules vides
+      // internes (on retire seulement les bords créés par les | extérieurs).
+      const splitRow = (l: string) => {
+        const parts = l.trim().split("|");
+        if (parts.length && parts[0].trim() === "") parts.shift();
+        if (parts.length && parts[parts.length - 1].trim() === "") parts.pop();
+        return parts.map(c => c.trim());
+      };
+      const headers = splitRow(line);
       i += 2; // saute la ligne de séparation
       const rows: string[][] = [];
-      while (i < lines.length && lines[i].startsWith("|")) {
-        rows.push(lines[i].split("|").filter(Boolean).map(c => c.trim()));
+      while (i < lines.length && lines[i].trimStart().startsWith("|")) {
+        rows.push(splitRow(lines[i]));
         i++;
       }
       elements.push(
@@ -120,7 +131,6 @@ export default function Methodologies() {
   const [selectedDoc, setSelectedDoc] = useState<Doc | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [editing, setEditing] = useState<Doc | null>(null);
-  const [showAIChat, setShowAIChat] = useState(false);
 
   // Form state
   const [formTitle, setFormTitle] = useState("");
@@ -140,15 +150,20 @@ export default function Methodologies() {
       let markdown = "";
       for (const sheetName of wb.SheetNames) {
         const ws = wb.Sheets[sheetName];
-        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        let rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+        rows = rows.map((r) => (r as any[]).map((c) => String(c ?? "").trim()));
+        const isEmptyRow = (r: string[]) => r.every((c) => c === "");
+        while (rows.length && isEmptyRow(rows[0])) rows.shift();
+        while (rows.length && isEmptyRow(rows[rows.length - 1])) rows.pop();
         if (!rows.length) continue;
+        const nCols = Math.max(...rows.map((r) => r.length));
+        const pad = (r: string[]) => Array.from({ length: nCols }, (_, i) => (r[i] ?? "").replace(/\|/g, "/"));
         if (wb.SheetNames.length > 1) markdown += `## ${sheetName}\n\n`;
-        const headers = rows[0] as string[];
+        const headers = pad(rows[0]);
         markdown += "| " + headers.join(" | ") + " |\n";
         markdown += "| " + headers.map(() => "---").join(" | ") + " |\n";
         for (const row of rows.slice(1)) {
-          const cells = headers.map((_, i) => String((row as any[])[i] ?? ""));
-          markdown += "| " + cells.join(" | ") + " |\n";
+          markdown += "| " + pad(row as string[]).join(" | ") + " |\n";
         }
         markdown += "\n";
       }
@@ -245,22 +260,29 @@ export default function Methodologies() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-bold">Bibliothèque de méthodes</h1>
+            <h1 className="text-lg font-bold">Bibliothèque de méthodes d'entraînement</h1>
           </div>
           <div className="flex gap-2">
             <input ref={excelFileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleExcelImport} />
-            <Button size="sm" variant="outline" onClick={() => excelFileRef.current?.click()}>
-              <Table2 className="h-4 w-4 mr-1" />
-              Excel
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowAIChat(true)}>
-              <Sparkles className="h-4 w-4 mr-1" />
-              IA
-            </Button>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" />
-              Nouveau
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nouveau
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={openCreate}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Écrire un document
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => excelFileRef.current?.click()}>
+                  <Table2 className="h-4 w-4 mr-2" />
+                  Importer un tableur (Excel/CSV)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -328,9 +350,6 @@ export default function Methodologies() {
                     </div>
                   </CardHeader>
                   <CardContent className="px-4 pb-4">
-                    <p className="text-xs text-muted-foreground line-clamp-3 mb-2">
-                      {doc.content || "Aucun contenu"}
-                    </p>
                     {doc.tags?.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {doc.tags.slice(0, 3).map(tag => (
@@ -394,43 +413,6 @@ export default function Methodologies() {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Sheet chat IA */}
-      <Sheet open={showAIChat} onOpenChange={setShowAIChat}>
-        <SheetContent side="right" className="w-full sm:w-[480px] p-0 flex flex-col">
-          <SheetHeader className="px-4 py-3 border-b border-border shrink-0">
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" />
-              Créer une fiche avec l'IA
-            </SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-hidden">
-            <MethodologyAIChat
-              onDocumentGenerated={async (doc) => {
-                const tags = doc.tags || [];
-                const { error } = await supabase
-                  .from("coach_resource_docs" as any)
-                  .insert({
-                    coach_id: user?.id,
-                    title: doc.title,
-                    content: doc.content,
-                    category: doc.category,
-                    tags,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  });
-                if (error) {
-                  toast.error("Erreur lors de l'enregistrement");
-                } else {
-                  toast.success("Fiche enregistrée dans la bibliothèque !");
-                  setShowAIChat(false);
-                  loadDocs();
-                }
-              }}
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
 
       {/* Dialog création / édition */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

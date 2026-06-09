@@ -35,6 +35,7 @@ import {
   Footprints,
   BookOpen,
   Bot,
+  Gauge,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,7 +57,9 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { CoachMaxesView } from "@/components/CoachMaxesView";
-import { TrainingZonesCard } from "@/components/TrainingZonesCard";
+import { VmaCard } from "@/components/VmaCard";
+import { RaceTimeEstimatesCard } from "@/components/RaceTimeEstimatesCard";
+import { AerobicEfficiencyCard } from "@/components/AerobicEfficiencyCard";
 import { PerformanceTestsCard } from "@/components/PerformanceTestsCard";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
 import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
@@ -230,6 +233,8 @@ export default function ClientDetail() {
   const [athleteMesocycles, setAthleteMesocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   const [athleteMacrocycles, setAthleteMacrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; sport?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
+  // Fermeture temporaire du gate de cycles (non persistée : réapparaît au rechargement de la page)
+  const [cycleGateDismissed, setCycleGateDismissed] = useState(false);
   const [deleteCycleConfirm, setDeleteCycleConfirm] = useState<{ table: "mesocycles" | "microcycles"; id: string; name: string } | null>(null);
   const [isDeletingCycle, setIsDeletingCycle] = useState(false);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
@@ -248,7 +253,7 @@ export default function ClientDetail() {
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
-  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon">("course");
+  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon" | "physio">("course");
   const [sessionTemplates, setSessionTemplates] = useState<Array<{ id: string; name: string; session_type: string; cardio_sport: string | null }>>([]);
   const [selectedCardioSport, setSelectedCardioSport] = useState<"course" | "velo" | "natation">("course");
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
@@ -4114,7 +4119,6 @@ export default function ClientDetail() {
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
-              <TabsTrigger value="methodologies" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Méthodo</TabsTrigger>
               <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
             </TabsList>
           </div>
@@ -4707,11 +4711,12 @@ export default function ClientDetail() {
               (c) => today >= new Date(c.start_date) && today <= new Date(c.end_date)
             );
             console.log("[CycleGate] macrocycles:", athleteMacrocycles.length, "hasActiveMacro:", hasActiveMacro, athleteMacrocycles.map(c => `${c.name} (${c.start_date}→${c.end_date})`));
-            if (!hasActiveMacro) {
+            if (!hasActiveMacro && !cycleGateDismissed) {
               return (
                 <CycleSetupGate
                   athleteId={athleteId!}
                   athleteName={athlete?.first_name || "l'athlète"}
+                  onDismiss={() => setCycleGateDismissed(true)}
                   onComplete={async () => {
                     // Recharger les cycles après création
                     const [macroRes, mesoRes, microRes] = await Promise.all([
@@ -5347,6 +5352,14 @@ export default function ClientDetail() {
               <Activity className="h-4 w-4 mr-2" />
               Triathlon
             </Button>
+            <Button
+              variant={selectedEffortType === "physio" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("physio")}
+            >
+              <Gauge className="h-4 w-4 mr-2" />
+              Physiologie
+            </Button>
           </div>
 
           {/* Contenu selon le type sélectionné */}
@@ -5380,9 +5393,20 @@ export default function ClientDetail() {
               athleteName={athlete.first_name || "l'athlète"}
             />
           )}
+          {selectedEffortType === "physio" && (
+            <div className="space-y-4">
+              <VmaCard
+                athleteId={athleteId!}
+                isCoachView={true}
+                onVmaUpdate={() => window.location.reload()}
+              />
+              <RaceTimeEstimatesCard athleteId={athleteId!} isCoachView={true} />
+              <AerobicEfficiencyCard athleteId={athleteId!} />
+            </div>
+          )}
 
           {/* Séances perso */}
-          {coachCustomSessions.length > 0 && (
+          {selectedEffortType !== "physio" && coachCustomSessions.length > 0 && (
             <div className="space-y-3 mt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Séances personnelles ({coachCustomSessions.length})</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -5427,12 +5451,12 @@ export default function ClientDetail() {
             athleteId={athleteId!}
             athleteName={athlete.first_name || "l'athlète"}
           />
-          <TrainingZonesCard athleteId={athleteId!} />
           <PerformanceTestsCard
             athleteId={athleteId!}
             onVmaUpdated={(vma) => setAthleteVma(vma)}
           />
         </TabsContent>
+
 
         <TabsContent value="suivi" className="space-y-4">
           <CoachFatigueView 
@@ -5452,13 +5476,6 @@ export default function ClientDetail() {
           <CoachObjectivesView 
             athleteId={athleteId!} 
             athleteName={athlete.first_name || "l'athlète"} 
-          />
-        </TabsContent>
-
-        <TabsContent value="methodologies" className="space-y-4">
-          <CoachAthleteMethodologies
-            athleteId={athleteId!}
-            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
           />
         </TabsContent>
 

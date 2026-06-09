@@ -35,7 +35,9 @@ interface DebriefData {
   // Sessions semaine
   sessionsThisWeek: number;
   sessionsDoneThisWeek: number;
-  sessionsWithRpe: number; // nb séances avec RPE sur 7 jours → fiabilité monotonie
+  sessionsWithRpe: number;
+  // Répartition types de séances (21 derniers jours)
+  sessionTypes: { type: string; count: number }[];
   // Douleur / blessure
   injury: { location: string; level: number; date: string } | null;
 }
@@ -245,7 +247,7 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
   weekStart.setDate(now.getDate() - now.getDay() + 1);
   weekStart.setHours(0, 0, 0, 0);
 
-  const [statusData, hoopers, sfms, strava, weekSessions, customSessions, injuryData] = await Promise.all([
+  const [statusData, hoopers, sfms, strava, weekSessions, customSessions, injuryData, sessionTypesData, customTypesData] = await Promise.all([
     // Fetch status card data (ACWR, monotony, score)
     supabase.from("training_sessions" as any)
       .select("completed_at, session_rpe, duration_minutes, training_weeks!inner(athlete_id)")
@@ -288,6 +290,18 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
       .gte("date", isoDate(7))
       .order("date", { ascending: false })
       .limit(1),
+    // Types de séances (21 derniers jours) — programmées
+    supabase.from("training_sessions" as any)
+      .select("session_type, completed_at, training_weeks!inner(athlete_id)")
+      .eq("training_weeks.athlete_id", athleteId)
+      .not("completed_at", "is", null)
+      .gte("completed_at", iso(21)),
+    // Types de séances (21 derniers jours) — custom
+    supabase.from("custom_sessions" as any)
+      .select("session_type, completed_at")
+      .eq("user_id", athleteId)
+      .not("completed_at", "is", null)
+      .gte("completed_at", iso(21)),
   ]);
 
   // Calcul ACWR
@@ -369,6 +383,39 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
     hasKarvonen, z1pct, z2pct, z3pct, z4pct, z5pct, totalHRSec,
     stravaRunCount, stravaRunKm,
     sessionsThisWeek, sessionsDoneThisWeek, sessionsWithRpe,
+    sessionTypes: (() => {
+      // Labels lisibles par type
+      const LABELS: Record<string, string> = {
+        cardio: "Cardio course",
+        renfo: "Renforcement musculaire",
+        recup: "Récupération",
+        velo: "Cardio vélo",
+        natation: "Natation",
+        hiit: "HIIT",
+        yoga: "Yoga / mobilité",
+        autre: "Autre",
+      };
+      const counts: Record<string, number> = {};
+      const allRows = [
+        ...((sessionTypesData.data ?? []) as any[]),
+        ...((customTypesData.data ?? []) as any[]),
+      ];
+      // Ajoute aussi les activités Strava (course / vélo)
+      for (const r of (strava.data ?? []) as any[]) {
+        const t = r.sport_type === "Run" || r.sport_type === "TrailRun" ? "cardio"
+          : r.sport_type === "Ride" || r.sport_type === "VirtualRide" ? "velo"
+          : r.sport_type === "Swim" ? "natation"
+          : null;
+        if (t) counts[t] = (counts[t] ?? 0) + 1;
+      }
+      for (const r of allRows) {
+        const t = (r.session_type ?? "autre").toLowerCase();
+        counts[t] = (counts[t] ?? 0) + 1;
+      }
+      return Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([type, count]) => ({ type: LABELS[type] ?? type, count }));
+    })(),
     injury: (() => {
       const row = ((injuryData.data ?? []) as any[])[0];
       if (!row || !row.has_injury || !row.injury_level) return null;
@@ -400,18 +447,40 @@ async function fetchAIAdvice(data: DebriefData): Promise<string> {
     data.sfmsScore !== null ? `SFMS: ${data.sfmsScore}/54${data.sfmsScore >= 35 ? " ⚠️ zone alerte" : ""}` : null,
     data.stravaRunCount > 0 ? `Course: ${data.stravaRunCount} sorties, ${data.stravaRunKm.toFixed(1)} km cette semaine` : "Aucune sortie Strava cette semaine",
     data.totalHRSec > 0 ? `Zones FC: ${Math.round(data.z1pct + data.z2pct + data.z3pct)}% basse intensité, ${Math.round(data.z4pct + data.z5pct)}% haute intensité` : null,
+    data.sessionTypes && data.sessionTypes.length > 0
+      ? `Répartition séances (21j): ${data.sessionTypes.map(s => `${s.type} ×${s.count}`).join(", ")}`
+      : null,
   ].filter(Boolean).join("\n");
 
-  const prompt = `Tu es un coach sportif expert en préparation physique et en entraînement. Voici les données du jour d'un athlète :
+  const prompt = `Tu es un préparateur physique et rééducateur expert (10+ ans, polyvalent : course, vélo, natation, renforcement, sports de raquette), formé à la médecine du sport moderne et à la gestion de charge. Tu analyses les données d'un athlète pour lui donner un débrief structuré, précis et actionnable.
 
+--- DONNÉES ATHLÈTE ---
 ${context}
+--- FIN DES DONNÉES ---
 
-Donne un conseil général de coaching court, pratique et bienveillant en français (3-4 phrases maximum).
-- Commence directement par le conseil, sans introduction comme "Voici mon conseil".
-- Si une blessure/douleur est signalée, elle doit être centrale dans ton conseil (adapter l'entraînement, zones à éviter, précautions spécifiques au lieu de la douleur).
-- Sois précis sur ce que l'athlète devrait faire ou éviter cette semaine.
-- Tiens compte de tous les signaux disponibles, pas seulement d'un seul.
-- Utilise un ton de coach, direct mais encourageant.`;
+PRINCIPES DE RÉFÉRENCE À APPLIQUER (médecine du sport actuelle) :
+1. RÉÉDUCATION ACTIVE, PAS ÉVITEMENT. Une blessure de surcharge (périostite, tendinopathie, fasciite, etc.) guérit par une REMISE EN CHARGE PROGRESSIVE du tissu touché, pas par le repos total ni en "travaillant ailleurs". Le tissu (os, tendon) a besoin d'un stimulus mécanique pour s'adapter. Le travail clé cible le muscle/tendon impliqué (ex: périostite tibiale → renforcement progressif du mollet/triceps sural et du tibial postérieur en charge, mollets debout et assis, excentriques). "Préserver la force ailleurs" ou "mobilité sans impact" = entretien, PAS traitement — ne propose jamais ça comme levier principal d'une blessure de surcharge.
+2. SEUIL DE DOULEUR TOLÉRÉ. La charge est acceptable tant que la douleur reste faible (≤ 3/10) PENDANT l'effort ET se calme dans les 24 h. Au-dessus, on réduit. C'est ce critère qui pilote la progression, pas l'absence totale de douleur.
+3. CRITÈRES DE REPRISE EXPLICITES. Toujours dire QUAND et COMMENT réintroduire l'activité incriminée (progression du volume, fréquence, intensité), pas seulement "réduis et surveille".
+4. CAUSES À INVESTIGUER. Une blessure de surcharge est souvent le symptôme d'un surmenage global ou d'un défaut technique/matériel : pic de charge récent, volume/cadence de course, surface, chaussures (usure, drop), contrôle/stabilité de la cheville. Mentionne les pistes pertinentes.
+5. DRAPEAUX ROUGES JUSTES. Pour une blessure osseuse de surcharge, le vrai signal d'alerte est une douleur sur un POINT PRÉCIS de l'os, qui s'aggrave à l'effort et persiste/réveille la NUIT ou au repos → suspicion de fracture de fatigue, arrêt et imagerie. N'invente pas de signes peu probables (un gonflement visible est rare sur une périostite).
+
+Rédige un débrief de coaching en français, structuré en 3 blocs distincts. Ne mets PAS de titre de section comme "Bloc 1" — écris directement le contenu. Sépare chaque bloc par une ligne vide.
+
+BLOC 1 — Lecture de la situation (2-3 phrases)
+Synthétise ce que les données révèlent. Interprète les signaux ensemble (charge, récupération, douleur, monotonie, zones FC) et, en cas de blessure, relie-la au contexte global (surmenage ? pic de charge ?). Traduis les chiffres en état réel, ne les répète pas bruts.
+
+BLOC 2 — Ce que tu recommandes concrètement (3-5 points)
+Actions précises pour cette semaine, en appliquant les principes ci-dessus. Si une blessure est signalée : nomme les exercices de remise en charge du tissu touché, donne le seuil de douleur toléré, dis ce qui est autorisé vs interdit, et énonce des critères concrets pour reprendre l'activité incriminée. Si une répartition de séances est disponible, oriente selon les disciplines (ex: "remplace les séances de course par du renforcement ciblé du mollet + vélo sans douleur").
+
+BLOC 3 — Signal d'alerte à surveiller (1-2 phrases max)
+Le ou les signes concrets et JUSTES (cf. principe 5) qui doivent déclencher une consultation ou un arrêt. Direct, sans alarmisme.
+
+Règles absolues :
+- Commence directement par le contenu du bloc 1, sans intro du type "Voici mon analyse".
+- Ton de coach : direct, bienveillant, factuel. Pas de conditionnel excessif.
+- Si les données sont insuffisantes sur un point, dis-le en une demi-phrase et passe à la suite — n'invente pas.
+- Longueur totale : 160 à 260 mots.`;
 
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -420,7 +489,7 @@ Donne un conseil général de coaching court, pratique et bienveillant en franç
       model: "llama-3.3-70b-versatile",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.7,
-      max_tokens: 200,
+      max_tokens: 450,
     }),
   });
 
@@ -553,8 +622,12 @@ export function DailyDebriefCard({ athleteId }: Props) {
                 )}
 
                 {aiAdvice && !aiLoading && (
-                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-md px-3 py-2">
-                    <p className="text-xs text-foreground/90 leading-relaxed">{aiAdvice}</p>
+                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-md px-3 py-2.5 space-y-2">
+                    {aiAdvice.split(/\n\n+/).map((para, i) => (
+                      <p key={i} className="text-xs text-foreground/90 leading-relaxed">
+                        {para.replace(/\n/g, " ")}
+                      </p>
+                    ))}
                   </div>
                 )}
 

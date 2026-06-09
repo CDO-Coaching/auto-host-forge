@@ -305,7 +305,9 @@ export function StravaActivityMatcher({ athleteId, currentWeekSessions, onLinked
         .from("training_sessions")
         .update({
           linked_strava_activity_id: selectedActivity.strava_activity_id,
-          completed_at: new Date().toISOString(),
+          // Date de RÉALISATION de l'activité Strava (pas la date d'import) :
+          // sinon la charge/monotonie/ACWR sont attribuées au mauvais jour.
+          completed_at: new Date(selectedActivity.start_date).toISOString(),
           session_rpe: rpeNum,
           duration_minutes: durationMin,
         })

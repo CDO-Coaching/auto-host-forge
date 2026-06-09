@@ -22,6 +22,8 @@ interface MaxesListProps {
   onEdit?: (max: Max) => void;
   onDelete?: (id: string) => void;
   readOnly?: boolean;
+  /** Affichage en petites cartes sur une grille (tient à l'écran sans scroll). */
+  compact?: boolean;
 }
 
 const muscleColors: Record<string, string> = {
@@ -34,7 +36,7 @@ const muscleColors: Record<string, string> = {
   Cardio: "bg-pink-500/10 text-pink-500 border-pink-500/20",
 };
 
-export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps) {
+export function MaxesList({ maxes, onEdit, onDelete, readOnly, compact }: MaxesListProps) {
   const calculatePercentages = (weight: number) => {
     return {
       "70%": Math.round(weight * 0.7 * 2) / 2,
@@ -50,6 +52,54 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly }: MaxesListProps)
           Aucun max enregistré pour le moment
         </CardContent>
       </Card>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {maxes.map((max) => {
+          const improvement = max.previous_weight ? max.weight_kg - max.previous_weight : 0;
+          return (
+            <Card key={max.id} className="group hover:shadow-md transition-shadow h-fit">
+              <CardContent className="p-3 space-y-1">
+                <div className="flex items-start justify-between gap-1">
+                  <h3 className="font-semibold text-xs uppercase leading-tight line-clamp-2 flex-1">
+                    {max.exercise_name}
+                  </h3>
+                  {!readOnly && (onEdit || onDelete) && (
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      {onEdit && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onEdit(max)}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {onDelete && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDelete(max.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-primary leading-none">{max.weight_kg}</span>
+                  <span className="text-xs text-muted-foreground">kg</span>
+                  {improvement > 0 && (
+                    <Badge className="bg-green-500/10 text-green-500 border-green-500/20 ml-auto text-[10px] px-1 py-0 h-4">
+                      +{improvement}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                  <span>{max.max_type}</span>
+                  <span>{format(new Date(max.recorded_at), "dd MMM yy", { locale: fr })}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     );
   }
 

@@ -22,7 +22,7 @@ import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 
-type TestType = "cooper" | "5km" | "10km" | "vma_direct" | "autre";
+type TestType = "cooper" | "vaussenat" | "5km" | "10km" | "vma_direct" | "autre";
 
 interface PerformanceTest {
   id: string;
@@ -40,14 +40,22 @@ interface PerformanceTestsCardProps {
 
 const TEST_LABELS: Record<TestType, string> = {
   cooper: "Cooper (12 min)",
+  vaussenat: "Test Vaussenat (paliers)",
   "5km": "Chrono 5 km",
   "10km": "Chrono 10 km",
   vma_direct: "VMA directe (piste)",
   autre: "Autre test",
 };
 
+// Types proposés à la saisie : uniquement de VRAIS tests de VMA.
+// Les chronos 5/10 km sont des tests de performance (suivis dans l'onglet Course),
+// pas des tests de VMA fiables → non proposés ici. Les anciens enregistrements
+// restent affichés grâce à TEST_LABELS.
+const SELECTABLE_TYPES: TestType[] = ["cooper", "vaussenat", "vma_direct", "autre"];
+
 const TEST_UNITS: Record<TestType, string> = {
   cooper: "Mètres parcourus",
+  vaussenat: "Vitesse du dernier palier (km/h)",
   "5km": "Temps (mm:ss)",
   "10km": "Temps (mm:ss)",
   vma_direct: "VMA (km/h)",
@@ -56,6 +64,7 @@ const TEST_UNITS: Record<TestType, string> = {
 
 const TEST_PLACEHOLDERS: Record<TestType, string> = {
   cooper: "Ex: 2800",
+  vaussenat: "Ex: 15.5",
   "5km": "Ex: 23:15",
   "10km": "Ex: 48:30",
   vma_direct: "Ex: 15.5",
@@ -65,7 +74,11 @@ const TEST_PLACEHOLDERS: Record<TestType, string> = {
 function computeVma(type: TestType, raw: number): number | null {
   if (raw <= 0) return null;
   switch (type) {
-    case "cooper": return Math.round((raw / 200) * 10) / 10;
+    // Cooper 12 min : la vitesse moyenne (dist/200) est tenue à ~95 % de la VMA
+    // sur 12 min → on corrige pour estimer la VMA réelle.
+    case "cooper": return Math.round((raw / 200) / 0.95 * 10) / 10;
+    // Test Vaussenat : test progressif sur piste, la vitesse du dernier palier complété = VMA
+    case "vaussenat": return Math.round(raw * 10) / 10;
     case "5km":    return Math.round((5000 / raw) * 3.6 / 0.95 * 10) / 10;
     case "10km":   return Math.round((10000 / raw) * 3.6 / 0.90 * 10) / 10;
     case "vma_direct":
@@ -129,6 +142,10 @@ export function PerformanceTestsCard({ athleteId, onVmaUpdated }: PerformanceTes
     setTestType(v);
     setRawInput("");
     setPreviewVma(null);
+    // Les chronos 5/10 km sont des tests de PERFORMANCE, pas de VMA : leur VMA
+    // estimée dépend de l'endurance et sous-estime souvent la VMA réelle.
+    // On ne propose donc pas d'écraser la VMA du profil par défaut pour ces tests.
+    setUpdateVma(v !== "5km" && v !== "10km");
   };
 
   const handleSave = async () => {
@@ -302,8 +319,8 @@ export function PerformanceTestsCard({ athleteId, onVmaUpdated }: PerformanceTes
               <Select value={testType} onValueChange={(v) => handleTypeChange(v as TestType)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(TEST_LABELS).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v}</SelectItem>
+                  {SELECTABLE_TYPES.map((k) => (
+                    <SelectItem key={k} value={k}>{TEST_LABELS[k]}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

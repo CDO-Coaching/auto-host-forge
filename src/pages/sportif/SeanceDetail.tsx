@@ -68,6 +68,8 @@ export default function SeanceDetail() {
   
   // État pour le dialog de validation de séance
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  // Empêche la réouverture automatique de la modale après que l'athlète l'a fermée
+  const [completionAutoOpened, setCompletionAutoOpened] = useState(false);
   
   // État pour le dialog de modification de séance
   const [editSessionDialogOpen, setEditSessionDialogOpen] = useState(false);
@@ -166,22 +168,31 @@ export default function SeanceDetail() {
   useEffect(() => {
     // Ne pas déclencher si la séance est déjà complétée ou si le dialog est déjà ouvert
     if (session?.completed_at || completionDialogOpen) return;
-    
-    const allExercisesCompleted = exercises.every(isExerciseCompleted);
-    
+
+    const allExercisesCompleted = exercises.length > 0 && exercises.every(isExerciseCompleted);
+
+    // Réarmer le déclencheur si la séance n'est plus complète (l'athlète a modifié un retour)
+    if (!allExercisesCompleted) {
+      if (completionAutoOpened) setCompletionAutoOpened(false);
+      return;
+    }
+
+    // Ne déclencher l'ouverture automatique qu'une seule fois : sinon, fermer la
+    // modale (croix / Annuler) la rouvrirait instantanément.
+    if (completionAutoOpened) return;
+
     // Pour les séances cardio: auto-compléter quand tous les exercices sont terminés (pas besoin de timer)
     const isCardio = session?.session_type === 'course' || session?.session_type === 'velo' || session?.session_type === 'natation' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
-    
-    if (allExercisesCompleted && exercises.length > 0) {
-      if (isCardio) {
-        // Pour cardio: auto-valider la séance directement
-        handleAutoCompleteCardioSession();
-      } else {
-        // Pour renfo/recup: toujours ouvrir le dialog de validation (avec ou sans timer)
-        setCompletionDialogOpen(true);
-      }
+
+    setCompletionAutoOpened(true);
+    if (isCardio) {
+      // Pour cardio: auto-valider la séance directement
+      handleAutoCompleteCardioSession();
+    } else {
+      // Pour renfo/recup: toujours ouvrir le dialog de validation (avec ou sans timer)
+      setCompletionDialogOpen(true);
     }
-  }, [exercises, isSessionActive, session, completionDialogOpen]);
+  }, [exercises, isSessionActive, session, completionDialogOpen, completionAutoOpened]);
 
   // Auto-complétion pour les séances cardio
   const handleAutoCompleteCardioSession = async () => {

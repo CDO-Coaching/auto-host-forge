@@ -743,7 +743,7 @@ export default function SupersetDetail() {
                       {prescribedCharge && !isChargeRequired && (
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground shrink-0">Charge (prévu: {prescribedCharge})</span>
-                          <Input value={rpeActualCharge} onChange={e => setRpeActualCharge(e.target.value)}
+                          <Input type="number" inputMode="decimal" value={rpeActualCharge} onChange={e => setRpeActualCharge(e.target.value)}
                             placeholder={prescribedCharge} className="h-7 text-sm flex-1 min-w-0" />
                         </div>
                       )}

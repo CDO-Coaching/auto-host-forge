@@ -349,11 +349,11 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
 
       {/* Graphique durée par semaine */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-base">Durée totale par semaine (min)</CardTitle>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
+        <CardContent className="px-4 pb-4">
+          <ResponsiveContainer width="100%" height={150}>
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="week" tick={{ fontSize: 12 }} />
@@ -387,7 +387,7 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
 
       {/* Graphique intensité avec répartition des zones */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2 pt-4 px-4">
           <CardTitle className="text-base">Répartition des zones d'intensité par semaine</CardTitle>
           <p className="text-sm text-muted-foreground">
             {intensityChartData.length >= 2 && intensityChartData[intensityChartData.length - 2]?.avgIntensity && intensityChartData[intensityChartData.length - 1]?.avgIntensity ? (
@@ -406,8 +406,8 @@ export function CoachTriathlonView({ athleteId, athleteName }: CoachTriathlonVie
             ) : null}
           </p>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={200}>
+        <CardContent className="px-4 pb-4">
+          <ResponsiveContainer width="100%" height={150}>
             <BarChart data={intensityChartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis dataKey="week" tick={{ fontSize: 12 }} />

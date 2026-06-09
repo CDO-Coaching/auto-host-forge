@@ -6,8 +6,7 @@ import { Plus, TrendingUp } from "lucide-react";
 import { MaxDialog } from "./MaxDialog";
 import { MaxesList } from "./MaxesList";
 import { MaxProgressChart } from "./MaxProgressChart";
-import { ExerciseFilterCombobox } from "./ExerciseFilterCombobox";
-import { VmaCard } from "./VmaCard";
+import { ExerciseFilterCombobox, PRIORITY_EXERCISES } from "./ExerciseFilterCombobox";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -198,6 +197,13 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
   }, {} as Record<string, Max>);
 
   const uniqueMaxes = Object.values(latestMaxes);
+
+  // Vue par défaut (aucun exercice sélectionné) : uniquement les exercices principaux,
+  // affichés en petites cartes. La recherche permet d'accéder à n'importe quel autre.
+  const showCompact = !filterExerciseId;
+  const displayedMaxes = showCompact
+    ? uniqueMaxes.filter((m) => PRIORITY_EXERCISES.includes(m.exercise_name.toUpperCase()))
+    : uniqueMaxes;
   
   // Si un exercice est sélectionné, charger automatiquement son chart
   useEffect(() => {
@@ -224,15 +230,6 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
 
   return (
     <div className="space-y-4">
-      <VmaCard 
-        athleteId={athleteId} 
-        isCoachView={true} 
-        onVmaUpdate={(vma) => {
-          // Force un reload des données
-          window.location.reload();
-        }}
-      />
-      
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold">Max de {athleteName}</h3>
@@ -248,13 +245,13 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
 
       {maxes.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2 pt-4 px-4">
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Statistiques
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-3xl font-bold text-primary">{uniqueMaxes.length}</div>
@@ -303,9 +300,10 @@ export function CoachMaxesView({ athleteId, athleteName }: CoachMaxesViewProps) 
         </Card>
       ) : (
         <MaxesList
-          maxes={uniqueMaxes}
+          maxes={displayedMaxes}
           onEdit={handleEditMax}
           onDelete={handleDeleteMax}
+          compact={showCompact}
         />
       )}
 

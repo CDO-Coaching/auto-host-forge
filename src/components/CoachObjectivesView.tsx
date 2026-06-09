@@ -818,7 +818,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   if (loading) return <div className="text-center py-8 text-muted-foreground">Chargement…</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
 
       {/* ── Alertes fin de cycle ──────────────────────────────────────── */}
       {cycleAlerts.length > 0 && (
@@ -852,7 +852,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardHeader>
         <CardContent>
           {milestones.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8 text-sm">Aucune date d'objectif pour le moment.</p>
+            <p className="text-center text-muted-foreground py-3 text-sm">Aucune date d'objectif pour le moment.</p>
           ) : (
             <div className="space-y-3">
               {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
