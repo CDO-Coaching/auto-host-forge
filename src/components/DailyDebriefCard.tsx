@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp, BookOpen, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ChevronDown, ChevronUp, BookOpen, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, Minus, Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -355,12 +355,60 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
 
 // ── Composant principal ───────────────────────────────────────────────────────
 
+// ── Groq AI conseil ───────────────────────────────────────────────────────────
+
+async function fetchAIAdvice(data: DebriefData): Promise<string> {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("Clé Groq manquante");
+
+  const context = [
+    data.acwr !== null ? `ACWR: ${data.acwr.toFixed(2)} (${data.acwr > 1.5 ? "critique" : data.acwr > 1.3 ? "élevé" : data.acwr < 0.8 ? "bas" : "optimal"})` : null,
+    data.monotony !== null ? `Monotonie: ${data.monotony.toFixed(2)}${data.monotony >= 2 ? " ⚠️ critique" : ""}` : null,
+    data.weeklyLoadUA ? `Charge semaine: ${Math.round(data.weeklyLoadUA)} UA` : null,
+    data.lastHooper ? `Hooper: ${data.lastHooper.score_total}/28 — fatigue ${data.lastHooper.fatigue}/7, sommeil ${data.lastHooper.sommeil}/7, stress ${data.lastHooper.stress}/7, courbatures ${data.lastHooper.courbatures}/7` : "Hooper: pas de données",
+    data.sfmsScore !== null ? `SFMS: ${data.sfmsScore}/54${data.sfmsScore >= 35 ? " ⚠️ zone alerte" : ""}` : null,
+    data.stravaRunCount > 0 ? `Course: ${data.stravaRunCount} sorties, ${data.stravaRunKm.toFixed(1)} km cette semaine` : "Aucune sortie Strava cette semaine",
+    data.totalHRSec > 0 ? `Zones FC: ${Math.round(data.z1pct + data.z2pct + data.z3pct)}% basse intensité, ${Math.round(data.z4pct + data.z5pct)}% haute intensité` : null,
+  ].filter(Boolean).join("\n");
+
+  const prompt = `Tu es un coach sportif expert en préparation physique et en entraînement. Voici les données du jour d'un athlète :
+
+${context}
+
+Donne un conseil général de coaching court, pratique et bienveillant en français (3-4 phrases maximum).
+- Commence directement par le conseil, sans introduction comme "Voici mon conseil".
+- Sois précis sur ce que l'athlète devrait faire ou éviter cette semaine.
+- Tiens compte de tous les signaux disponibles, pas seulement d'un seul.
+- Utilise un ton de coach, direct mais encourageant.`;
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 200,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Groq error ${res.status}`);
+  const json = await res.json();
+  return json.choices?.[0]?.message?.content?.trim() ?? "Conseil indisponible.";
+}
+
+// ── Composant ─────────────────────────────────────────────────────────────────
+
 interface Props { athleteId: string; }
 
 export function DailyDebriefCard({ athleteId }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sections, setSections] = useState<DebriefSection[] | null>(null);
+  const [rawData, setRawData] = useState<DebriefData | null>(null);
+  const [aiAdvice, setAiAdvice] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(false);
   const [dataDate] = useState(TODAY);
 
   // Lazy-load au premier clic
@@ -369,11 +417,30 @@ export function DailyDebriefCard({ athleteId }: Props) {
     let cancelled = false;
     setLoading(true);
     fetchDebriefData(athleteId, "")
-      .then(data => { if (!cancelled) setSections(generateDebrief(data)); })
+      .then(data => {
+        if (!cancelled) {
+          setSections(generateDebrief(data));
+          setRawData(data);
+        }
+      })
       .catch(() => { if (!cancelled) setSections([{ icon: "info", title: "Erreur", text: "Impossible de charger les données du débrief." }]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [open, athleteId, sections]);
+
+  const handleAIAdvice = async () => {
+    if (!rawData) return;
+    setAiLoading(true);
+    setAiError(false);
+    try {
+      const advice = await fetchAIAdvice(rawData);
+      setAiAdvice(advice);
+    } catch {
+      setAiError(true);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <Card className="overflow-hidden">
@@ -426,8 +493,50 @@ export function DailyDebriefCard({ athleteId }: Props) {
                   </div>
                 </div>
               ))}
-              <p className="text-[10px] text-muted-foreground/50 text-right pt-1 border-t border-border/30">
-                Analyse générée automatiquement · données mises à jour en temps réel
+
+              {/* ── Conseil IA ── */}
+              <div className="border-t border-border/40 pt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                    <span className="text-xs font-semibold">Conseil du coach IA</span>
+                    <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-violet-500/10 text-violet-400 border-0">Groq · llama3</Badge>
+                  </div>
+                  <button
+                    onClick={handleAIAdvice}
+                    disabled={aiLoading || !rawData}
+                    className="flex items-center gap-1 text-[10px] text-violet-400 hover:text-violet-300 disabled:opacity-40 transition-colors"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${aiLoading ? "animate-spin" : ""}`} />
+                    {aiAdvice ? "Régénérer" : "Générer"}
+                  </button>
+                </div>
+
+                {aiLoading && (
+                  <div className="space-y-1.5">
+                    <div className="h-2 w-full bg-muted animate-pulse rounded" />
+                    <div className="h-2 w-4/5 bg-muted animate-pulse rounded" />
+                    <div className="h-2 w-3/5 bg-muted animate-pulse rounded" />
+                  </div>
+                )}
+
+                {aiAdvice && !aiLoading && (
+                  <div className="bg-violet-500/5 border border-violet-500/20 rounded-md px-3 py-2">
+                    <p className="text-xs text-foreground/90 leading-relaxed">{aiAdvice}</p>
+                  </div>
+                )}
+
+                {aiError && !aiLoading && (
+                  <p className="text-[11px] text-destructive">Erreur lors de la génération. Réessaie.</p>
+                )}
+
+                {!aiAdvice && !aiLoading && !aiError && (
+                  <p className="text-[11px] text-muted-foreground/60 italic">Clique sur "Générer" pour obtenir un conseil personnalisé basé sur tes données.</p>
+                )}
+              </div>
+
+              <p className="text-[10px] text-muted-foreground/50 text-right border-t border-border/30 pt-1">
+                Analyse générée automatiquement · données temps réel
               </p>
             </div>
           )}
