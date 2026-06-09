@@ -38,15 +38,15 @@ const SIGNAL_ICONS: Record<SignalKey, typeof Activity> = {
 // ── Mini gauge SVG ─────────────────────────────────────────────────────────────
 
 function MiniGauge({ score, stroke }: { score: number | null; stroke: string }) {
-  const size = 80;
-  const sw = 8;
+  const size = 56;
+  const sw = 6;
   const r = (size - sw) / 2;
   const circ = 2 * Math.PI * r;
   const arc = circ * 0.75;
   const offset = arc * (1 - (score ?? 0) / 100);
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
       <g transform={`rotate(135 ${size / 2} ${size / 2})`}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor"
           className="text-border" strokeWidth={sw} strokeLinecap="round"
@@ -56,12 +56,12 @@ function MiniGauge({ score, stroke }: { score: number | null; stroke: string }) 
           strokeDasharray={`${arc} ${circ}`} strokeDashoffset={offset}
           style={{ transition: "stroke-dashoffset 0.6s ease" }} />
       </g>
-      <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle"
-        className="fill-foreground" style={{ fontSize: 18, fontWeight: 700 }}>
+      <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle"
+        className="fill-foreground" style={{ fontSize: 13, fontWeight: 700 }}>
         {score == null ? "—" : score}
       </text>
-      <text x="50%" y="66%" textAnchor="middle" dominantBaseline="middle"
-        className="fill-muted-foreground" style={{ fontSize: 9 }}>/100</text>
+      <text x="50%" y="64%" textAnchor="middle" dominantBaseline="middle"
+        className="fill-muted-foreground" style={{ fontSize: 7 }}>/100</text>
     </svg>
   );
 }
@@ -72,7 +72,7 @@ function SignalRow({ signal }: { signal: SignalResult }) {
   const Icon = SIGNAL_ICONS[signal.key];
   const pct = Math.round(signal.confidence * 100);
   return (
-    <div className="flex items-center gap-2 py-1">
+    <div className="flex items-center gap-1.5 py-0.5">
       <Icon className={`h-3.5 w-3.5 shrink-0 ${signal.available ? "text-foreground" : "text-muted-foreground/50"}`} />
       <span className={`text-xs flex-1 truncate ${signal.available ? "text-foreground" : "text-muted-foreground/60"}`}>
         {signal.label}
@@ -191,51 +191,45 @@ export function AthleteReadinessCard({ athleteId }: { athleteId: string }) {
   const isInsufficient = result.state === "insufficient";
 
   return (
-    <Card>
-      <CardHeader className="pb-2 pt-3 px-4">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Gauge className="h-4 w-4" /> État de forme
+    <Card className="h-fit">
+      <CardHeader className="pb-1 pt-2.5 px-3">
+        <CardTitle className="text-xs flex items-center gap-1.5">
+          <Gauge className="h-3.5 w-3.5" /> État de forme
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="px-4 pb-3 space-y-3">
-        {/* Ligne principale : gauge + badge + complétude + reco */}
-        <div className="flex gap-3 items-start">
+      <CardContent className="px-3 pb-2.5 space-y-2">
+        {/* Gauge + badge + complétude */}
+        <div className="flex gap-2.5 items-center">
           <MiniGauge score={result.score} stroke={style.stroke} />
-          <div className="flex-1 min-w-0 space-y-2">
-            <Badge className={`${style.bg} ${style.text} border-0 text-xs px-2 py-0.5`} variant="secondary">
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <Badge className={`${style.bg} ${style.text} border-0 text-[11px] px-1.5 py-0`} variant="secondary">
               {STATE_LABELS[result.state]}
             </Badge>
-            {/* Complétude */}
             <div>
               <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
-                <span>Complétude</span>
-                <span>{confPct}%</span>
+                <span>Complétude</span><span>{confPct}%</span>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-1 w-full rounded-full bg-muted overflow-hidden">
                 <div className={`h-full rounded-full ${style.text.replace("text-", "bg-")}`} style={{ width: `${confPct}%` }} />
               </div>
             </div>
-            {/* Recommandation courte */}
             {!isInsufficient && (
-              <p className="text-xs text-muted-foreground leading-snug line-clamp-2">{result.recommendation}</p>
-            )}
-            {isInsufficient && (
-              <p className="text-xs text-muted-foreground leading-snug">Compléter le suivi quotidien pour activer l'analyse.</p>
+              <p className="text-[10px] text-muted-foreground leading-snug line-clamp-1">{result.recommendation}</p>
             )}
           </div>
         </div>
 
-        {/* Override(s) */}
+        {/* Override */}
         {result.overrides.length > 0 && (
-          <div className="flex items-start gap-1.5 bg-red-500/10 border border-red-500/20 rounded-md p-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
-            <p className="text-[11px] text-red-400 leading-snug">{result.overrides[0].reason}</p>
+          <div className="flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+            <AlertTriangle className="h-3 w-3 text-red-400 shrink-0" />
+            <p className="text-[10px] text-red-400 leading-snug truncate">{result.overrides[0].reason}</p>
           </div>
         )}
 
-        {/* Signaux (séparateur fin) */}
-        <div className="divide-y divide-border/50">
+        {/* Signaux */}
+        <div className="divide-y divide-border/40">
           {result.signals.map(s => <SignalRow key={s.key} signal={s} />)}
         </div>
       </CardContent>
