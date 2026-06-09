@@ -177,7 +177,21 @@ const computeLoadSignal = (sessions: SessionInput[], now: Date): LoadComputation
     (s) => s.session_rpe != null && s.duration_minutes != null && s.duration_minutes > 0
   );
 
-  const confidence = clamp(valid.length / 8, 0, 1);
+  // Confiance adaptative selon le niveau d'engagement :
+  // - < 4 séances sur 28j  → confiance 0   (données insuffisantes)
+  // - 4-8 séances sur 28j  → confiance 0.1-0.4 (amateur peu régulier)
+  // - 8-15 séances sur 28j → confiance 0.4-0.7 (amateur régulier)
+  // - 15+ séances sur 28j  → confiance 0.7-1.0 (semi-pro / pro)
+  let confidence: number;
+  if (valid.length < 4) {
+    confidence = 0;
+  } else if (valid.length < 8) {
+    confidence = lerp(0.1, 0.4, (valid.length - 4) / 4);
+  } else if (valid.length < 15) {
+    confidence = lerp(0.4, 0.7, (valid.length - 8) / 7);
+  } else {
+    confidence = clamp(lerp(0.7, 1.0, (valid.length - 15) / 10), 0.7, 1.0);
+  }
 
   if (valid.length === 0) {
     return {
@@ -228,10 +242,17 @@ const computeLoadSignal = (sessions: SessionInput[], now: Date): LoadComputation
   }
   score = clamp(score, 0, 100);
 
+  const reliabilityNote =
+    valid.length < 8
+      ? ` (⚠️ fiabilité partielle — ${valid.length} séances avec RPE sur 28j)`
+      : valid.length < 15
+        ? ` (${valid.length} séances avec RPE)`
+        : ` (${valid.length} séances — données solides)`;
+
   const detail =
     acwr == null
       ? `${valid.length} séance(s) — charge chronique insuffisante pour un ACWR fiable.`
-      : `ACWR ${acwr.toFixed(2)} (charge aiguë/chronique sur ${valid.length} séances). ` +
+      : `ACWR ${acwr.toFixed(2)}${reliabilityNote}. ` +
         (acwr < 0.8
           ? "Charge sous-optimale."
           : acwr <= 1.3
@@ -605,8 +626,9 @@ export const computeReadiness = (inputs: ReadinessInputs): ReadinessResult => {
   // --- Overrides absolus (priorité décroissante) -----------------------------
   const overrides: OverrideResult[] = [];
 
-  // ACWR > 1.5 → overtraining.
-  if (load.acwr != null && load.acwr > 1.5) {
+  // ACWR > 1.5 → overtraining — seulement si données suffisantes (confiance ≥ 0.5 = ≥8 séances/28j).
+  // En dessous, l'ACWR est trop incertain pour déclencher une alerte critique.
+  if (load.acwr != null && load.acwr > 1.5 && load.confidence >= 0.5) {
     overrides.push({
       state: "overtraining",
       reason: `ACWR critique (${load.acwr.toFixed(2)} > 1.5) : pic de charge dangereux.`,
@@ -640,7 +662,8 @@ export const computeReadiness = (inputs: ReadinessInputs): ReadinessResult => {
     const hasFatigued = overrides.some((o) => o.state === "fatigued");
 
     // Sous-entraînement : charge très faible + bien-être normal.
-    const loadLow = load.score != null && load.available && load.score < 25;
+    // Requiert une confiance load suffisante (≥0.4) pour ne pas confondre "peu de RPE" et "peu d'entraînement".
+    const loadLow = load.score != null && load.available && load.score < 25 && load.confidence >= 0.4;
     const wellnessOk =
       wellness.score != null && wellness.available && wellness.score > 65;
 
