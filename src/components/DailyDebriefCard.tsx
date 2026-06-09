@@ -373,7 +373,7 @@ export function DailyDebriefCard({ athleteId }: Props) {
       .catch(() => { if (!cancelled) setSections([{ icon: "info", title: "Erreur", text: "Impossible de charger les données du débrief." }]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [open, athleteId, coachId, sections]);
+  }, [open, athleteId, sections]);
 
   return (
     <Card className="overflow-hidden">

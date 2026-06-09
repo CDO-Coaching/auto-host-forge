@@ -278,8 +278,8 @@ export default function CoachDashboard() {
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const { data: fatigueEntries } = await supabase
-          .from("daily_fatigue")
-          .select("id, user_id, fatigue_score, stress_score, soreness_score, date")
+          .from("daily_fatigue_log" as any)
+          .select("id, user_id, fatigue, stress, courbatures, date")
           .in("user_id", athleteIds)
           .gte("date", format(threeDaysAgo, "yyyy-MM-dd"))
           .order("date", { ascending: false });
@@ -287,7 +287,7 @@ export default function CoachDashboard() {
         const fatigueAlerts: FatigueAlert[] = [];
         const seenAthletes = new Set<string>();
         (fatigueEntries || []).forEach((entry: any) => {
-          const avgScore = Math.round(((entry.fatigue_score || 0) + (entry.stress_score || 0) + (entry.soreness_score || 0)) / 3);
+          const avgScore = Math.round(((entry.fatigue || 0) + (entry.stress || 0) + (entry.courbatures || 0)) / 3);
           if (avgScore >= 4 && !seenAthletes.has(entry.user_id)) {
             seenAthletes.add(entry.user_id);
             const profile = profileMap.get(entry.user_id);

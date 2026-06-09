@@ -29,13 +29,6 @@ interface DailyFatigueLogRow {
 }
 
 // Fallback source (used in coach central dashboard alerts)
-interface DailyFatigueRowFallback {
-  date: string;
-  user_id: string;
-  fatigue_score: number | null;
-  stress_score: number | null;
-  soreness_score: number | null;
-}
 
 interface SessionInfo {
   id: string;
@@ -162,37 +155,9 @@ export function CoachClientSummaryView({ athleteId, athleteName }: CoachClientSu
       return;
     }
 
-    // 2) Fallback: daily_fatigue (coach dashboard uses this table)
-    const fallback = await supabase
-      .from("daily_fatigue")
-      .select("date, user_id, fatigue_score, stress_score, soreness_score")
-      .eq("user_id", athleteId)
-      .gte("date", thirtyDaysAgo)
-      .lte("date", todayStr)
-      .order("date", { ascending: true });
-
-    if (!fallback.error && fallback.data) {
-      const rows = fallback.data as DailyFatigueRowFallback[];
-      const points: FatiguePoint[] = rows.map((r) => {
-        const f = r.fatigue_score ?? 0;
-        const s = r.stress_score ?? 0;
-        const so = r.soreness_score ?? 0;
-        const avg = Math.max(1, Math.min(7, Number(((f + s + so) / 3).toFixed(1))));
-        return {
-          dateLabel: format(new Date(r.date + "T00:00:00"), "dd/MM", { locale: fr }),
-          score: avg,
-        };
-      });
-
-      setFatiguePoints(points);
-      setInjuryPoints([]);
-      setLatestInjury(null);
-      return;
-    }
-
-    // 3) Both failed
-    const msg = primary.error?.message || fallback.error?.message || "Impossible de charger les données.";
-    console.error("Fatigue load error:", { primaryError: primary.error, fallbackError: fallback.error });
+    // Données non disponibles
+    const msg = primary.error?.message || "Impossible de charger les données.";
+    console.error("Fatigue load error:", primary.error);
     setFatiguePoints([]);
     setInjuryPoints([]);
     setLatestInjury(null);
