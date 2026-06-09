@@ -77,6 +77,7 @@ import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubsc
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
 import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
+import { AthleteReadinessCard } from "@/components/AthleteReadinessCard";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
@@ -4121,6 +4122,7 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-4">
+          <AthleteReadinessCard athleteId={athleteId!} />
           <WeeklyHRZonesCard athleteId={athleteId!} />
           <CoachAthleteStatusCard
             athleteId={athleteId!}
