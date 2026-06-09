@@ -117,7 +117,7 @@ const WEIGHTS: Record<SignalKey, number> = {
   performance: 0.1,
 };
 
-const MIN_TOTAL_CONFIDENCE = 0.25;
+const MIN_TOTAL_CONFIDENCE = 0.12; // ~2 jours de Hooper sur 7 suffisent à activer le score
 
 // -----------------------------------------------------------------------------
 // Utilitaires
