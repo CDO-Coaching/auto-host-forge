@@ -36,6 +36,8 @@ interface DebriefData {
   sessionsThisWeek: number;
   sessionsDoneThisWeek: number;
   sessionsWithRpe: number; // nb séances avec RPE sur 7 jours → fiabilité monotonie
+  // Douleur / blessure
+  injury: { location: string; level: number; date: string } | null;
 }
 
 interface DebriefSection {
@@ -243,7 +245,7 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
   weekStart.setDate(now.getDate() - now.getDay() + 1);
   weekStart.setHours(0, 0, 0, 0);
 
-  const [statusData, hoopers, sfms, strava, weekSessions, customSessions] = await Promise.all([
+  const [statusData, hoopers, sfms, strava, weekSessions, customSessions, injuryData] = await Promise.all([
     // Fetch status card data (ACWR, monotony, score)
     supabase.from("training_sessions" as any)
       .select("completed_at, session_rpe, duration_minutes, training_weeks!inner(athlete_id)")
@@ -278,6 +280,14 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
       .select("completed_at")
       .eq("user_id", athleteId)
       .gte("session_date", weekStart.toISOString().slice(0, 10)),
+    // Dernière blessure signalée (7 derniers jours)
+    supabase.from("daily_fatigue_log" as any)
+      .select("date, has_injury, injury_level, injury_location")
+      .eq("user_id", athleteId)
+      .eq("has_injury", true)
+      .gte("date", isoDate(7))
+      .order("date", { ascending: false })
+      .limit(1),
   ]);
 
   // Calcul ACWR
@@ -359,6 +369,11 @@ async function fetchDebriefData(athleteId: string, coachId: string): Promise<Deb
     hasKarvonen, z1pct, z2pct, z3pct, z4pct, z5pct, totalHRSec,
     stravaRunCount, stravaRunKm,
     sessionsThisWeek, sessionsDoneThisWeek, sessionsWithRpe,
+    injury: (() => {
+      const row = ((injuryData.data ?? []) as any[])[0];
+      if (!row || !row.has_injury || !row.injury_level) return null;
+      return { location: row.injury_location ?? "Non précisé", level: row.injury_level, date: row.date };
+    })(),
   };
 }
 
@@ -370,7 +385,12 @@ async function fetchAIAdvice(data: DebriefData): Promise<string> {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("Clé Groq manquante");
 
+  const injuryLine = data.injury
+    ? `⚠️ BLESSURE/DOULEUR ACTIVE: ${data.injury.location}, niveau ${data.injury.level}/7 (signalée le ${new Date(data.injury.date).toLocaleDateString("fr-FR")})`
+    : "Aucune douleur signalée";
+
   const context = [
+    injuryLine,
     data.acwr !== null ? `ACWR: ${data.acwr.toFixed(2)} (${data.acwr > 1.5 ? "critique" : data.acwr > 1.3 ? "élevé" : data.acwr < 0.8 ? "bas" : "optimal"})` : null,
     data.monotony !== null
       ? `Monotonie: ${data.monotony.toFixed(2)}${data.sessionsWithRpe < 4 ? ` ⚠️ NON FIABLE (seulement ${data.sessionsWithRpe} séances avec RPE sur 7j, minimum requis: 4)` : data.monotony >= 2 ? " ⚠️ critique" : ""}`
@@ -388,6 +408,7 @@ ${context}
 
 Donne un conseil général de coaching court, pratique et bienveillant en français (3-4 phrases maximum).
 - Commence directement par le conseil, sans introduction comme "Voici mon conseil".
+- Si une blessure/douleur est signalée, elle doit être centrale dans ton conseil (adapter l'entraînement, zones à éviter, précautions spécifiques au lieu de la douleur).
 - Sois précis sur ce que l'athlète devrait faire ou éviter cette semaine.
 - Tiens compte de tous les signaux disponibles, pas seulement d'un seul.
 - Utilise un ton de coach, direct mais encourageant.`;
