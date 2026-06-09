@@ -4121,25 +4121,19 @@ export default function ClientDetail() {
           <div className="absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
         </div>
 
-        <TabsContent value="resume" className="space-y-4">
-          <AthleteReadinessCard athleteId={athleteId!} />
-          <WeeklyHRZonesCard athleteId={athleteId!} />
-          <CoachAthleteStatusCard
-            athleteId={athleteId!}
-            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
-          />
-          <CoachClientSummaryView
-            athleteId={athleteId!}
-            athleteName={`${athlete.first_name || ""} ${athlete.last_name || ""}`}
-          />
-
-          {/* Alerte questionnaire SFMS surentraînement (en bas, repliable) */}
-          {athlete && (
-            <CoachSfmsAlert
-              athleteId={athleteId!}
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
-          )}
+        <TabsContent value="resume" className="space-y-3">
+          <div className="max-w-3xl mx-auto space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <AthleteReadinessCard athleteId={athleteId!} />
+              <WeeklyHRZonesCard athleteId={athleteId!} />
+            </div>
+            {athlete && (
+              <CoachSfmsAlert
+                athleteId={athleteId!}
+                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+              />
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>
