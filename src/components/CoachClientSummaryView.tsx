@@ -400,10 +400,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
           </CardContent>
         </Card>
 
-        {/* Cardio volume summary - placed right under fatigue chart */}
-        <CoachCardioSummaryCard athleteId={athleteId} />
-
-        {/* Injury chart (conditional) */}
+        {/* Injury chart (conditional) — juste sous la fatigue */}
         {latestInjury && injuryPoints.length > 0 && (
           <Card className="overflow-hidden">
             <CardHeader className="pb-1 pt-3 px-3">
@@ -432,6 +429,9 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
             </CardContent>
           </Card>
         )}
+
+        {/* Cardio volume summary */}
+        <CoachCardioSummaryCard athleteId={athleteId} />
 
         {/* Milestones */}
         {milestones.length > 0 && (
