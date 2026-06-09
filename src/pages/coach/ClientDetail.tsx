@@ -4121,12 +4121,28 @@ export default function ClientDetail() {
           <div className="absolute right-0 top-0 bottom-1 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none sm:hidden" />
         </div>
 
-        <TabsContent value="resume" className="space-y-3">
-          <div className="max-w-3xl mx-auto space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <TabsContent value="resume" className="space-y-2">
+          <div className="max-w-4xl mx-auto space-y-2">
+            {/* Barre Score Prépa — fine, pleine largeur */}
+            {athlete && (
+              <CoachAthleteStatusCard
+                athleteId={athleteId!}
+                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+              />
+            )}
+            {/* État de forme + Zones FC côte à côte */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <AthleteReadinessCard athleteId={athleteId!} />
               <WeeklyHRZonesCard athleteId={athleteId!} />
             </div>
+            {/* Course à pied / Vélo */}
+            {athlete && (
+              <CoachClientSummaryView
+                athleteId={athleteId!}
+                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+              />
+            )}
+            {/* Alerte SFMS */}
             {athlete && (
               <CoachSfmsAlert
                 athleteId={athleteId!}
