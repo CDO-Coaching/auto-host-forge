@@ -4135,8 +4135,15 @@ export default function ClientDetail() {
           {/* ── Grille principale 3 colonnes ── */}
           {athlete ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {/* Col 1 : État de forme */}
-              <AthleteReadinessCard athleteId={athleteId!} />
+              {/* Col 1 : État de forme + Douleur */}
+              <div className="space-y-2">
+                <AthleteReadinessCard athleteId={athleteId!} />
+                <CoachClientSummaryView
+                  athleteId={athleteId!}
+                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+                  column="injury"
+                />
+              </div>
               {/* Col 2 : Répartition FC + Évolution fatigue */}
               <div className="space-y-2">
                 <WeeklyHRZonesCard athleteId={athleteId!} />

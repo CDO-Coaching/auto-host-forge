@@ -14,8 +14,8 @@ import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialo
 interface CoachClientSummaryViewProps {
   athleteId: string;
   athleteName: string;
-  /** Render only one column: "left" (fatigue/cardio), "right" (sessions), or "full" (default, both) */
-  column?: "left" | "right" | "full";
+  /** Render only one column: "left" (fatigue/cardio), "right" (sessions), "injury" (douleur only), or "full" (default, both) */
+  column?: "left" | "right" | "full" | "injury";
 }
 
 // Primary source (used by athlete Fatigue page)
@@ -400,35 +400,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
           </CardContent>
         </Card>
 
-        {/* Injury chart (conditional) — juste sous la fatigue */}
-        {latestInjury && injuryPoints.length > 0 && (
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-1 pt-3 px-3">
-              <CardTitle className="text-xs flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                Douleur — {latestInjury.location || "Non précisé"}
-                <Badge variant="destructive" className="text-[9px] ml-auto">
-                  {latestInjury.level}/7
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-1 pb-2">
-              <div style={{ width: "100%", height: "90px" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={injuryPoints} margin={{ left: -15, right: 5, top: 5, bottom: 0 }}>
-                    <ReferenceArea y1={0} y2={2} fill="hsl(142 76% 36%)" fillOpacity={0.08} />
-                    <ReferenceArea y1={2} y2={4} fill="hsl(45 93% 47%)" fillOpacity={0.08} />
-                    <ReferenceArea y1={4} y2={7} fill="hsl(0 84% 60%)" fillOpacity={0.08} />
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
-                    <XAxis dataKey="dateLabel" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8 }} height={18} interval="preserveStartEnd" />
-                    <YAxis domain={[0, 7]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8 }} width={20} ticks={[0, 3, 7]} />
-                    <Line type="monotone" dataKey="douleur" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={{ r: 2.5, fill: "hsl(0 84% 60%)" }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* injury card is rendered separately via column="injury" */}
 
         {/* Cardio volume summary */}
         <CoachCardioSummaryCard athleteId={athleteId} />
@@ -491,6 +463,32 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
     <>
     {column === "left" && leftColumn}
     {column === "right" && rightColumn}
+    {column === "injury" && latestInjury && injuryPoints.length > 0 && (
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-1 pt-2.5 px-3">
+          <CardTitle className="text-xs flex items-center gap-1.5">
+            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+            Douleur — {latestInjury.location || "Non précisé"}
+            <Badge variant="destructive" className="text-[9px] ml-auto">{latestInjury.level}/7</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-1 pb-2">
+          <div style={{ width: "100%", height: "80px" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={injuryPoints} margin={{ left: -15, right: 5, top: 5, bottom: 0 }}>
+                <ReferenceArea y1={0} y2={2} fill="hsl(142 76% 36%)" fillOpacity={0.08} />
+                <ReferenceArea y1={2} y2={4} fill="hsl(45 93% 47%)" fillOpacity={0.08} />
+                <ReferenceArea y1={4} y2={7} fill="hsl(0 84% 60%)" fillOpacity={0.08} />
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                <XAxis dataKey="dateLabel" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8 }} height={18} interval="preserveStartEnd" />
+                <YAxis domain={[0, 7]} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 8 }} width={20} ticks={[0, 3, 7]} />
+                <Line type="monotone" dataKey="douleur" stroke="hsl(0 84% 60%)" strokeWidth={2} dot={{ r: 2.5, fill: "hsl(0 84% 60%)" }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
+    )}
     {column === "full" && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 overflow-hidden">
         {leftColumn}
