@@ -4654,7 +4654,7 @@ export default function ClientDetail() {
                                       </div>
                                       {ex.actual_heart_rate_zones?.length > 0 && (
                                         <div className="px-2 pb-2">
-                                          <HeartRateZonesBar zones={ex.actual_heart_rate_zones} />
+                                          <HeartRateZonesBar zones={ex.actual_heart_rate_zones} fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                                         </div>
                                       )}
                                       </div>

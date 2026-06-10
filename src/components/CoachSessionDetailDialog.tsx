@@ -102,12 +102,30 @@ export function CoachSessionDetailDialog({
   const [isLiked, setIsLiked] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
+  const [athleteFc, setAthleteFc] = useState<{ max: number | null; repos: number | null }>({ max: null, repos: null });
+
+  // FC max/repos effectives : props si fournies, sinon chargées depuis le profil
+  const effFcMax = fcMax ?? athleteFc.max;
+  const effFcRepos = fcRepos ?? athleteFc.repos;
 
   useEffect(() => {
     if (open && sessionId && sessionType !== "custom") {
       loadSessionDetail();
     }
   }, [open, sessionId, sessionType]);
+
+  // Charger la FC max/repos de l'athlète (pour des zones FCR Karvonen, pas brutes Strava)
+  useEffect(() => {
+    if (!open || !athleteId || (fcMax && fcRepos)) return;
+    (async () => {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("fc_max, fc_repos")
+        .eq("id", athleteId)
+        .single();
+      if (data) setAthleteFc({ max: (data as any).fc_max ?? null, repos: (data as any).fc_repos ?? null });
+    })();
+  }, [open, athleteId, fcMax, fcRepos]);
 
   useEffect(() => {
     if (session) {
@@ -316,8 +334,8 @@ export function CoachSessionDetailDialog({
           const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
           const FCR_Z = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
           const zd = FCR_Z.find(z => z.z === zNum);
-          const bpmStr = zd && fcMax && fcRepos
-            ? ` · ${Math.round(fcRepos + (fcMax - fcRepos) * zd.pMin / 100)}–${Math.round(fcRepos + (fcMax - fcRepos) * zd.pMax / 100)} bpm`
+          const bpmStr = zd && effFcMax && effFcRepos
+            ? ` · ${Math.round(effFcRepos + (effFcMax - effFcRepos) * zd.pMin / 100)}–${Math.round(effFcRepos + (effFcMax - effFcRepos) * zd.pMax / 100)} bpm`
             : "";
           return <span className="text-rose-400">❤️ {step.target_heart_rate}{bpmStr}</span>;
         })()}
@@ -449,7 +467,7 @@ export function CoachSessionDetailDialog({
             </div>
             {ex.actual_heart_rate_zones && ex.actual_heart_rate_zones.length > 0 && (
               <div className="mt-2 pt-2 border-t border-emerald-500/20">
-                <HeartRateZonesBar zones={ex.actual_heart_rate_zones} fcMax={fcMax} fcRepos={fcRepos} />
+                <HeartRateZonesBar zones={ex.actual_heart_rate_zones} fcMax={effFcMax} fcRepos={effFcRepos} />
               </div>
             )}
           </div>
