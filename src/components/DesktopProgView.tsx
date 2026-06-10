@@ -70,6 +70,7 @@ import {
 } from "@/lib/cardioCalculations";
 import { formatWeekRange } from "@/lib/weekUtils";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
+import { RunSessionAnalysis } from "@/components/RunSessionAnalysis";
 
 // ── Local types (mirror ClientDetail) ────────────────────────────────────────
 interface SerieDetail {
@@ -1220,6 +1221,19 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                   <HeartRateZonesBar zones={(exercise as any).actual_heart_rate_zones} fcMax={athleteFcMax} fcRepos={athleteFcRepos} />
                                 </div>
                               )}
+                              <RunSessionAnalysis
+                                durationMin={exercise.actual_duration_minutes ?? null}
+                                distanceKm={(exercise as any).actual_distance_km ?? null}
+                                paceMinPerKm={(exercise as any).actual_pace_min_per_km ?? null}
+                                avgHr={exercise.actual_avg_heart_rate ?? null}
+                                rpe={exercise.sportif_rpe ?? null}
+                                elevationGain={(exercise as any).actual_elevation_gain}
+                                cadence={(exercise as any).actual_cadence}
+                                cardioContent={(exercise as any).cardio_content}
+                                vma={athleteVma}
+                                fcMax={athleteFcMax}
+                                fcRepos={athleteFcRepos}
+                              />
                             </div>
                           )}
 

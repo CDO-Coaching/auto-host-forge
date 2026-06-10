@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
+import { RunSessionAnalysis } from "@/components/RunSessionAnalysis";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -102,11 +103,12 @@ export function CoachSessionDetailDialog({
   const [isLiked, setIsLiked] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
-  const [athleteFc, setAthleteFc] = useState<{ max: number | null; repos: number | null }>({ max: null, repos: null });
+  const [athleteFc, setAthleteFc] = useState<{ max: number | null; repos: number | null; vma: number | null }>({ max: null, repos: null, vma: null });
 
   // FC max/repos effectives : props si fournies, sinon chargées depuis le profil
   const effFcMax = fcMax ?? athleteFc.max;
   const effFcRepos = fcRepos ?? athleteFc.repos;
+  const athleteVma = athleteFc.vma;
 
   useEffect(() => {
     if (open && sessionId && sessionType !== "custom") {
@@ -114,18 +116,22 @@ export function CoachSessionDetailDialog({
     }
   }, [open, sessionId, sessionType]);
 
-  // Charger la FC max/repos de l'athlète (pour des zones FCR Karvonen, pas brutes Strava)
+  // Charger la FC max/repos + VMA de l'athlète (zones FCR Karvonen + analyse course)
   useEffect(() => {
-    if (!open || !athleteId || (fcMax && fcRepos)) return;
+    if (!open || !athleteId) return;
     (async () => {
       const { data } = await supabase
         .from("user_profiles")
-        .select("fc_max, fc_repos")
+        .select("fc_max, fc_repos, vma")
         .eq("id", athleteId)
         .single();
-      if (data) setAthleteFc({ max: (data as any).fc_max ?? null, repos: (data as any).fc_repos ?? null });
+      if (data) setAthleteFc({
+        max: (data as any).fc_max ?? null,
+        repos: (data as any).fc_repos ?? null,
+        vma: (data as any).vma ?? null,
+      });
     })();
-  }, [open, athleteId, fcMax, fcRepos]);
+  }, [open, athleteId]);
 
   useEffect(() => {
     if (session) {
@@ -469,6 +475,21 @@ export function CoachSessionDetailDialog({
               <div className="mt-2 pt-2 border-t border-emerald-500/20">
                 <HeartRateZonesBar zones={ex.actual_heart_rate_zones} fcMax={effFcMax} fcRepos={effFcRepos} />
               </div>
+            )}
+            {isCardio && (
+              <RunSessionAnalysis
+                durationMin={ex.actual_duration_minutes}
+                distanceKm={ex.actual_distance_km}
+                paceMinPerKm={ex.actual_pace_min_per_km}
+                avgHr={ex.actual_avg_heart_rate}
+                rpe={ex.sportif_rpe ?? session?.session_rpe ?? null}
+                elevationGain={ex.actual_elevation_gain}
+                cadence={ex.actual_cadence}
+                cardioContent={ex.cardio_content}
+                vma={athleteVma}
+                fcMax={effFcMax}
+                fcRepos={effFcRepos}
+              />
             )}
           </div>
         )}
