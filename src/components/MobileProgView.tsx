@@ -1036,7 +1036,7 @@ export function MobileProgView({
       )}
 
       {/* ── Liste des séances ───────────────────────────────────────────── */}
-      <div className="space-y-3 flex-1">
+      <div className="space-y-3 flex-1 pb-48 sm:pb-4">
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-4 text-muted-foreground">
             <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center">
@@ -1072,7 +1072,7 @@ export function MobileProgView({
 
       {/* ── FAB + Sauvegarder ───────────────────────────────────────────── */}
       {!isValidated && (
-        <div className="fixed bottom-6 right-4 flex flex-col gap-3 z-30">
+        <div className="fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-4 sm:bottom-6 flex flex-col gap-3 z-30">
           {sessions.length > 0 && (
             <Button
               onClick={onSave}
