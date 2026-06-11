@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, MessageCircle, Menu } from "lucide-react";
+import { LayoutDashboard, Users, CalendarDays, MessageCircle, Euro, Menu } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useMessages } from "@/hooks/useMessages";
@@ -9,6 +9,7 @@ const items = [
   { to: "/coach/mes-clients", label: "Clients", icon: Users },
   { to: "/coach/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/coach/messagerie", label: "Messages", icon: MessageCircle, showBadge: true },
+  { to: "/coach/comptabilite", label: "Compta", icon: Euro },
 ];
 
 /**
@@ -26,19 +27,19 @@ export function CoachBottomNav() {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Navigation principale"
     >
-      <div className="grid grid-cols-5 h-20">
+      <div className="flex h-20">
         {items.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center justify-center gap-1 relative touch-manipulation select-none ${
+              `flex-1 min-w-0 flex flex-col items-center justify-center gap-1 relative touch-manipulation select-none ${
                 isActive ? "text-primary" : "text-muted-foreground"
               }`
             }
           >
-            <item.icon className="h-6 w-6" />
-            <span className="text-[10px] font-medium leading-none">{item.label}</span>
+            <item.icon className="h-5 w-5 shrink-0" />
+            <span className="text-[10px] font-medium leading-none truncate max-w-full px-0.5">{item.label}</span>
             {item.showBadge && unreadCount > 0 && (
               <Badge
                 variant="destructive"
@@ -52,11 +53,11 @@ export function CoachBottomNav() {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="flex flex-col items-center justify-center gap-1 text-muted-foreground touch-manipulation select-none"
+          className="flex-1 min-w-0 flex flex-col items-center justify-center gap-1 text-muted-foreground touch-manipulation select-none"
           aria-label="Menu"
         >
-          <Menu className="h-6 w-6" />
-          <span className="text-[10px] font-medium leading-none">Menu</span>
+          <Menu className="h-5 w-5 shrink-0" />
+          <span className="text-[10px] font-medium leading-none truncate max-w-full px-0.5">Menu</span>
         </button>
       </div>
     </nav>

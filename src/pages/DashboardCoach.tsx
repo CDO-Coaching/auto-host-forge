@@ -142,8 +142,8 @@ export default function DashboardCoach() {
         <div className="flex-1 flex flex-col min-w-0">
           <header className="sticky top-0 z-40 h-14 border-b flex items-center px-3 sm:px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 app-header">
             <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
-              {/* Burger mobile + trigger desktop */}
-              <SidebarTrigger />
+              {/* Trigger desktop uniquement — sur mobile, le bouton "Menu" de la barre du bas ouvre le tiroir */}
+              <SidebarTrigger className="hidden sm:flex" />
               <h2 className="font-semibold text-sm sm:text-base truncate">Salut {firstName} 👋</h2>
             </div>
             <p className="hidden sm:block text-sm text-muted-foreground whitespace-nowrap ml-2">

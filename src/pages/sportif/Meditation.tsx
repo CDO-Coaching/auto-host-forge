@@ -11,7 +11,6 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Wind, Timer, Play, Pause, RotateCcw, ChevronUp, ChevronDown, Volume2, VolumeX, ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useWakeLock } from "@/hooks/useWakeLock";
 type BreathPhase = "preparation" | "inhale" | "holdIn" | "exhale" | "holdOut" | "finished";
 

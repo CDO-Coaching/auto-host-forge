@@ -59,7 +59,7 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly, compact }: MaxesL
     return (
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {maxes.map((max) => {
-          const improvement = max.previous_weight ? max.weight_kg - max.previous_weight : 0;
+          const improvement = max.previous_weight ? Math.round((max.weight_kg - max.previous_weight) * 10) / 10 : 0;
           return (
             <Card key={max.id} className="group hover:shadow-md transition-shadow h-fit">
               <CardContent className="p-3 space-y-1">
@@ -108,7 +108,7 @@ export function MaxesList({ maxes, onEdit, onDelete, readOnly, compact }: MaxesL
       {maxes.map((max) => {
         const percentages = calculatePercentages(max.weight_kg);
         const improvement = max.previous_weight
-          ? max.weight_kg - max.previous_weight
+          ? Math.round((max.weight_kg - max.previous_weight) * 10) / 10
           : 0;
 
         return (

@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Clock
 } from "lucide-react";
-import { format, isSameDay, parseISO, subMonths, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { format, isSameDay, parseISO, subMonths, startOfMonth, endOfMonth, addMonths, setISOWeek, startOfISOWeek, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
 
 interface AgendaSession {
@@ -57,13 +57,14 @@ export default function Agenda() {
           id,
           name,
           week_id,
+          session_number,
           session_type,
           completed_at,
           scheduled_date,
           session_rpe,
           duration_minutes,
           session_exercises(sportif_rpe, skipped),
-          training_weeks!inner(athlete_id)
+          training_weeks!inner(athlete_id, week_number, year)
         `)
         .eq("training_weeks.athlete_id", session.user.id);
 
@@ -96,18 +97,31 @@ export default function Agenda() {
           });
         }
         
-        // Add scheduled sessions (not completed, with scheduled_date)
-        if (!completed && s.scheduled_date) {
-          allSessions.push({
-            id: s.id,
-            name: s.name,
-            week_id: s.week_id,
-            session_type: s.session_type,
-            date: s.scheduled_date,
-            session_rpe: null,
-            isCustom: false,
-            isCompleted: false
-          });
+        // Add scheduled sessions (not completed)
+        if (!completed) {
+          let plannedDate: string | null = s.scheduled_date || null;
+          // Pas de date programmée explicite → la dériver depuis la semaine
+          // (lundi de la semaine ISO + (n° de séance − 1) jours).
+          if (!plannedDate && s.training_weeks?.week_number && s.training_weeks?.year) {
+            try {
+              const base = setISOWeek(new Date(s.training_weeks.year, 0, 4), s.training_weeks.week_number);
+              const monday = startOfISOWeek(base);
+              const offset = Math.min(Math.max((s.session_number || 1) - 1, 0), 6);
+              plannedDate = format(addDays(monday, offset), "yyyy-MM-dd");
+            } catch { /* ignore */ }
+          }
+          if (plannedDate) {
+            allSessions.push({
+              id: s.id,
+              name: s.name,
+              week_id: s.week_id,
+              session_type: s.session_type,
+              date: plannedDate,
+              session_rpe: null,
+              isCustom: false,
+              isCompleted: false
+            });
+          }
         }
       });
 

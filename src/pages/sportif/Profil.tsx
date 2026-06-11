@@ -35,7 +35,18 @@ import {
 const profileSchema = z.object({
   first_name: z.string().trim().min(1, "Le prénom est requis").max(100),
   last_name: z.string().trim().min(1, "Le nom est requis").max(100),
-  date_of_birth: z.string().optional(),
+  date_of_birth: z.string().optional().refine(
+    (v) => {
+      if (!v) return true;
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return false;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (d > today) return false;                       // pas dans le futur
+      if (d.getFullYear() < 1900) return false;          // borne basse plausible
+      return true;
+    },
+    { message: "La date de naissance doit être dans le passé" }
+  ),
   gender: z.enum(["male", "female", "other"]).optional(),
 });
 

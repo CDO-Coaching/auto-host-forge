@@ -530,7 +530,7 @@ export default function Fatigue() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">Historique</CardTitle>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {showAllHistory ? "Toutes les entrées" : "7 derniers jours"}
+                  {showAllHistory ? "Toutes les entrées" : "7 dernières entrées"}
                 </p>
               </CardHeader>
               <CardContent className="p-0">
