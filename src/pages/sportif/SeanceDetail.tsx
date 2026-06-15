@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download, Settings } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { validateSessionMetrics } from "@/lib/sessionMetrics";
 import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
@@ -563,6 +564,16 @@ export default function SeanceDetail() {
         description: "Le RPE doit être un chiffre entre 1 et 10 uniquement",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Garde-fou anti-saisie aberrante (distance/durée)
+    const metricsError = validateSessionMetrics({
+      distanceKm: actualDistance ?? null,
+      durationMin: actualDuration ?? null,
+    });
+    if (metricsError) {
+      toast({ title: "Valeur invalide", description: metricsError, variant: "destructive" });
       return;
     }
 

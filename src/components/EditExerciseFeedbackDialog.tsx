@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { validateSessionMetrics } from "@/lib/sessionMetrics";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -113,6 +114,18 @@ export function EditExerciseFeedbackDialog({
           description: "La fréquence cardiaque doit être entre 30 et 250 bpm",
           variant: "destructive",
         });
+        return;
+      }
+    }
+
+    // Garde-fou anti-saisie aberrante (distance/durée)
+    if (isCardio) {
+      const metricsError = validateSessionMetrics({
+        distanceKm: actualDistance.trim() ? parseFloat(actualDistance) : null,
+        durationMin: actualDuration.trim() ? parseFloat(actualDuration) : null,
+      });
+      if (metricsError) {
+        toast({ title: "Valeur invalide", description: metricsError, variant: "destructive" });
         return;
       }
     }

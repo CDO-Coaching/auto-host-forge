@@ -166,7 +166,7 @@ export function CardioStepBuilder({
       movement_type: defaultMovement,
       effort_type: "duration",
       duration: 600, // 10 minutes par défaut
-      ...(sportType === "course" ? { vma_percentage: 70 } : { rpe: 5 }),
+      ...(sportType === "course" ? { vma_percentage: 65 } : { rpe: 5 }),
       target_heart_rate: "",
     };
     onChange({ steps: [...steps, newStep], blocks });
@@ -491,7 +491,7 @@ export function CardioStepBuilder({
                 max="120"
                 value={step.vma_percentage || ""}
                 onChange={(e) => handleStepChange(step.id, "vma_percentage", parseFloat(e.target.value) || 0)}
-                placeholder="70"
+                placeholder="65"
                 disabled={disabled}
                 className="h-8 text-xs"
               />

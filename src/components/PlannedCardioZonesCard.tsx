@@ -26,15 +26,19 @@ interface VMAZone {
   bgCard: string;
   text: string;
   pctLabel: string;
+  fcrMin: number; // bornes FCR (Karvonen) en % de la fréquence de réserve
+  fcrMax: number;
 }
 
 const VMA_ZONES: VMAZone[] = [
-  { zone: 1, label: "Z1 · Récup",     max: 60,  bgBar: "bg-blue-500",   bgCard: "bg-blue-500/10",   text: "text-blue-400",   pctLabel: "<60%" },
-  { zone: 2, label: "Z2 · Endurance", max: 70,  bgBar: "bg-green-500",  bgCard: "bg-green-500/10",  text: "text-green-400",  pctLabel: "60–70%" },
-  { zone: 3, label: "Z3 · Tempo",     max: 80,  bgBar: "bg-yellow-400", bgCard: "bg-yellow-400/10", text: "text-yellow-400", pctLabel: "70–80%" },
-  { zone: 4, label: "Z4 · Seuil",     max: 90,  bgBar: "bg-orange-500", bgCard: "bg-orange-500/10", text: "text-orange-400", pctLabel: "80–90%" },
-  { zone: 5, label: "Z5 · VMA",       max: 999, bgBar: "bg-red-500",    bgCard: "bg-red-500/10",    text: "text-red-400",    pctLabel: "≥90%" },
+  { zone: 1, label: "Z1 · Récup",     max: 60,  bgBar: "bg-blue-500",   bgCard: "bg-blue-500/10",   text: "text-blue-400",   pctLabel: "<60%",   fcrMin: 50, fcrMax: 60 },
+  { zone: 2, label: "Z2 · Endurance", max: 70,  bgBar: "bg-green-500",  bgCard: "bg-green-500/10",  text: "text-green-400",  pctLabel: "60–70%", fcrMin: 60, fcrMax: 70 },
+  { zone: 3, label: "Z3 · Tempo",     max: 80,  bgBar: "bg-yellow-400", bgCard: "bg-yellow-400/10", text: "text-yellow-400", pctLabel: "70–80%", fcrMin: 70, fcrMax: 80 },
+  { zone: 4, label: "Z4 · Seuil",     max: 90,  bgBar: "bg-orange-500", bgCard: "bg-orange-500/10", text: "text-orange-400", pctLabel: "80–90%", fcrMin: 80, fcrMax: 90 },
+  { zone: 5, label: "Z5 · VMA",       max: 999, bgBar: "bg-red-500",    bgCard: "bg-red-500/10",    text: "text-red-400",    pctLabel: "≥90%",   fcrMin: 90, fcrMax: 100 },
 ];
+
+type IntensityBasis = "vma" | "fcr";
 
 const SPORT_LABELS: Record<SportType, string> = {
   course:   "🏃 Course",
@@ -55,6 +59,8 @@ interface PlannedCardioZonesCardProps {
   sessions: PlannedSession[];
   sessionExercises: Record<number, PlannedExercise[]>;
   athleteVma: number | null;
+  athleteFcMax?: number | null;
+  athleteFcRepos?: number | null;
   defaultSport?: SportType;
 }
 
@@ -78,6 +84,7 @@ function getZone(vmaPct: number): number {
 function computeZonesFromCardio(
   cardioData: CardioData,
   vma: number | null,
+  basis: IntensityBasis,
 ): Record<number, number> {
   const totals: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
   const steps  = cardioData.steps  || [];
@@ -96,6 +103,9 @@ function computeZonesFromCardio(
     let zone = 2; // défaut endurance
     if (step.movement_type === "marche") {
       zone = 1;
+    } else if (basis === "fcr" && step.target_heart_rate && /[1-5]/.test(step.target_heart_rate)) {
+      // Mode FCR : on prend la zone FC cible définie sur l'étape (ex: "Z2")
+      zone = parseInt(step.target_heart_rate.match(/[1-5]/)![0], 10);
     } else if (step.vma_percentage) {
       zone = getZone(step.vma_percentage);
     } else if (step.rpe) {
@@ -119,9 +129,21 @@ export function PlannedCardioZonesCard({
   sessions,
   sessionExercises,
   athleteVma,
+  athleteFcMax = null,
+  athleteFcRepos = null,
   defaultSport = "course",
 }: PlannedCardioZonesCardProps) {
   const [selectedSport, setSelectedSport] = useState<SportType>(defaultSport);
+  const [basis, setBasis] = useState<IntensityBasis>("vma");
+  const hasFcr = !!(athleteFcMax && athleteFcRepos);
+  // Borne BPM d'une zone FCR (Karvonen) — null si FC max/repos manquants
+  const fcrBpm = (z: VMAZone): string | null => {
+    if (!hasFcr) return null;
+    const fcr = athleteFcMax! - athleteFcRepos!;
+    const lo = Math.round(athleteFcRepos! + fcr * z.fcrMin / 100);
+    const hi = Math.round(athleteFcRepos! + fcr * z.fcrMax / 100);
+    return `${lo}–${hi} bpm`;
+  };
 
   // Calcul dérivé des props — réactif automatiquement
   const { byPort, availableSports } = useMemo(() => {
@@ -145,7 +167,7 @@ export function PlannedCardioZonesCard({
             : ex.cardio_content as CardioData;
         } catch { continue; }
 
-        const zones = computeZonesFromCardio(cardioData, athleteVma);
+        const zones = computeZonesFromCardio(cardioData, athleteVma, basis);
         const sec = Object.values(zones).reduce((s, v) => s + v, 0);
         if (sec <= 0) continue;
 
@@ -159,7 +181,7 @@ export function PlannedCardioZonesCard({
       (s) => byPort[s].count > 0
     );
     return { byPort, availableSports };
-  }, [sessions, sessionExercises, athleteVma]);
+  }, [sessions, sessionExercises, athleteVma, basis]);
 
   if (availableSports.length === 0) return null;
 
@@ -174,13 +196,37 @@ export function PlannedCardioZonesCard({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
+        <CardTitle className="text-sm flex items-center gap-2 flex-wrap">
           <Activity className="h-4 w-4 text-primary" />
           Intensité programmée — semaine affichée
-          {athleteVma && (
+          {basis === "vma" && athleteVma && (
             <span className="text-xs font-normal text-muted-foreground">VMA {athleteVma} km/h</span>
           )}
+          {basis === "fcr" && hasFcr && (
+            <span className="text-xs font-normal text-muted-foreground">FCR {athleteFcMax}/{athleteFcRepos} bpm</span>
+          )}
+          {/* Bascule VMA / FCR */}
+          <div className="ml-auto flex gap-1">
+            {(["vma", "fcr"] as IntensityBasis[]).map((b) => (
+              <button
+                key={b}
+                onClick={() => setBasis(b)}
+                className={`text-[11px] px-2 py-0.5 rounded-full border transition-all ${
+                  basis === b
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "border-border/50 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {b === "vma" ? "VMA" : "FCR"}
+              </button>
+            ))}
+          </div>
         </CardTitle>
+        {basis === "fcr" && !hasFcr && (
+          <p className="text-[11px] text-amber-400 mt-1">
+            FC max/repos non renseignées : les bornes BPM ne s'affichent pas (zones issues des cibles FC des étapes).
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
 
@@ -251,7 +297,9 @@ export function PlannedCardioZonesCard({
                 }`}
               >
                 <div className={`text-xs font-bold ${z.text}`}>Z{z.zone}</div>
-                <div className="text-[10px] text-muted-foreground leading-none mb-1">{z.pctLabel} VMA</div>
+                <div className="text-[10px] text-muted-foreground leading-none mb-1">
+                  {basis === "fcr" ? (fcrBpm(z) ?? `${z.fcrMin}–${z.fcrMax}% FCR`) : `${z.pctLabel} VMA`}
+                </div>
                 {isActive ? (
                   <>
                     <div className="text-[11px] font-semibold text-foreground">{pct}%</div>

@@ -9,6 +9,7 @@ import { Activity, Clock, MapPin, TrendingUp, Calendar } from "lucide-react";
 import { AerobicEfficiencyCard } from "@/components/AerobicEfficiencyCard";
 import { InfoButton } from "@/components/InfoButton";
 import { getWeekNumber, getWeekYear, getDateFromWeekNumber } from "@/lib/weekUtils";
+import { isPlausibleDistanceKm, isPlausibleDurationMin } from "@/lib/sessionMetrics";
 
 interface IntensityZones {
   zoneLow: number;  // < 70% - temps en minutes
@@ -294,8 +295,9 @@ export function CoachRunningView({
       if (isValidated) {
         // Utiliser uniquement les données réelles (Strava ou saisie manuelle)
         // Ne PAS fallback sur les valeurs planifiées pour ne pas biaiser le graphique
-        actualDistance = exercise.actual_distance_km ?? 0;
-        actualDuration = exercise.actual_duration_minutes ?? 0;
+        // On ignore les valeurs aberrantes (saisie erronée) pour ne pas casser l'échelle du graphe
+        actualDistance = isPlausibleDistanceKm(exercise.actual_distance_km) ? (exercise.actual_distance_km ?? 0) : 0;
+        actualDuration = isPlausibleDurationMin(exercise.actual_duration_minutes) ? (exercise.actual_duration_minutes ?? 0) : 0;
         actualIntensity = plannedIntensity; // L'intensité reste celle programmée sauf si calculée autrement
         
         if (exercise.actual_pace_min_per_km) {
@@ -443,8 +445,10 @@ export function CoachRunningView({
       const weekNumber = getWeekNumber(date);
       const isoYear = getWeekYear(date);
       const weekKey = `${isoYear}-W${weekNumber.toString().padStart(2, "0")}`;
-      const dist = Number(cs.distance_km || 0);
-      const dur = Number(cs.duration_minutes || 0);
+      const distRaw = Number(cs.distance_km || 0);
+      const dist = isPlausibleDistanceKm(distRaw) ? distRaw : 0;
+      const durRaw = Number(cs.duration_minutes || 0);
+      const dur = isPlausibleDurationMin(durRaw) ? durRaw : 0;
       const rpe = cs.session_rpe ? Number(cs.session_rpe) : 0;
       const pace = cs.avg_pace ? parsePaceToDecimal(cs.avg_pace) : null;
       const hr = cs.avg_heart_rate ? Number(cs.avg_heart_rate) : 0;

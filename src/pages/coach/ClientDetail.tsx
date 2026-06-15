@@ -4455,6 +4455,8 @@ export default function ClientDetail() {
                     sessions={sessions}
                     sessionExercises={sessionExercises}
                     athleteVma={athleteVma}
+                    athleteFcMax={athleteFcMax}
+                    athleteFcRepos={athleteFcRepos}
                     defaultSport="course"
                   />
                   <CoachRunningView

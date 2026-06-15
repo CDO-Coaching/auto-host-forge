@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { format, startOfDay, isAfter } from "date-fns";
+import { validateSessionMetrics } from "@/lib/sessionMetrics";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -226,6 +227,14 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
         toast.error("Veuillez entrer une durée valide (entre 1 et 600 minutes)");
         return;
       }
+    }
+
+    // Garde-fou anti-saisie aberrante (ex: 889 km au lieu de 8,89)
+    const distanceValue = distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null;
+    const metricsError = validateSessionMetrics({ distanceKm: distanceValue });
+    if (metricsError) {
+      toast.error(metricsError);
+      return;
     }
 
     setSubmitting(true);
