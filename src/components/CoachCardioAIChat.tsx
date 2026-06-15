@@ -144,6 +144,23 @@ function buildVmaTable(vma: number): string {
   return `Correspondances exactes pour VMA=${vma} km/h :\n${rows}\n\n⚠️ RÈGLE CRITIQUE : si tu écris "X% VMA", l'allure associée DOIT correspondre exactement à la ligne ci-dessus. Ne jamais mélanger un pourcentage et l'allure d'un autre pourcentage.`;
 }
 
+// ─── Table des zones FC (FCR / Karvonen) ───────────────────────────────────────
+function buildFcrTable(fcMax: number, fcRepos: number): string {
+  const fcr = fcMax - fcRepos; // fréquence cardiaque de réserve
+  const bpm = (p: number) => Math.round(fcRepos + (fcr * p) / 100);
+  const zones: [string, number, number, string][] = [
+    ["Z1 · Récupération",          50, 60, "récup active / footing très facile"],
+    ["Z2 · Endurance fondamentale", 60, 70, "EF, base aérobie, sorties longues"],
+    ["Z3 · Tempo / seuil aérobie",  70, 80, "endurance active, tempo"],
+    ["Z4 · Seuil anaérobie",        80, 90, "seuil, allure 10 km / semi"],
+    ["Z5 · VMA / VO2max",           90, 100, "fractionné court, effort maximal"],
+  ];
+  const rows = zones.map(([label, lo, hi, use]) =>
+    `  ${label} : ${bpm(lo)}–${bpm(hi)} bpm (${lo}–${hi}% FCR) — ${use}`
+  ).join("\n");
+  return `Zones FC (méthode Karvonen, FCR = ${fcMax} − ${fcRepos} = ${fcr} bpm) :\n${rows}`;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function weeksUntil(isoDate: string, fromWeek: { week: number; year: number }): number {
   // Approximate: compute monday of fromWeek
@@ -183,6 +200,10 @@ function buildSystemPrompt(ctx: AIChatContext, memory?: string): string {
     ? `VMA = ${ctx.athleteVma} km/h — Table d'allures :
 ${buildVmaTable(ctx.athleteVma)}`
     : "VMA non renseignée — demande-la impérativement avant de prescrire des allures.";
+
+  const fcrSection = (ctx.athleteFcMax && ctx.athleteFcRepos)
+    ? buildFcrTable(ctx.athleteFcMax, ctx.athleteFcRepos)
+    : "Zones FC (FCR) : FC max et/ou FC repos non renseignées — tu peux raisonner en % VMA et en RPE, mais signale qu'on ne peut pas donner de cibles en bpm sans ces valeurs.";
 
   // ── Recent training history ────────────────────────────────────────────────
   let historySection = "Historique des dernières semaines cardio : non disponible.";
@@ -422,6 +443,13 @@ RÈGLES ABSOLUES — NE JAMAIS DÉROGER
    ⚠️ CORRESPONDANCE STRICTE % ↔ allure : si tu écris "60% VMA", l'allure DOIT être celle de la ligne "60%" dans la table ci-dessus.
    Vérification : allure (min/km) = 60 ÷ (VMA × %/100). Ne jamais utiliser l'allure d'un autre % par erreur.
 
+2bis. ZONES FC (FCR) — quand FC max + FC repos sont connues : pour CHAQUE bloc de travail,
+   indique aussi la zone FC cible et sa fourchette en bpm, tirée de la table "Zones FC (Karvonen)" ci-dessus.
+   Format conseillé : "… @ allure (% VMA) — Zx, lo–hi bpm". Fais correspondre l'intensité :
+   récup/EF → Z1-Z2, tempo/seuil aérobie → Z3, seuil anaérobie/10km-semi → Z4, fractionné/VMA → Z5.
+   Cohérence : la zone FC annoncée doit correspondre au % VMA prescrit (ex: 95-100% VMA = Z5).
+   Si la FC max ou repos manque, raisonne en % VMA + RPE et précise qu'on ne peut pas donner de bpm.
+
 3. POSER DES QUESTIONS si un élément manque avant de proposer une programmation :
    - VMA ? (obligatoire pour les allures)
    - Sur quel mésocycle / objectif le coach veut-il se concentrer ? (si plusieurs existent)
@@ -581,6 +609,7 @@ CONTEXTE DE L'ATHLÈTE${criticalCompetitionAlert}
 Nom : ${ctx.athleteName}
 ${vmaSection}
 ${fcSection}
+${fcrSection}
 ${niveauSection}
 ${injurySection}
 

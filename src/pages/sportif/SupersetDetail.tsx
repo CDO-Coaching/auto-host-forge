@@ -946,6 +946,11 @@ export default function SupersetDetail() {
                         const validation = serieValidations[vIdx];
                         const isValidated = validation?.validated;
                         const serieData = allSeriesData[exIdx]?.[roundIdx] || {};
+                        // Repli sur les valeurs de base de l'exercice si la série n'a pas
+                        // de valeur propre (sinon reps/charge/RPE n'apparaissent pas en circuit)
+                        const dispReps = serieData.reps || (ex as any).reps || "";
+                        const dispCharge = serieData.charge || (ex as any).charge || "";
+                        const dispRpe = serieData.rpe || (ex as any).rpe || "";
 
                         return (
                           <div key={`${roundIdx}-${exIdx}`}>
@@ -960,8 +965,8 @@ export default function SupersetDetail() {
                                   {ex.exercice}
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
-                                  {serieData.reps && (() => {
-                                    const sr = serieData.reps.trim();
+                                  {dispReps && (() => {
+                                    const sr = dispReps.trim();
                                     const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
                                     if (isRepsRange) {
                                       return isValidated && validation?.actual_reps ? (
@@ -979,8 +984,8 @@ export default function SupersetDetail() {
                                       </span>
                                     );
                                   })()}
-                                  {serieData.charge && (() => {
-                                    const sc = serieData.charge.trim();
+                                  {dispCharge && (() => {
+                                    const sc = dispCharge.trim();
                                     const isUnknown = sc === "??";
                                     const isRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
                                     const needsInput = isUnknown || isRange;
@@ -1004,9 +1009,9 @@ export default function SupersetDetail() {
                                       </span>
                                     );
                                   })()}
-                                  {serieData.rpe && !isValidated && (
+                                  {dispRpe && !isValidated && (
                                     <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
-                                      <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serieData.rpe}/10
+                                      <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{dispRpe}/10
                                     </span>
                                   )}
                                   {isValidated && validation.rpe !== null && (
