@@ -5,15 +5,25 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Edit2, Save, X, Activity, Heart, HeartPulse } from "lucide-react";
+import { Edit2, Save, X, Activity, Heart, HeartPulse, Gauge, LineChart as LineChartIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PaceCalibrationCard } from "@/components/PaceCalibrationCard";
+import { VmaHistoryChart } from "@/components/VmaHistoryChart";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { sendCardioTestSession } from "@/lib/coachSessions";
+import { FlaskConical } from "lucide-react";
 
 interface VmaCardProps {
   athleteId: string;
   isCoachView?: boolean;
   onVmaUpdate?: (vma: number) => void;
+  /** semaine affichée par le coach (cible de la séance test de calibration) */
+  calibrationTargetWeek?: { week: number; year: number };
+  /** rafraîchir la prog après envoi de la séance test */
+  onTestSessionSent?: () => void;
 }
 
-export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCardProps) {
+export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrationTargetWeek, onTestSessionSent }: VmaCardProps) {
   const [vma, setVma] = useState<number | null>(null);
   const [fcMax, setFcMax] = useState<number | null>(null);
   const [fcRepos, setFcRepos] = useState<number | null>(null);
@@ -23,6 +33,47 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
   const [fcMaxInputValue, setFcMaxInputValue] = useState("");
   const [fcReposInputValue, setFcReposInputValue] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showCalibration, setShowCalibration] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [sendingVmaTest, setSendingVmaTest] = useState(false);
+
+  const sendVmaTest = async (kind: "demi-cooper" | "vaussenat") => {
+    setSendingVmaTest(true);
+    try {
+      const config = kind === "demi-cooper"
+        ? {
+            name: "Test VMA — Demi-Cooper (6 min)",
+            exerciceLabel: "Demi-Cooper (6 min)",
+            cardioContent: {
+              steps: [
+                { id: 1, movement_type: "course", effort_type: "duration", duration: 900, target_heart_rate: "Z2", vma_percentage: 65 }, // 15 min EF (échauffement)
+                { id: 2, movement_type: "marche", effort_type: "duration", duration: 120 },                                              // 2 min marche
+                { id: 3, movement_type: "course", effort_type: "duration", duration: 360, target_heart_rate: "Z5", rpe: 10 },            // 6 min TEST (à fond, Z5)
+                { id: 4, movement_type: "marche", effort_type: "duration", duration: 180 },                                              // 3 min marche
+                { id: 5, movement_type: "course", effort_type: "duration", duration: 600, target_heart_rate: "Z2", vma_percentage: 65 }, // 10 min EF (retour au calme)
+              ],
+              blocks: [],
+            },
+            commentaire: "Test VMA — Demi-Cooper. 1) 15 min en Z2 (échauffement) · 2) 2 min marche · 3) TEST : 6 min à fond (Z5), allure régulière la plus rapide tenable, à plat → note la DISTANCE de ces 6 min · 4) 3 min marche · 5) 10 min en Z2 (retour au calme). VMA = distance des 6 min (m) ÷ 100 (ex : 1600 m → 16 km/h).",
+          }
+        : {
+            name: "Test VMA — Vaussenat (tapis)",
+            exerciceLabel: "Vaussenat (tapis) — test progressif",
+            cardioContent: { steps: [], blocks: [] },
+            commentaire: "Test VMA — Vaussenat sur tapis. Échauffement 10-15 min. Inclinaison 1%. Départ à 8 km/h, +0,5 km/h toutes les 30 s, jusqu'à épuisement. La VMA = vitesse du dernier palier complété intégralement. Note cette vitesse. (Ajuste les paliers selon ton protocole habituel.)",
+          };
+      const week = await sendCardioTestSession({
+        athleteId, targetWeek: calibrationTargetWeek, vma: null, ...config,
+      });
+      toast.success(`Test VMA envoyé au sportif (semaine S${week}) !`);
+      onTestSessionSent?.();
+    } catch (e) {
+      console.error("Envoi test VMA:", e);
+      toast.error("Erreur lors de l'envoi du test VMA");
+    } finally {
+      setSendingVmaTest(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -107,6 +158,15 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
 
       if (error) throw error;
 
+      // Historiser la VMA saisie manuellement (best-effort)
+      if (vmaValue && vmaValue !== vma) {
+        try {
+          await supabase.rpc("log_vma_history", {
+            p_athlete_id: athleteId, p_vma: vmaValue, p_source: "manual",
+          } as any);
+        } catch { /* migration vma_history non appliquée */ }
+      }
+
       // Succès : mettre à jour l'état local
       setVma(vmaValue);
       setFcMax(fcMaxValue);
@@ -141,14 +201,54 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
         <CardTitle className="text-lg font-semibold">Données Physiologiques</CardTitle>
         {!isEditing && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-            className="h-8 w-8 p-0"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowHistory(true)}
+              className="h-8 gap-1.5"
+              title="Évolution de la VMA"
+            >
+              <LineChartIcon className="h-3.5 w-3.5" />
+            </Button>
+            {isCoachView && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled={sendingVmaTest}>
+                    <FlaskConical className="h-3.5 w-3.5" />
+                    Test VMA
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => sendVmaTest("demi-cooper")}>
+                    Demi-Cooper (6 min)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => sendVmaTest("vaussenat")}>
+                    Vaussenat (tapis)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {isCoachView && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCalibration(true)}
+                className="h-8 gap-1.5"
+              >
+                <Gauge className="h-3.5 w-3.5" />
+                Calibrer les allures
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="h-8 w-8 p-0"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </CardHeader>
       <CardContent>
@@ -353,6 +453,36 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate }: VmaCard
           </div>
         )}
       </CardContent>
+
+      <Dialog open={showHistory} onOpenChange={setShowHistory}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Évolution de la VMA</DialogTitle>
+          </DialogHeader>
+          <VmaHistoryChart athleteId={athleteId} />
+        </DialogContent>
+      </Dialog>
+
+      {isCoachView && (
+        <Dialog open={showCalibration} onOpenChange={setShowCalibration}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Calibration des allures (FCR)</DialogTitle>
+            </DialogHeader>
+            <PaceCalibrationCard
+              athleteId={athleteId}
+              embedded
+              targetWeek={calibrationTargetWeek}
+              onTestSessionSent={onTestSessionSent}
+              onApplied={(newVma) => {
+                setShowCalibration(false);
+                loadData();
+                onVmaUpdate?.(newVma);
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Card>
   );
 }

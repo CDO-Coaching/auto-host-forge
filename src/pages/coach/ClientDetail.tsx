@@ -5401,6 +5401,8 @@ export default function ClientDetail() {
                 athleteId={athleteId!}
                 isCoachView={true}
                 onVmaUpdate={() => window.location.reload()}
+                calibrationTargetWeek={selectedWeekToProgram}
+                onTestSessionSent={() => loadWeekFromDB(selectedWeekToProgram.week, selectedWeekToProgram.year)}
               />
               <RaceTimeEstimatesCard athleteId={athleteId!} isCoachView={true} />
               <AerobicEfficiencyCard athleteId={athleteId!} />
