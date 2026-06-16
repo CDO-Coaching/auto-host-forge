@@ -27,8 +27,11 @@ export async function sendCardioTestSession(opts: SendCardioTestOptions): Promis
 
   // Semaine : réutiliser si elle existe, sinon créer (sans rien supprimer)
   let weekId: string | null = null;
+  // Même tri que le chargement de la prog (semaine la plus récente) pour éviter
+  // d'insérer dans un enregistrement de semaine différent de celui affiché.
   const { data: weeks } = await supabase.from("training_weeks")
-    .select("id").eq("athlete_id", opts.athleteId).eq("week_number", week).eq("year", year).limit(1);
+    .select("id").eq("athlete_id", opts.athleteId).eq("week_number", week).eq("year", year)
+    .order("created_at", { ascending: false }).limit(1);
   if (weeks && weeks.length) weekId = (weeks[0] as any).id;
   else {
     const { data: w, error: we } = await supabase.from("training_weeks")
@@ -43,12 +46,15 @@ export async function sendCardioTestSession(opts: SendCardioTestOptions): Promis
 
   const metrics = calculateCardioMetrics(opts.cardioContent as any, opts.vma);
   const finite = (n: number) => (Number.isFinite(n) ? n : 0);
+  // L'intensité moyenne est soumise à une contrainte en base (0-100 %) :
+  // un test peut dépasser 100 % VMA (ex: Vaussenat 25 km/h) → on borne.
+  const clampIntensity = (n: number) => Math.max(0, Math.min(100, Math.round(finite(n))));
 
   const { data: sess, error: se } = await supabase.from("training_sessions").insert({
     week_id: weekId, session_number: nextNum, name: opts.name, session_type: "cardio",
     cardio_total_distance_km: finite(metrics.totalDistanceKm),
     cardio_total_duration_minutes: finite(metrics.totalDurationMinutes),
-    cardio_average_intensity: finite(metrics.averageIntensity),
+    cardio_average_intensity: clampIntensity(metrics.averageIntensity),
   } as any).select("id").single();
   if (se) throw new Error(`training_sessions: ${se.message || JSON.stringify(se)}`);
 

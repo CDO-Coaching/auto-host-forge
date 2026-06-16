@@ -792,6 +792,22 @@ export default function SeanceDetail() {
           </div>
         </div>
 
+        {/* Consignes en haut pour les séances cardio (commentaire du coach) */}
+        {isCardioSession && (() => {
+          const comments = exercises
+            .map((it: any) => it?.commentaire)
+            .filter((c: any) => c && String(c).trim());
+          if (comments.length === 0) return null;
+          return (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">Consignes</p>
+              {comments.map((c: string, i: number) => (
+                <p key={i} className="text-sm leading-relaxed whitespace-pre-wrap break-words">{c}</p>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
