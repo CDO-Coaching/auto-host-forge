@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer, CheckCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Users, Dumbbell, AlertTriangle, CalendarDays, Clock, ChevronRight, Activity, User, Timer, CheckCircle, Search, Wallet, ListChecks, ShieldAlert } from "lucide-react";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { AcwrDashboardCard } from "@/components/AcwrDashboardCard";
 import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours, addHours } from "date-fns";
@@ -22,6 +23,19 @@ interface DashboardData {
   upcomingSessions: UpcomingSession[];
   recentActivities: RecentActivity[];
   fatigueAlerts: FatigueAlert[];
+  unpaid: UnpaidAthlete[];
+}
+
+interface UnpaidAthlete {
+  athleteId: string;
+  athleteName: string;
+  count: number;
+}
+
+interface AthleteOption {
+  id: string;
+  name: string;
+  email: string;
 }
 
 interface UpcomingSession {
@@ -70,8 +84,12 @@ export default function CoachDashboard() {
     upcomingSessions: [],
     recentActivities: [],
     fatigueAlerts: [],
+    unpaid: [],
   });
   const [loading, setLoading] = useState(true);
+  const [allAthletes, setAllAthletes] = useState<AthleteOption[]>([]);
+  const [search, setSearch] = useState("");
+  const [unpaidOpen, setUnpaidOpen] = useState(false);
   const [acwrAthleteIds, setAcwrAthleteIds] = useState<string[]>([]);
   const [acwrProfileMap, setAcwrProfileMap] = useState<Map<string, { first_name: string; last_name: string }>>(new Map());
   const [selectedSession, setSelectedSession] = useState<{
@@ -115,6 +133,13 @@ export default function CoachDashboard() {
           email: p.email || "",
         }));
       }
+
+      // Liste d'athlètes pour la recherche rapide
+      setAllAthletes(
+        [...profileMap.entries()]
+          .map(([id, p]) => ({ id, name: `${p.first_name} ${p.last_name}`.trim(), email: p.email }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
 
       // Expose to ACWR card
       setAcwrAthleteIds(athleteIds);
@@ -229,12 +254,19 @@ export default function CoachDashboard() {
 
             // Build email -> athleteId map
             const emailToAthlete = new Map<string, { id: string; name: string }>();
+            // Liste (id, nom complet normalisé) pour la correspondance par nom dans le titre
+            const nameToAthlete: { id: string; name: string; norm: string; first: string; last: string }[] = [];
+            const normalize = (s: string) =>
+              (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
             profileMap.forEach((profile, id) => {
+              const fullName = `${profile.first_name} ${profile.last_name}`.trim();
               if (profile.email) {
-                emailToAthlete.set(profile.email.toLowerCase(), {
-                  id,
-                  name: `${profile.first_name} ${profile.last_name}`,
-                });
+                emailToAthlete.set(profile.email.toLowerCase(), { id, name: fullName });
+              }
+              const first = normalize(profile.first_name);
+              const last = normalize(profile.last_name);
+              if (first || last) {
+                nameToAthlete.push({ id, name: fullName, norm: normalize(fullName), first, last });
               }
             });
 
@@ -253,19 +285,34 @@ export default function CoachDashboard() {
                 if (eventStart < timeMin || eventStart > timeMax) continue;
               }
 
+              let matched: { id: string; name: string } | null = null;
+              // 1) Correspondance par email d'invité
               for (const att of attendees) {
-                const match = emailToAthlete.get(att.email?.toLowerCase());
-                if (match) {
-                  upcomingSessions.push({
-                    eventId: event.id,
-                    athleteId: match.id,
-                    athleteName: match.name,
-                    eventTitle: event.summary || event.title || "RDV",
-                    startTime: startStr || "",
-                    endTime: endStr || "",
-                  });
-                  break;
+                const m = emailToAthlete.get(att.email?.toLowerCase());
+                if (m) { matched = m; break; }
+              }
+              // 2) Sinon, correspondance par nom dans le titre/description de l'événement
+              if (!matched) {
+                const haystack = normalize(`${event.summary || event.title || ""} ${event.description || ""}`);
+                if (haystack) {
+                  const hit = nameToAthlete.find(a =>
+                    (a.norm && haystack.includes(a.norm)) ||
+                    (a.first && a.last && haystack.includes(`${a.first} ${a.last}`)) ||
+                    (a.last && a.first && haystack.includes(`${a.last} ${a.first}`))
+                  );
+                  if (hit) matched = { id: hit.id, name: hit.name };
                 }
+              }
+
+              if (matched) {
+                upcomingSessions.push({
+                  eventId: event.id,
+                  athleteId: matched.id,
+                  athleteName: matched.name,
+                  eventTitle: event.summary || event.title || "RDV",
+                  startTime: startStr || "",
+                  endTime: endStr || "",
+                });
               }
             }
             upcomingSessions.sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -319,6 +366,47 @@ export default function CoachDashboard() {
           });
         });
 
+        // Impayés : déficit du mois courant non couvert par le crédit reporté
+        // (même logique que la page Comptabilité).
+        const unpaid: UnpaidAthlete[] = [];
+        try {
+          const monthStr = format(now, "yyyy-MM-01");
+          // Toutes les entrées du coach pour le solde global (crédits reportés)
+          const { data: allEntries } = await supabase
+            .from("accounting_entries")
+            .select("client_id, sessions_paid, sessions_done, month")
+            .eq("coach_id", coachId);
+
+          const balanceByClient = new Map<string, number>();
+          (allEntries || []).forEach((e: any) => {
+            if (!e.client_id) return;
+            balanceByClient.set(
+              e.client_id,
+              (balanceByClient.get(e.client_id) || 0) + ((e.sessions_paid || 0) - (e.sessions_done || 0))
+            );
+          });
+
+          (allEntries || [])
+            .filter((e: any) => e.client_id && e.month === monthStr)
+            .forEach((e: any) => {
+              const balanceAll = balanceByClient.get(e.client_id) || 0;
+              const creditBefore = balanceAll - ((e.sessions_paid || 0) - (e.sessions_done || 0));
+              const needing = Math.max(0, (e.sessions_done || 0) - (e.sessions_paid || 0));
+              const covered = Math.min(needing, Math.max(0, creditBefore));
+              const uncovered = needing - covered;
+              if (uncovered > 0) {
+                const profile = profileMap.get(e.client_id);
+                unpaid.push({
+                  athleteId: e.client_id,
+                  athleteName: profile ? `${profile.first_name} ${profile.last_name}` : "Client",
+                  count: uncovered,
+                });
+              }
+            });
+        } catch (paidErr) {
+          console.error("Impayés fetch error:", paidErr);
+        }
+
         setData({
           activeClients: approved.length,
           pendingRequests: pending.length,
@@ -328,6 +416,7 @@ export default function CoachDashboard() {
           upcomingSessions,
           recentActivities: recentActivities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 8),
           fatigueAlerts,
+          unpaid,
         });
       } else {
         setData(prev => ({
@@ -383,6 +472,180 @@ export default function CoachDashboard() {
     );
   }
 
+  // ---------------- Vue mobile dédiée ----------------
+  if (isMobile) {
+    const q = search.trim().toLowerCase();
+    const searchResults = q
+      ? allAthletes.filter(a => a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)).slice(0, 6)
+      : [];
+    const hasUnpaid = data.unpaid.length > 0;
+    const totalUnpaid = data.unpaid.reduce((s, u) => s + u.count, 0);
+
+    return (
+      <div className="space-y-5 pb-4">
+        <div>
+          <h1 className="text-xl font-bold text-foreground">Tableau de bord</h1>
+          <p className="text-sm text-muted-foreground">
+            {format(new Date(), "EEEE d MMMM", { locale: fr })}
+          </p>
+        </div>
+
+        {/* Recherche athlète */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher un athlète…"
+            className="pl-9"
+          />
+          {searchResults.length > 0 && (
+            <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+              {searchResults.map(a => (
+                <button
+                  key={a.id}
+                  className="flex w-full items-center gap-3 p-3 text-left hover:bg-secondary/50 transition-colors"
+                  onClick={() => { setSearch(""); navigate(`/coach/client/${a.id}`); }}
+                >
+                  <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{a.name || a.email}</p>
+                    {a.name && <p className="text-xs text-muted-foreground truncate">{a.email}</p>}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* À traiter : semaines à valider — rétréci si vide */}
+        {!hasUnvalidated ? (
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2">
+            <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+            <span className="text-xs text-muted-foreground">Rien à traiter — toutes les semaines sont validées</span>
+          </div>
+        ) : (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-primary" />
+                À traiter
+                <Badge variant="secondary" className="ml-auto text-xs">{data.unvalidatedAthletes.length}</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {data.unvalidatedAthletes.map(a => (
+                <div
+                  key={a.athleteId}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border"
+                  onClick={() => navigate(`/coach/client/${a.athleteId}`)}
+                >
+                  <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground truncate">{a.firstName} {a.lastName}</p>
+                    <p className="text-xs text-muted-foreground">Semaine non validée</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-2.5 text-xs text-green-500 border-green-500/50 hover:bg-green-500/10 hover:text-green-400 shrink-0"
+                    onClick={(e) => handleValidateWeek(a.athleteId, e)}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                    Valider
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Impayés : petite case dépliable */}
+        {hasUnpaid && (
+          <div className="rounded-lg border border-orange-400/30 bg-orange-500/5 overflow-hidden">
+            <button
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+              onClick={() => setUnpaidOpen(o => !o)}
+            >
+              <Wallet className="h-4 w-4 text-orange-400 shrink-0" />
+              <span className="text-sm font-medium text-foreground">Impayés</span>
+              <Badge variant="outline" className="text-xs text-orange-400 border-orange-400/40">
+                {data.unpaid.length} client{data.unpaid.length > 1 ? "s" : ""} · {totalUnpaid} séance{totalUnpaid > 1 ? "s" : ""}
+              </Badge>
+              <ChevronRight className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${unpaidOpen ? "rotate-90" : ""}`} />
+            </button>
+            {unpaidOpen && (
+              <div className="border-t border-orange-400/20 divide-y divide-orange-400/10">
+                {data.unpaid.map(u => (
+                  <div
+                    key={`pay-${u.athleteId}`}
+                    className="flex items-center justify-between gap-2 px-3 py-2.5"
+                    onClick={() => navigate(`/coach/comptabilite`)}
+                  >
+                    <p className="text-sm text-foreground truncate">{u.athleteName}</p>
+                    <span className="text-xs font-semibold text-orange-400 shrink-0">
+                      {u.count} séance{u.count > 1 ? "s" : ""} non réglée{u.count > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Dernières activités */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Dernières activités
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.recentActivities.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Aucune activité récente</p>
+            ) : (
+              data.recentActivities.map(a => (
+                <div
+                  key={a.id}
+                  className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${a.type === "session_completed" ? "hover:bg-secondary/50" : "hover:bg-secondary/30"}`}
+                  onClick={() => {
+                    if (a.type === "session_completed" && a.athleteId) {
+                      setSelectedSession({ id: a.id, athleteId: a.athleteId, athleteName: a.label, sessionType: a.sessionType || "renfo" });
+                    }
+                  }}
+                >
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${a.type === "session_completed" ? "bg-green-500" : a.type === "payment" ? "bg-primary" : "bg-blue-500"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-foreground truncate">
+                      <span className="font-medium">{a.label}</span>
+                      <span className="text-muted-foreground"> — {a.detail}</span>
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}</span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <CoachSessionDetailDialog
+          open={!!selectedSession}
+          onOpenChange={(open) => !open && setSelectedSession(null)}
+          sessionId={selectedSession?.id || null}
+          sessionType={selectedSession?.sessionType || "renfo"}
+          athleteId={selectedSession?.athleteId || ""}
+          athleteName={selectedSession?.athleteName || ""}
+        />
+      </div>
+    );
+  }
+
+  // ---------------- Vue desktop (inchangée) ----------------
   return (
     <div className="space-y-6">
       <div>
