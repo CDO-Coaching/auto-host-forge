@@ -56,20 +56,35 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
             },
             commentaire: "Test VMA — Demi-Cooper. 1) 15 min en Z2 (échauffement) · 2) 2 min marche · 3) TEST : 6 min à fond (Z5), allure régulière la plus rapide tenable, à plat → note la DISTANCE de ces 6 min · 4) 3 min marche · 5) 10 min en Z2 (retour au calme). VMA = distance des 6 min (m) ÷ 100 (ex : 1600 m → 16 km/h).",
           }
-        : {
-            name: "Test VMA — Vaussenat (tapis)",
-            exerciceLabel: "Vaussenat (tapis) — test progressif",
-            cardioContent: { steps: [], blocks: [] },
-            commentaire: "Test VMA — Vaussenat sur tapis. Échauffement 10-15 min. Inclinaison 1%. Départ à 8 km/h, +0,5 km/h toutes les 30 s, jusqu'à épuisement. La VMA = vitesse du dernier palier complété intégralement. Note cette vitesse. (Ajuste les paliers selon ton protocole habituel.)",
-          };
+        : (() => {
+            // Paliers 8 → 25 km/h : 3 min de course + 1 min de marche entre chaque.
+            // vma_percentage = vitesse/VMA×100 → l'étape affiche l'allure exacte du palier.
+            const refVma = vma && vma > 0 ? vma : 16; // VMA de référence (sinon 16) pour convertir en allure
+            const steps: any[] = [];
+            let id = 1;
+            for (let v = 8; v <= 25; v++) {
+              steps.push({
+                id: id++, movement_type: "course", effort_type: "duration", duration: 180,
+                vma_percentage: Math.round((v / refVma) * 1000) / 10,
+              });
+              if (v < 25) steps.push({ id: id++, movement_type: "marche", effort_type: "duration", duration: 60 });
+            }
+            const pace = (v: number) => { const s = 60 / v; const m = Math.floor(s); const sec = Math.round((s - m) * 60); return `${m}:${String(sec).padStart(2, "0")}`; };
+            return {
+              name: "Test VMA — Vaussenat (tapis)",
+              exerciceLabel: "Vaussenat (tapis) — test progressif",
+              cardioContent: { steps, blocks: [] },
+              commentaire: `Test VMA — Vaussenat sur tapis (inclinaison 1%). Échauffement 10-15 min. Paliers de 3 min de 8 à 25 km/h (+1 km/h), 1 min de marche entre chaque, jusqu'à épuisement. Allures repères : 8 km/h=${pace(8)} · 12=${pace(12)} · 16=${pace(16)} · 20=${pace(20)} · 25=${pace(25)}/km. VMA = vitesse du dernier palier de 3 min complété intégralement.`,
+            };
+          })();
       const week = await sendCardioTestSession({
         athleteId, targetWeek: calibrationTargetWeek, vma: null, ...config,
       });
       toast.success(`Test VMA envoyé au sportif (semaine S${week}) !`);
       onTestSessionSent?.();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Envoi test VMA:", e);
-      toast.error("Erreur lors de l'envoi du test VMA");
+      toast.error(`Erreur envoi test VMA : ${e?.message || e}`);
     } finally {
       setSendingVmaTest(false);
     }

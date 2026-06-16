@@ -42,14 +42,15 @@ export async function sendCardioTestSession(opts: SendCardioTestOptions): Promis
   const nextNum = ((existing || []) as any[]).reduce((m, s) => Math.max(m, s.session_number || 0), 0) + 1;
 
   const metrics = calculateCardioMetrics(opts.cardioContent as any, opts.vma);
+  const finite = (n: number) => (Number.isFinite(n) ? n : 0);
 
   const { data: sess, error: se } = await supabase.from("training_sessions").insert({
     week_id: weekId, session_number: nextNum, name: opts.name, session_type: "cardio",
-    cardio_total_distance_km: metrics.totalDistanceKm,
-    cardio_total_duration_minutes: metrics.totalDurationMinutes,
-    cardio_average_intensity: metrics.averageIntensity,
+    cardio_total_distance_km: finite(metrics.totalDistanceKm),
+    cardio_total_duration_minutes: finite(metrics.totalDurationMinutes),
+    cardio_average_intensity: finite(metrics.averageIntensity),
   } as any).select("id").single();
-  if (se) throw se;
+  if (se) throw new Error(`training_sessions: ${se.message || JSON.stringify(se)}`);
 
   const { error: ee } = await supabase.from("session_exercises").insert({
     session_id: (sess as any).id, exercise_order: 1, exercice: opts.exerciceLabel,
@@ -57,7 +58,7 @@ export async function sendCardioTestSession(opts: SendCardioTestOptions): Promis
     recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "",
     commentaire: opts.commentaire,
   } as any);
-  if (ee) throw ee;
+  if (ee) throw new Error(`session_exercises: ${ee.message || JSON.stringify(ee)}`);
 
   return week;
 }

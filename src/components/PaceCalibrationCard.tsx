@@ -159,9 +159,9 @@ export function PaceCalibrationCard({ athleteId, embedded = false, onApplied, ta
       });
       toast.success(`Séance test envoyée au sportif (semaine S${week}) !`);
       onTestSessionSent?.();
-    } catch (e) {
+    } catch (e: any) {
       console.error("Envoi séance test:", e);
-      toast.error("Erreur lors de l'envoi de la séance test");
+      toast.error(`Erreur envoi séance test : ${e?.message || e}`);
     } finally {
       setSending(false);
     }
