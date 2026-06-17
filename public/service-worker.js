@@ -1,7 +1,7 @@
 // Service Worker pour PWA
 // Objectif: cache uniquement l'app shell / assets statiques, jamais les appels API.
 
-const CACHE_NAME = 'cdo-coaching-v3';
+const CACHE_NAME = 'cdo-coaching-v4';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -69,6 +69,48 @@ self.addEventListener('fetch', (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(req, resClone));
         return res;
       });
+    }),
+  );
+});
+
+// ───────────────────────── Notifications push ─────────────────────────
+// Réception d'une notification poussée par le serveur.
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (e) {
+    payload = { title: 'CDO Coaching', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = payload.title || 'CDO Coaching';
+  const options = {
+    body: payload.body || "N'oublie pas de remplir tes données du jour 💪",
+    icon: payload.icon || '/web-app-manifest-192x192.png',
+    badge: payload.badge || '/web-app-manifest-192x192.png',
+    tag: payload.tag || 'cdo-reminder',
+    renotify: true,
+    data: { url: payload.url || '/' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Clic sur la notification : focus l'onglet existant ou ouvre l'app.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.navigate(targetUrl).catch(() => {});
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+      return undefined;
     }),
   );
 });
