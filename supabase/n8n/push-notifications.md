@@ -1,115 +1,119 @@
-# Notifications push via n8n
+# Notifications push via n8n (avec payload chiffré)
 
-L'envoi des rappels tourne dans **n8n** (pas dans une Edge Function). Pas de module à
-installer ni de docker-compose à éditer : la seule "magie" (signature VAPID) est faite
-en JavaScript natif dans un nœud Code, et on envoie **sans payload** (le texte de la
-notification est défini dans `public/service-worker.js`).
+Architecture en file d'attente (outbox) :
+- `notification_queue` = notifs à envoyer (titre, body, url, type, user_id).
+- Événements (nouvelle semaine, messages…) → insèrent une ligne depuis l'app.
+- Rappels conditionnels (Hooper, pesée…) → `enqueue_due_reminders()` les insère.
+- n8n vide la file (`claim_pending_notifications()`), chiffre le payload, envoie.
 
-## Prérequis (déjà en place côté code)
+## Prérequis n8n
+Variable d'environnement du service n8n (Coolify) :
+```
+NODE_FUNCTION_ALLOW_BUILTIN=crypto,https
+```
+(puis redémarrer n8n)
 
-- Tables `push_subscriptions` + `notification_preferences` (migration `20260616000000_push_notifications.sql`).
-- RPC `claim_due_push_subscriptions()` (migration `20260616010000_claim_due_push.sql`) — à exécuter dans le SQL Editor.
-- Service worker avec écouteurs `push` / `notificationclick`.
-- Front : carte "Rappels & notifications" dans le profil athlète.
+## Migrations à exécuter (SQL Editor)
+- `20260616000000_push_notifications.sql` (tables abonnements + préférences)
+- `20260617000000_notification_queue.sql` (file + RPC `claim_pending_notifications` + `enqueue_due_reminders`)
 
-## Le workflow n8n (3 nœuds)
+## Workflow n8n (4 nœuds)
 
-### 1. Schedule Trigger
-- Mode : *Every Minute* (ou toutes les 5 min, suffisant pour un rappel quotidien).
+### 1. Schedule Trigger — Every Minute
 
-### 2. HTTP Request — réclamer les envois dûs
-Appelle la RPC via PostgREST (utilise la clé **service_role**, pas l'anon).
+### 2. HTTP Request — alimenter la file (rappels conditionnels)
+- POST `https://supabasekong.cdocoaching.com/rest/v1/rpc/enqueue_due_reminders`
+- Headers : `apikey` + `Authorization: Bearer <SERVICE_ROLE_KEY>` + `Content-Type: application/json`
+- Body JSON : `{}`
 
-- Method : `POST`
-- URL : `https://supabasekong.cdocoaching.com/rest/v1/rpc/claim_due_push_subscriptions`
-- Headers :
-  - `apikey` : `<SERVICE_ROLE_KEY>`
-  - `Authorization` : `Bearer <SERVICE_ROLE_KEY>`
-  - `Content-Type` : `application/json`
-- Body : `{}` (JSON)
+### 3. HTTP Request — vider la file
+- POST `https://supabasekong.cdocoaching.com/rest/v1/rpc/claim_pending_notifications`
+- Mêmes headers. Body JSON : `{}`
+- Renvoie : `[{ id, endpoint, p256dh, auth, title, body, url }, ...]`
 
-Réponse = tableau d'abonnements dûs : `[{ endpoint, p256dh, auth, user_id }, ...]`.
-(La RPC a déjà marqué ces utilisateurs comme "envoyés aujourd'hui".)
-
-### 3. Code — signer VAPID et envoyer
-Mode : *Run Once for All Items*. Colle ce code (remplace le SUBJECT par ton email) :
+### 4. Code — chiffrer (aes128gcm) + signer VAPID + envoyer
+Mode *Run Once for All Items*. Remplace `SUBJECT` par ton email.
 
 ```js
 const crypto = require('crypto');
+const https = require('https');
 
-// Clés VAPID (la publique est aussi dans src/lib/pushNotifications.ts)
 const VAPID_PUBLIC  = 'BKGnX_WagdGtmaye8AXAQqEHBfFG933E9EEnNJFGOxkS1xPO2g59EUfYYYnnH5lXZAiJCGyIX9j8-UV_4UtRN_U';
-const VAPID_PRIVATE = 'QW3kXWwNI7MmnHbPyTu-Ywh0eEASkXy-JC46Ga0I1SY'; // SECRET — ne le mets que dans n8n
+const VAPID_PRIVATE = 'QW3kXWwNI7MmnHbPyTu-Ywh0eEASkXy-JC46Ga0I1SY';
 const SUBJECT       = 'mailto:dolleycorentin2@gmail.com';
 
 const b64urlToBuf = (s) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-const bufToB64url = (b) => Buffer.from(b).toString('base64')
-  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const bufToB64url = (b) => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const hmac = (key, data) => crypto.createHmac('sha256', key).update(data).digest();
 
-// Construit la clé privée EC (JWK) à partir de la clé publique (point 0x04||x||y) + d
 const pub = b64urlToBuf(VAPID_PUBLIC);
-const jwk = {
-  kty: 'EC', crv: 'P-256',
-  x: bufToB64url(pub.subarray(1, 33)),
-  y: bufToB64url(pub.subarray(33, 65)),
-  d: bufToB64url(b64urlToBuf(VAPID_PRIVATE)),
-};
-const privateKey = crypto.createPrivateKey({ key: jwk, format: 'jwk' });
+const jwk = { kty: 'EC', crv: 'P-256', x: bufToB64url(pub.subarray(1, 33)), y: bufToB64url(pub.subarray(33, 65)), d: bufToB64url(b64urlToBuf(VAPID_PRIVATE)) };
+const vapidKey = crypto.createPrivateKey({ key: jwk, format: 'jwk' });
 
-function vapidHeader(endpoint) {
-  const aud = new URL(endpoint).origin;
+function vapidHeader(origin) {
   const enc = (o) => bufToB64url(Buffer.from(JSON.stringify(o)));
-  const signingInput = enc({ typ: 'JWT', alg: 'ES256' }) + '.' +
-    enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SUBJECT });
-  // ieee-p1363 → signature brute R||S (format attendu par JWS ES256)
-  const sig = crypto.sign('sha256', Buffer.from(signingInput),
-    { key: privateKey, dsaEncoding: 'ieee-p1363' });
-  return `vapid t=${signingInput}.${bufToB64url(sig)}, k=${VAPID_PUBLIC}`;
+  const si = enc({ typ: 'JWT', alg: 'ES256' }) + '.' + enc({ aud: origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: SUBJECT });
+  const sig = crypto.sign('sha256', Buffer.from(si), { key: vapidKey, dsaEncoding: 'ieee-p1363' });
+  return 'vapid t=' + si + '.' + bufToB64url(sig) + ', k=' + VAPID_PUBLIC;
+}
+
+function encrypt(p256dh, auth, plaintext) {
+  const uaPub = b64urlToBuf(p256dh);
+  const authSecret = b64urlToBuf(auth);
+  const payload = Buffer.from(plaintext, 'utf8');
+  const ecdh = crypto.createECDH('prime256v1');
+  ecdh.generateKeys();
+  const asPub = ecdh.getPublicKey();
+  const shared = ecdh.computeSecret(uaPub);
+  const salt = crypto.randomBytes(16);
+  const prkKey = hmac(authSecret, shared);
+  const keyInfo = Buffer.concat([Buffer.from('WebPush: info\0'), uaPub, asPub]);
+  const ikm = hmac(prkKey, Buffer.concat([keyInfo, Buffer.from([1])]));
+  const prk = hmac(salt, ikm);
+  const cek = hmac(prk, Buffer.concat([Buffer.from('Content-Encoding: aes128gcm\0'), Buffer.from([1])])).subarray(0, 16);
+  const nonce = hmac(prk, Buffer.concat([Buffer.from('Content-Encoding: nonce\0'), Buffer.from([1])])).subarray(0, 12);
+  const cipher = crypto.createCipheriv('aes-128-gcm', cek, nonce);
+  const record = Buffer.concat([payload, Buffer.from([2])]);
+  const ct = Buffer.concat([cipher.update(record), cipher.final(), cipher.getAuthTag()]);
+  const header = Buffer.concat([salt, Buffer.from([0, 0, 0x10, 0]), Buffer.from([asPub.length]), asPub]);
+  return Buffer.concat([header, ct]);
+}
+
+function send(endpoint, headers, body) {
+  return new Promise((resolve) => {
+    const m = endpoint.match(/^https:\/\/([^\/]+)(\/.*)$/);
+    const req = https.request({ hostname: m[1], path: m[2], method: 'POST', headers }, (res) => {
+      res.on('data', () => {});
+      res.on('end', () => resolve(res.statusCode));
+    });
+    req.on('error', () => resolve(-1));
+    if (body) req.write(body);
+    req.end();
+  });
 }
 
 const out = [];
 for (const item of $input.all()) {
-  const sub = item.json;
-  if (!sub.endpoint) continue;
-  let status = 0;
-  try {
-    const res = await fetch(sub.endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': vapidHeader(sub.endpoint),
-        'TTL': '86400',
-        'Content-Length': '0',
-      },
-    });
-    status = res.status; // 201 = OK ; 404/410 = abonnement mort
-  } catch (e) {
-    status = -1;
-  }
-  out.push({ json: { endpoint: sub.endpoint, status, dead: status === 404 || status === 410 } });
+  const j = item.json;
+  if (!j.endpoint) continue;
+  const origin = j.endpoint.match(/^(https?:\/\/[^\/]+)/)[1];
+  const payload = JSON.stringify({ title: j.title, body: j.body, url: j.url });
+  const body = encrypt(j.p256dh, j.auth, payload);
+  const headers = {
+    'Authorization': vapidHeader(origin),
+    'Content-Encoding': 'aes128gcm',
+    'Content-Length': body.length,
+    'TTL': '86400',
+  };
+  const status = await send(j.endpoint, headers, body);
+  out.push({ json: { id: j.id, status, dead: status === 404 || status === 410 } });
 }
 return out;
 ```
 
-### 4. (Optionnel) HTTP Request — nettoyer les abonnements morts
-Pour supprimer les endpoints expirés (status 404/410). Ajoute un *IF* (`dead == true`)
-puis un HTTP Request par item :
-
-- Method : `DELETE`
-- URL : `https://supabasekong.cdocoaching.com/rest/v1/push_subscriptions?endpoint=eq.{{ encodeURIComponent($json.endpoint) }}`
-- Headers : `apikey` + `Authorization: Bearer <SERVICE_ROLE_KEY>`
+`status` attendu : **201**. La notif affiche alors `title` + `body` et ouvre `url` au clic.
 
 ## Test
-
-1. Exécute les deux migrations dans le SQL Editor.
-2. Déploie l'app (le SW ne s'active qu'en prod), va sur Profil → "Activer les rappels",
-   choisis une heure dans 1-2 min.
-3. Lance le workflow n8n manuellement (bouton *Execute Workflow*) : le nœud Code doit
-   renvoyer `status: 201`, et la notification doit apparaître.
-4. Active le Schedule Trigger une fois que ça marche.
-
-## Limite connue
-
-Sans payload, toutes les notifications affichent le même texte (défini dans le SW).
-C'est suffisant pour un rappel quotidien. Pour des messages différents par type
-(Hooper / séance / etc.), il faudra chiffrer le payload → on ajoutera alors le module
-`web-push` côté n8n.
+1. Migrations exécutées + `NODE_FUNCTION_ALLOW_BUILTIN=crypto,https` + n8n redémarré.
+2. Côté app : rappels activés, heure passée, questionnaire NON rempli, `last_sent_at = null`.
+3. Execute Workflow → nœud 4 doit renvoyer `status: 201` et la notif arrive avec son vrai texte.

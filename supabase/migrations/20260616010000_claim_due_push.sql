@@ -21,6 +21,12 @@ begin
         p.last_sent_at is null
         or (p.last_sent_at at time zone p.timezone)::date < (now() at time zone p.timezone)::date
       )
+      -- Pas de rappel si le questionnaire du jour est déjà rempli.
+      and not exists (
+        select 1 from public.daily_fatigue_log f
+        where f.user_id = p.user_id
+          and f.date = (now() at time zone p.timezone)::date
+      )
     returning p.user_id
   )
   select s.endpoint, s.p256dh, s.auth, s.user_id
