@@ -38,6 +38,7 @@ const CATALOG: Record<string, CatalogItem[]> = {
     { type: "message", label: "Messages", hint: "Quand tu reçois un message", instant: true },
   ],
   coach: [
+    { type: "programmation", label: "Semaines à valider", hint: "Rappel s'il reste des semaines non validées" },
     { type: "message", label: "Messages", hint: "Quand un athlète t'envoie un message", instant: true },
   ],
 };
