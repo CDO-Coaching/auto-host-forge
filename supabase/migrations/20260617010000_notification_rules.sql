@@ -41,6 +41,7 @@ declare
   d date;
   dow int;
   t time;
+  n int;
 begin
   for r in
     select nr.user_id, nr.type, nr.days, nr.reminder_time, nr.updated_at, np.timezone
@@ -78,8 +79,22 @@ begin
       values (r.user_id, 'Pesée du jour', 'Pense à te peser 📊', '/sportif/poids', 'weight');
 
     elsif r.type = 'programmation' then
+      -- nombre d'athlètes (approuvés) dont la semaine courante n'est pas validée
+      select count(*) into n
+      from public.coach_athlete_relationships car
+      where car.coach_id = r.user_id and car.status = 'approved'
+        and not exists (
+          select 1 from public.training_weeks tw
+          where tw.athlete_id = car.athlete_id
+            and tw.week_number = extract(week from (now() at time zone tz))::int
+            and tw.year = extract(isoyear from (now() at time zone tz))::int
+            and tw.validated = true
+        );
+      if n = 0 then continue; end if;   -- rien à programmer → pas de notification
       insert into public.notification_queue (user_id, title, body, url, type)
-      values (r.user_id, 'Programmation', 'Pense à programmer les semaines de tes athlètes 📅', '/coach/mes-clients', 'programmation');
+      values (r.user_id, 'Programmation',
+              'Il reste ' || n || ' athlète(s) à programmer cette semaine 📅',
+              '/coach/mes-clients', 'programmation');
 
     elsif r.type = 'paiements' then
       insert into public.notification_queue (user_id, title, body, url, type)

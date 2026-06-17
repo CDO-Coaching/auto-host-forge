@@ -29,14 +29,16 @@ const DAYS = [
   { label: "D", dow: 0 },
 ];
 
-const CATALOG: Record<string, { type: string; label: string; hint: string }[]> = {
+type CatalogItem = { type: string; label: string; hint: string; instant?: boolean };
+
+const CATALOG: Record<string, CatalogItem[]> = {
   sportif: [
     { type: "hooper", label: "Questionnaire de forme", hint: "Rappel si non rempli à l'heure choisie" },
     { type: "weight", label: "Pesée", hint: "Rappel si aucune pesée enregistrée ce jour" },
+    { type: "message", label: "Messages", hint: "Quand tu reçois un message", instant: true },
   ],
   coach: [
-    { type: "programmation", label: "Programmation des semaines", hint: "Rappel de programmer tes athlètes" },
-    { type: "paiements", label: "Paiements & impayés", hint: "Rappel de vérifier la compta" },
+    { type: "message", label: "Messages", hint: "Quand un athlète t'envoie un message", instant: true },
   ],
 };
 
@@ -242,7 +244,7 @@ export default function NotificationsSettings({ role }: { role: "sportif" | "coa
                     />
                   </div>
 
-                  {rule.enabled && (
+                  {rule.enabled && !c.instant && (
                     <div className="space-y-3 pl-1">
                       <div className="flex flex-wrap gap-1.5">
                         {DAYS.map((day, i) => {
