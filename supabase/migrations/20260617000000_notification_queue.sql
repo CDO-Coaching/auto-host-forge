@@ -32,6 +32,7 @@ begin
     update public.notification_queue q
     set sent_at = now()
     where q.sent_at is null
+      and exists (select 1 from public.push_subscriptions s where s.user_id = q.user_id)
     returning q.id, q.user_id, q.title, q.body, q.url
   )
   select c.id, s.endpoint, s.p256dh, s.auth, c.title, c.body, c.url

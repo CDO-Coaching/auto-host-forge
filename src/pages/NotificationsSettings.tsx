@@ -123,6 +123,19 @@ export default function NotificationsSettings({ role }: { role: "sportif" | "coa
     }
   };
 
+  const sendTest = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("send_test_notification");
+      if (error) throw error;
+      toast.success("Test envoyé — il arrivera dans la minute (si le déclencheur n8n est actif).");
+    } catch (e: any) {
+      toast.error(`Erreur : ${e?.message || e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const saveRule = async (type: string, rule: Rule) => {
     const { error } = await supabase.from("notification_rules").upsert(
       {
@@ -138,11 +151,12 @@ export default function NotificationsSettings({ role }: { role: "sportif" | "coa
     if (error) throw error;
   };
 
-  const updateRule = async (type: string, patch: Partial<Rule>) => {
+  const updateRule = async (type: string, patch: Partial<Rule>, notify = false) => {
     const next = { ...rules[type], ...patch };
     setRules((prev) => ({ ...prev, [type]: next }));
     try {
       await saveRule(type, next);
+      if (notify) toast.success("Enregistré ✓");
     } catch (e: any) {
       toast.error(`Erreur : ${e?.message || e}`);
     }
@@ -199,6 +213,11 @@ export default function NotificationsSettings({ role }: { role: "sportif" | "coa
               <Switch checked={master} onCheckedChange={handleMaster} disabled={busy || !canEnablePush()} />
             </div>
           )}
+          {master && supported && !needsInstall && (
+            <Button variant="outline" size="sm" className="mt-4" onClick={sendTest} disabled={busy}>
+              Envoyer une notification de test
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -249,7 +268,7 @@ export default function NotificationsSettings({ role }: { role: "sportif" | "coa
                           type="time"
                           value={rule.time}
                           onChange={(e) => setRules((p) => ({ ...p, [c.type]: { ...p[c.type], time: e.target.value } }))}
-                          onBlur={() => updateRule(c.type, { time: rules[c.type].time })}
+                          onBlur={() => updateRule(c.type, { time: rules[c.type].time }, true)}
                           className="w-28"
                         />
                       </div>

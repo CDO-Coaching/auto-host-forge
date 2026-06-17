@@ -43,7 +43,7 @@ declare
   t time;
 begin
   for r in
-    select nr.user_id, nr.type, nr.days, nr.reminder_time, np.timezone
+    select nr.user_id, nr.type, nr.days, nr.reminder_time, nr.updated_at, np.timezone
     from public.notification_rules nr
     join public.notification_preferences np on np.user_id = nr.user_id
     where nr.enabled = true and np.enabled = true
@@ -57,11 +57,13 @@ begin
     if not (dow = any(r.days)) then continue; end if;
     if t < r.reminder_time then continue; end if;
 
-    -- déjà mis en file aujourd'hui pour ce type ? (anti-doublon)
+    -- déjà mis en file aujourd'hui pour ce type, DEPUIS la dernière modif de la règle ?
+    -- (changer l'heure/les jours met à jour updated_at → ré-arme l'envoi du jour)
     if exists (
       select 1 from public.notification_queue q
       where q.user_id = r.user_id and q.type = r.type
         and (q.created_at at time zone tz)::date = d
+        and q.created_at >= r.updated_at
     ) then continue; end if;
 
     -- conditions + contenu par type
