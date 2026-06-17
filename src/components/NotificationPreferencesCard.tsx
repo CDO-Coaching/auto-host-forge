@@ -42,17 +42,20 @@ export function NotificationPreferencesCard({ userId }: { userId: string }) {
     })();
   }, [userId]);
 
-  const savePrefs = async (nextEnabled: boolean) => {
-    const { error } = await supabase.from("notification_preferences").upsert(
-      {
-        user_id: userId,
-        enabled: nextEnabled,
-        reminder_time: time,
-        timezone: getUserTimeZone(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
+  const savePrefs = async (nextEnabled: boolean, resetSchedule = false) => {
+    const payload: Record<string, unknown> = {
+      user_id: userId,
+      enabled: nextEnabled,
+      reminder_time: time,
+      timezone: getUserTimeZone(),
+      updated_at: new Date().toISOString(),
+    };
+    // Ré-arme l'envoi du jour : permet de recevoir le rappel à la nouvelle heure
+    // même si un rappel a déjà été envoyé aujourd'hui.
+    if (resetSchedule) payload.last_sent_at = null;
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert(payload, { onConflict: "user_id" });
     if (error) throw error;
   };
 
@@ -67,7 +70,7 @@ export function NotificationPreferencesCard({ userId }: { userId: string }) {
           setBusy(false);
           return;
         }
-        await savePrefs(true);
+        await savePrefs(true, true);
         setEnabled(true);
         toast.success("Rappels activés sur cet appareil.");
       } else {
@@ -86,7 +89,7 @@ export function NotificationPreferencesCard({ userId }: { userId: string }) {
   const handleSaveTime = async () => {
     setBusy(true);
     try {
-      await savePrefs(enabled);
+      await savePrefs(enabled, true);
       toast.success("Heure de rappel enregistrée.");
     } catch (e: any) {
       toast.error(`Erreur : ${e?.message || e}`);
