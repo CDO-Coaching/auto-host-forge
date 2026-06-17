@@ -108,7 +108,7 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
         user_agent: navigator.userAgent,
         last_seen_at: new Date().toISOString(),
       },
-      { onConflict: "endpoint" }
+      { onConflict: "user_id,endpoint" }
     );
   if (error) {
     console.error("push subscribe save error", error);
@@ -117,13 +117,16 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
   return true;
 }
 
-/** Désabonne l'appareil courant et supprime la ligne en base. */
+/**
+ * Désactive les notifications pour le COMPTE courant sur cet appareil :
+ * on supprime seulement sa ligne en base (RLS = ses propres lignes). On NE
+ * désabonne PAS le navigateur, car le même appareil peut servir à un autre
+ * compte (ex. coach + sportif sur le même téléphone).
+ */
 export async function unsubscribeFromPush(): Promise<void> {
   if (!isPushSupported()) return;
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
-  const endpoint = subscription.endpoint;
-  await subscription.unsubscribe().catch(() => {});
-  await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint);
 }
