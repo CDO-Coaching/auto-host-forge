@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ interface Client {
 
 export default function Messagerie() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [messageText, setMessageText] = useState("");
@@ -90,6 +92,15 @@ export default function Messagerie() {
 
     loadClients();
   }, [user]);
+
+  // Ouvre directement la conversation de l'expéditeur si on arrive via une notif (?u=<id>)
+  useEffect(() => {
+    const u = searchParams.get("u");
+    if (!u || clients.length === 0) return;
+    if (selectedClient?.id === u) return;
+    const c = clients.find((cl) => cl.id === u);
+    if (c) setSelectedClient(c);
+  }, [searchParams, clients, selectedClient]);
 
   // Load unread counts for all clients
   useEffect(() => {

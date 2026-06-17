@@ -36,10 +36,12 @@ const CATALOG: Record<string, CatalogItem[]> = {
     { type: "hooper", label: "Questionnaire de forme", hint: "Rappel si non rempli à l'heure choisie" },
     { type: "weight", label: "Pesée", hint: "Rappel si aucune pesée enregistrée ce jour" },
     { type: "message", label: "Messages", hint: "Quand tu reçois un message", instant: true },
+    { type: "sfms_request", label: "Questionnaire surentraînement", hint: "Quand ton coach t'en envoie un", instant: true },
   ],
   coach: [
     { type: "programmation", label: "Semaines à valider", hint: "Rappel s'il reste des semaines non validées" },
     { type: "message", label: "Messages", hint: "Quand un athlète t'envoie un message", instant: true },
+    { type: "sfms_result", label: "Retour de questionnaire", hint: "Quand un athlète termine le questionnaire", instant: true },
   ],
 };
 

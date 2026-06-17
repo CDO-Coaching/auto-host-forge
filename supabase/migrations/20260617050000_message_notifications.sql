@@ -37,7 +37,8 @@ begin
 
   -- rôle du destinataire → bonne page de messagerie
   is_coach := exists (select 1 from public.coach_athlete_relationships car where car.coach_id = NEW.receiver_id);
-  target_url := case when is_coach then '/coach/messagerie' else '/sportif/messagerie' end;
+  -- côté coach : on cible la conversation de l'expéditeur ; côté athlète : un seul coach
+  target_url := case when is_coach then '/coach/messagerie?u=' || NEW.sender_id else '/sportif/messagerie' end;
 
   preview := left(coalesce(NEW.content, ''), 80);
   body_text := case
