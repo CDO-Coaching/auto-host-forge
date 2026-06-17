@@ -1,4 +1,4 @@
-import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList, LayoutDashboard, FlaskConical } from "lucide-react";
+import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList, LayoutDashboard, FlaskConical, Bell } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
@@ -38,6 +38,7 @@ const menuGroups = [
     items: [
       { title: "Comptabilité", url: "/coach/comptabilite", icon: Euro },
       { title: "Suivi du salaire", url: "/coach/suivi-salaire", icon: TrendingUp },
+      { title: "Notifications", url: "/coach/notifications", icon: Bell },
       { title: "Mon profil", url: "/coach/profil", icon: User },
     ],
   },

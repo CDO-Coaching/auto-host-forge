@@ -35,6 +35,7 @@ import SportifDashboard from "./sportif/Dashboard";
 import ProgrammerSeances from "./sportif/ProgrammerSeances";
 import Bilan from "./sportif/Bilan";
 import Physiologie from "./sportif/Physiologie";
+import NotificationsSettings from "./NotificationsSettings";
 
 export default function DashboardSportif() {
   const navigate = useNavigate();
@@ -117,6 +118,7 @@ export default function DashboardSportif() {
                 <Route path="/questions" element={<Questions />} />
                 <Route path="/bilan" element={<Bilan />} />
                 <Route path="/profil" element={<Profil />} />
+                <Route path="/notifications" element={<NotificationsSettings role="sportif" />} />
                 <Route path="/physiologie" element={<Physiologie />} />
                 <Route path="/aide" element={<Aide />} />
               </Routes>

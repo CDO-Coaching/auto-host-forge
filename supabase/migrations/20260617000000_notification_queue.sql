@@ -44,8 +44,10 @@ revoke execute on function public.claim_pending_notifications() from anon, authe
 grant execute on function public.claim_pending_notifications() to service_role;
 
 -- ───────── Rappels conditionnels → insertion dans la file (appelé par n8n) ─────────
--- Pour l'instant : Hooper (questionnaire de forme non rempli à l'heure choisie).
--- last_sent_at sert d'anti-doublon journalier pour ce rappel.
+-- À l'heure choisie (une fois/jour, garde-fou last_sent_at), on insère un rappel
+-- PAR TYPE activé dans p.types, si la condition correspondante est encore non remplie.
+--   types.hooper (défaut true)  : questionnaire de forme non rempli aujourd'hui
+--   types.weight (défaut false) : pas de pesée enregistrée aujourd'hui
 create or replace function public.enqueue_due_reminders()
 returns void
 language plpgsql
@@ -61,20 +63,36 @@ begin
         p.last_sent_at is null
         or (p.last_sent_at at time zone p.timezone)::date < (now() at time zone p.timezone)::date
       )
-      and not exists (
-        select 1 from public.daily_fatigue_log f
-        where f.user_id = p.user_id
-          and f.date = (now() at time zone p.timezone)::date
-      )
-    returning p.user_id
+    returning p.user_id, p.timezone, p.types
   )
   insert into public.notification_queue (user_id, title, body, url, type)
+  -- Questionnaire de forme (Hooper)
   select d.user_id,
          'Questionnaire du jour',
          'Pense à remplir ton questionnaire de forme 💪',
          '/sportif/fatigue',
          'hooper'
-  from due d;
+  from due d
+  where coalesce((d.types->>'hooper')::boolean, true)
+    and not exists (
+      select 1 from public.daily_fatigue_log f
+      where f.user_id = d.user_id
+        and f.date = (now() at time zone d.timezone)::date
+    )
+  union all
+  -- Pesée
+  select d.user_id,
+         'Pesée du jour',
+         'Pense à te peser 📊',
+         '/sportif/poids',
+         'weight'
+  from due d
+  where coalesce((d.types->>'weight')::boolean, false)
+    and not exists (
+      select 1 from public.weight_tracking w
+      where w.user_id = d.user_id
+        and (w.recorded_at at time zone d.timezone)::date = (now() at time zone d.timezone)::date
+    );
 end;
 $$;
 

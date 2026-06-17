@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText, LayoutDashboard, HeartPulse } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText, LayoutDashboard, HeartPulse, Bell } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -25,6 +25,7 @@ const baseMenuItems = [
   { title: "Mon poids", url: "/sportif/poids", icon: Scale },
   { title: "Méditation", url: "/sportif/meditation", icon: Wind },
   { title: "Mon profil", url: "/sportif/profil", icon: User },
+  { title: "Notifications", url: "/sportif/notifications", icon: Bell },
   { title: "Aide", url: "/sportif/aide", icon: HelpCircle },
   { title: "Politique RGPD", url: "/politique-rgpd", icon: Shield },
 ];
