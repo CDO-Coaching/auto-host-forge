@@ -1,7 +1,7 @@
 // Service Worker pour PWA
 // Objectif: cache uniquement l'app shell / assets statiques, jamais les appels API.
 
-const CACHE_NAME = 'cdo-coaching-v4';
+const CACHE_NAME = 'cdo-coaching-v5';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -96,21 +96,25 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Clic sur la notification : focus l'onglet existant ou ouvre l'app.
+// Clic sur la notification : focus l'app si ouverte (et lui demander de naviguer
+// via le routeur), sinon l'ouvrir directement sur la bonne page.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
 
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+    (async () => {
+      const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       for (const client of clientList) {
         if ('focus' in client) {
-          client.navigate(targetUrl).catch(() => {});
-          return client.focus();
+          await client.focus();
+          // L'app est déjà ouverte : on lui demande de changer de page via React Router
+          // (plus fiable que client.navigate, notamment en PWA iOS).
+          client.postMessage({ type: 'notification-navigate', url: targetUrl });
+          return;
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
-      return undefined;
-    }),
+      if (self.clients.openWindow) await self.clients.openWindow(targetUrl);
+    })(),
   );
 });
