@@ -79,8 +79,8 @@ export function VoiceNoteAI({ onResult }: { onResult: (text: string) => void }) 
         <Textarea
           value={currentText}
           onChange={(e) => setTranscript(e.target.value)}
-          rows={3}
-          className="resize-none text-sm"
+          rows={5}
+          className="resize-y min-h-[120px] text-sm"
           placeholder="Ta dictée apparaîtra ici…"
         />
       )}

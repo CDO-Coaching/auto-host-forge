@@ -34,8 +34,10 @@ Toujours deux blocs distincts :
 # STYLE
 Phrases courtes, ton pro et chaleureux, pas de jargon inutile, format prêt à copier.
 
-# SI INFO MANQUANTE
-Si un élément essentiel manque (ressenti, douleur...), pose une question courte avant de produire le compte-rendu plutôt que d'inventer.`;
+# RÈGLES IMPORTANTES
+- Ne pose JAMAIS de question. Produis toujours directement le compte-rendu.
+- Si le coach donne peu d'informations, fais un compte-rendu COURT, proportionnel à ce qui a été dit.
+- N'invente rien : n'ajoute aucun élément (ressenti, douleur, charges...) qui n'a pas été mentionné. Si une rubrique n'a pas d'info, omets-la simplement.`;
 
 export async function generateSessionReport(transcript: string): Promise<string> {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;

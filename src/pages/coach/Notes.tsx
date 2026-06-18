@@ -310,8 +310,8 @@ export default function Notes() {
                     placeholder="Écrire une note..."
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
-                    rows={4}
-                    className="resize-none"
+                    rows={12}
+                    className="resize-y min-h-[45vh] sm:min-h-[220px] text-base leading-relaxed"
                   />
                 </div>
                 <Button 
