@@ -1,7 +1,8 @@
-import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList, LayoutDashboard, FlaskConical, Bell } from "lucide-react";
+import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, StickyNote, CalendarDays, ClipboardList, LayoutDashboard, FlaskConical, Bell, ShieldCheck } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -13,6 +14,8 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+
+const ADMIN_EMAIL = "cdo.personaltrainer@gmail.com";
 
 const menuGroups = [
   {
@@ -47,6 +50,17 @@ const menuGroups = [
 export function CoachSidebar() {
   const { setOpenMobile, isMobile } = useSidebar();
   const { unreadCount } = useMessages();
+  const { user } = useAuth();
+  const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL;
+
+  // Ajoute "Administration" au groupe Admin pour le compte coach principal
+  const groups = isAdmin
+    ? menuGroups.map((g) =>
+        g.label === "Admin"
+          ? { ...g, items: [...g.items, { title: "Administration", url: "/coach/admin", icon: ShieldCheck }] }
+          : g
+      )
+    : menuGroups;
 
   const handleLinkClick = () => {
     // Sur mobile, fermer la sidebar après un clic
@@ -58,7 +72,7 @@ export function CoachSidebar() {
   return (
     <Sidebar collapsible="offcanvas" className="border-r">
       <SidebarContent style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        {menuGroups.map((group, groupIndex) => (
+        {groups.map((group, groupIndex) => (
           <SidebarGroup key={group.label}>
             <SidebarGroupLabel className="text-xs text-muted-foreground/60 uppercase tracking-wider px-2">
               {group.label}

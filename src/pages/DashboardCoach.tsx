@@ -34,6 +34,7 @@ import SeancesProgrammees from "./coach/SeancesProgrammees";
 import Methodologies from "./coach/Methodologies";
 import CoachDashboard from "./coach/Dashboard";
 import NotificationsSettings from "./NotificationsSettings";
+import Administration from "./coach/Administration";
 
 export default function DashboardCoach() {
   const navigate = useNavigate();
@@ -192,6 +193,7 @@ export default function DashboardCoach() {
               <Route path="/suivi-salaire" element={<SuiviSalaire />} />
               <Route path="/profil" element={<Profil />} />
               <Route path="/notifications" element={<NotificationsSettings role="coach" />} />
+              <Route path="/admin" element={<Administration />} />
             </Routes>
           </main>
           <CoachBottomNav />
