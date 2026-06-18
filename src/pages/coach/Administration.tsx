@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UserCheck, UserX, Mail, Phone, ShieldAlert, Inbox, CheckCircle2 } from "lucide-react";
+import { UserCheck, UserX, Mail, Phone, ShieldAlert, Inbox, CheckCircle2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,6 +38,7 @@ export default function Administration() {
   const [pending, setPending] = useState<PendingUser[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [showTreated, setShowTreated] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -157,11 +158,12 @@ export default function Administration() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {contacts.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-2">Aucune demande de contact.</p>
-          ) : (
-            contacts.map((c) => (
-              <div key={c.id} className={`p-3 rounded-lg border ${c.traite ? "border-border opacity-60" : "border-primary/30 bg-primary/5"}`}>
+          {(() => {
+            const untreated = contacts.filter((c) => !c.traite);
+            const treated = contacts.filter((c) => c.traite);
+
+            const renderContact = (c: Contact) => (
+              <div key={c.id} className={`p-3 rounded-lg border ${c.traite ? "border-border opacity-70" : "border-primary/30 bg-primary/5"}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-semibold text-foreground truncate">{fullName(c.prenom, c.nom)}</p>
                   <span className="text-xs text-muted-foreground shrink-0">{c.created_at?.slice(0, 16)}</span>
@@ -176,7 +178,7 @@ export default function Administration() {
                   {c.traite ? (
                     <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground"
                       disabled={busy === c.id} onClick={() => markContact(c.id, false)}>
-                      Marquer non traité
+                      Remettre à traiter
                     </Button>
                   ) : (
                     <Button size="sm" variant="outline" className="h-7 text-xs"
@@ -186,8 +188,33 @@ export default function Administration() {
                   )}
                 </div>
               </div>
-            ))
-          )}
+            );
+
+            return (
+              <>
+                {untreated.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">Aucune demande à traiter.</p>
+                ) : (
+                  untreated.map(renderContact)
+                )}
+
+                {treated.length > 0 && (
+                  <div className="pt-2">
+                    <button
+                      className="flex w-full items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2 text-left"
+                      onClick={() => setShowTreated((v) => !v)}
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                      <span className="text-sm text-foreground">Traités</span>
+                      <Badge variant="secondary" className="text-xs">{treated.length}</Badge>
+                      <ChevronRight className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${showTreated ? "rotate-90" : ""}`} />
+                    </button>
+                    {showTreated && <div className="space-y-2 mt-2">{treated.map(renderContact)}</div>}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
