@@ -172,17 +172,15 @@ const Auth = () => {
               </div>
             </div>
             <AlertDialogTitle className="text-center text-2xl">
-              Vérifie ton email !
+              Demande envoyée ✅
             </AlertDialogTitle>
             <AlertDialogDescription className="text-center text-base space-y-3 pt-2">
               <p>
-                Nous t'avons envoyé un email de confirmation à <strong>{email}</strong>
+                Ton compte a bien été créé avec <strong>{email}</strong>.
               </p>
               <p>
-                Clique sur le lien dans l'email pour valider ton compte et compléter ton profil.
-              </p>
-              <p className="text-destructive font-medium">
-                ⚠️ N'oublie pas de vérifier tes spams !
+                Ton accès doit maintenant être validé par ton coach. Tu pourras te
+                connecter dès qu'il aura approuvé ta demande.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>
