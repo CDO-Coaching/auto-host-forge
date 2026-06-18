@@ -8,6 +8,7 @@ import { fr } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { VoiceNoteAI } from "@/components/VoiceNoteAI";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, StickyNote, Calendar, User, Check, ChevronsUpDown, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -300,6 +301,7 @@ export default function Notes() {
 
             {selectedClientId && (
               <>
+                <VoiceNoteAI onResult={(text) => setNewNote(text)} />
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
                     Note du {format(new Date(), "dd MMMM yyyy", { locale: fr })}

@@ -3,6 +3,8 @@ import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar,
   SidebarContent,
@@ -52,12 +54,25 @@ export function CoachSidebar() {
   const { unreadCount } = useMessages();
   const { user } = useAuth();
   const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL;
+  const [adminCount, setAdminCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    const load = async () => {
+      const { data } = await supabase.rpc("admin_pending_count");
+      if (active && typeof data === "number") setAdminCount(data);
+    };
+    load();
+    const interval = setInterval(load, 60000); // rafraîchit toutes les minutes
+    return () => { active = false; clearInterval(interval); };
+  }, [isAdmin]);
 
   // Ajoute "Administration" au groupe Admin pour le compte coach principal
   const groups = isAdmin
     ? menuGroups.map((g) =>
         g.label === "Admin"
-          ? { ...g, items: [...g.items, { title: "Administration", url: "/coach/admin", icon: ShieldCheck }] }
+          ? { ...g, items: [...g.items, { title: "Administration", url: "/coach/admin", icon: ShieldCheck, adminBadge: true }] }
           : g
       )
     : menuGroups;
@@ -94,6 +109,11 @@ export function CoachSidebar() {
                         {item.showBadge && unreadCount > 0 && (
                           <Badge variant="destructive" className="ml-auto text-xs">
                             {unreadCount}
+                          </Badge>
+                        )}
+                        {(item as any).adminBadge && adminCount > 0 && (
+                          <Badge variant="destructive" className="ml-auto text-xs">
+                            {adminCount}
                           </Badge>
                         )}
                       </NavLink>

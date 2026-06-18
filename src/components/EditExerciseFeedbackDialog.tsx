@@ -25,6 +25,10 @@ interface EditExerciseFeedbackDialogProps {
     exercice?: string;
     sportif_rpe?: number | null;
     sportif_comment?: string | null;
+    // Renfo (séries)
+    series?: string | null;
+    reps?: string | null;
+    charge?: string | null;
     // Cardio fields
     cardio_sport?: string | null;
     actual_distance_km?: number | null;
@@ -42,6 +46,10 @@ export function EditExerciseFeedbackDialog({
 }: EditExerciseFeedbackDialogProps) {
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
+  // Renfo (séries)
+  const [series, setSeries] = useState("");
+  const [reps, setReps] = useState("");
+  const [charge, setCharge] = useState("");
   // Cardio fields
   const [actualDistance, setActualDistance] = useState("");
   const [actualDuration, setActualDuration] = useState("");
@@ -58,6 +66,9 @@ export function EditExerciseFeedbackDialog({
     if (open && exercise) {
       setRpe(exercise.sportif_rpe?.toString() || "");
       setComment(exercise.sportif_comment || "");
+      setSeries(exercise.series?.toString() || "");
+      setReps(exercise.reps?.toString() || "");
+      setCharge(exercise.charge?.toString() || "");
       setActualDistance(exercise.actual_distance_km?.toString() || "");
       setActualDuration(exercise.actual_duration_minutes?.toString() || "");
       setActualPace(exercise.actual_pace_min_per_km || "");
@@ -144,6 +155,11 @@ export function EditExerciseFeedbackDialog({
         updateData.actual_duration_minutes = actualDuration.trim() ? parseFloat(actualDuration) : null;
         updateData.actual_pace_min_per_km = actualPace.trim() || null;
         updateData.actual_avg_heart_rate = actualHeartRate.trim() ? parseInt(actualHeartRate) : null;
+      } else {
+        // Renfo : l'athlète peut corriger les séries (partagé avec le coach)
+        updateData.series = series.trim() || null;
+        updateData.reps = reps.trim() || null;
+        updateData.charge = charge.trim() || null;
       }
 
       const { error } = await supabase
@@ -262,6 +278,27 @@ export function EditExerciseFeedbackDialog({
                 />
               </div>
             </>
+          )}
+
+          {/* Séries (renfo) */}
+          {!isCardio && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-series">Séries</Label>
+                <Input id="edit-series" type="text" placeholder="Ex: 4"
+                  value={series} onChange={(e) => setSeries(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-reps">Reps</Label>
+                <Input id="edit-reps" type="text" placeholder="Ex: 10"
+                  value={reps} onChange={(e) => setReps(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-charge">Charge</Label>
+                <Input id="edit-charge" type="text" placeholder="Ex: 80 kg"
+                  value={charge} onChange={(e) => setCharge(e.target.value)} />
+              </div>
+            </div>
           )}
 
           {/* Comment */}
