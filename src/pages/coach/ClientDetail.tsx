@@ -2567,9 +2567,12 @@ export default function ClientDetail() {
             try {
               const cardioData = JSON.parse(exercises[0].cardio_content);
               const metrics = calculateCardioMetrics(cardioData, athleteVma);
-              sessionInsertData.cardio_total_distance_km = metrics.totalDistanceKm;
-              sessionInsertData.cardio_total_duration_minutes = metrics.totalDurationMinutes;
-              sessionInsertData.cardio_average_intensity = metrics.averageIntensity;
+              const finite = (n: number) => (Number.isFinite(n) ? n : 0);
+              // L'intensité moyenne est bornée [0,100] (contrainte DB) : un test peut
+              // dépasser 100 % VMA (ex: Vaussenat 25 km/h).
+              sessionInsertData.cardio_total_distance_km = finite(metrics.totalDistanceKm);
+              sessionInsertData.cardio_total_duration_minutes = finite(metrics.totalDurationMinutes);
+              sessionInsertData.cardio_average_intensity = Math.max(0, Math.min(100, Math.round(finite(metrics.averageIntensity))));
             } catch (error) {
               console.error("Erreur lors du calcul des métriques cardio:", error);
             }
@@ -2666,9 +2669,9 @@ export default function ClientDetail() {
       await loadAllTrainingWeeks();
       await loadCustomSessions();
       await loadLastWeekFeedback();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la validation:", error);
-      toast.error("Erreur lors de la validation de la semaine");
+      toast.error(`Erreur lors de la validation : ${error?.message || error}`);
     }
   };
 
