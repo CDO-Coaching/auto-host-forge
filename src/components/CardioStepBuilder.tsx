@@ -410,8 +410,8 @@ export function CardioStepBuilder({
           </span>
         </div>
 
-        {/* Mouvement (course uniquement) */}
-        {isRunning && (
+        {/* Mouvement (affiché dès qu'il y a un choix, ex. course/marche, vélo/repos…) */}
+        {getMovementOptions().length > 1 && (
           <div className="flex flex-col gap-1 min-w-[110px]">
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Mouvement</label>
             <Select
