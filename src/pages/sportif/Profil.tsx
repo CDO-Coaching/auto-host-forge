@@ -297,7 +297,7 @@ export default function Profil() {
         }, 1500);
       }
     } catch (error: any) {
-      toast.error("Erreur lors de la mise à jour du profil");
+      toast.error(`Erreur profil : ${error?.message || error}`);
       console.error(error);
     } finally {
       setSaving(false);
