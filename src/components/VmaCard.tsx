@@ -11,7 +11,7 @@ import { PaceCalibrationCard } from "@/components/PaceCalibrationCard";
 import { VmaHistoryChart } from "@/components/VmaHistoryChart";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { sendCardioTestSession } from "@/lib/coachSessions";
-import { FlaskConical } from "lucide-react";
+import { FlaskConical, Zap } from "lucide-react";
 
 interface VmaCardProps {
   athleteId: string;
@@ -36,6 +36,40 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
   const [showCalibration, setShowCalibration] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [sendingVmaTest, setSendingVmaTest] = useState(false);
+  const [ftp, setFtp] = useState<number | null>(null);
+  const [ftpInputValue, setFtpInputValue] = useState("");
+  const [sendingFtpTest, setSendingFtpTest] = useState(false);
+
+  const sendFtpTest = async () => {
+    setSendingFtpTest(true);
+    try {
+      const week = await sendCardioTestSession({
+        athleteId,
+        targetWeek: calibrationTargetWeek,
+        vma: null,
+        sport: "velo",
+        name: "Test FTP — 20 min",
+        exerciceLabel: "Test FTP (20 min) — vélo",
+        cardioContent: {
+          steps: [
+            { id: 1, movement_type: "velo", effort_type: "duration", duration: 900, target_heart_rate: "Z2" },  // 15 min échauffement
+            { id: 2, movement_type: "velo", effort_type: "duration", duration: 300, rpe: 8 },                    // 5 min activation
+            { id: 3, movement_type: "velo", effort_type: "duration", duration: 1200, rpe: 10 },                  // 20 min TEST à fond
+            { id: 4, movement_type: "velo", effort_type: "duration", duration: 600, target_heart_rate: "Z1" },  // 10 min retour au calme
+          ],
+          blocks: [],
+        },
+        commentaire: "Test FTP (vélo). 1) 15 min échauffement progressif · 2) 5 min activation (montées d'intensité) · 3) TEST : 20 min À FOND, puissance la plus élevée tenable et régulière → note la PUISSANCE MOYENNE des 20 min · 4) 10 min retour au calme. FTP = 95 % de la puissance moyenne des 20 min (ex : 250 W moy → FTP 238 W).",
+      });
+      toast.success(`Test FTP envoyé au sportif (semaine S${week}) !`);
+      onTestSessionSent?.();
+    } catch (e: any) {
+      console.error("Envoi test FTP:", e);
+      toast.error(`Erreur envoi test FTP : ${e?.message || e}`);
+    } finally {
+      setSendingFtpTest(false);
+    }
+  };
 
   const sendVmaTest = async (kind: "demi-cooper" | "vaussenat") => {
     setSendingVmaTest(true);
@@ -98,7 +132,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
     try {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("vma, fc_max, fc_repos, fc_max_updated_at")
+        .select("vma, fc_max, fc_repos, fc_max_updated_at, ftp")
         .eq("id", athleteId)
         .single();
 
@@ -119,6 +153,10 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
       if ((data as any)?.fc_max_updated_at) {
         setFcMaxUpdatedAt((data as any).fc_max_updated_at);
       }
+      if ((data as any)?.ftp) {
+        setFtp((data as any).ftp);
+        setFtpInputValue((data as any).ftp.toString());
+      }
     } catch (error) {
       console.error("Erreur lors du chargement des données:", error);
     }
@@ -128,6 +166,12 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
     const vmaValue = vmaInputValue ? parseFloat(vmaInputValue) : null;
     const fcMaxValue = fcMaxInputValue ? parseInt(fcMaxInputValue) : null;
     const fcReposValue = fcReposInputValue ? parseInt(fcReposInputValue) : null;
+    const ftpValue = ftpInputValue ? parseInt(ftpInputValue) : null;
+
+    if (ftpInputValue && (isNaN(ftpValue!) || ftpValue! < 50 || ftpValue! > 600)) {
+      toast.error("La FTP doit être entre 50 et 600 W");
+      return;
+    }
 
     if (vmaInputValue && (isNaN(vmaValue!) || vmaValue! < 8 || vmaValue! > 30)) {
       toast.error("La VMA doit être entre 8 et 30 km/h");
@@ -160,13 +204,14 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
           p_vma: vmaValue,
           p_fc_max: fcMaxValue,
           p_fc_repos: fcReposValue,
+          p_ftp: ftpValue,
         } as any);
         error = result.error;
       } else {
         // Athlete view: mise à jour directe (auth.uid() = athleteId)
         const result = await supabase
           .from("user_profiles")
-          .update({ vma: vmaValue, fc_max: fcMaxValue, fc_repos: fcReposValue })
+          .update({ vma: vmaValue, fc_max: fcMaxValue, fc_repos: fcReposValue, ftp: ftpValue })
           .eq("id", athleteId);
         error = result.error;
       }
@@ -186,6 +231,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
       setVma(vmaValue);
       setFcMax(fcMaxValue);
       setFcRepos(fcReposValue);
+      setFtp(ftpValue);
       if (fcMaxValue !== null) {
         const now = new Date().toISOString();
         setFcMaxUpdatedAt(now);
@@ -208,6 +254,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
     setVmaInputValue(vma?.toString() || "");
     setFcMaxInputValue(fcMax?.toString() || "");
     setFcReposInputValue(fcRepos?.toString() || "");
+    setFtpInputValue(ftp?.toString() || "");
     setIsEditing(false);
   };
 
@@ -245,6 +292,12 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
               </DropdownMenu>
             )}
             {isCoachView && (
+              <Button variant="outline" size="sm" className="h-8 gap-1.5" disabled={sendingFtpTest} onClick={sendFtpTest}>
+                <FlaskConical className="h-3.5 w-3.5" />
+                Test FTP
+              </Button>
+            )}
+            {isCoachView && (
               <Button
                 variant="outline"
                 size="sm"
@@ -269,7 +322,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
       <CardContent>
         {isEditing ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vma" className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-primary" />
@@ -330,8 +383,26 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
                   Entre 30 et 120 bpm
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="ftp" className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  FTP (W)
+                </Label>
+                <Input
+                  id="ftp"
+                  type="number"
+                  min="50"
+                  max="600"
+                  value={ftpInputValue}
+                  onChange={(e) => setFtpInputValue(e.target.value)}
+                  placeholder="Ex: 240"
+                  className="w-full"
+                />
+                <p className="text-xs text-muted-foreground">Puissance seuil (vélo)</p>
+              </div>
             </div>
-            
+
             <div className="flex gap-2">
               <Button
                 onClick={handleSave}
@@ -355,7 +426,7 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Activity className="h-4 w-4 text-primary" />
@@ -426,6 +497,21 @@ export function VmaCard({ athleteId, isCoachView = false, onVmaUpdate, calibrati
                 <p className="text-sm text-muted-foreground italic">
                   Non renseignée
                 </p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Zap className="h-4 w-4 text-amber-500" />
+                FTP
+              </div>
+              {ftp ? (
+                <div className="flex items-baseline gap-1">
+                  <span className="text-2xl font-bold text-amber-500">{ftp}</span>
+                  <span className="text-sm text-muted-foreground">W</span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Non renseignée</p>
               )}
             </div>
 

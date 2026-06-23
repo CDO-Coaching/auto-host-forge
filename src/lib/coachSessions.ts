@@ -14,6 +14,7 @@ export interface SendCardioTestOptions {
   cardioContent: { steps: any[]; blocks: any[] };
   commentaire: string;     // consignes affichées au sportif
   vma: number | null;      // pour le calcul des métriques (peut être null)
+  sport?: string;          // cardio_sport : "course" (défaut) | "velo" | "natation"
 }
 
 /** Crée la séance cardio dans la semaine cible. Renvoie le numéro de semaine. */
@@ -60,7 +61,7 @@ export async function sendCardioTestSession(opts: SendCardioTestOptions): Promis
 
   const { error: ee } = await supabase.from("session_exercises").insert({
     session_id: (sess as any).id, exercise_order: 1, exercice: opts.exerciceLabel,
-    cardio_sport: "course", cardio_content: JSON.stringify(opts.cardioContent),
+    cardio_sport: opts.sport || "course", cardio_content: JSON.stringify(opts.cardioContent),
     recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "",
     commentaire: opts.commentaire,
   } as any);
