@@ -25,7 +25,7 @@ export const formatCardioStepsForAI = (
   };
 
   const mvtLabel = (m: string) =>
-    m === "marche" ? "marche" : m === "course" ? "course" : m === "velo" ? "vélo" : "natation";
+    m === "marche" ? "marche" : m === "repos" ? "récup" : m === "course" ? "course" : m === "velo" ? "vélo" : "natation";
 
   const formatStep = (step: CardioStep): string => {
     const parts: string[] = [];

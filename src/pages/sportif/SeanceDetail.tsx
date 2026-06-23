@@ -62,6 +62,7 @@ export default function SeanceDetail() {
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
+  const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
   
   // États pour l'édition des feedbacks
   const [editFeedbackDialogOpen, setEditFeedbackDialogOpen] = useState(false);
@@ -85,10 +86,11 @@ export default function SeanceDetail() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase.from("user_profiles").select("vma, fc_max, fc_repos").eq("id", user.id).single();
+        const { data } = await supabase.from("user_profiles").select("vma, fc_max, fc_repos, ftp").eq("id", user.id).single();
         if (data?.vma) setAthleteVma(data.vma);
         if (data?.fc_max) setAthleteFcMax(data.fc_max);
         if (data?.fc_repos) setAthleteFcRepos(data.fc_repos);
+        if ((data as any)?.ftp) setAthleteFtp((data as any).ftp);
       }
     };
     loadVma();
@@ -1127,7 +1129,7 @@ export default function SeanceDetail() {
                                               return (
                                                 <div
                                                   key={step.id}
-                                                  className={`text-xs rounded-r-md px-3 py-2 ${step.movement_type === "marche" ? "border-l-2 border-blue-400/60 bg-blue-500/5" : step.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
+                                                  className={`text-xs rounded-r-md px-3 py-2 ${(step.movement_type === "marche" || step.movement_type === "repos") ? "border-l-2 border-blue-400/60 bg-blue-500/5" : step.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
                                                 >
                                                   <div className="flex gap-2 flex-wrap items-center">
                                                     <span className="font-medium capitalize">{step.movement_type}</span>
@@ -1138,6 +1140,14 @@ export default function SeanceDetail() {
                                                       <span>{formatCardioDistance(step.distance)}</span>
                                                     )}
                                                     {(() => { const p = calculatePace(step.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground">•</span><span className="text-blue-400">{p}</span></> : null; })()}
+                                                    {step.ftp_percentage ? (
+                                                      <>
+                                                        <span className="text-muted-foreground">•</span>
+                                                        <span className="text-amber-400 font-medium">
+                                                          {athleteFtp ? `${Math.round(athleteFtp * step.ftp_percentage / 100)} W` : `${step.ftp_percentage}% FTP`}
+                                                        </span>
+                                                      </>
+                                                    ) : null}
                                                     {step.target_heart_rate && (() => {
                                                       const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
                                                       const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];

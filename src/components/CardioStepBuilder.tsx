@@ -11,13 +11,14 @@ export type CardioSportType = "course" | "velo" | "natation";
 
 export interface CardioStep {
   id: number;
-  movement_type: "course" | "marche" | "velo" | "natation";
+  movement_type: "course" | "marche" | "velo" | "natation" | "repos";
   effort_type: "duration" | "distance";
   duration?: number; // en secondes
   distance?: number; // en nombre (selon l'unité)
   distance_unit?: "m" | "km";
   vma_percentage?: number; // pourcentage de VMA (ex: 65) - pour course
-  rpe?: number; // RPE 1-10 - pour vélo/natation
+  ftp_percentage?: number; // pourcentage de FTP (ex: 75) - pour vélo
+  rpe?: number; // RPE 1-10 - pour natation
   target_heart_rate?: string; // ex: "150" ou "Zone 3"
   block_id?: number; // ID du bloc auquel appartient cette étape
 }
@@ -40,8 +41,24 @@ interface CardioStepBuilderProps {
   athleteVma?: number | null;
   athleteFcMax?: number | null;
   athleteFcRepos?: number | null;
+  athleteFtp?: number | null;
   disabled?: boolean;
   sportType?: CardioSportType;
+}
+
+// Zones de puissance (Coggan), en % de FTP
+const POWER_ZONES = [
+  { zone: 1, label: "Z1 – Récupération",     pMin: 0,   pMax: 55,  mid: 50  },
+  { zone: 2, label: "Z2 – Endurance",        pMin: 56,  pMax: 75,  mid: 65  },
+  { zone: 3, label: "Z3 – Tempo",            pMin: 76,  pMax: 90,  mid: 83  },
+  { zone: 4, label: "Z4 – Seuil",            pMin: 91,  pMax: 105, mid: 98  },
+  { zone: 5, label: "Z5 – VO2max",           pMin: 106, pMax: 120, mid: 113 },
+  { zone: 6, label: "Z6 – Anaérobie",        pMin: 121, pMax: 150, mid: 135 },
+  { zone: 7, label: "Z7 – Neuromusculaire",  pMin: 151, pMax: 200, mid: 170 },
+];
+
+function powerZoneForPct(pct: number) {
+  return POWER_ZONES.find((z) => pct >= z.pMin && pct <= z.pMax) || null;
 }
 
 const FCR_ZONES = [
@@ -129,6 +146,7 @@ export function CardioStepBuilder({
   athleteVma,
   athleteFcMax,
   athleteFcRepos,
+  athleteFtp,
   disabled = false,
   sportType = "course"
 }: CardioStepBuilderProps) {
@@ -166,7 +184,7 @@ export function CardioStepBuilder({
       movement_type: defaultMovement,
       effort_type: "duration",
       duration: 600, // 10 minutes par défaut
-      ...(sportType === "course" ? { vma_percentage: 65 } : { rpe: 5 }),
+      ...(sportType === "course" ? { vma_percentage: 65 } : sportType === "velo" ? { ftp_percentage: 65 } : { rpe: 5 }),
       target_heart_rate: "",
     };
     onChange({ steps: [...steps, newStep], blocks });
@@ -194,9 +212,10 @@ export function CardioStepBuilder({
           }
         }
 
-        // Si on passe en marche, on retire le pourcentage VMA (allure fixe)
-        if (field === "movement_type" && value === "marche") {
+        // Si on passe en marche/repos (récup), on retire toute intensité
+        if (field === "movement_type" && (value === "marche" || value === "repos")) {
           delete updatedStep.vma_percentage;
+          delete updatedStep.ftp_percentage;
           delete updatedStep.rpe;
         }
         
@@ -340,11 +359,13 @@ export function CardioStepBuilder({
     if (sportType === "velo") {
       return [
         { value: "velo", label: "Vélo" },
+        { value: "repos", label: "Repos / Récup" },
       ];
     }
     if (sportType === "natation") {
       return [
         { value: "natation", label: "Natation" },
+        { value: "repos", label: "Repos / Récup" },
       ];
     }
     return [];
@@ -471,16 +492,17 @@ export function CardioStepBuilder({
           </>
         )}
 
-        {/* % VMA / RPE / Allure marche */}
-        {isRunning ? (
-          step.movement_type === "marche" ? (
-            <div className="flex flex-col gap-1 min-w-[110px]">
-              <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Allure</label>
-              <div className="h-8 flex items-center px-2 bg-muted rounded-md text-xs font-medium text-foreground whitespace-nowrap">
-                {WALKING_PACE} <span className="text-muted-foreground ml-1">(~{WALKING_SPEED_KMH})</span>
-              </div>
+        {/* Intensité : récup / %VMA / %FTP / RPE */}
+        {(step.movement_type === "marche" || step.movement_type === "repos") ? (
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">Récup</label>
+            <div className="h-8 flex items-center px-2 bg-muted rounded-md text-xs font-medium text-foreground whitespace-nowrap">
+              {isRunning && step.movement_type === "marche"
+                ? <>{WALKING_PACE} <span className="text-muted-foreground ml-1">(~{WALKING_SPEED_KMH})</span></>
+                : "Récupération"}
             </div>
-          ) : (
+          </div>
+        ) : isRunning ? (
             <div className="flex flex-col gap-1 min-w-[90px]">
               <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                 % VMA{athleteVma ? <span className="ml-1 normal-case">({athleteVma} km/h)</span> : null}
@@ -502,7 +524,51 @@ export function CardioStepBuilder({
                 }
               </span>
             </div>
-          )
+        ) : sportType === "velo" ? (
+          <div className="flex flex-col gap-1 min-w-[160px]">
+            <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+              % FTP{athleteFtp ? <span className="ml-1 normal-case">({athleteFtp} W)</span> : null}
+            </label>
+            <div className="flex gap-1">
+              <Input
+                type="number"
+                min="30"
+                max="200"
+                value={step.ftp_percentage || ""}
+                onChange={(e) => handleStepChange(step.id, "ftp_percentage", parseFloat(e.target.value) || 0)}
+                placeholder="75"
+                disabled={disabled}
+                className="h-8 text-xs w-16"
+              />
+              <Select
+                value={powerZoneForPct(step.ftp_percentage || 0) ? `Z${powerZoneForPct(step.ftp_percentage || 0)!.zone}` : "none"}
+                onValueChange={(v) => {
+                  if (v === "none") return;
+                  const z = POWER_ZONES.find((zz) => `Z${zz.zone}` === v);
+                  if (z) handleStepChange(step.id, "ftp_percentage", z.mid);
+                }}
+                disabled={disabled}
+              >
+                <SelectTrigger className="h-8 text-xs flex-1"><SelectValue placeholder="Zone" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none" className="text-xs">Zone…</SelectItem>
+                  {POWER_ZONES.map((z) => (
+                    <SelectItem key={z.zone} value={`Z${z.zone}`} className="text-xs">{z.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <span className="text-[10px] leading-tight">
+              {athleteFtp && step.ftp_percentage ? (
+                <span className="font-medium text-foreground">
+                  {Math.round(athleteFtp * step.ftp_percentage / 100)} W
+                  {powerZoneForPct(step.ftp_percentage) ? ` · Z${powerZoneForPct(step.ftp_percentage)!.zone}` : ""}
+                </span>
+              ) : (
+                <span className="text-amber-600">FTP non renseignée</span>
+              )}
+            </span>
+          </div>
         ) : (
           <div className="flex flex-col gap-1 min-w-[80px]">
             <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">RPE (1-10)</label>

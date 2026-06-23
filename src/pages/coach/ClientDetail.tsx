@@ -186,6 +186,7 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
+  const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
   const [currentInjury, setCurrentInjury] = useState<{ level: number; location: string } | null>(null);
@@ -1619,6 +1620,7 @@ export default function ClientDetail() {
       setAthleteVma(data.vma || null);
       setAthleteFcMax((data as any).fc_max || null);
       setAthleteFcRepos((data as any).fc_repos || null);
+      setAthleteFtp((data as any).ftp || null);
     }
 
     setLoading(false);
@@ -4460,6 +4462,7 @@ export default function ClientDetail() {
                     athleteVma={athleteVma}
                     athleteFcMax={athleteFcMax}
                     athleteFcRepos={athleteFcRepos}
+                    athleteFtp={athleteFtp}
                     defaultSport="course"
                   />
                   <CoachRunningView
@@ -4901,6 +4904,7 @@ export default function ClientDetail() {
               athleteVma={athleteVma}
               athleteFcMax={athleteFcMax}
               athleteFcRepos={athleteFcRepos}
+              athleteFtp={athleteFtp}
               copiedWeekFeedback={copiedWeekFeedback}
               hasFeedback={lastWeekData != null}
               onShowFeedback={() => setShowFeedbackSheet(true)}
@@ -4952,6 +4956,7 @@ export default function ClientDetail() {
               athleteVma={athleteVma}
               athleteFcMax={athleteFcMax}
               athleteFcRepos={athleteFcRepos}
+              athleteFtp={athleteFtp}
               selectedCardioSport={selectedCardioSport}
               setSelectedCardioSport={setSelectedCardioSport}
               showTemplateSelector={showTemplateSelector}
