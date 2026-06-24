@@ -224,6 +224,10 @@ export interface DesktopProgViewProps {
   onUndo: () => void;
   onUnvalidate?: () => void;
 
+  // Autorisation sportif d'ajouter des exercices (réglage par athlète, persistant)
+  allowAddExercises?: boolean;
+  onToggleAllowAddExercises?: (value: boolean) => void;
+
   // Session CRUD
   onCreateSession: (type: "renfo" | "cardio" | "recup") => void;
   onDeleteSession: (id: number, e: React.MouseEvent) => void;
@@ -347,6 +351,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     selectedWeek, availableWeeks, isValidated, libraryExercises,
     expandedSessionId, setExpandedSessionId,
     undoStack, onWeekChange, onSave, onUndo, onUnvalidate,
+    allowAddExercises, onToggleAllowAddExercises,
     onCreateSession, onDeleteSession,
     onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onKeyDown,
     onSessionDragStart, onSessionDragOver, onSessionDrop,
@@ -577,6 +582,14 @@ export function DesktopProgView(props: DesktopProgViewProps) {
             <Undo2 className="h-3.5 w-3.5 mr-1" />
             Modifier la semaine
           </Button>
+        )}
+
+        {/* Autorisation sportif : ajouter des exercices */}
+        {onToggleAllowAddExercises && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none ml-1">
+            <Checkbox checked={!!allowAddExercises} onCheckedChange={(v) => onToggleAllowAddExercises(!!v)} />
+            Sportif peut ajouter des exercices
+          </label>
         )}
 
         {/* Validate */}

@@ -187,6 +187,7 @@ export default function ClientDetail() {
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
+  const [allowAddExercises, setAllowAddExercises] = useState(false);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
   const [currentInjury, setCurrentInjury] = useState<{ level: number; location: string } | null>(null);
@@ -1621,6 +1622,7 @@ export default function ClientDetail() {
       setAthleteFcMax((data as any).fc_max || null);
       setAthleteFcRepos((data as any).fc_repos || null);
       setAthleteFtp((data as any).ftp || null);
+      setAllowAddExercises(!!(data as any).allow_athlete_add_exercises);
     }
 
     setLoading(false);
@@ -2474,6 +2476,21 @@ export default function ClientDetail() {
     } catch (error) {
       console.error("Erreur lors du déverrouillage:", error);
       toast.error("Erreur lors du déverrouillage de la semaine");
+    }
+  };
+
+  const handleToggleAllowAddExercises = async (value: boolean) => {
+    if (!athleteId) return;
+    setAllowAddExercises(value);
+    const { error } = await supabase.rpc("set_athlete_can_add_exercises", {
+      p_athlete_id: athleteId,
+      p_allowed: value,
+    } as any);
+    if (error) {
+      setAllowAddExercises(!value);
+      toast.error(`Erreur : ${error.message}`);
+    } else {
+      toast.success(value ? "Le sportif peut ajouter des exercices." : "Ajout d'exercices désactivé.");
     }
   };
 
@@ -4898,6 +4915,8 @@ export default function ClientDetail() {
               onToggleSuperSet={handleToggleSuperSet}
               onSave={handleValidate}
               onUnvalidate={handleUnvalidate}
+              allowAddExercises={allowAddExercises}
+              onToggleAllowAddExercises={handleToggleAllowAddExercises}
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
@@ -4928,6 +4947,8 @@ export default function ClientDetail() {
               onWeekChange={(week, year) => setSelectedWeekToProgram({ week, year })}
               onSave={handleValidate}
               onUnvalidate={handleUnvalidate}
+              allowAddExercises={allowAddExercises}
+              onToggleAllowAddExercises={handleToggleAllowAddExercises}
               onUndo={handleUndo}
               onCreateSession={handleCreateSessionByType}
               onDeleteSession={handleDeleteSession}

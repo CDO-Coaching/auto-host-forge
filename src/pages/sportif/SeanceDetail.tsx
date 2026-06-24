@@ -41,6 +41,7 @@ import { exportSessionToPdf } from "@/lib/sessionPdfExport";
 import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { EditExerciseFeedbackDialog } from "@/components/EditExerciseFeedbackDialog";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
+import { AthleteAddExerciseButton } from "@/components/AthleteAddExerciseButton";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -63,6 +64,7 @@ export default function SeanceDetail() {
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
   const [athleteFtp, setAthleteFtp] = useState<number | null>(null);
+  const [canAddExercises, setCanAddExercises] = useState(false);
   
   // États pour l'édition des feedbacks
   const [editFeedbackDialogOpen, setEditFeedbackDialogOpen] = useState(false);
@@ -86,11 +88,12 @@ export default function SeanceDetail() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        const { data } = await supabase.from("user_profiles").select("vma, fc_max, fc_repos, ftp").eq("id", user.id).single();
+        const { data } = await supabase.from("user_profiles").select("vma, fc_max, fc_repos, ftp, allow_athlete_add_exercises").eq("id", user.id).single();
         if (data?.vma) setAthleteVma(data.vma);
         if (data?.fc_max) setAthleteFcMax(data.fc_max);
         if (data?.fc_repos) setAthleteFcRepos(data.fc_repos);
         if ((data as any)?.ftp) setAthleteFtp((data as any).ftp);
+        setCanAddExercises(!!(data as any)?.allow_athlete_add_exercises);
       }
     };
     loadVma();
@@ -1276,6 +1279,12 @@ export default function SeanceDetail() {
             })
           )}
         </div>
+
+        {canAddExercises && !isCardioSession && sessionId && (
+          <div className="pt-1">
+            <AthleteAddExerciseButton sessionId={sessionId} onAdded={loadSessionDetail} />
+          </div>
+        )}
       </div>
 
       <CardioFeedbackDialog

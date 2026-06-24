@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
@@ -92,6 +93,8 @@ interface MobileProgViewProps {
   onSave: () => void;
   onUnvalidate?: () => void;
   isSaving?: boolean;
+  allowAddExercises?: boolean;
+  onToggleAllowAddExercises?: (value: boolean) => void;
   hasPreviousWeeks?: boolean;
   onCopyPreviousWeek?: () => void;
   onOpenCopyDialog?: () => void;
@@ -941,7 +944,7 @@ export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
-  onSave, onUnvalidate, isSaving,
+  onSave, onUnvalidate, isSaving, allowAddExercises, onToggleAllowAddExercises,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
   athleteFcMax = null, athleteFcRepos = null,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
@@ -985,6 +988,14 @@ export function MobileProgView({
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
+
+      {/* ── Autorisation sportif : ajouter des exercices ────────────── */}
+      {onToggleAllowAddExercises && (
+        <label className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border border-border text-xs text-muted-foreground">
+          <Checkbox checked={!!allowAddExercises} onCheckedChange={(v) => onToggleAllowAddExercises(!!v)} />
+          Autoriser le sportif à ajouter des exercices
+        </label>
+      )}
 
       {/* ── Bannière semaine verrouillée ────────────────────────────── */}
       {isValidated && onUnvalidate && (
