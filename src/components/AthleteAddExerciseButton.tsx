@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -19,6 +19,8 @@ export function AthleteAddExerciseButton({ sessionId, onAdded }: { sessionId: st
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [exercice, setExercice] = useState("");
+  const [library, setLibrary] = useState<{ id: string; name: string }[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [series, setSeries] = useState("");
   const [reps, setReps] = useState("");
   const [charge, setCharge] = useState("");
@@ -26,8 +28,21 @@ export function AthleteAddExerciseButton({ sessionId, onAdded }: { sessionId: st
   const [commentaire, setCommentaire] = useState("");
 
   const reset = () => {
-    setExercice(""); setSeries(""); setReps(""); setCharge(""); setRpe(""); setCommentaire("");
+    setExercice(""); setSeries(""); setReps(""); setCharge(""); setRpe(""); setCommentaire(""); setShowSuggestions(false);
   };
+
+  // Charge la bibliothèque d'exercices à l'ouverture (comme le coach)
+  useEffect(() => {
+    if (!open || library.length > 0) return;
+    supabase.rpc("list_exercise_library").then(({ data }) => {
+      if (Array.isArray(data)) setLibrary(data as { id: string; name: string }[]);
+    });
+  }, [open]);
+
+  const q = exercice.trim().toLowerCase();
+  const suggestions = q
+    ? library.filter((e) => e.name.toLowerCase().includes(q)).slice(0, 8)
+    : library.slice(0, 8);
 
   const submit = async () => {
     if (!exercice.trim()) {
@@ -67,9 +82,31 @@ export function AthleteAddExerciseButton({ sessionId, onAdded }: { sessionId: st
             <DialogTitle>Ajouter un exercice réalisé</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <Label htmlFor="add-ex-name">Exercice</Label>
-              <Input id="add-ex-name" value={exercice} onChange={(e) => setExercice(e.target.value)} placeholder="Ex: Développé couché" />
+              <Input
+                id="add-ex-name"
+                value={exercice}
+                onChange={(e) => { setExercice(e.target.value); setShowSuggestions(true); }}
+                onFocus={() => setShowSuggestions(true)}
+                placeholder="Choisis dans la bibliothèque ou tape un nom"
+                autoComplete="off"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+                  {suggestions.map((e) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      className="block w-full text-left px-3 py-2 text-sm hover:bg-secondary/60"
+                      onClick={() => { setExercice(e.name); setShowSuggestions(false); }}
+                    >
+                      {e.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">Tu peux aussi taper un exercice qui n'est pas dans la liste.</p>
             </div>
             <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1">

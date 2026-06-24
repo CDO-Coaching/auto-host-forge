@@ -46,5 +46,14 @@ begin
   values (p_session_id, v_order, p_exercice, p_series, p_reps, p_charge, p_rpe, p_commentaire, true);
 end; $$;
 
+-- Le sportif peut lire la bibliothèque d'exercices (comme le coach) pour choisir
+-- un exercice. SECURITY DEFINER → indépendant de la RLS de exercise_library.
+create or replace function public.list_exercise_library()
+returns table (id text, name text)
+language sql security definer set search_path = public stable as $$
+  select id::text, name from public.exercise_library order by name;
+$$;
+
 grant execute on function public.set_athlete_can_add_exercises(uuid, boolean) to authenticated;
 grant execute on function public.athlete_add_exercise(uuid, text, text, text, text, text, text) to authenticated;
+grant execute on function public.list_exercise_library() to authenticated;
