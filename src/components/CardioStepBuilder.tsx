@@ -386,7 +386,7 @@ export function CardioStepBuilder({
     return (
       <div
         key={step.id}
-        className={`flex flex-wrap gap-3 items-end px-4 py-3 ${inBlock ? "bg-amber-500/5" : ""} ${borderClass} relative`}
+        className={`flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end px-3 sm:px-4 py-3 ${inBlock ? "bg-amber-500/5" : ""} ${borderClass} relative`}
         draggable={!disabled}
         onDragStart={() => handleStepDragStart(step.id)}
         onDragOver={handleStepDragOver}
@@ -633,7 +633,7 @@ export function CardioStepBuilder({
 
         {/* Delete button */}
         {!disabled && (
-          <div className="flex items-end ml-auto">
+          <div className="absolute top-2 right-2 sm:static sm:flex sm:items-end sm:ml-auto">
             <Button
               variant="ghost"
               size="sm"
