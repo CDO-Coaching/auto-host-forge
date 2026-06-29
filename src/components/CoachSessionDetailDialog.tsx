@@ -597,6 +597,23 @@ export function CoachSessionDetailDialog({
                     Exercices ({session.exercises.length})
                   </h4>
 
+                  {/calibration/i.test(session.name) && (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm space-y-1.5">
+                      <p className="font-semibold text-primary">🎯 Test de calibration — FC par palier</p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        L'app n'enregistre que les <strong>moyennes</strong> de la séance. Pour la FC par palier,
+                        ouvre l'activité sur <strong>Strava</strong> et lis sur le <strong>graphique de fréquence
+                        cardiaque</strong> la FC moyenne des <strong>3 dernières minutes de chaque palier de course</strong>.
+                        Les paliers sont aux temps connus du protocole (8 min, 3 min marche, 8 min, 3 min marche, 6 min).
+                        Si la montre a des laps, c'est encore plus simple.
+                      </p>
+                      <p className="text-muted-foreground leading-relaxed">
+                        Saisis ensuite ces FC dans <strong>Données physiologiques → « Calibrer les allures »</strong>
+                        pour obtenir la VMA calibrée et le tableau d'allures par zone FCR.
+                      </p>
+                    </div>
+                  )}
+
                   {session.exercises.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic">Aucun exercice</p>
                   ) : (
