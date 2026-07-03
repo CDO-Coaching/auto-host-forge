@@ -109,8 +109,12 @@ function stepHelp(kind: TestType, level: ExperienceLevel, vma: number | null): s
         : "Allure cible : endurance fondamentale, 60-65 % de la VMA (l'athlète doit pouvoir tenir une conversation)";
       return `Sortie à ALLURE FIXE : les 10 premières minutes, l'athlète se cale à une allure très à l'aise (conversation possible), puis il verrouille cette allure sur la montre et la tient jusqu'au bout — c'est la FC qui doit bouger, pas l'allure. ${cible}. Durée : ${p.driftDuration} en continu, parcours plat. Après la séance, relève sur Strava/Garmin la FC moyenne de la 1re et de la 2e moitié : la dérive est calculée automatiquement.`;
     }
-    case "fade":
-      return `Sortie longue à SENSATION : allure libre et naturelle, l'athlète garde le même ressenti d'effort du début à la fin, sans regarder sa montre ni forcer pour tenir un chrono. S'il ralentit, c'est justement ce qu'on veut mesurer. Durée : ${p.longDuration} en continu, parcours plat de préférence. Après la séance, relève sur Strava/Garmin l'allure moyenne (min:sec/km) de la 1re et de la 2e moitié : la perte d'allure est calculée automatiquement.`;
+    case "fade": {
+      const repere = vma
+        ? ` Repère de départ : environ ${paceFromKmh(vma * 0.70)} à ${paceFromKmh(vma * 0.65)} /km (65-70 % de sa VMA de ${vma} km/h), puis il laisse faire les sensations.`
+        : " Repère de départ : environ 65-70 % de la VMA, puis il laisse faire les sensations.";
+      return `Sortie longue à SENSATION : allure libre et naturelle, l'athlète garde le même ressenti d'effort du début à la fin, sans regarder sa montre ni forcer pour tenir un chrono. S'il ralentit, c'est justement ce qu'on veut mesurer.${repere} Durée : ${p.longDuration} en continu, parcours plat de préférence. Après la séance, relève sur Strava/Garmin l'allure moyenne (min:sec/km) de la 1re et de la 2e moitié : la perte d'allure est calculée automatiquement.`;
+    }
   }
 }
 
