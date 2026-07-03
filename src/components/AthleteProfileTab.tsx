@@ -22,8 +22,8 @@ interface TestStep {
 const TEST_STEPS: TestStep[] = [
   { type: "t12", title: "Test 12 minutes", help: "Distance parcourue en 12 minutes à fond (mètres).", unit: "m" },
   { type: "t30", title: "Test 30 minutes", help: "Distance parcourue en 30 minutes à allure la plus régulière possible (mètres).", unit: "m" },
-  { type: "drift", title: "Dérive cardiaque", help: "Sortie à allure constante en endurance fondamentale : écart en % entre la FC moyenne de la 1re et de la 2e moitié.", unit: "%" },
-  { type: "fade", title: "Perte d'allure (sortie longue)", help: "Sortie longue : perte d'allure en % entre la 1re et la 2e moitié.", unit: "%" },
+  { type: "drift", title: "Dérive cardiaque", help: "Sortie à allure constante (même vitesse du début à la fin) en endurance fondamentale, 45-60 min. Note la FC moyenne de la 1re moitié et celle de la 2e moitié (lisible sur Strava/Garmin), puis calcule : (FC moyenne 2e moitié − FC moyenne 1re moitié) ÷ FC moyenne 1re moitié × 100. Ex : 142 bpm puis 149 bpm → (149-142)/142×100 = 4,9 → entre 5.", unit: "%" },
+  { type: "fade", title: "Perte d'allure (sortie longue)", help: "Sortie longue à allure libre/naturelle (pas imposée), même effort ressenti du début à la fin. Compare ta vitesse moyenne de la 1re moitié et de la 2e moitié (lisible sur Strava/Garmin), puis calcule : (vitesse 1re moitié − vitesse 2e moitié) ÷ vitesse 1re moitié × 100. Ex : 11,5 km/h puis 10,9 km/h → (11,5-10,9)/11,5×100 = 5,2 → entre 5.", unit: "%" },
 ];
 
 export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athleteId: string; athleteName: string; athleteVma: number | null }) {
