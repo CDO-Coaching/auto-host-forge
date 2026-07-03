@@ -1683,7 +1683,7 @@ export default function ClientDetail() {
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
       setExpandedSessionId(nextSessionNumber);
-      setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
+      if (window.matchMedia("(min-width: 640px)").matches) setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
     }
 
     // Si c'est une séance cardio ou recup, ajouter automatiquement un exercice
@@ -1752,7 +1752,7 @@ export default function ClientDetail() {
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
       setExpandedSessionId(nextSessionNumber);
-      setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
+      if (window.matchMedia("(min-width: 640px)").matches) setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
     }
 
     if (type === "cardio") {
@@ -3285,7 +3285,7 @@ export default function ClientDetail() {
       newExerciseButton?.focus();
 
       // Ouvrir automatiquement le sélecteur (sans click qui toggle et referme)
-      if (!isCardio) {
+      if (!isCardio && window.matchMedia("(min-width: 640px)").matches) {
         setAutoOpenExercise({ sessionId, exerciseId: newExerciseId });
       }
     }, 200);
