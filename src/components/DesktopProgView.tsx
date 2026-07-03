@@ -99,6 +99,7 @@ interface Exercise {
   is_duration?: boolean;
   is_distance?: boolean;
   request_video?: boolean;
+  request_activity_link?: boolean;
   serie_details?: SerieDetail[] | string;
 }
 // ── AMRAP helpers ─────────────────────────────────────────────────────────────
@@ -1260,6 +1261,18 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             disabled={isValidated}
                             sportType={currentSportType}
                           />
+
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id={`req-link-${exercise.id}`}
+                              checked={exercise.request_activity_link || false}
+                              onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_activity_link", c === true)}
+                              disabled={isValidated}
+                            />
+                            <label htmlFor={`req-link-${exercise.id}`} className="text-sm cursor-pointer">
+                              Demander le lien Garmin/Strava de la sortie
+                            </label>
+                          </div>
 
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Commentaire</label>

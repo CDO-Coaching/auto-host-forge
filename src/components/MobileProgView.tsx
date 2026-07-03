@@ -889,6 +889,14 @@ function SessionCard({
                   disabled={isValidated}
                   sportType={cardioSport !== "yoga" && cardioSport !== "hiit" ? cardioSport : "course"}
                 />
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={!!(cardioExercise as any)?.request_activity_link}
+                    onCheckedChange={(c) => cardioExercise && onExerciseChange(cardioExercise.id, "request_activity_link", c === true)}
+                    disabled={isValidated}
+                  />
+                  <label className="text-xs">Demander le lien Garmin/Strava de la sortie</label>
+                </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
                   <Input

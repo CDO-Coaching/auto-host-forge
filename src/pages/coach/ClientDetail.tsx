@@ -147,6 +147,7 @@ interface Exercise {
   is_duration?: boolean;
   is_distance?: boolean;
   request_video?: boolean;
+  request_activity_link?: boolean;
   serie_details?: SerieDetail[];
 }
 
@@ -1431,6 +1432,8 @@ export default function ClientDetail() {
               is_duration: exercise.is_duration || false,
               is_distance: exercise.is_distance || false,
               request_video: exercise.request_video || false,
+            request_activity_link: exercise.request_activity_link || false,
+              request_activity_link: exercise.request_activity_link || false,
               serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
             })
             .eq("id", exercise.id);
@@ -2153,6 +2156,7 @@ export default function ClientDetail() {
           is_duration: false,
           is_distance: false,
           request_video: false,
+          request_activity_link: false,
           serie_details: serieDetails,
         };
       });
@@ -2630,6 +2634,7 @@ export default function ClientDetail() {
             is_duration: exercise.is_duration || false,
               is_distance: exercise.is_distance || false,
             request_video: exercise.request_video || false,
+            request_activity_link: exercise.request_activity_link || false,
             serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
             // Préserver les retours athlète si présents
             sportif_rpe: (exercise as any).sportif_rpe ?? null,
@@ -2784,6 +2789,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
                   request_video: ex.request_video || false,
+                  request_activity_link: ex.request_activity_link || false,
                   serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
                 };
               });
@@ -2936,6 +2942,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   super_set_group: newSuperSetGroup,
                   request_video: ex.request_video || false,
+                  request_activity_link: ex.request_activity_link || false,
                   serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
                 };
               });

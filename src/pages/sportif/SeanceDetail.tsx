@@ -797,6 +797,16 @@ export default function SeanceDetail() {
           </div>
         </div>
 
+        {/* Demande du coach : envoyer le lien Garmin/Strava de la sortie */}
+        {exercises.some((it: any) => it?.request_activity_link || (Array.isArray(it?.exercises) && it.exercises.some((e: any) => e?.request_activity_link))) && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-start gap-2">
+            <span className="text-base leading-none mt-0.5">🔗</span>
+            <p className="text-sm leading-relaxed">
+              Ton coach aimerait que tu lui envoies le <span className="font-medium">lien Garmin ou Strava</span> de cette course à la fin de la séance.
+            </p>
+          </div>
+        )}
+
         {/* Consignes en haut pour les séances cardio (commentaire du coach) */}
         {isCardioSession && (() => {
           const comments = exercises
