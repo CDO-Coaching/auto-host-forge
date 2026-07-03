@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
+import { parseDurationInput } from "@/lib/formatDuration";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
@@ -293,8 +294,9 @@ function RenfoExerciseRow({
                   type="text"
                   value={exercise.reps}
                   onChange={(e) => onChange("reps", e.target.value)}
+                  onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onChange("reps", parsed); } }}
                   className="flex-1 h-11 text-center text-base font-semibold"
-                  placeholder={exercise.is_duration ? "sec" : exercise.is_distance ? "m" : "10"}
+                  placeholder={exercise.is_duration ? "sec ou 10min" : exercise.is_distance ? "m" : "10"}
                   disabled={isValidated}
                 />
                 <button type="button"
@@ -304,7 +306,7 @@ function RenfoExerciseRow({
               </div>
             </div>
 
-            <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} />
+            <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} freeText />
             <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />
           </div>
 

@@ -22,6 +22,7 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import { SendVideoDialog } from "@/components/SendVideoDialog";
 import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
 import { BarChart3 } from "lucide-react";
+import { formatDurationSec } from "@/lib/formatDuration";
 import {
   Dialog,
   DialogContent,
@@ -1055,7 +1056,7 @@ export default function ExerciceDetail() {
                             }
                             return (
                               <span className="font-medium">
-                                {sr}{exercise.is_duration ? "s" : (exercise as any).is_distance ? "m" : " reps"}
+                                {exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? "m" : " reps"}`}
                                 {exercise.per_side && " /côté"}
                               </span>
                             );

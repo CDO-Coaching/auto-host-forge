@@ -42,6 +42,7 @@ import { EditSessionDialog } from "@/components/EditSessionDialog";
 import { EditExerciseFeedbackDialog } from "@/components/EditExerciseFeedbackDialog";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { AthleteAddExerciseButton } from "@/components/AthleteAddExerciseButton";
+import { formatDurationSec } from "@/lib/formatDuration";
 
 export default function SeanceDetail() {
   // Keep screen on during workout
@@ -942,7 +943,7 @@ export default function SeanceDetail() {
                                 )}
                                 {ex.reps && (
                                   <Badge variant="outline" className="text-xs">
-                                    {ex.reps}{(ex as any).is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}{ex.per_side ? " (par côté)" : ""}
+                                    {(ex as any).is_duration ? formatDurationSec(ex.reps) : `${ex.reps}${(ex as any).is_distance ? "m" : " reps"}`}{ex.per_side ? " (par côté)" : ""}
                                   </Badge>
                                 )}
                                 {ex.charge && (

@@ -62,6 +62,7 @@ import {
 } from "@/components/ui/dialog";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
+import { parseDurationInput } from "@/lib/formatDuration";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import {
@@ -1540,7 +1541,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             </TableCell>
                                             <TableCell>
                                               <div className="space-y-2">
-                                                <Input value={ex.reps} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "reps", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "reps")} placeholder={ex.is_duration ? "sec" : ex.is_distance ? "m" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="reps" />
+                                                <Input value={ex.reps} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "reps", e.target.value)} onBlur={(e) => { if (ex.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onExerciseChange(selectedSession.id, ex.id, "reps", parsed); } }} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "reps")} placeholder={ex.is_duration ? "sec ou 10min" : ex.is_distance ? "m" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="reps" />
                                                 <div className="flex items-center gap-1.5">
                                                   <Checkbox id={`dur-ss-${ex.id}`} checked={ex.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "is_duration", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="is_duration" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, ex.id, "is_duration"); } }} />
                                                   <label htmlFor={`dur-ss-${ex.id}`} className="text-xs cursor-pointer select-none">durée <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
@@ -1678,7 +1679,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       </TableCell>
                                       <TableCell>
                                         <div className="space-y-2">
-                                          <Input value={exercise.reps} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "reps")} placeholder={exercise.is_duration ? "sec" : exercise.is_distance ? "m" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="reps" />
+                                          <Input value={exercise.reps} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)} onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onExerciseChange(selectedSession.id, exercise.id, "reps", parsed); } }} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "reps")} placeholder={exercise.is_duration ? "sec ou 10min" : exercise.is_distance ? "m" : "10"} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="reps" />
                                           <div className="flex items-center gap-1.5">
                                             <Checkbox id={`dur-${selectedSession.id}-${exercise.id}`} checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="is_duration" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, exercise.id, "is_duration"); } }} />
                                             <label htmlFor={`dur-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer select-none">durée <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
