@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { AthleteCard } from "@/components/AthleteCard";
 import { computeProfile, type RawMeasures, type ProfileResult } from "@/lib/profileEngine";
@@ -12,12 +13,33 @@ import { collectAutoMeasures } from "@/lib/profileCollectors";
 import { type Distance, type Ambition, RECOMMENDATIONS } from "@/lib/profileReferentials";
 import { RotateCcw, Loader2 } from "lucide-react";
 
-interface TestStep {
-  type: "t12" | "t30" | "drift" | "fade";
-  title: string;
-  help: string;
-  unit: string;
-}
+type TestType = "t12" | "t30" | "drift" | "fade";
+interface TestEntry { value: number; date: string }
+
+const TEST_LABELS: Record<TestType, string> = {
+  t12: "Test 12 minutes",
+  t30: "Test 30 minutes",
+  drift: "Dérive cardiaque",
+  fade: "Perte d'allure",
+};
+
+/** Une étape de l'assistant. "long" regroupe dérive cardiaque + perte d'allure (même sortie). */
+type WizardStep =
+  | { kind: "t12" }
+  | { kind: "t30" }
+  | { kind: "long"; needDrift: boolean; needFade: boolean };
+
+const STEP_TITLES: Record<WizardStep["kind"], string> = {
+  t12: "Test 12 minutes",
+  t30: "Test 30 minutes",
+  long: "Sortie longue test (dérive + perte d'allure)",
+};
+
+const STEP_HELP: Record<WizardStep["kind"], string> = {
+  t12: "Effort : maximal, à fond dès le départ (allure la plus rapide tenable sur toute la durée, comme une course). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 12 min chrono, sans pause. Note la distance totale parcourue (mètres) à la fin des 12 min.",
+  t30: "Effort : quasi-maximal mais régulier, l'allure la plus rapide que l'athlète peut tenir sans à-coups pendant 30 min entières (proche de l'allure de seuil, pas un sprint). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 30 min chrono, sans pause, allure la plus constante possible. Note la distance totale parcourue (mètres) à la fin des 30 min.",
+  long: "Une seule sortie suffit pour les deux mesures. Effort : sortie longue en endurance, allure naturelle à sensation constante (même ressenti d'effort du début à la fin), 1h à 1h30 en continu. Après la séance, relève sur Strava/Garmin, pour la 1re et la 2e moitié : la FC moyenne (→ dérive cardiaque) et l'allure moyenne en min:sec/km (→ perte d'allure). Les % sont calculés automatiquement.",
+};
 
 /** Parse une allure "mm:ss" (ou "m:ss") en secondes par km. Renvoie null si invalide. */
 function parseAllure(v: string): number | null {
@@ -29,20 +51,19 @@ function parseAllure(v: string): number | null {
   return total > 0 ? total : null;
 }
 
-const TEST_STEPS: TestStep[] = [
-  { type: "t12", title: "Test 12 minutes", help: "Effort : maximal, à fond dès le départ (allure la plus rapide tenable sur toute la durée, comme une course). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 12 min chrono, sans pause. Note la distance totale parcourue (mètres) à la fin des 12 min.", unit: "m" },
-  { type: "t30", title: "Test 30 minutes", help: "Effort : quasi-maximal mais régulier, l'allure la plus rapide que l'athlète peut tenir sans à-coups pendant 30 min entières (proche de l'allure de seuil, pas un sprint). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 30 min chrono, sans pause, allure la plus constante possible. Note la distance totale parcourue (mètres) à la fin des 30 min.", unit: "m" },
-  { type: "drift", title: "Dérive cardiaque", help: "Effort : facile, endurance fondamentale (allure de footing tranquille, on peut parler). Durée : 45 à 60 min en continu, à vitesse constante (même allure du début à la fin, pas d'accélération). Après la séance, relève sur Strava/Garmin la FC moyenne de la 1re moitié et celle de la 2e moitié, puis calcule : (FC moyenne 2e moitié − FC moyenne 1re moitié) ÷ FC moyenne 1re moitié × 100. Ex : 142 bpm puis 149 bpm → (149-142)/142×100 = 4,9 → entre 5.", unit: "%" },
-  { type: "fade", title: "Perte d'allure (sortie longue)", help: "Effort : modéré, allure libre/naturelle à sensation constante (même ressenti d'effort du début à la fin, PAS une allure imposée au chrono). Durée : sortie longue habituelle de l'athlète (généralement 1h15 à 2h, selon son niveau/objectif). Après la séance, relève sur Strava/Garmin l'allure moyenne (min:sec/km) de la 1re moitié et celle de la 2e moitié, et entre-les ci-dessous : le % de perte est calculé automatiquement.", unit: "%" },
-];
+function pctFrom(a: number, b: number): number {
+  return Math.round(((b - a) / a) * 100 * 100) / 100;
+}
 
 export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athleteId: string; athleteName: string; athleteVma: number | null }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tests, setTests] = useState<Record<string, number>>({});
+  const [tests, setTests] = useState<Partial<Record<TestType, TestEntry>>>({});
   const [objective, setObjective] = useState<{ id: string; distance: Distance; ambition: Ambition } | null>(null);
   const [snapshot, setSnapshot] = useState<ProfileResult | null>(null);
   const [wizardMode, setWizardMode] = useState(false);
+  const [wizardSteps, setWizardSteps] = useState<WizardStep[]>([]);
+  const [isRedo, setIsRedo] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [fcMoy1, setFcMoy1] = useState("");
@@ -62,9 +83,11 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         supabase.from("profile_snapshots").select("*").eq("athlete_id", athleteId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
-      const latestByType: Record<string, number> = {};
+      const latestByType: Partial<Record<TestType, TestEntry>> = {};
       for (const r of (testRows || []) as any[]) {
-        if (latestByType[r.test_type] == null) latestByType[r.test_type] = Number(r.value);
+        if (latestByType[r.test_type as TestType] == null) {
+          latestByType[r.test_type as TestType] = { value: Number(r.value), date: r.test_date };
+        }
       }
       setTests(latestByType);
       setObjective((obj as any) || null);
@@ -91,62 +114,135 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
   useEffect(() => { load(); }, [athleteId]);
 
-  const missingSteps = TEST_STEPS.filter((s) => tests[s.type] == null);
+  const buildMissingSteps = (t: Partial<Record<TestType, TestEntry>>): WizardStep[] => {
+    const steps: WizardStep[] = [];
+    if (t.t12 == null) steps.push({ kind: "t12" });
+    if (t.t30 == null) steps.push({ kind: "t30" });
+    if (t.drift == null || t.fade == null) {
+      steps.push({ kind: "long", needDrift: t.drift == null, needFade: t.fade == null });
+    }
+    return steps;
+  };
 
-  const startWizard = () => {
-    setWizardMode(true);
-    setStepIndex(0);
+  const resetInputs = () => {
     setInputValue("");
     setFcMoy1("");
     setFcMoy2("");
     setAllure1("");
     setAllure2("");
+  };
+
+  const startWizard = () => {
+    setWizardSteps(buildMissingSteps(tests));
+    setIsRedo(false);
+    setWizardMode(true);
+    setStepIndex(0);
+    resetInputs();
     if (objective) { setObjDistance(objective.distance); setObjAmbition(objective.ambition); }
   };
 
-  const saveCurrentTest = async () => {
-    const step = missingSteps[stepIndex];
+  /** Refaire un test précis depuis la carte : une seule étape, puis recalcul auto. */
+  const startRedo = (type: TestType) => {
+    const step: WizardStep = type === "t12" ? { kind: "t12" }
+      : type === "t30" ? { kind: "t30" }
+      : { kind: "long", needDrift: type === "drift", needFade: type === "fade" };
+    setWizardSteps([step]);
+    setIsRedo(true);
+    setWizardMode(true);
+    setStepIndex(0);
+    resetInputs();
+  };
+
+  /** Calcule le profil et enregistre un snapshot avec l'objectif donné. */
+  const computeAndSnapshot = async (
+    objId: string, distance: Distance, ambition: Ambition,
+    t: Partial<Record<TestType, TestEntry>>,
+  ) => {
+    const auto = await collectAutoMeasures(athleteId);
+    // VMA absente du profil → estimée depuis le test 12 min (distance/200, demi-Cooper)
+    const vmaEstimee = t.t12 ? Math.round((t.t12.value / 200) * 10) / 10 : undefined;
+    const measures: RawMeasures = {
+      vma: athleteVma || vmaEstimee,
+      paceT12: t.t12 ? (t.t12.value / 1000) / (12 / 60) : undefined,
+      paceT30: t.t30 ? (t.t30.value / 1000) / (30 / 60) : undefined,
+      cardiacDrift: t.drift?.value,
+      paceFadeLongRun: t.fade?.value,
+      rpeGap: auto.rpeGap,
+      adherence: auto.adherence,
+    };
+    const result = computeProfile(measures, distance, ambition);
+
+    const { error: snapErr } = await supabase.from("profile_snapshots").insert({
+      athlete_id: athleteId, objective_id: objId,
+      overall_score: result.overall, scores: result.scores, raw_measures: measures as any,
+      strengths: result.strengths, weaknesses: result.weaknesses,
+      recommendation: result.recommendation, data_quality: result.dataQuality,
+    } as any);
+    if (snapErr) throw snapErr;
+    setSnapshot(result);
+  };
+
+  const saveCurrentStep = async () => {
+    const step = wizardSteps[stepIndex];
     if (!step) return;
 
-    let val: number;
-    if (step.type === "drift") {
-      const f1 = parseFloat(fcMoy1);
-      const f2 = parseFloat(fcMoy2);
-      if (isNaN(f1) || isNaN(f2) || f1 <= 0) {
-        toast.error("Entre les deux FC moyennes");
-        return;
-      }
-      val = Math.round(((f2 - f1) / f1) * 100 * 100) / 100;
-    } else if (step.type === "fade") {
-      const s1 = parseAllure(allure1);
-      const s2 = parseAllure(allure2);
-      if (s1 == null || s2 == null) {
-        toast.error("Entre les deux allures au format mm:ss");
-        return;
-      }
-      // allure en secondes/km : plus l'allure 2 est lente (secondes plus élevées), plus la perte est grande
-      val = Math.round(((s2 - s1) / s1) * 100 * 100) / 100;
-    } else {
-      val = parseFloat(inputValue);
-      if (isNaN(val)) {
+    const today = format(new Date(), "yyyy-MM-dd");
+    const rows: { test_type: TestType; value: number }[] = [];
+
+    if (step.kind === "t12" || step.kind === "t30") {
+      const val = parseFloat(inputValue);
+      if (isNaN(val) || val <= 0) {
         toast.error("Entre une valeur valide");
         return;
+      }
+      rows.push({ test_type: step.kind, value: val });
+    } else {
+      if (step.needDrift) {
+        const f1 = parseFloat(fcMoy1);
+        const f2 = parseFloat(fcMoy2);
+        if (isNaN(f1) || isNaN(f2) || f1 <= 0) {
+          toast.error("Entre les deux FC moyennes");
+          return;
+        }
+        rows.push({ test_type: "drift", value: pctFrom(f1, f2) });
+      }
+      if (step.needFade) {
+        const s1 = parseAllure(allure1);
+        const s2 = parseAllure(allure2);
+        if (s1 == null || s2 == null) {
+          toast.error("Entre les deux allures au format mm:ss");
+          return;
+        }
+        rows.push({ test_type: "fade", value: pctFrom(s1, s2) });
       }
     }
 
     setSaving(true);
-    const { error } = await supabase.from("profile_tests").insert({
-      athlete_id: athleteId, test_type: step.type, value: val,
-    } as any);
-    setSaving(false);
-    if (error) { toast.error(`Erreur : ${error.message}`); return; }
-    setTests((t) => ({ ...t, [step.type]: val }));
-    setInputValue("");
-    setFcMoy1("");
-    setFcMoy2("");
-    setAllure1("");
-    setAllure2("");
-    setStepIndex((i) => i + 1);
+    try {
+      const { error } = await supabase.from("profile_tests").insert(
+        rows.map((r) => ({ athlete_id: athleteId, test_type: r.test_type, value: r.value })) as any
+      );
+      if (error) throw error;
+
+      const updated = { ...tests };
+      for (const r of rows) updated[r.test_type] = { value: r.value, date: today };
+      setTests(updated);
+      resetInputs();
+
+      const isLast = stepIndex + 1 >= wizardSteps.length;
+      if (isLast && isRedo && objective) {
+        // Refaire un test : recalcul immédiat avec l'objectif en cours
+        await computeAndSnapshot(objective.id, objective.distance, objective.ambition, updated);
+        setWizardMode(false);
+        toast.success("Test mis à jour, carte recalculée !");
+      } else {
+        setStepIndex((i) => i + 1);
+      }
+    } catch (e: any) {
+      toast.error(`Erreur : ${e?.message || e}`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const finalizeObjectiveAndCompute = async () => {
@@ -160,30 +256,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
       } as any).select("id, distance, ambition").single();
       if (objErr) throw objErr;
 
-      const auto = await collectAutoMeasures(athleteId);
-      // VMA absente du profil → estimée depuis le test 12 min (distance/200, demi-Cooper)
-      const vmaEstimee = tests.t12 ? Math.round((tests.t12 / 200) * 10) / 10 : undefined;
-      const measures: RawMeasures = {
-        vma: athleteVma || vmaEstimee,
-        paceT12: tests.t12 ? (tests.t12 / 1000) / (12 / 60) : undefined,
-        paceT30: tests.t30 ? (tests.t30 / 1000) / (30 / 60) : undefined,
-        cardiacDrift: tests.drift,
-        paceFadeLongRun: tests.fade,
-        rpeGap: auto.rpeGap,
-        adherence: auto.adherence,
-      };
-      const result = computeProfile(measures, objDistance, objAmbition);
-
-      const { error: snapErr } = await supabase.from("profile_snapshots").insert({
-        athlete_id: athleteId, objective_id: (newObj as any).id,
-        overall_score: result.overall, scores: result.scores, raw_measures: measures as any,
-        strengths: result.strengths, weaknesses: result.weaknesses,
-        recommendation: result.recommendation, data_quality: result.dataQuality,
-      } as any);
-      if (snapErr) throw snapErr;
-
+      await computeAndSnapshot((newObj as any).id, objDistance, objAmbition, tests);
       setObjective(newObj as any);
-      setSnapshot(result);
       setWizardMode(false);
       toast.success("Carte coureur générée !");
     } catch (e: any) {
@@ -195,60 +269,75 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
   if (loading) return <p className="text-sm text-muted-foreground py-10 text-center">Chargement…</p>;
 
-  // ── Assistant : test manquant ──
-  if (wizardMode && stepIndex < missingSteps.length) {
-    const step = missingSteps[stepIndex];
+  // ── Assistant : étape de test ──
+  if (wizardMode && stepIndex < wizardSteps.length) {
+    const step = wizardSteps[stepIndex];
+    const t12EstimeDepuisVma = step.kind === "t12" && athleteVma ? Math.round(athleteVma * 200) : null;
     return (
       <Card className="max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="text-base">
-            Test {stepIndex + 1}/{missingSteps.length} — {step.title}
+            Test {stepIndex + 1}/{wizardSteps.length} — {STEP_TITLES[step.kind]}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">{step.help}</p>
-          {step.type === "drift" ? (
+          <p className="text-sm text-muted-foreground">{STEP_HELP[step.kind]}</p>
+
+          {step.kind === "long" ? (
             <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="fc-moy-1">FC moyenne — 1re moitié (bpm)</Label>
-                <Input id="fc-moy-1" type="number" value={fcMoy1} onChange={(e) => setFcMoy1(e.target.value)} placeholder="Ex: 142" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="fc-moy-2">FC moyenne — 2e moitié (bpm)</Label>
-                <Input id="fc-moy-2" type="number" value={fcMoy2} onChange={(e) => setFcMoy2(e.target.value)} placeholder="Ex: 149" />
-              </div>
-              {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Dérive calculée : {Math.round(((parseFloat(fcMoy2) - parseFloat(fcMoy1)) / parseFloat(fcMoy1)) * 100 * 100) / 100}%
-                </p>
+              {step.needDrift && (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor="fc-moy-1">FC moyenne — 1re moitié (bpm)</Label>
+                    <Input id="fc-moy-1" type="number" value={fcMoy1} onChange={(e) => setFcMoy1(e.target.value)} placeholder="Ex: 142" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="fc-moy-2">FC moyenne — 2e moitié (bpm)</Label>
+                    <Input id="fc-moy-2" type="number" value={fcMoy2} onChange={(e) => setFcMoy2(e.target.value)} placeholder="Ex: 149" />
+                  </div>
+                  {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      Dérive cardiaque calculée : {pctFrom(parseFloat(fcMoy1), parseFloat(fcMoy2))}%
+                    </p>
+                  )}
+                </>
               )}
-            </div>
-          ) : step.type === "fade" ? (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <Label htmlFor="allure-1">Allure — 1re moitié (min:sec / km)</Label>
-                <Input id="allure-1" value={allure1} onChange={(e) => setAllure1(e.target.value)} placeholder="Ex: 5:13" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="allure-2">Allure — 2e moitié (min:sec / km)</Label>
-                <Input id="allure-2" value={allure2} onChange={(e) => setAllure2(e.target.value)} placeholder="Ex: 5:30" />
-              </div>
-              {parseAllure(allure1) != null && parseAllure(allure2) != null && (
-                <p className="text-xs text-muted-foreground">
-                  Perte d'allure calculée : {Math.round(((parseAllure(allure2)! - parseAllure(allure1)!) / parseAllure(allure1)!) * 100 * 100) / 100}%
-                </p>
+              {step.needFade && (
+                <>
+                  <div className="space-y-1">
+                    <Label htmlFor="allure-1">Allure — 1re moitié (min:sec / km)</Label>
+                    <Input id="allure-1" value={allure1} onChange={(e) => setAllure1(e.target.value)} placeholder="Ex: 5:13" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="allure-2">Allure — 2e moitié (min:sec / km)</Label>
+                    <Input id="allure-2" value={allure2} onChange={(e) => setAllure2(e.target.value)} placeholder="Ex: 5:30" />
+                  </div>
+                  {parseAllure(allure1) != null && parseAllure(allure2) != null && (
+                    <p className="text-xs text-muted-foreground">
+                      Perte d'allure calculée : {pctFrom(parseAllure(allure1)!, parseAllure(allure2)!)}%
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ) : (
-            <div className="space-y-1">
-              <Label htmlFor="test-value">Valeur ({step.unit})</Label>
-              <Input id="test-value" type="number" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={`Ex: ${step.type === "t12" ? "2800" : step.type === "t30" ? "6500" : "5"}`} />
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label htmlFor="test-value">Distance (m)</Label>
+                <Input id="test-value" type="number" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={`Ex: ${step.kind === "t12" ? "2800" : "6500"}`} />
+              </div>
+              {t12EstimeDepuisVma != null && (
+                <Button type="button" variant="ghost" size="sm" className="text-xs h-7 px-2" onClick={() => setInputValue(String(t12EstimeDepuisVma))}>
+                  Estimer depuis la VMA du profil ({athleteVma} km/h ≈ {t12EstimeDepuisVma} m)
+                </Button>
+              )}
             </div>
           )}
+
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setWizardMode(false)} disabled={saving} className="flex-1">Annuler</Button>
-            <Button onClick={saveCurrentTest} disabled={saving} className="flex-1">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Suivant"}
+            <Button onClick={saveCurrentStep} disabled={saving} className="flex-1">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : (isRedo && stepIndex + 1 >= wizardSteps.length ? "Valider et recalculer" : "Suivant")}
             </Button>
           </div>
         </CardContent>
@@ -257,7 +346,7 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
   }
 
   // ── Assistant : objectif ──
-  if (wizardMode && stepIndex >= missingSteps.length) {
+  if (wizardMode && stepIndex >= wizardSteps.length) {
     return (
       <Card className="max-w-md mx-auto">
         <CardHeader>
@@ -304,13 +393,14 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
   // ── Aucune carte encore : proposer de commencer ──
   if (!snapshot) {
+    const missing = buildMissingSteps(tests);
     return (
       <Card className="max-w-md mx-auto">
         <CardHeader><CardTitle className="text-base">Carte coureur</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            {missingSteps.length > 0
-              ? `${missingSteps.length} test(s) à renseigner avant de générer la carte.`
+            {missing.length > 0
+              ? `${missing.length} test(s) à renseigner avant de générer la carte.`
               : "Tous les tests sont renseignés — il ne reste plus qu'à définir l'objectif."}
           </p>
           <Button onClick={startWizard} className="w-full">Commencer</Button>
@@ -350,9 +440,33 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         </CardContent>
       </Card>
 
+      <Card className="max-w-sm mx-auto">
+        <CardHeader className="pb-3"><CardTitle className="text-sm">Tests</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {(Object.keys(TEST_LABELS) as TestType[]).map((type) => {
+            const entry = tests[type];
+            return (
+              <div key={type} className="flex items-center justify-between text-xs">
+                <div>
+                  <p className="font-medium text-foreground">{TEST_LABELS[type]}</p>
+                  <p className="text-muted-foreground">
+                    {entry
+                      ? `${entry.value}${type === "t12" || type === "t30" ? " m" : " %"} · ${format(new Date(entry.date), "dd/MM/yyyy")}`
+                      : "Pas encore fait"}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => startRedo(type)}>
+                  {entry ? "Refaire" : "Faire"}
+                </Button>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
       <div className="max-w-sm mx-auto">
         <Button variant="outline" size="sm" className="w-full" onClick={startWizard}>
-          <RotateCcw className="h-3.5 w-3.5 mr-2" /> Mettre à jour l'objectif / les tests
+          <RotateCcw className="h-3.5 w-3.5 mr-2" /> Mettre à jour l'objectif
         </Button>
       </div>
     </div>
