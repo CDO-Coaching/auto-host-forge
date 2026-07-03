@@ -35,6 +35,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
   const [wizardMode, setWizardMode] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
+  const [fcMoy1, setFcMoy1] = useState("");
+  const [fcMoy2, setFcMoy2] = useState("");
   const [objDistance, setObjDistance] = useState<Distance>("10k");
   const [objAmbition, setObjAmbition] = useState<Ambition>("progression");
   const [targetDate, setTargetDate] = useState("");
@@ -83,16 +85,32 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
     setWizardMode(true);
     setStepIndex(0);
     setInputValue("");
+    setFcMoy1("");
+    setFcMoy2("");
     if (objective) { setObjDistance(objective.distance); setObjAmbition(objective.ambition); }
   };
 
   const saveCurrentTest = async () => {
     const step = missingSteps[stepIndex];
-    const val = parseFloat(inputValue);
-    if (!step || isNaN(val)) {
-      toast.error("Entre une valeur valide");
-      return;
+    if (!step) return;
+
+    let val: number;
+    if (step.type === "drift") {
+      const f1 = parseFloat(fcMoy1);
+      const f2 = parseFloat(fcMoy2);
+      if (isNaN(f1) || isNaN(f2) || f1 <= 0) {
+        toast.error("Entre les deux FC moyennes");
+        return;
+      }
+      val = Math.round(((f2 - f1) / f1) * 100 * 100) / 100;
+    } else {
+      val = parseFloat(inputValue);
+      if (isNaN(val)) {
+        toast.error("Entre une valeur valide");
+        return;
+      }
     }
+
     setSaving(true);
     const { error } = await supabase.from("profile_tests").insert({
       athlete_id: athleteId, test_type: step.type, value: val,
@@ -101,6 +119,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
     if (error) { toast.error(`Erreur : ${error.message}`); return; }
     setTests((t) => ({ ...t, [step.type]: val }));
     setInputValue("");
+    setFcMoy1("");
+    setFcMoy2("");
     setStepIndex((i) => i + 1);
   };
 
@@ -160,10 +180,28 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">{step.help}</p>
-          <div className="space-y-1">
-            <Label htmlFor="test-value">Valeur ({step.unit})</Label>
-            <Input id="test-value" type="number" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={`Ex: ${step.type === "t12" ? "2800" : step.type === "t30" ? "6500" : "5"}`} />
-          </div>
+          {step.type === "drift" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="fc-moy-1">FC moyenne — 1re moitié (bpm)</Label>
+                <Input id="fc-moy-1" type="number" value={fcMoy1} onChange={(e) => setFcMoy1(e.target.value)} placeholder="Ex: 142" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fc-moy-2">FC moyenne — 2e moitié (bpm)</Label>
+                <Input id="fc-moy-2" type="number" value={fcMoy2} onChange={(e) => setFcMoy2(e.target.value)} placeholder="Ex: 149" />
+              </div>
+              {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Dérive calculée : {Math.round(((parseFloat(fcMoy2) - parseFloat(fcMoy1)) / parseFloat(fcMoy1)) * 100 * 100) / 100}%
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <Label htmlFor="test-value">Valeur ({step.unit})</Label>
+              <Input id="test-value" type="number" value={inputValue} onChange={(e) => setInputValue(e.target.value)} placeholder={`Ex: ${step.type === "t12" ? "2800" : step.type === "t30" ? "6500" : "5"}`} />
+            </div>
+          )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setWizardMode(false)} disabled={saving} className="flex-1">Annuler</Button>
             <Button onClick={saveCurrentTest} disabled={saving} className="flex-1">
