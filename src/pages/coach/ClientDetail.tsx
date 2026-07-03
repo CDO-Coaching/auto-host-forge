@@ -82,6 +82,7 @@ import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
 import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
 import { AthleteReadinessCard } from "@/components/AthleteReadinessCard";
 import { DailyDebriefCard } from "@/components/DailyDebriefCard";
+import { AthleteProfileTab } from "@/components/AthleteProfileTab";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
@@ -4135,6 +4136,7 @@ export default function ClientDetail() {
           <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
               <TabsTrigger value="resume" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Résumé</TabsTrigger>
+              <TabsTrigger value="profil" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Profil</TabsTrigger>
               <TabsTrigger value="programmation" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Prog</TabsTrigger>
               <TabsTrigger value="efforts" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Données</TabsTrigger>
               <TabsTrigger value="max" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Max</TabsTrigger>
@@ -4194,6 +4196,16 @@ export default function ClientDetail() {
             <CoachSfmsAlert
               athleteId={athleteId!}
               athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="profil" className="space-y-2">
+          {athlete && athleteId && (
+            <AthleteProfileTab
+              athleteId={athleteId}
+              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+              athleteVma={athleteVma}
             />
           )}
         </TabsContent>
