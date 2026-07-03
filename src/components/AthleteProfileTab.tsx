@@ -23,16 +23,14 @@ const TEST_LABELS: Record<TestType, string> = {
   fade: "Perte d'allure",
 };
 
-/** Une étape de l'assistant. "long" regroupe dérive cardiaque + perte d'allure (même sortie). */
-type WizardStep =
-  | { kind: "t12" }
-  | { kind: "t30" }
-  | { kind: "long"; needDrift: boolean; needFade: boolean };
+/** Une étape de l'assistant — un test par sortie. */
+type WizardStep = { kind: TestType };
 
-const STEP_TITLES: Record<WizardStep["kind"], string> = {
+const STEP_TITLES: Record<TestType, string> = {
   t12: "Test 12 minutes",
   t30: "Test 30 minutes",
-  long: "Sortie longue test (dérive + perte d'allure)",
+  drift: "Dérive cardiaque (sortie à allure fixe)",
+  fade: "Perte d'allure (sortie longue à sensation)",
 };
 
 export type ExperienceLevel = "debutant" | "novice" | "amateur" | "experimente" | "semipro" | "pro";
@@ -46,55 +44,73 @@ export const LEVEL_LABELS: Record<ExperienceLevel, string> = {
   pro: "Pro",
 };
 
-/** Paramètres de protocole par niveau : échauffement, durée de la sortie longue test, conseils. */
-const LEVEL_PARAMS: Record<ExperienceLevel, { warmup: string; longDuration: string; t12Advice: string; t30Advice: string }> = {
+/** Paramètres de protocole par niveau : échauffement, durées des sorties test, conseils. */
+const LEVEL_PARAMS: Record<ExperienceLevel, { warmup: string; driftDuration: string; longDuration: string; t12Advice: string; t30Advice: string }> = {
   debutant: {
     warmup: "10 min de marche rapide puis footing très léger",
+    driftDuration: "40 à 45 min",
     longDuration: "40 à 50 min",
     t12Advice: "Pars prudemment : mieux vaut accélérer sur la fin que d'exploser à mi-test. De courtes portions de marche sont tolérées si nécessaire, l'important est de donner le maximum sur l'ensemble des 12 min.",
     t30Advice: "Si tenir 30 min à allure soutenue est encore trop dur, repousse ce test de quelques semaines : la carte se génère aussi sans lui.",
   },
   novice: {
     warmup: "10-15 min de footing léger",
+    driftDuration: "45 à 50 min",
     longDuration: "50 min à 1h",
     t12Advice: "Pars légèrement en retenue sur les 3 premières minutes, puis stabilise à l'allure la plus rapide tenable. Termine vidé mais sans marcher.",
     t30Advice: "Vise une allure « confortablement dure » et constante : c'est la régularité qui compte, pas l'exploit sur les 5 premières minutes.",
   },
   amateur: {
     warmup: "15 min de footing progressif + quelques accélérations",
+    driftDuration: "50 min à 1h",
     longDuration: "1h à 1h15",
     t12Advice: "Effort maximal réparti : les 2 premières minutes légèrement en dessous, puis à fond jusqu'au bout.",
     t30Advice: "Allure proche du seuil, la plus constante possible du début à la fin. Un négative split léger (2e moitié un peu plus rapide) est le signe d'un test réussi.",
   },
   experimente: {
     warmup: "15-20 min de footing progressif + gammes + 3-4 accélérations",
+    driftDuration: "1h",
     longDuration: "1h15 à 1h30",
     t12Advice: "Test à fond, géré comme une course : cadence haute, relâchement, dernière minute au sprint long.",
     t30Advice: "Allure seuil précise et régulière (écart max ±5 s/km entre les km). Idéalement sur piste ou parcours plat mesuré.",
   },
   semipro: {
     warmup: "20 min de footing progressif + gammes complètes + lignes à allure de test",
+    driftDuration: "1h à 1h15",
     longDuration: "1h30 à 1h45",
     t12Advice: "Protocole strict : conditions calmes, parcours plat ou piste, départ à l'allure cible calculée depuis la VMA estimée, finish maximal.",
     t30Advice: "Test de référence à traiter comme une compétition : parcours étalonné, allure au 100 m près, ravitaillement liquide si chaleur.",
   },
   pro: {
     warmup: "20-25 min de footing progressif + gammes complètes + lignes à allure de test",
+    driftDuration: "1h15 à 1h30",
     longDuration: "1h45 à 2h",
     t12Advice: "Conditions standardisées (piste, même horaire, même matériel qu'aux tests précédents) pour une comparabilité maximale entre les blocs.",
     t30Advice: "Conditions standardisées et reproductibles ; croiser avec la puissance/FC pour vérifier la fraîcheur le jour du test.",
   },
 };
 
-function stepHelp(kind: WizardStep["kind"], level: ExperienceLevel): string {
+/** Formate une vitesse km/h en allure "m:ss /km". */
+function paceFromKmh(kmh: number): string {
+  const secPerKm = Math.round(3600 / kmh);
+  return `${Math.floor(secPerKm / 60)}:${String(secPerKm % 60).padStart(2, "0")}`;
+}
+
+function stepHelp(kind: TestType, level: ExperienceLevel, vma: number | null): string {
   const p = LEVEL_PARAMS[level];
   switch (kind) {
     case "t12":
       return `Effort : maximal — l'allure la plus rapide tenable sur toute la durée, comme une course. Échauffement : ${p.warmup}. Durée : 12 min chrono, sans pause. ${p.t12Advice} Note la distance totale parcourue (mètres) à la fin des 12 min.`;
     case "t30":
       return `Effort : quasi-maximal mais régulier, l'allure la plus rapide tenable sans à-coups pendant 30 min entières (proche du seuil, pas un sprint). Échauffement : ${p.warmup}. Durée : 30 min chrono, sans pause. ${p.t30Advice} Note la distance totale parcourue (mètres) à la fin des 30 min.`;
-    case "long":
-      return `Une seule sortie suffit pour les deux mesures. Effort : sortie longue en endurance, allure naturelle à sensation constante (même ressenti d'effort du début à la fin), ${p.longDuration} en continu, sur parcours plat de préférence. Après la séance, relève sur Strava/Garmin, pour la 1re et la 2e moitié : la FC moyenne (→ dérive cardiaque) et l'allure moyenne en min:sec/km (→ perte d'allure). Les % sont calculés automatiquement.`;
+    case "drift": {
+      const cible = vma
+        ? `Allure cible : ${paceFromKmh(vma * 0.65)} à ${paceFromKmh(vma * 0.60)} /km (60-65 % de sa VMA de ${vma} km/h)`
+        : "Allure cible : endurance fondamentale, 60-65 % de la VMA (l'athlète doit pouvoir tenir une conversation)";
+      return `Sortie à ALLURE FIXE : les 10 premières minutes, l'athlète se cale à une allure très à l'aise (conversation possible), puis il verrouille cette allure sur la montre et la tient jusqu'au bout — c'est la FC qui doit bouger, pas l'allure. ${cible}. Durée : ${p.driftDuration} en continu, parcours plat. Après la séance, relève sur Strava/Garmin la FC moyenne de la 1re et de la 2e moitié : la dérive est calculée automatiquement.`;
+    }
+    case "fade":
+      return `Sortie longue à SENSATION : allure libre et naturelle, l'athlète garde le même ressenti d'effort du début à la fin, sans regarder sa montre ni forcer pour tenir un chrono. S'il ralentit, c'est justement ce qu'on veut mesurer. Durée : ${p.longDuration} en continu, parcours plat de préférence. Après la séance, relève sur Strava/Garmin l'allure moyenne (min:sec/km) de la 1re et de la 2e moitié : la perte d'allure est calculée automatiquement.`;
   }
 }
 
@@ -178,9 +194,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
     const steps: WizardStep[] = [];
     if (t.t12 == null) steps.push({ kind: "t12" });
     if (t.t30 == null) steps.push({ kind: "t30" });
-    if (t.drift == null || t.fade == null) {
-      steps.push({ kind: "long", needDrift: t.drift == null, needFade: t.fade == null });
-    }
+    if (t.drift == null) steps.push({ kind: "drift" });
+    if (t.fade == null) steps.push({ kind: "fade" });
     return steps;
   };
 
@@ -215,10 +230,7 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
   /** Refaire un test précis depuis la carte : une seule étape, puis recalcul auto. */
   const startRedo = (type: TestType) => {
-    const step: WizardStep = type === "t12" ? { kind: "t12" }
-      : type === "t30" ? { kind: "t30" }
-      : { kind: "long", needDrift: type === "drift", needFade: type === "fade" };
-    setWizardSteps([step]);
+    setWizardSteps([{ kind: type }]);
     setIsRedo(true);
     setWizardMode(true);
     setStepIndex(0);
@@ -268,25 +280,22 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         return;
       }
       rows.push({ test_type: step.kind, value: val });
+    } else if (step.kind === "drift") {
+      const f1 = parseFloat(fcMoy1);
+      const f2 = parseFloat(fcMoy2);
+      if (isNaN(f1) || isNaN(f2) || f1 <= 0) {
+        toast.error("Entre les deux FC moyennes");
+        return;
+      }
+      rows.push({ test_type: "drift", value: pctFrom(f1, f2) });
     } else {
-      if (step.needDrift) {
-        const f1 = parseFloat(fcMoy1);
-        const f2 = parseFloat(fcMoy2);
-        if (isNaN(f1) || isNaN(f2) || f1 <= 0) {
-          toast.error("Entre les deux FC moyennes");
-          return;
-        }
-        rows.push({ test_type: "drift", value: pctFrom(f1, f2) });
+      const s1 = parseAllure(allure1);
+      const s2 = parseAllure(allure2);
+      if (s1 == null || s2 == null) {
+        toast.error("Entre les deux allures au format mm:ss");
+        return;
       }
-      if (step.needFade) {
-        const s1 = parseAllure(allure1);
-        const s2 = parseAllure(allure2);
-        if (s1 == null || s2 == null) {
-          toast.error("Entre les deux allures au format mm:ss");
-          return;
-        }
-        rows.push({ test_type: "fade", value: pctFrom(s1, s2) });
-      }
+      rows.push({ test_type: "fade", value: pctFrom(s1, s2) });
     }
 
     setSaving(true);
@@ -368,43 +377,38 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         </CardHeader>
         <CardContent className="space-y-4">
           {levelSelect}
-          <p className="text-sm text-muted-foreground">{stepHelp(step.kind, level)}</p>
+          <p className="text-sm text-muted-foreground">{stepHelp(step.kind, level, athleteVma)}</p>
 
-          {step.kind === "long" ? (
+          {step.kind === "drift" ? (
             <div className="space-y-3">
-              {step.needDrift && (
-                <>
-                  <div className="space-y-1">
-                    <Label htmlFor="fc-moy-1">FC moyenne — 1re moitié (bpm)</Label>
-                    <Input id="fc-moy-1" type="number" value={fcMoy1} onChange={(e) => setFcMoy1(e.target.value)} placeholder="Ex: 142" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="fc-moy-2">FC moyenne — 2e moitié (bpm)</Label>
-                    <Input id="fc-moy-2" type="number" value={fcMoy2} onChange={(e) => setFcMoy2(e.target.value)} placeholder="Ex: 149" />
-                  </div>
-                  {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      Dérive cardiaque calculée : {pctFrom(parseFloat(fcMoy1), parseFloat(fcMoy2))}%
-                    </p>
-                  )}
-                </>
+              <div className="space-y-1">
+                <Label htmlFor="fc-moy-1">FC moyenne — 1re moitié (bpm)</Label>
+                <Input id="fc-moy-1" type="number" value={fcMoy1} onChange={(e) => setFcMoy1(e.target.value)} placeholder="Ex: 142" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="fc-moy-2">FC moyenne — 2e moitié (bpm)</Label>
+                <Input id="fc-moy-2" type="number" value={fcMoy2} onChange={(e) => setFcMoy2(e.target.value)} placeholder="Ex: 149" />
+              </div>
+              {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Dérive cardiaque calculée : {pctFrom(parseFloat(fcMoy1), parseFloat(fcMoy2))}%
+                </p>
               )}
-              {step.needFade && (
-                <>
-                  <div className="space-y-1">
-                    <Label htmlFor="allure-1">Allure — 1re moitié (min:sec / km)</Label>
-                    <Input id="allure-1" value={allure1} onChange={(e) => setAllure1(e.target.value)} placeholder="Ex: 5:13" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="allure-2">Allure — 2e moitié (min:sec / km)</Label>
-                    <Input id="allure-2" value={allure2} onChange={(e) => setAllure2(e.target.value)} placeholder="Ex: 5:30" />
-                  </div>
-                  {parseAllure(allure1) != null && parseAllure(allure2) != null && (
-                    <p className="text-xs text-muted-foreground">
-                      Perte d'allure calculée : {pctFrom(parseAllure(allure1)!, parseAllure(allure2)!)}%
-                    </p>
-                  )}
-                </>
+            </div>
+          ) : step.kind === "fade" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="allure-1">Allure — 1re moitié (min:sec / km)</Label>
+                <Input id="allure-1" value={allure1} onChange={(e) => setAllure1(e.target.value)} placeholder="Ex: 5:13" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="allure-2">Allure — 2e moitié (min:sec / km)</Label>
+                <Input id="allure-2" value={allure2} onChange={(e) => setAllure2(e.target.value)} placeholder="Ex: 5:30" />
+              </div>
+              {parseAllure(allure1) != null && parseAllure(allure2) != null && (
+                <p className="text-xs text-muted-foreground">
+                  Perte d'allure calculée : {pctFrom(parseAllure(allure1)!, parseAllure(allure2)!)}%
+                </p>
               )}
             </div>
           ) : (
