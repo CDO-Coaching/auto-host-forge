@@ -35,11 +35,68 @@ const STEP_TITLES: Record<WizardStep["kind"], string> = {
   long: "Sortie longue test (dérive + perte d'allure)",
 };
 
-const STEP_HELP: Record<WizardStep["kind"], string> = {
-  t12: "Effort : maximal, à fond dès le départ (allure la plus rapide tenable sur toute la durée, comme une course). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 12 min chrono, sans pause. Note la distance totale parcourue (mètres) à la fin des 12 min.",
-  t30: "Effort : quasi-maximal mais régulier, l'allure la plus rapide que l'athlète peut tenir sans à-coups pendant 30 min entières (proche de l'allure de seuil, pas un sprint). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 30 min chrono, sans pause, allure la plus constante possible. Note la distance totale parcourue (mètres) à la fin des 30 min.",
-  long: "Une seule sortie suffit pour les deux mesures. Effort : sortie longue en endurance, allure naturelle à sensation constante (même ressenti d'effort du début à la fin), 1h à 1h30 en continu. Après la séance, relève sur Strava/Garmin, pour la 1re et la 2e moitié : la FC moyenne (→ dérive cardiaque) et l'allure moyenne en min:sec/km (→ perte d'allure). Les % sont calculés automatiquement.",
+export type ExperienceLevel = "debutant" | "novice" | "amateur" | "experimente" | "semipro" | "pro";
+
+export const LEVEL_LABELS: Record<ExperienceLevel, string> = {
+  debutant: "Débutant",
+  novice: "Novice",
+  amateur: "Amateur",
+  experimente: "Expérimenté",
+  semipro: "Semi-pro",
+  pro: "Pro",
 };
+
+/** Paramètres de protocole par niveau : échauffement, durée de la sortie longue test, conseils. */
+const LEVEL_PARAMS: Record<ExperienceLevel, { warmup: string; longDuration: string; t12Advice: string; t30Advice: string }> = {
+  debutant: {
+    warmup: "10 min de marche rapide puis footing très léger",
+    longDuration: "40 à 50 min",
+    t12Advice: "Pars prudemment : mieux vaut accélérer sur la fin que d'exploser à mi-test. De courtes portions de marche sont tolérées si nécessaire, l'important est de donner le maximum sur l'ensemble des 12 min.",
+    t30Advice: "Si tenir 30 min à allure soutenue est encore trop dur, repousse ce test de quelques semaines : la carte se génère aussi sans lui.",
+  },
+  novice: {
+    warmup: "10-15 min de footing léger",
+    longDuration: "50 min à 1h",
+    t12Advice: "Pars légèrement en retenue sur les 3 premières minutes, puis stabilise à l'allure la plus rapide tenable. Termine vidé mais sans marcher.",
+    t30Advice: "Vise une allure « confortablement dure » et constante : c'est la régularité qui compte, pas l'exploit sur les 5 premières minutes.",
+  },
+  amateur: {
+    warmup: "15 min de footing progressif + quelques accélérations",
+    longDuration: "1h à 1h15",
+    t12Advice: "Effort maximal réparti : les 2 premières minutes légèrement en dessous, puis à fond jusqu'au bout.",
+    t30Advice: "Allure proche du seuil, la plus constante possible du début à la fin. Un négative split léger (2e moitié un peu plus rapide) est le signe d'un test réussi.",
+  },
+  experimente: {
+    warmup: "15-20 min de footing progressif + gammes + 3-4 accélérations",
+    longDuration: "1h15 à 1h30",
+    t12Advice: "Test à fond, géré comme une course : cadence haute, relâchement, dernière minute au sprint long.",
+    t30Advice: "Allure seuil précise et régulière (écart max ±5 s/km entre les km). Idéalement sur piste ou parcours plat mesuré.",
+  },
+  semipro: {
+    warmup: "20 min de footing progressif + gammes complètes + lignes à allure de test",
+    longDuration: "1h30 à 1h45",
+    t12Advice: "Protocole strict : conditions calmes, parcours plat ou piste, départ à l'allure cible calculée depuis la VMA estimée, finish maximal.",
+    t30Advice: "Test de référence à traiter comme une compétition : parcours étalonné, allure au 100 m près, ravitaillement liquide si chaleur.",
+  },
+  pro: {
+    warmup: "20-25 min de footing progressif + gammes complètes + lignes à allure de test",
+    longDuration: "1h45 à 2h",
+    t12Advice: "Conditions standardisées (piste, même horaire, même matériel qu'aux tests précédents) pour une comparabilité maximale entre les blocs.",
+    t30Advice: "Conditions standardisées et reproductibles ; croiser avec la puissance/FC pour vérifier la fraîcheur le jour du test.",
+  },
+};
+
+function stepHelp(kind: WizardStep["kind"], level: ExperienceLevel): string {
+  const p = LEVEL_PARAMS[level];
+  switch (kind) {
+    case "t12":
+      return `Effort : maximal — l'allure la plus rapide tenable sur toute la durée, comme une course. Échauffement : ${p.warmup}. Durée : 12 min chrono, sans pause. ${p.t12Advice} Note la distance totale parcourue (mètres) à la fin des 12 min.`;
+    case "t30":
+      return `Effort : quasi-maximal mais régulier, l'allure la plus rapide tenable sans à-coups pendant 30 min entières (proche du seuil, pas un sprint). Échauffement : ${p.warmup}. Durée : 30 min chrono, sans pause. ${p.t30Advice} Note la distance totale parcourue (mètres) à la fin des 30 min.`;
+    case "long":
+      return `Une seule sortie suffit pour les deux mesures. Effort : sortie longue en endurance, allure naturelle à sensation constante (même ressenti d'effort du début à la fin), ${p.longDuration} en continu, sur parcours plat de préférence. Après la séance, relève sur Strava/Garmin, pour la 1re et la 2e moitié : la FC moyenne (→ dérive cardiaque) et l'allure moyenne en min:sec/km (→ perte d'allure). Les % sont calculés automatiquement.`;
+  }
+}
 
 /** Parse une allure "mm:ss" (ou "m:ss") en secondes par km. Renvoie null si invalide. */
 function parseAllure(v: string): number | null {
@@ -70,6 +127,7 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
   const [fcMoy2, setFcMoy2] = useState("");
   const [allure1, setAllure1] = useState("");
   const [allure2, setAllure2] = useState("");
+  const [level, setLevel] = useState<ExperienceLevel>("amateur");
   const [objDistance, setObjDistance] = useState<Distance>("10k");
   const [objAmbition, setObjAmbition] = useState<Ambition>("progression");
   const [targetDate, setTargetDate] = useState("");
@@ -77,11 +135,13 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
   const load = async () => {
     setLoading(true);
     try {
-      const [{ data: testRows }, { data: obj }, { data: snap }] = await Promise.all([
+      const [{ data: testRows }, { data: obj }, { data: snap }, { data: prof }] = await Promise.all([
         supabase.from("profile_tests").select("test_type, value, test_date").eq("athlete_id", athleteId).order("test_date", { ascending: false }),
         supabase.from("athlete_objectives").select("id, distance, ambition").eq("athlete_id", athleteId).eq("is_active", true).limit(1).maybeSingle(),
         supabase.from("profile_snapshots").select("*").eq("athlete_id", athleteId).order("computed_at", { ascending: false }).limit(1).maybeSingle(),
+        supabase.from("user_profiles").select("experience_level").eq("id", athleteId).maybeSingle(),
       ]);
+      if ((prof as any)?.experience_level) setLevel((prof as any).experience_level as ExperienceLevel);
 
       const latestByType: Partial<Record<TestType, TestEntry>> = {};
       for (const r of (testRows || []) as any[]) {
@@ -122,6 +182,18 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
       steps.push({ kind: "long", needDrift: t.drift == null, needFade: t.fade == null });
     }
     return steps;
+  };
+
+  const changeLevel = async (l: ExperienceLevel) => {
+    const prev = level;
+    setLevel(l);
+    const { error } = await supabase.rpc("set_athlete_experience_level" as any, {
+      p_athlete_id: athleteId, p_level: l,
+    } as any);
+    if (error) {
+      setLevel(prev);
+      toast.error(`Erreur : ${error.message}`);
+    }
   };
 
   const resetInputs = () => {
@@ -269,6 +341,20 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
   if (loading) return <p className="text-sm text-muted-foreground py-10 text-center">Chargement…</p>;
 
+  const levelSelect = (
+    <div className="space-y-1">
+      <Label>Niveau de l'athlète</Label>
+      <Select value={level} onValueChange={(v) => changeLevel(v as ExperienceLevel)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {(Object.keys(LEVEL_LABELS) as ExperienceLevel[]).map((l) => (
+            <SelectItem key={l} value={l}>{LEVEL_LABELS[l]}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
   // ── Assistant : étape de test ──
   if (wizardMode && stepIndex < wizardSteps.length) {
     const step = wizardSteps[stepIndex];
@@ -281,7 +367,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">{STEP_HELP[step.kind]}</p>
+          {levelSelect}
+          <p className="text-sm text-muted-foreground">{stepHelp(step.kind, level)}</p>
 
           {step.kind === "long" ? (
             <div className="space-y-3">
@@ -403,6 +490,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
               ? `${missing.length} test(s) à renseigner avant de générer la carte.`
               : "Tous les tests sont renseignés — il ne reste plus qu'à définir l'objectif."}
           </p>
+          {levelSelect}
+          <p className="text-xs text-muted-foreground">Les consignes des tests s'adaptent au niveau choisi.</p>
           <Button onClick={startWizard} className="w-full">Commencer</Button>
         </CardContent>
       </Card>
@@ -442,7 +531,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
 
       <Card className="max-w-sm mx-auto">
         <CardHeader className="pb-3"><CardTitle className="text-sm">Tests</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
+          {levelSelect}
           {(Object.keys(TEST_LABELS) as TestType[]).map((type) => {
             const entry = tests[type];
             return (
