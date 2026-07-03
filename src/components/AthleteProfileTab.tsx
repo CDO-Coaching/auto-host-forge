@@ -161,8 +161,10 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
       if (objErr) throw objErr;
 
       const auto = await collectAutoMeasures(athleteId);
+      // VMA absente du profil → estimée depuis le test 12 min (distance/200, demi-Cooper)
+      const vmaEstimee = tests.t12 ? Math.round((tests.t12 / 200) * 10) / 10 : undefined;
       const measures: RawMeasures = {
-        vma: athleteVma || undefined,
+        vma: athleteVma || vmaEstimee,
         paceT12: tests.t12 ? (tests.t12 / 1000) / (12 / 60) : undefined,
         paceT30: tests.t30 ? (tests.t30 / 1000) / (30 / 60) : undefined,
         cardiacDrift: tests.drift,
