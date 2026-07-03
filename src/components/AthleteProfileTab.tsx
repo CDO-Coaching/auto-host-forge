@@ -19,11 +19,21 @@ interface TestStep {
   unit: string;
 }
 
+/** Parse une allure "mm:ss" (ou "m:ss") en secondes par km. Renvoie null si invalide. */
+function parseAllure(v: string): number | null {
+  const m = v.trim().match(/^(\d+):([0-5]?\d)$/);
+  if (!m) return null;
+  const min = parseInt(m[1], 10);
+  const sec = parseInt(m[2], 10);
+  const total = min * 60 + sec;
+  return total > 0 ? total : null;
+}
+
 const TEST_STEPS: TestStep[] = [
   { type: "t12", title: "Test 12 minutes", help: "Effort : maximal, à fond dès le départ (allure la plus rapide tenable sur toute la durée, comme une course). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 12 min chrono, sans pause. Note la distance totale parcourue (mètres) à la fin des 12 min.", unit: "m" },
   { type: "t30", title: "Test 30 minutes", help: "Effort : quasi-maximal mais régulier, l'allure la plus rapide que l'athlète peut tenir sans à-coups pendant 30 min entières (proche de l'allure de seuil, pas un sprint). Échauffement avant : 15-20 min footing progressif + gammes/accélérations. Durée du test : 30 min chrono, sans pause, allure la plus constante possible. Note la distance totale parcourue (mètres) à la fin des 30 min.", unit: "m" },
   { type: "drift", title: "Dérive cardiaque", help: "Effort : facile, endurance fondamentale (allure de footing tranquille, on peut parler). Durée : 45 à 60 min en continu, à vitesse constante (même allure du début à la fin, pas d'accélération). Après la séance, relève sur Strava/Garmin la FC moyenne de la 1re moitié et celle de la 2e moitié, puis calcule : (FC moyenne 2e moitié − FC moyenne 1re moitié) ÷ FC moyenne 1re moitié × 100. Ex : 142 bpm puis 149 bpm → (149-142)/142×100 = 4,9 → entre 5.", unit: "%" },
-  { type: "fade", title: "Perte d'allure (sortie longue)", help: "Effort : modéré, allure libre/naturelle à sensation constante (même ressenti d'effort du début à la fin, PAS une allure imposée au chrono). Durée : sortie longue habituelle de l'athlète (généralement 1h15 à 2h, selon son niveau/objectif). Après la séance, relève sur Strava/Garmin la vitesse moyenne de la 1re moitié et celle de la 2e moitié, puis calcule : (vitesse 1re moitié − vitesse 2e moitié) ÷ vitesse 1re moitié × 100. Ex : 11,5 km/h puis 10,9 km/h → (11,5-10,9)/11,5×100 = 5,2 → entre 5.", unit: "%" },
+  { type: "fade", title: "Perte d'allure (sortie longue)", help: "Effort : modéré, allure libre/naturelle à sensation constante (même ressenti d'effort du début à la fin, PAS une allure imposée au chrono). Durée : sortie longue habituelle de l'athlète (généralement 1h15 à 2h, selon son niveau/objectif). Après la séance, relève sur Strava/Garmin l'allure moyenne (min:sec/km) de la 1re moitié et celle de la 2e moitié, et entre-les ci-dessous : le % de perte est calculé automatiquement.", unit: "%" },
 ];
 
 export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athleteId: string; athleteName: string; athleteVma: number | null }) {
@@ -37,6 +47,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
   const [inputValue, setInputValue] = useState("");
   const [fcMoy1, setFcMoy1] = useState("");
   const [fcMoy2, setFcMoy2] = useState("");
+  const [allure1, setAllure1] = useState("");
+  const [allure2, setAllure2] = useState("");
   const [objDistance, setObjDistance] = useState<Distance>("10k");
   const [objAmbition, setObjAmbition] = useState<Ambition>("progression");
   const [targetDate, setTargetDate] = useState("");
@@ -87,6 +99,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
     setInputValue("");
     setFcMoy1("");
     setFcMoy2("");
+    setAllure1("");
+    setAllure2("");
     if (objective) { setObjDistance(objective.distance); setObjAmbition(objective.ambition); }
   };
 
@@ -103,6 +117,15 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
         return;
       }
       val = Math.round(((f2 - f1) / f1) * 100 * 100) / 100;
+    } else if (step.type === "fade") {
+      const s1 = parseAllure(allure1);
+      const s2 = parseAllure(allure2);
+      if (s1 == null || s2 == null) {
+        toast.error("Entre les deux allures au format mm:ss");
+        return;
+      }
+      // allure en secondes/km : plus l'allure 2 est lente (secondes plus élevées), plus la perte est grande
+      val = Math.round(((s2 - s1) / s1) * 100 * 100) / 100;
     } else {
       val = parseFloat(inputValue);
       if (isNaN(val)) {
@@ -121,6 +144,8 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
     setInputValue("");
     setFcMoy1("");
     setFcMoy2("");
+    setAllure1("");
+    setAllure2("");
     setStepIndex((i) => i + 1);
   };
 
@@ -193,6 +218,22 @@ export function AthleteProfileTab({ athleteId, athleteName, athleteVma }: { athl
               {!isNaN(parseFloat(fcMoy1)) && !isNaN(parseFloat(fcMoy2)) && parseFloat(fcMoy1) > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Dérive calculée : {Math.round(((parseFloat(fcMoy2) - parseFloat(fcMoy1)) / parseFloat(fcMoy1)) * 100 * 100) / 100}%
+                </p>
+              )}
+            </div>
+          ) : step.type === "fade" ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="allure-1">Allure — 1re moitié (min:sec / km)</Label>
+                <Input id="allure-1" value={allure1} onChange={(e) => setAllure1(e.target.value)} placeholder="Ex: 5:13" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="allure-2">Allure — 2e moitié (min:sec / km)</Label>
+                <Input id="allure-2" value={allure2} onChange={(e) => setAllure2(e.target.value)} placeholder="Ex: 5:30" />
+              </div>
+              {parseAllure(allure1) != null && parseAllure(allure2) != null && (
+                <p className="text-xs text-muted-foreground">
+                  Perte d'allure calculée : {Math.round(((parseAllure(allure2)! - parseAllure(allure1)!) / parseAllure(allure1)!) * 100 * 100) / 100}%
                 </p>
               )}
             </div>
