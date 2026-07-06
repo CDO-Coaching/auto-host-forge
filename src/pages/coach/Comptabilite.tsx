@@ -950,25 +950,19 @@ export default function Comptabilite() {
                                   (entry.sessions_done || 0) - (entry.sessions_paid || 0),
                                   Math.max(0, creditBefore)
                                 ));
-                                if (coveredByCredit > 0) {
-                                  // Auto-rempli depuis le crédit : lecture seule + détail
-                                  return (
-                                    <div className="flex flex-col items-center gap-0.5">
-                                      <div className="w-20 text-center rounded-md border border-green-500/40 bg-green-500/10 py-1.5 text-sm font-semibold text-green-400">
-                                        {(entry.sessions_paid || 0) + coveredByCredit}
-                                      </div>
-                                      <span className="text-[10px] text-green-400/80 whitespace-nowrap">dont {coveredByCredit} via crédit</span>
-                                    </div>
-                                  );
-                                }
                                 return (
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={entry.sessions_paid || ""}
-                                    onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
-                                    className="w-20 text-center"
-                                  />
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      value={entry.sessions_paid || ""}
+                                      onChange={(e) => updateEntry(entry.id, "sessions_paid", e.target.value === "" ? 0 : parseInt(e.target.value))}
+                                      className="w-20 text-center"
+                                    />
+                                    {coveredByCredit > 0 && (
+                                      <span className="text-[10px] text-green-400/80 whitespace-nowrap">+{coveredByCredit} via crédit</span>
+                                    )}
+                                  </div>
                                 );
                               })()}
                             </TableCell>
