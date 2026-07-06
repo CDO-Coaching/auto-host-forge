@@ -44,6 +44,7 @@ interface AccountingEntry {
   amount_transfer: number;
   notes?: string;
   weekly_difference?: number;
+  billing_start_day?: number;
 }
 
 export default function Comptabilite() {
@@ -115,16 +116,16 @@ export default function Comptabilite() {
       // Charger les clients internes (athlètes du coach)
       const { data: relationships, error: relError } = await supabase
         .from("coach_athlete_relationships")
-        .select("athlete_id, client_address, client_phone")
+        .select("athlete_id, client_address, client_phone, billing_start_day")
         .eq("coach_id", session.user.id)
         .eq("status", "approved");
 
       console.log("Relationships:", relationships, "Error:", relError);
 
       // Map athlete_id → { client_address, client_phone } from relationships
-      const athleteContactMap = new Map<string, { client_address?: string | null; client_phone?: string | null }>();
+      const athleteContactMap = new Map<string, { client_address?: string | null; client_phone?: string | null; billing_start_day?: number | null }>();
       (relationships || []).forEach((r: any) => {
-        athleteContactMap.set(r.athlete_id, { client_address: r.client_address, client_phone: r.client_phone });
+        athleteContactMap.set(r.athlete_id, { client_address: r.client_address, client_phone: r.client_phone, billing_start_day: r.billing_start_day });
       });
 
       let internalClients: Client[] = [];
@@ -177,7 +178,7 @@ export default function Comptabilite() {
         .select(`
           *,
           user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-          external_clients (first_name, last_name, address, phone)
+          external_clients (first_name, last_name, address, phone, billing_start_day)
         `)
         .eq("coach_id", session.user.id)
         .eq("month", monthStr);
@@ -205,7 +206,7 @@ export default function Comptabilite() {
             .select(`
               *,
               user_profiles!accounting_entries_client_id_fkey (first_name, last_name),
-              external_clients (first_name, last_name, address, phone)
+              external_clients (first_name, last_name, address, phone, billing_start_day)
             `)
             .eq("coach_id", session.user.id)
             .eq("month", monthStr);
@@ -265,7 +266,10 @@ export default function Comptabilite() {
             amount_cash: parseFloat(entry.amount_cash) || 0,
             amount_transfer: parseFloat(entry.amount_transfer) || 0,
             notes: entry.notes,
-            weekly_difference: weeklyDiff
+            weekly_difference: weeklyDiff,
+            billing_start_day: entry.client_id
+              ? (athleteContactMap.get(entry.client_id)?.billing_start_day || 1)
+              : (entry.external_clients?.billing_start_day || 1)
           };
         })
       );
@@ -409,6 +413,18 @@ export default function Comptabilite() {
       toast.error("Erreur lors de la sauvegarde");
       await loadData();
     }
+  };
+
+  // Jour du mois à partir duquel le client paie (persistant sur les mois suivants)
+  const updateBillingDay = async (entry: AccountingEntry, day: number) => {
+    const clamped = Math.max(1, Math.min(31, Math.round(day) || 1));
+    setEntries(prev => prev.map(e => e.id === entry.id ? { ...e, billing_start_day: clamped } : e));
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const { error } = entry.client_id
+      ? await supabase.from("coach_athlete_relationships").update({ billing_start_day: clamped } as any).eq("coach_id", session.user.id).eq("athlete_id", entry.client_id)
+      : await supabase.from("external_clients").update({ billing_start_day: clamped } as any).eq("id", entry.external_client_id!);
+    if (error) toast.error(`Erreur : ${error.message}`);
   };
 
   const deleteEntry = async (entryId: string) => {
@@ -859,7 +875,20 @@ export default function Comptabilite() {
                       <TableBody>
                         {filteredEntries.map(entry => (
                           <TableRow key={entry.id} id={`entry-${entry.id}`} className="transition-all">
-                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">{entry.client_name}</TableCell>
+                            <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
+                              <div className="flex items-center gap-2">
+                                <span>{entry.client_name}</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={31}
+                                  value={entry.billing_start_day || 1}
+                                  onChange={(e) => updateBillingDay(entry, parseInt(e.target.value))}
+                                  title="Jour du mois à partir duquel ce client paie"
+                                  className={`w-9 h-6 text-[11px] text-center rounded border bg-transparent ${(entry.billing_start_day || 1) > 1 ? "border-primary/50 text-primary" : "border-border/40 text-muted-foreground/50"}`}
+                                />
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <Input
                                 type="number"
@@ -1007,7 +1036,18 @@ export default function Comptabilite() {
                       <Card key={entry.id} id={`entry-${entry.id}`} className="border shadow-sm transition-all">
                         <CardContent className="p-4 space-y-3">
                           <div className="flex items-start justify-between">
-                            <h3 className="font-semibold text-base">{entry.client_name}</h3>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-base">{entry.client_name}</h3>
+                              <input
+                                type="number"
+                                min={1}
+                                max={31}
+                                value={entry.billing_start_day || 1}
+                                onChange={(e) => updateBillingDay(entry, parseInt(e.target.value))}
+                                title="Jour du mois à partir duquel ce client paie"
+                                className={`w-9 h-6 text-[11px] text-center rounded border bg-transparent ${(entry.billing_start_day || 1) > 1 ? "border-primary/50 text-primary" : "border-border/40 text-muted-foreground/50"}`}
+                              />
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
