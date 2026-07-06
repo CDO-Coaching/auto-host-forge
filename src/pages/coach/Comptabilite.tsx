@@ -881,7 +881,7 @@ export default function Comptabilite() {
                 {/* Vue Desktop - Tableau */}
                 {!isMobile && (
                   <div className="relative border rounded-md">
-                    <div className="overflow-auto max-h-[600px]">
+                    <div className="overflow-auto max-h-[600px] [&>div]:overflow-visible">
                       <Table>
                         <TableHeader>
                           <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
