@@ -47,6 +47,31 @@ interface AccountingEntry {
   billing_start_day?: number;
 }
 
+function BillingDayInput({ value, onCommit }: { value: number; onCommit: (day: number) => void }) {
+  const [local, setLocal] = useState(String(value));
+  useEffect(() => { setLocal(String(value)); }, [value]);
+  const commit = () => {
+    const n = parseInt(local, 10);
+    if (isNaN(n)) { setLocal(String(value)); return; }
+    const clamped = Math.max(1, Math.min(31, n));
+    setLocal(String(clamped));
+    if (clamped !== value) onCommit(clamped);
+  };
+  return (
+    <input
+      type="number"
+      min={1}
+      max={31}
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      title="Jour du mois à partir duquel ce client paie"
+      className={`w-9 h-6 text-[11px] text-center rounded border bg-transparent ${value > 1 ? "border-primary/50 text-primary" : "border-border/40 text-muted-foreground/50"}`}
+    />
+  );
+}
+
 export default function Comptabilite() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -878,15 +903,7 @@ export default function Comptabilite() {
                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
                               <div className="flex items-center gap-2">
                                 <span>{entry.client_name}</span>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={31}
-                                  value={entry.billing_start_day || 1}
-                                  onChange={(e) => updateBillingDay(entry, parseInt(e.target.value))}
-                                  title="Jour du mois à partir duquel ce client paie"
-                                  className={`w-9 h-6 text-[11px] text-center rounded border bg-transparent ${(entry.billing_start_day || 1) > 1 ? "border-primary/50 text-primary" : "border-border/40 text-muted-foreground/50"}`}
-                                />
+                                <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1038,15 +1055,7 @@ export default function Comptabilite() {
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
                               <h3 className="font-semibold text-base">{entry.client_name}</h3>
-                              <input
-                                type="number"
-                                min={1}
-                                max={31}
-                                value={entry.billing_start_day || 1}
-                                onChange={(e) => updateBillingDay(entry, parseInt(e.target.value))}
-                                title="Jour du mois à partir duquel ce client paie"
-                                className={`w-9 h-6 text-[11px] text-center rounded border bg-transparent ${(entry.billing_start_day || 1) > 1 ? "border-primary/50 text-primary" : "border-border/40 text-muted-foreground/50"}`}
-                              />
+                              <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
                             </div>
                             <Button
                               variant="ghost"
