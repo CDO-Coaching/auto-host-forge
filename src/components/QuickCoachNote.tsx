@@ -89,7 +89,7 @@ export function QuickCoachNote() {
       <Button
         onClick={() => setOpen(true)}
         size="icon"
-        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 h-14 w-14 rounded-full shadow-lg"
+        className="sm:hidden fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full shadow-lg"
         aria-label="Enregistrer une note de coaching"
         title="Enregistrer une note de coaching"
       >
