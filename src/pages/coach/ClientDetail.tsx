@@ -4002,7 +4002,7 @@ export default function ClientDetail() {
                     <p className="text-[11px] text-muted-foreground mb-0.5">
                       {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                     </p>
-                    <p className="text-sm whitespace-pre-wrap line-clamp-6">{note.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
                   </div>
                 ))}
               </div>
