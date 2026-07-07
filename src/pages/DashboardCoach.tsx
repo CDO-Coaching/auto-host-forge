@@ -34,6 +34,7 @@ import SeancesProgrammees from "./coach/SeancesProgrammees";
 import Methodologies from "./coach/Methodologies";
 import CoachDashboard from "./coach/Dashboard";
 import NotificationsSettings from "./NotificationsSettings";
+import { QuickCoachNote } from "@/components/QuickCoachNote";
 import Administration from "./coach/Administration";
 
 export default function DashboardCoach() {
@@ -198,6 +199,7 @@ export default function DashboardCoach() {
           </main>
           <CoachBottomNav />
         </div>
+        <QuickCoachNote />
       </div>
     </SidebarProvider>
     </>

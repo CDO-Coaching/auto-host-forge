@@ -488,6 +488,7 @@ export default function ClientDetail() {
     loadSessionTemplates();
     loadPersistentActiveAssignment();
     loadInjuryAndPerfTests();
+    loadAthleteNotes();
   }, [athleteId]);
 
   // When selected week changes, load its data from DB
@@ -4158,6 +4159,30 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-2">
+          {/* ── Dernières notes de coaching ── */}
+          {athleteNotes.length > 0 && (
+            <Card className="border-primary/30 bg-primary/5">
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Dernières notes</span>
+                </div>
+                {athleteNotes.slice(0, 3).map((note) => (
+                  <div key={note.id} className="border-l-2 border-primary/40 pl-3">
+                    <p className="text-[11px] text-muted-foreground mb-0.5">
+                      {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    <p className="text-sm whitespace-pre-wrap line-clamp-4">{note.content}</p>
+                  </div>
+                ))}
+                {athleteNotes.length > 3 && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowNotesSheet(true)}>
+                    Voir toutes les notes ({athleteNotes.length})
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
           {/* ── Analyse du jour collapsible ── */}
           <DailyDebriefCard athleteId={athleteId!} />
           {/* ── Grille principale 3 colonnes ── */}
