@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,16 @@ interface SerieValidation {
   actual_reps?: string | null;
   actual_charge?: string | null;
   modification_type?: "failure" | "too_easy" | null;
+}
+
+/** Bloc statistique lisible : petit label au-dessus, valeur en gras dessous. */
+function StatBlock({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
+  return (
+    <div className="flex flex-col leading-none">
+      <span className="text-[9px] uppercase tracking-wide text-muted-foreground mb-1">{label}</span>
+      <span className={`text-base font-bold ${className || "text-foreground"}`}>{value}</span>
+    </div>
+  );
 }
 
 export default function ExerciceDetail() {
@@ -991,36 +1001,41 @@ export default function ExerciceDetail() {
         {seriesData.length > 0 && (
           <Card className="border-2 border-primary/30">
             <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <Repeat className="h-5 w-5 text-primary" />
-                  <p className="text-sm sm:text-base font-semibold">
-                    Séries — {completedSets}/{seriesData.length}
-                  </p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                    <Repeat className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm sm:text-base font-semibold leading-tight">Séries</p>
+                    <p className="text-xs text-muted-foreground leading-tight">
+                      {completedSets === seriesData.length
+                        ? "Toutes les séries validées 💪"
+                        : `${completedSets} sur ${seriesData.length} validée${completedSets > 1 ? "s" : ""}`}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <TempoExplanationDialog />
                   <RPEExplanationDialog />
+                  {completedSets > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSeriesCollapsed(!seriesCollapsed)}
+                      className="h-7 px-2"
+                    >
+                      {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                    </Button>
+                  )}
                 </div>
               </div>
-              {/* Légende des codes couleurs */}
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-3 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-red-500" />Charge (kg)</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-yellow-500" />RPE prévu</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-green-600" />RPE réalisé</span>
-                <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-purple-500" />Tempo</span>
-              </div>
-              <div className="flex items-center justify-end mb-2">
-                {completedSets > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => setSeriesCollapsed(!seriesCollapsed)}
-                    className="h-7 px-2"
-                  >
-                    {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                  </Button>
-                )}
+              {/* Barre de progression */}
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-4">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${seriesData.length ? (completedSets / seriesData.length) * 100 : 0}%` }}
+                />
               </div>
 
               {!seriesCollapsed && (
@@ -1029,113 +1044,85 @@ export default function ExerciceDetail() {
                     const validation = serieValidations[idx];
                     const isValidated = validation?.validated;
                     
+                    const sr = (serie.reps ?? "").trim();
+                    const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
+                    const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
+                    const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : ""}`;
+
+                    const sc = (serie.charge ?? "").trim();
+                    const chargeNeedsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                    const chargeIsRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                    const chargeNumeric = /^\d+(\.\d+)?$/.test(sc);
+
                     return (
-                      <div 
+                      <div
                         key={idx}
-                        className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border transition-all ${
-                          isValidated 
-                            ? "bg-green-500/10 border-green-500/30" 
-                            : "bg-muted/30 border-border"
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                          isValidated
+                            ? "bg-green-500/10 border-green-500/40"
+                            : "bg-muted/40 border-border"
                         }`}
                       >
-                        <div className="flex-1 flex items-center gap-2 flex-wrap text-sm min-w-0">
-                          {(serie.recuperation || exercise.recuperation) && (
-                            <span className="text-muted-foreground text-xs">{serie.recuperation || exercise.recuperation}</span>
+                        {/* Numéro de série */}
+                        <div className="flex flex-col items-center shrink-0 w-10">
+                          <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
+                            {isValidated ? <Check className="h-5 w-5" /> : idx + 1}
+                          </div>
+                          <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">Série</span>
+                        </div>
+
+                        {/* Métriques */}
+                        <div className="flex-1 flex flex-wrap items-center gap-x-5 gap-y-2 min-w-0">
+                          {sr && (
+                            <StatBlock
+                              label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
+                              value={isValidated && validation?.actual_reps ? `${validation.actual_reps}${exercise.is_duration || (exercise as any).is_distance ? "" : " reps"}` : (isRepsRange ? repsDisplay + " reps" : repsDisplay)}
+                              className={isValidated && validation?.actual_reps ? "text-green-600" : isRepsRange ? "text-blue-600" : "text-foreground"}
+                            />
                           )}
-                          {serie.reps && (() => {
-                            const sr = serie.reps.trim();
-                            const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
-                            if (isRepsRange) {
-                              return isValidated && validation?.actual_reps ? (
-                                <span className="font-medium">{validation.actual_reps} reps</span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-600 font-semibold">
-                                  {sr} reps
-                                </span>
-                              );
-                            }
-                            return (
-                              <span className="font-medium">
-                                {exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? "m" : " reps"}`}
-                                {exercise.per_side && " /côté"}
-                              </span>
-                            );
-                          })()}
-                          {serie.charge && (() => {
-                            const sc = serie.charge.trim();
-                            const isUnknown = sc === "??";
-                            const isRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
-                            const needsInput = isUnknown || isRange;
-                            if (needsInput) {
-                              return isValidated && validation?.actual_charge ? (
-                                <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                                  <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                  {validation.actual_charge} kg
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
-                                  <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                  {isRange ? sc + " kg" : "À définir"}
-                                </span>
-                              );
-                            }
-                            return (
-                              <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                                <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                {sc}{/^\d+(\.\d+)?$/.test(sc) ? " kg" : ""}
-                              </span>
-                            );
-                          })()}
-                          {serie.rpe && !isValidated && (
-                            <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 text-xs font-medium">
-                              <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{serie.rpe}/10
-                            </span>
+
+                          {sc && (
+                            <StatBlock
+                              label="Charge"
+                              value={
+                                isValidated && validation?.actual_charge
+                                  ? `${validation.actual_charge}${/^\d+(\.\d+)?$/.test(String(validation.actual_charge)) ? " kg" : ""}`
+                                  : chargeNeedsInput
+                                    ? (chargeIsRange ? sc + " kg" : "À définir")
+                                    : `${sc}${chargeNumeric ? " kg" : ""}`
+                              }
+                              className={chargeNeedsInput && !(isValidated && validation?.actual_charge) ? "text-orange-500" : "text-red-500"}
+                            />
                           )}
-                          {isValidated && validation.rpe !== null && (
-                            <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 text-xs font-semibold">
-                              <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
-                            </span>
-                          )}
-                          {isValidated && validation.actual_reps && !(/^\d+\s*-\s*\d+$/.test((serie.reps ?? "").trim())) && (
-                            <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
-                              <span className="text-[10px] uppercase opacity-70">Réalisé</span>{validation.actual_reps} reps
-                            </span>
-                          )}
-                          {isValidated && validation.actual_charge && (() => {
-                            const sc = serie.charge?.trim() ?? "";
-                            const needsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
-                            return !needsInput;
-                          })() && (
-                            <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-700 text-xs font-semibold">
-                              <span className="text-[10px] uppercase opacity-70">Charge</span>{validation.actual_charge}
-                            </span>
-                          )}
+
+                          {isValidated && validation.rpe !== null ? (
+                            <StatBlock label="RPE réalisé" value={`${validation.rpe}/10`} className="text-green-600" />
+                          ) : serie.rpe ? (
+                            <StatBlock label="RPE prévu" value={`${serie.rpe}/10`} className="text-yellow-600" />
+                          ) : null}
+
                           {serie.tempo && (
-                            <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-600 text-xs font-medium">
-                              <span className="text-[10px] uppercase opacity-70">Tempo</span>{serie.tempo}
-                            </span>
+                            <StatBlock label="Tempo" value={serie.tempo} className="text-purple-500" />
                           )}
+
+                          {(serie.recuperation || exercise.recuperation) && (
+                            <StatBlock label="Récup" value={serie.recuperation || exercise.recuperation} className="text-muted-foreground text-sm" />
+                          )}
+
                           {serie.commentaire && (
                             <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{serie.commentaire}"</span>
                           )}
-                          <Badge 
-                            variant={isValidated ? "default" : "outline"} 
-                            className={`text-xs font-bold shrink-0 ${isValidated ? "bg-green-600" : ""}`}
-                          >
-                            S{idx + 1}
-                          </Badge>
                         </div>
 
-                        {isValidated ? (
-                          <Check className="h-5 w-5 text-green-600 shrink-0" />
-                        ) : (
+                        {/* Action */}
+                        {!isValidated && (
                           <Button
                             size="sm"
                             variant="default"
                             onClick={() => handleValidateSerie(idx)}
-                            className="h-8 px-3 shrink-0"
+                            className="h-10 px-4 shrink-0 font-semibold"
                           >
-                            <Check className="h-3.5 w-3.5 mr-1" />
+                            <Check className="h-4 w-4 mr-1" />
                             OK
                           </Button>
                         )}

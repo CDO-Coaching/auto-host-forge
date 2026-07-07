@@ -384,6 +384,30 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
                 onCheckedChange={(checked) => updateSettings({ soundEnabled: checked })}
               />
             </div>
+
+            {settings.soundEnabled && (
+              <div className="flex items-center justify-between gap-2">
+                <Label>Style sonore</Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={settings.soundPreset === "gym" ? "default" : "outline"}
+                    onClick={() => updateSettings({ soundPreset: "gym" })}
+                  >
+                    Gym timer
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={settings.soundPreset === "soft" ? "default" : "outline"}
+                    onClick={() => updateSettings({ soundPreset: "soft" })}
+                  >
+                    Doux
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

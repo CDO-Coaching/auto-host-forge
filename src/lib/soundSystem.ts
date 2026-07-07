@@ -1,330 +1,329 @@
-// Système sonore sportif pour les minuteurs - Style coach de CrossFit/HIIT
+// Système sonore des minuteurs — palette douce et musicale (synthèse Web Audio).
+// Tonalités rondes (sine/triangle), attaques douces, fréquences modérées pour
+// rester agréables au casque. API publique inchangée (utilisée par useUniversalTimer).
+export type SoundPreset = "gym" | "soft";
+
 export class SoundSystem {
   private ctx: AudioContext | null = null;
+  private preset: SoundPreset = "gym";
+  private clips: Record<string, HTMLAudioElement> = {};
 
-  constructor() {
+  constructor(preset: SoundPreset = "gym") {
+    this.preset = preset;
     try {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
       console.error("AudioContext not supported:", error);
     }
+    this.preloadClips();
   }
 
-  private createOscillator(freq: number, type: OscillatorType = "sine"): OscillatorNode | null {
-    if (!this.ctx) return null;
-    const osc = this.ctx.createOscillator();
-    osc.type = type;
-    osc.frequency.value = freq;
-    return osc;
-  }
-
-  private createGain(initialGain: number = 0.3): GainNode | null {
-    if (!this.ctx) return null;
-    const gain = this.ctx.createGain();
-    gain.gain.value = initialGain;
-    return gain;
-  }
-
-  private createBiquadFilter(type: BiquadFilterType, freq: number): BiquadFilterNode | null {
-    if (!this.ctx) return null;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = type;
-    filter.frequency.value = freq;
-    return filter;
-  }
-
-  // ============================================
-  // SONS POUR EMOM (Every Minute On the Minute)
-  // ============================================
-
-  // Sifflet d'arbitre réaliste avec trille
-  private playWhistle(duration: number = 0.5, intensity: number = 0.6) {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Oscillateur principal - fréquence haute caractéristique du sifflet
-    const osc1 = this.createOscillator(3200, "sine");
-    const osc2 = this.createOscillator(6400, "sine"); // Harmonique
-    const lfo = this.createOscillator(25, "sine"); // Trille/vibrato rapide
-    const lfoGain = this.ctx.createGain();
-    const gain1 = this.createGain(intensity);
-    const gain2 = this.createGain(intensity * 0.3);
-
-    if (!osc1 || !osc2 || !lfo || !gain1 || !gain2) return;
-
-    // Modulation de fréquence pour le trille du sifflet
-    lfo.connect(lfoGain);
-    lfoGain.gain.value = 150; // Amplitude de la modulation
-    lfoGain.connect(osc1.frequency);
-    lfoGain.connect(osc2.frequency);
-
-    osc1.connect(gain1);
-    osc2.connect(gain2);
-    gain1.connect(this.ctx.destination);
-    gain2.connect(this.ctx.destination);
-
-    // Enveloppe du sifflet - attaque rapide, sustain, release
-    gain1.gain.setValueAtTime(0, now);
-    gain1.gain.linearRampToValueAtTime(intensity, now + 0.02);
-    gain1.gain.setValueAtTime(intensity, now + duration - 0.1);
-    gain1.gain.exponentialRampToValueAtTime(0.01, now + duration);
-
-    gain2.gain.setValueAtTime(0, now);
-    gain2.gain.linearRampToValueAtTime(intensity * 0.3, now + 0.02);
-    gain2.gain.setValueAtTime(intensity * 0.3, now + duration - 0.1);
-    gain2.gain.exponentialRampToValueAtTime(0.01, now + duration);
-
-    lfo.start(now);
-    osc1.start(now);
-    osc2.start(now);
-    lfo.stop(now + duration);
-    osc1.stop(now + duration);
-    osc2.stop(now + duration);
-  }
-
-  // Sifflet de départ de minute EMOM - SON UNIQUE ET PUISSANT
-  emomMinuteStart() {
-    this.playWhistle(0.5, 0.65);
-  }
-
-  // Alerte 10 secondes avant la prochaine minute EMOM
-  emomWarning10s() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Court bip aigu
-    const osc = this.createOscillator(1200, "sine");
-    const gain = this.createGain(0.3);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-
-    osc.start(now);
-    osc.stop(now + 0.15);
-  }
-
-  // ============================================
-  // SONS POUR TABATA (20s/10s)
-  // ============================================
-
-  // Sifflet de départ de travail (20s) - TRAVAILLE !
-  tabataWorkStart() {
-    this.playWhistle(0.3, 0.65);
-  }
-
-  // Double sifflet pour repos (10s) - REPOS !
-  tabataRestStart() {
-    this.playWhistle(0.2, 0.5);
-    setTimeout(() => this.playWhistle(0.2, 0.5), 250);
-  }
-
-  // Triple sifflet pour fin de Tabata - C'EST FINI !
-  tabataComplete() {
-    this.playWhistle(0.3, 0.55);
-    setTimeout(() => this.playWhistle(0.3, 0.55), 350);
-    setTimeout(() => this.playWhistle(0.4, 0.6), 700);
-  }
-
-  // Alerte 3 secondes avant fin de période
-  tabataWarning3s() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Bip rapide
-    const osc = this.createOscillator(1600, "sine");
-    const gain = this.createGain(0.3);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-
-    osc.start(now);
-    osc.stop(now + 0.1);
-  }
-
-  // ============================================
-  // SONS POUR AMRAP / FOR TIME
-  // ============================================
-
-  // Sifflet de départ de workout (AMRAP/FOR TIME)
-  workoutStart() {
-    this.playWhistle(0.5, 0.7);
-  }
-
-  // Sifflet de fin de workout - Triple sifflet long
-  workoutEnd() {
-    // Triple sifflet (TEMPS ÉCOULÉ / WORKOUT TERMINÉ)
-    this.playWhistle(0.4, 0.6);
-    setTimeout(() => this.playWhistle(0.4, 0.6), 450);
-    setTimeout(() => this.playWhistle(0.5, 0.65), 900);
-  }
-
-  // Alerte 1 minute restante (AMRAP)
-  amrapWarning1Min() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Série de 3 bips rapides
-    [0, 0.15, 0.3].forEach((delay) => {
-      const osc = this.createOscillator(1500, "sine");
-      const gain = this.createGain(0.4);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      const startTime = now + delay;
-      gain.gain.setValueAtTime(0.4, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.12);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.12);
-    });
-  }
-
-  // Alerte 30 secondes restantes
-  warning30s() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Double bip montant
-    [0, 0.18].forEach((delay, i) => {
-      const freq = 1400 + i * 150;
-      const osc = this.createOscillator(freq, "sine");
-      const gain = this.createGain(0.4);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx!.destination);
-
-      const startTime = now + delay;
-      gain.gain.setValueAtTime(0.4, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.15);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.15);
-    });
-  }
-
-  // Alerte 10 secondes restantes
-  warning10s() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // Bip unique aigu
-    const osc = this.createOscillator(1700, "sine");
-    const gain = this.createGain(0.35);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-  }
-
-  // ============================================
-  // SONS DE COMPTE À REBOURS (3-2-1)
-  // ============================================
-
-  // Compte à rebours 3-2-1 avant départ
-  countdown321(count: number) {
-    if (!this.ctx) return;
-    // Bips courts qui montent
-    const freq = 1200 + count * 300;
-    const osc = this.createOscillator(freq, "sine");
-    const gain = this.createGain(0.45);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    const now = this.ctx.currentTime;
-    gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-
-    osc.start(now);
-    osc.stop(now + 0.2);
-  }
-
-  // GO! après le 3-2-1 - Sifflet d'arbitre
-  go() {
-    this.playWhistle(0.5, 0.7);
-  }
-
-  // ============================================
-  // SONS GÉNÉRIQUES CONSERVÉS
-  // ============================================
-
-  // Son de transition (changement de phase) - Sifflet
-  transition() {
-    this.playWhistle(0.35, 0.5);
-  }
-
-  // Son de victoire (workout complété)
-  victory() {
-    this.workoutEnd();
-  }
-
-  // Alerte générique 5 secondes
-  alert5Seconds() {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    // 5 bips rapides
-    for (let i = 0; i < 5; i++) {
-      const osc = this.createOscillator(1500, "sine");
-      const gain = this.createGain(0.3);
-
-      if (!osc || !gain) return;
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
-      const startTime = now + i * 0.2;
-      gain.gain.setValueAtTime(0.3, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.1);
-
-      osc.start(startTime);
-      osc.stop(startTime + 0.1);
+  private preloadClips() {
+    if (typeof Audio === "undefined") return;
+    const files: Record<string, string> = {
+      start: "/sounds/timer-start.m4a",
+      half: "/sounds/timer-half.m4a",
+      end: "/sounds/timer-end.m4a",
+    };
+    for (const [key, src] of Object.entries(files)) {
+      try {
+        const a = new Audio(src);
+        a.preload = "auto";
+        a.load();
+        this.clips[key] = a;
+      } catch {}
     }
   }
 
-  // Beep personnalisé
-  beep(frequency: number, duration: number) {
-    if (!this.ctx) return;
-    const osc = this.createOscillator(frequency, "sine");
-    const gain = this.createGain(0.3);
-
-    if (!osc || !gain) return;
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    const now = this.ctx.currentTime;
-    gain.gain.exponentialRampToValueAtTime(0.01, now + duration / 1000);
-
-    osc.start(now);
-    osc.stop(now + duration / 1000);
+  /** Joue un enregistrement. Renvoie true si la lecture a été lancée. */
+  private playClip(key: string): boolean {
+    const clip = this.clips[key];
+    if (!clip) return false;
+    try {
+      clip.currentTime = 0;
+      const p = clip.play();
+      if (p && typeof p.catch === "function") p.catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
   }
 
-  // Fermer le contexte audio
+  setPreset(preset: SoundPreset) {
+    this.preset = preset;
+  }
+
+  private resume() {
+    if (this.ctx && this.ctx.state === "suspended") {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  /**
+   * Une note propre : attaque douce, léger sustain, décroissance naturelle.
+   * @param freq fréquence en Hz
+   * @param delay départ (s) relatif à maintenant
+   * @param duration durée totale (s)
+   * @param peak volume crête (0-1)
+   * @param type forme d'onde
+   */
+  private tone(freq: number, delay: number, duration: number, peak = 0.28, type: OscillatorType = "sine") {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime + delay;
+
+    const osc = this.ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.value = freq;
+
+    // Un peu de rondeur : filtre passe-bas doux
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = Math.max(freq * 3, 2000);
+
+    const gain = this.ctx.createGain();
+    const attack = 0.012;
+    const release = Math.min(0.25, duration * 0.6);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(peak, now + attack);
+    gain.gain.setValueAtTime(peak, now + Math.max(attack, duration - release));
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+
+  // Petite descente/montée "chime" à deux notes.
+  private chime(f1: number, f2: number, peak = 0.26) {
+    this.tone(f1, 0, 0.16, peak, "sine");
+    this.tone(f2, 0.14, 0.28, peak, "sine");
+  }
+
+  // Accord arpégé montant (satisfaisant, non strident).
+  private arpUp(peak = 0.26) {
+    // Do - Mi - Sol (C5, E5, G5)
+    this.tone(523.25, 0, 0.18, peak, "sine");
+    this.tone(659.25, 0.16, 0.18, peak, "sine");
+    this.tone(783.99, 0.32, 0.42, peak, "triangle");
+  }
+
+  // ============================================
+  // COMPTE À REBOURS 3-2-1 / GO
+  // ============================================
+
+  // Bips de préparation : chauds, ronds, même hauteur (pas montants stridents).
+  countdown321(_count: number) {
+    this.resume();
+    if (this.preset === "gym") {
+      // Style minuteur de salle : bip court, sec, hauteur fixe (~800 Hz).
+      this.tone(800, 0, 0.11, 0.3, "square");
+      return;
+    }
+    this.tone(660, 0, 0.18, 0.24, "sine"); // Mi5 doux
+  }
+
+  /** Un enregistrement est-il disponible pour cette clé ? */
+  hasClip(key: string): boolean {
+    return !!this.clips[key];
+  }
+
+  /**
+   * Débloque les enregistrements pour iOS : à appeler dans un geste utilisateur
+   * (ex. appui sur démarrer). Lecture muette instantanée puis pause, ce qui
+   * autorise la lecture ultérieure (notamment le son de fin, loin d'un tap).
+   */
+  primeClips() {
+    for (const clip of Object.values(this.clips)) {
+      try {
+        clip.muted = true;
+        const p = clip.play();
+        if (p && typeof p.then === "function") {
+          p.then(() => {
+            clip.pause();
+            clip.currentTime = 0;
+            clip.muted = false;
+          }).catch(() => {
+            clip.muted = false;
+          });
+        } else {
+          clip.pause();
+          clip.currentTime = 0;
+          clip.muted = false;
+        }
+      } catch {
+        clip.muted = false;
+      }
+    }
+  }
+
+  /** Joue l'enregistrement de départ (au décompte). */
+  startCue() {
+    this.resume();
+    this.playClip("start");
+  }
+
+  // GO ! — synthèse (l'enregistrement de départ, s'il existe, est joué au décompte).
+  go() {
+    this.resume();
+    if (this.preset === "gym") {
+      // Le "BIIIP" final, plus long et plus haut que les 3 bips.
+      this.tone(1000, 0, 0.5, 0.32, "square");
+      return;
+    }
+    this.tone(880, 0, 0.35, 0.3, "triangle"); // La5
+  }
+
+  // ============================================
+  // TRANSITIONS / FIN
+  // ============================================
+
+  // Bip court "digital" (style minuteur de salle).
+  private gymBeep(delay = 0, freq = 800, dur = 0.11, peak = 0.3) {
+    this.tone(freq, delay, dur, peak, "square");
+  }
+
+  // Changement de phase — chime doux (soft) ou double bip sec (gym).
+  transition() {
+    this.resume();
+    if (this.preset === "gym") {
+      this.gymBeep(0, 800);
+      this.gymBeep(0.16, 1000, 0.16);
+      return;
+    }
+    this.chime(784, 588, 0.24);
+  }
+
+  // Fin / victoire — enregistrement de fin si dispo, sinon synthèse.
+  victory() {
+    this.resume();
+    if (this.playClip("end")) return;
+    if (this.preset === "gym") {
+      this.gymBeep(0, 800);
+      this.gymBeep(0.18, 800);
+      this.gymBeep(0.36, 800);
+      this.tone(1000, 0.56, 0.6, 0.34, "square");
+      return;
+    }
+    this.arpUp(0.28);
+  }
+
+  workoutEnd() {
+    this.victory();
+  }
+
+  workoutStart() {
+    this.resume();
+    this.chime(523, 784, 0.28); // montée Do → Sol
+  }
+
+  // ============================================
+  // ALERTES (adoucies, fréquences modérées)
+  // ============================================
+
+  alert5Seconds() {
+    this.resume();
+    // 3 petits bips doux espacés
+    [0, 0.28, 0.56].forEach((d) => this.tone(720, d, 0.12, 0.2, "sine"));
+  }
+
+  amrapWarning1Min() {
+    this.resume();
+    [0, 0.2, 0.4].forEach((d) => this.tone(680, d, 0.12, 0.2, "sine"));
+  }
+
+  warning30s() {
+    this.resume();
+    this.chime(680, 760, 0.2);
+  }
+
+  warning10s() {
+    this.resume();
+    this.tone(760, 0, 0.14, 0.22, "sine");
+  }
+
+  // ============================================
+  // EMOM
+  // ============================================
+
+  emomMinuteStart() {
+    this.resume();
+    if (this.preset === "gym") {
+      this.tone(1000, 0, 0.4, 0.32, "square"); // top de minute franc
+      return;
+    }
+    this.chime(660, 880, 0.28); // top de minute clair mais doux
+  }
+
+  emomWarning10s() {
+    this.resume();
+    this.tone(720, 0, 0.14, 0.2, "sine");
+  }
+
+  // ============================================
+  // TABATA / HIIT (plus énergiques, restent ronds)
+  // ============================================
+
+  tabataWorkStart() {
+    this.resume();
+    if (this.preset === "gym") {
+      this.tone(1000, 0, 0.4, 0.32, "square"); // départ travail franc
+      return;
+    }
+    // Deux notes montantes toniques (triangle = plus de peps)
+    this.tone(587, 0, 0.14, 0.3, "triangle");
+    this.tone(880, 0.13, 0.26, 0.3, "triangle");
+  }
+
+  tabataRestStart() {
+    this.resume();
+    if (this.preset === "gym") {
+      this.gymBeep(0, 700, 0.16);
+      this.gymBeep(0.18, 550, 0.2);
+      return;
+    }
+    // Deux notes descendantes = relâche
+    this.tone(660, 0, 0.16, 0.26, "sine");
+    this.tone(440, 0.16, 0.3, 0.26, "sine");
+  }
+
+  tabataComplete() {
+    this.arpUp(0.3);
+  }
+
+  tabataWarning3s() {
+    this.resume();
+    this.tone(740, 0, 0.1, 0.22, "sine");
+  }
+
+  // Signal "moitié du travail" : enregistrement si dispo, sinon voix "half".
+  half() {
+    this.resume();
+    if (this.playClip("half")) return;
+    this.tone(660, 0, 0.12, 0.22, "sine");
+    try {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance("half");
+        u.lang = "en-US";
+        u.rate = 1;
+        u.volume = 1;
+        window.speechSynthesis.speak(u);
+      }
+    } catch {}
+  }
+
+  // ============================================
+  // GÉNÉRIQUE
+  // ============================================
+
+  beep(frequency: number, duration: number) {
+    this.resume();
+    this.tone(frequency, 0, duration / 1000, 0.24, "sine");
+  }
+
   close() {
     if (this.ctx) {
       this.ctx.close();
