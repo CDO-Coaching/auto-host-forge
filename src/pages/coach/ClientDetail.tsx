@@ -25,6 +25,7 @@ import {
   Dumbbell,
   Activity,
   StickyNote,
+  X,
   TrendingUp,
   AlertTriangle,
   RefreshCw,
@@ -248,6 +249,7 @@ export default function ClientDetail() {
   const [showCardioAIChat, setShowCardioAIChat] = useState(false);
   const [recentCardioHistory, setRecentCardioHistory] = useState<import("@/components/CoachCardioAIChat").AIChatWeekHistory[]>([]);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
+  const [dismissedNoteId, setDismissedNoteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
@@ -489,6 +491,7 @@ export default function ClientDetail() {
     loadPersistentActiveAssignment();
     loadInjuryAndPerfTests();
     loadAthleteNotes();
+    setDismissedNoteId(athleteId ? localStorage.getItem(`notes_card_dismissed_${athleteId}`) : null);
   }, [athleteId]);
 
   // When selected week changes, load its data from DB
@@ -3968,8 +3971,48 @@ export default function ClientDetail() {
     );
   }
 
+  const showNotesFloating = athleteNotes.length > 0 && athleteNotes[0].id !== dismissedNoteId;
+  const dismissNotesFloating = () => {
+    const latestId = athleteNotes[0]?.id;
+    if (latestId && athleteId) {
+      localStorage.setItem(`notes_card_dismissed_${athleteId}`, latestId);
+      setDismissedNoteId(latestId);
+    }
+  };
+
   return (
     <div className="space-y-2 sm:space-y-3 overflow-x-hidden max-w-full px-1 sm:px-0">
+      {/* ── Dernières notes de coaching (flottant, fermable) ── */}
+      {showNotesFloating && (
+        <div className="fixed top-16 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] sm:w-96 max-w-96">
+          <Card className="border-primary/40 bg-background shadow-xl">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Dernières notes</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-7 w-7 -mr-1" onClick={dismissNotesFloating} aria-label="Fermer">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="max-h-[50vh] overflow-y-auto space-y-3">
+                {athleteNotes.slice(0, 3).map((note) => (
+                  <div key={note.id} className="border-l-2 border-primary/40 pl-3">
+                    <p className="text-[11px] text-muted-foreground mb-0.5">
+                      {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    <p className="text-sm whitespace-pre-wrap line-clamp-6">{note.content}</p>
+                  </div>
+                ))}
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-xs w-full" onClick={() => setShowNotesSheet(true)}>
+                Voir toutes les notes ({athleteNotes.length})
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {/* Header compact */}
       <div className="flex items-center justify-between py-1">
         <Button 
@@ -4159,30 +4202,6 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-2">
-          {/* ── Dernières notes de coaching ── */}
-          {athleteNotes.length > 0 && (
-            <Card className="border-primary/30 bg-primary/5">
-              <CardContent className="pt-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <StickyNote className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Dernières notes</span>
-                </div>
-                {athleteNotes.slice(0, 3).map((note) => (
-                  <div key={note.id} className="border-l-2 border-primary/40 pl-3">
-                    <p className="text-[11px] text-muted-foreground mb-0.5">
-                      {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap line-clamp-4">{note.content}</p>
-                  </div>
-                ))}
-                {athleteNotes.length > 3 && (
-                  <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowNotesSheet(true)}>
-                    Voir toutes les notes ({athleteNotes.length})
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
           {/* ── Analyse du jour collapsible ── */}
           <DailyDebriefCard athleteId={athleteId!} />
           {/* ── Grille principale 3 colonnes ── */}
