@@ -93,7 +93,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
       <DialogTrigger asChild>
         <Button
           size="icon"
-          className="fixed top-4 right-4 z-40 h-12 w-12 rounded-full bg-gradient-cta shadow-glow hover:shadow-glow hover:scale-110 transition-all"
+          className="fixed bottom-24 left-4 sm:bottom-6 z-50 h-14 w-14 rounded-full bg-gradient-cta shadow-glow hover:shadow-glow hover:scale-110 transition-all"
         >
           <Timer className="h-6 w-6" />
         </Button>
