@@ -10,8 +10,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCoachDailyPaymentReminder } from "@/hooks/useCoachDailyPaymentReminder";
-import { CoachPaymentReminderDialog } from "@/components/CoachPaymentReminderDialog";
 import { useCoachPauseReminders } from "@/hooks/useCoachPauseReminders";
 import { CoachPauseReminderAlert } from "@/components/CoachPauseReminderAlert";
 import { useCoachBirthdayReminder } from "@/hooks/useCoachBirthdayReminder";
@@ -42,7 +40,6 @@ export default function DashboardCoach() {
   const [pendingCount, setPendingCount] = useState(0);
   const { profile, loading: profileLoading } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
-  const { shouldShowReminder, isChecking, handleDismiss } = useCoachDailyPaymentReminder();
   const { reminders: pauseReminders, dismissReminder: dismissPauseReminder } = useCoachPauseReminders(profile?.id);
   
   const { birthdayAthletes, dismissBirthday } = useCoachBirthdayReminder(profile?.id);
@@ -102,10 +99,6 @@ export default function DashboardCoach() {
 
   return (
     <>
-      <CoachPaymentReminderDialog
-        open={shouldShowReminder && !isChecking}
-        onDismiss={handleDismiss}
-      />
       {/* Notifications flottantes empilées */}
       {(() => {
         let stackIndex = 0;
