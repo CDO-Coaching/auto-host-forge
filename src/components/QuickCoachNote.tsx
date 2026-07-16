@@ -9,8 +9,7 @@ import { VoiceNoteAI } from "@/components/VoiceNoteAI";
 import { StickyNote, Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface Client {
   id: string;
@@ -107,43 +106,37 @@ export function QuickCoachNote() {
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Client concerné</label>
-              <Popover open={comboOpen} onOpenChange={setComboOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between">
-                    {selected ? (
-                      <span className="flex items-center gap-2">
-                        {selected.last_name} {selected.first_name}
-                        {selected.isExternal && <Badge variant="outline" className="text-xs">Externe</Badge>}
-                      </span>
-                    ) : "Choisir un client..."}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Rechercher un client..." />
-                    <CommandList>
-                      <CommandEmpty>Aucun client trouvé.</CommandEmpty>
-                      <CommandGroup heading="Athlètes">
-                        {clients.filter((c) => !c.isExternal).map((c) => (
-                          <CommandItem key={c.id} value={`${c.last_name} ${c.first_name}`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(false); setComboOpen(false); }}>
-                            <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
-                            {c.last_name} {c.first_name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                      <CommandGroup heading="Clients externes">
-                        {clients.filter((c) => c.isExternal).map((c) => (
-                          <CommandItem key={c.id} value={`${c.last_name} ${c.first_name} ext`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(true); setComboOpen(false); }}>
-                            <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
-                            {c.last_name} {c.first_name}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <Button variant="outline" role="combobox" className="w-full justify-between" onClick={() => setComboOpen(true)}>
+                {selected ? (
+                  <span className="flex items-center gap-2">
+                    {selected.last_name} {selected.first_name}
+                    {selected.isExternal && <Badge variant="outline" className="text-xs">Externe</Badge>}
+                  </span>
+                ) : "Choisir un client..."}
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+              <CommandDialog open={comboOpen} onOpenChange={setComboOpen}>
+                <CommandInput placeholder="Rechercher un client..." />
+                <CommandList>
+                  <CommandEmpty>Aucun client trouvé.</CommandEmpty>
+                  <CommandGroup heading="Athlètes">
+                    {clients.filter((c) => !c.isExternal).map((c) => (
+                      <CommandItem key={c.id} value={`${c.last_name} ${c.first_name}`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(false); setComboOpen(false); }}>
+                        <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
+                        {c.last_name} {c.first_name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                  <CommandGroup heading="Clients externes">
+                    {clients.filter((c) => c.isExternal).map((c) => (
+                      <CommandItem key={c.id} value={`${c.last_name} ${c.first_name} ext`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(true); setComboOpen(false); }}>
+                        <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
+                        {c.last_name} {c.first_name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </CommandDialog>
             </div>
 
             <VoiceNoteAI onResult={setNote} />

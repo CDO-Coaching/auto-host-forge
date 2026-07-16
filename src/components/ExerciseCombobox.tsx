@@ -9,7 +9,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -150,22 +150,22 @@ export function ExerciseCombobox({
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-          disabled={disabled}
-        >
-          <span className="truncate">{value || "Sélectionner un exercice..."}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+    <>
+      <Button
+        variant="outline"
+        role="combobox"
+        aria-expanded={open}
+        className="w-full justify-between"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      >
+        <span className="truncate">{value || "Sélectionner un exercice..."}</span>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      </Button>
 
-      <PopoverContent className="w-[370px] p-0" align="start">
-        <Command shouldFilter={false}>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="p-0 gap-0 max-w-[95vw] sm:max-w-[420px] top-[12%] translate-y-0">
+          <Command shouldFilter={false}>
           {/* Search */}
           <CommandInput
             placeholder="Rechercher un exercice..."
@@ -276,9 +276,10 @@ export function ExerciseCombobox({
               </div>
             )}
           </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+          </Command>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
