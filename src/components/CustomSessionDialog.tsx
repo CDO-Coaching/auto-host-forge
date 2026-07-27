@@ -96,7 +96,12 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setDuration(editSession.duration_minutes?.toString() || "");
       setSessionRpe((editSession as any).session_rpe?.toString() || "");
       setCardioType((editSession as any).cardio_type || "");
-      setDistanceKm((editSession as any).distance_km?.toString() || "");
+      {
+        const ctype = (editSession as any).cardio_type || "";
+        const distKm = (editSession as any).distance_km;
+        // La natation s'affiche en mètres (distance_km stocke des km)
+        setDistanceKm(distKm != null ? (ctype === "natation" ? Math.round(distKm * 1000).toString() : distKm.toString()) : "");
+      }
       setAvgPace((editSession as any).avg_pace || "");
       setAvgHeartRate((editSession as any).avg_heart_rate?.toString() || "");
       setSelectedDate(editSession.scheduled_date ? new Date(editSession.scheduled_date) : editSession.completed_at ? new Date(editSession.completed_at) : new Date());
@@ -136,7 +141,11 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSessionName(stravaData.sessionName);
       setCardioType(stravaData.cardioType);
       setDuration(stravaData.duration);
-      setDistanceKm(stravaData.distanceKm);
+      // La natation s'affiche en mètres
+      {
+        const n = parseFloat(String(stravaData.distanceKm).replace(",", "."));
+        setDistanceKm(stravaData.cardioType === "natation" && !isNaN(n) ? Math.round(n * 1000).toString() : stravaData.distanceKm);
+      }
       setAvgPace(stravaData.avgPace);
       setAvgHeartRate(stravaData.avgHeartRate);
       setSessionRpe("");
@@ -229,8 +238,16 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       }
     }
 
+    // Convertit la valeur saisie en km stockés (natation = saisie en mètres)
+    const toStoredKm = (): number | null => {
+      if (!distanceKm) return null;
+      const n = parseFloat(distanceKm.replace(",", "."));
+      if (isNaN(n)) return null;
+      return cardioType === "natation" ? n / 1000 : n;
+    };
+
     // Garde-fou anti-saisie aberrante (ex: 889 km au lieu de 8,89)
-    const distanceValue = distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null;
+    const distanceValue = toStoredKm();
     const metricsError = validateSessionMetrics({ distanceKm: distanceValue });
     if (metricsError) {
       toast.error(metricsError);
@@ -255,7 +272,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           duration_minutes: parseInt(duration),
           completed_at: completedAtForDate(dateStr),
           description: description.trim() || null,
-          distance_km: distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null,
+          distance_km: toStoredKm(),
           avg_pace: avgPace.trim() || null,
           avg_heart_rate: avgHeartRate ? parseInt(avgHeartRate) : null,
           session_rpe: sessionRpe ? parseInt(sessionRpe) : null,
@@ -316,7 +333,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
         if (isCompleting) {
           insertData.duration_minutes = parseInt(duration);
           insertData.completed_at = completedAtForDate(dateStr);
-          insertData.distance_km = distanceKm ? parseFloat(distanceKm.replace(",", ".")) : null;
+          insertData.distance_km = toStoredKm();
           insertData.avg_pace = avgPace.trim() || null;
           insertData.avg_heart_rate = avgHeartRate ? parseInt(avgHeartRate) : null;
           insertData.session_rpe = sessionRpe ? parseInt(sessionRpe) : null;

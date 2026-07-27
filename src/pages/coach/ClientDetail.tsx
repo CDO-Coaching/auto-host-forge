@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -184,6 +184,34 @@ function getSerieDetailsArray(value: any): SerieDetail[] {
   return [];
 }
 
+// ── Brouillon de programmation (persiste les modifs non validées entre les pages) ──
+const progDraftKey = (athleteId: string, week: number, year: number) =>
+  `prog_draft_${athleteId}_${year}_${week}`;
+
+function loadProgDraft(athleteId: string, week: number, year: number): { sessions: Session[]; sessionExercises: Record<number, Exercise[]> } | null {
+  try {
+    const raw = localStorage.getItem(progDraftKey(athleteId, week, year));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.sessions)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveProgDraft(athleteId: string, week: number, year: number, sessions: Session[], sessionExercises: Record<number, Exercise[]>) {
+  try {
+    localStorage.setItem(progDraftKey(athleteId, week, year), JSON.stringify({ sessions, sessionExercises, savedAt: Date.now() }));
+  } catch {}
+}
+
+function clearProgDraft(athleteId: string, week: number, year: number) {
+  try {
+    localStorage.removeItem(progDraftKey(athleteId, week, year));
+  } catch {}
+}
+
 export default function ClientDetail() {
   const { athleteId } = useParams();
   const navigate = useNavigate();
@@ -211,6 +239,8 @@ export default function ClientDetail() {
   const [editingCoachCustomSession, setEditingCoachCustomSession] = useState<any>(null);
   const [viewingCoachCustomSession, setViewingCoachCustomSession] = useState<any>(null);
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
+  // Empêche la sauvegarde du brouillon pendant le chargement initial d'une semaine
+  const suppressDraftSaveRef = useRef(true);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
@@ -500,6 +530,14 @@ export default function ClientDetail() {
     loadWeekFromDB(selectedWeekToProgram.week, selectedWeekToProgram.year);
   }, [selectedWeekToProgram.week, selectedWeekToProgram.year, athleteId]);
 
+  // Sauvegarde automatique du brouillon (modifs non validées) pour pouvoir
+  // quitter la page et revenir sans rien perdre.
+  useEffect(() => {
+    if (suppressDraftSaveRef.current) return;
+    if (!athleteId || isValidated || isLoadingWeek) return;
+    saveProgDraft(athleteId, selectedWeekToProgram.week, selectedWeekToProgram.year, sessions, sessionExercises);
+  }, [sessions, sessionExercises, athleteId, selectedWeekToProgram.week, selectedWeekToProgram.year, isValidated, isLoadingWeek]);
+
   // Note: sessions are now loaded from DB on week change; localStorage save is disabled
 
   const loadSessionTemplates = async () => {
@@ -788,6 +826,7 @@ export default function ClientDetail() {
   const loadWeekFromDB = async (week: number, year: number) => {
     if (!athleteId) return;
     setIsLoadingWeek(true);
+    suppressDraftSaveRef.current = true;
     try {
       // Find the training_week record
       const { data: weekRecords } = await supabase
@@ -800,6 +839,17 @@ export default function ClientDetail() {
         .limit(1);
 
       const weekRecord = weekRecords?.[0] ?? null;
+      const validated = !!weekRecord?.validated;
+      const draft = validated ? null : loadProgDraft(athleteId, week, year);
+
+      // Un brouillon non validé prime sur la DB (modifs en cours de l'entraîneur)
+      if (draft) {
+        setIsValidated(false);
+        setSessions(draft.sessions);
+        setSessionExercises(draft.sessionExercises);
+        setCollapsedSeriesExercises(buildCollapsedSeriesMap(draft.sessionExercises));
+        return;
+      }
 
       if (!weekRecord) {
         // No data for this week → clear sessions
@@ -925,6 +975,8 @@ export default function ClientDetail() {
       console.error("Erreur chargement semaine:", err);
     } finally {
       setIsLoadingWeek(false);
+      // Réactive la sauvegarde du brouillon une fois l'état posé
+      setTimeout(() => { suppressDraftSaveRef.current = false; }, 0);
     }
   };
 
@@ -2660,6 +2712,8 @@ export default function ClientDetail() {
 
       toast.success(`Semaine S${selectedWeekToProgram.week} validée et envoyée au sportif !`);
       setIsValidated(true);
+      // La semaine est validée en base → le brouillon local n'est plus nécessaire
+      if (athleteId) clearProgDraft(athleteId, selectedWeekToProgram.week, selectedWeekToProgram.year);
 
       // Multi-week mode: advance to next week keeping sessions
       if (multiWeekMode && multiWeekCurrent < multiWeekTotal) {
