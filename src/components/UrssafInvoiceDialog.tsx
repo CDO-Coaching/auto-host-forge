@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +16,7 @@ import {
   type CoachIssuer,
   type PaymentMethod,
   type InvoiceClientLine,
+  type InvoiceItem,
 } from "@/lib/ursaffInvoiceGenerator";
 
 interface AccountingEntryLite {
@@ -40,31 +42,56 @@ interface Props {
 interface RowState {
   selected: boolean;
   payment_method: PaymentMethod;
+  hasSessions: boolean;      // inclure des séances ?
+  sessions: string;          // nombre de séances
+  sessionsAmount: string;    // montant € des séances
+  hasProgrammation: boolean; // inclure une programmation ?
+  programmationAmount: string; // montant € de la programmation
 }
+
+const rowTotal = (r?: RowState): number => {
+  if (!r) return 0;
+  const s = r.hasSessions ? (parseFloat((r.sessionsAmount || "").replace(",", ".")) || 0) : 0;
+  const p = r.hasProgrammation ? (parseFloat((r.programmationAmount || "").replace(",", ".")) || 0) : 0;
+  return s + p;
+};
 
 export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth, coach }: Props) {
   const [rows, setRows] = useState<Record<string, RowState>>({});
   const [generating, setGenerating] = useState(false);
+  const [search, setSearch] = useState("");
 
   // Initialise les lignes quand on ouvre la modale
   useEffect(() => {
     if (!open) return;
+    setSearch("");
     const init: Record<string, RowState> = {};
     entries.forEach((e) => {
       const total = (e.amount_cash || 0) + (e.amount_transfer || 0);
-      // Pré-sélectionner uniquement les sportifs avec un montant encaissé
-      const dominant: PaymentMethod = (e.amount_cash || 0) >= (e.amount_transfer || 0) ? "especes" : "virement";
-      init[e.id] = { selected: total > 0, payment_method: dominant };
+      init[e.id] = {
+        selected: false,
+        payment_method: "virement",
+        hasSessions: (e.sessions_done || 0) > 0 || total > 0,
+        sessions: String(e.sessions_done || 0),
+        sessionsAmount: total ? total.toFixed(2) : "",
+        hasProgrammation: false,
+        programmationAmount: "",
+      };
     });
     setRows(init);
   }, [open, entries]);
 
   // Afficher tous les sportifs (pour permettre de cocher manuellement même sans montant pré-rempli)
   const billable = useMemo(() => entries, [entries]);
+  const visibleBillable = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return billable;
+    return billable.filter((e) => e.client_name.toLowerCase().includes(q));
+  }, [billable, search]);
 
   const selectedCount = Object.values(rows).filter((r) => r.selected).length;
   const selectedTotal = billable.reduce(
-    (sum, e) => sum + (rows[e.id]?.selected ? (e.amount_cash || 0) + (e.amount_transfer || 0) : 0),
+    (sum, e) => sum + (rows[e.id]?.selected ? rowTotal(rows[e.id]) : 0),
     0
   );
 
@@ -75,10 +102,23 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
   if (!coach.siret) missingCoachInfo.push("SIRET");
   if (!coach.address) missingCoachInfo.push("Adresse");
 
+  const defaultRow = (e: AccountingEntryLite): RowState => {
+    const total = (e.amount_cash || 0) + (e.amount_transfer || 0);
+    return {
+      selected: true,
+      payment_method: "virement",
+      hasSessions: (e.sessions_done || 0) > 0 || total > 0,
+      sessions: String(e.sessions_done || 0),
+      sessionsAmount: total ? total.toFixed(2) : "",
+      hasProgrammation: false,
+      programmationAmount: "",
+    };
+  };
+
   const toggleAll = (value: boolean) => {
     const next: Record<string, RowState> = {};
     billable.forEach((e) => {
-      next[e.id] = { ...(rows[e.id] || { payment_method: "virement" }), selected: value };
+      next[e.id] = { ...(rows[e.id] || defaultRow(e)), selected: value };
     });
     setRows(next);
   };
@@ -86,7 +126,7 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
   const setAllPaymentMethod = (method: PaymentMethod) => {
     const next: Record<string, RowState> = {};
     billable.forEach((e) => {
-      const current = rows[e.id] || { selected: true, payment_method: method };
+      const current = rows[e.id] || defaultRow(e);
       next[e.id] = { ...current, payment_method: method };
     });
     setRows(next);
@@ -99,8 +139,8 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
       const amount = source === "cash" ? (e.amount_cash || 0) : (e.amount_transfer || 0);
       if (amount > 0) {
         const current = next[e.id] || {
-          selected: true,
-          payment_method: source === "cash" ? "especes" : "virement",
+          ...defaultRow(e),
+          payment_method: source === "cash" ? "especes" as PaymentMethod : "virement" as PaymentMethod,
         };
         next[e.id] = {
           ...current,
@@ -119,17 +159,38 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
   const handleGenerate = async () => {
     const selected: InvoiceClientLine[] = billable
       .filter((e) => rows[e.id]?.selected)
-      .map((e) => ({
-        entryId: e.id,
-        client_id: e.client_id,
-        external_client_id: e.external_client_id,
-        client_name: e.client_name,
-        client_address: e.client_address,
-        client_phone: e.client_phone,
-        sessions_count: e.sessions_done || 0,
-        total_amount: (e.amount_cash || 0) + (e.amount_transfer || 0),
-        payment_method: rows[e.id].payment_method,
-      }));
+      .map((e) => {
+        const r = rows[e.id];
+        const sessionsAmt = parseFloat((r.sessionsAmount || "").replace(",", ".")) || 0;
+        const progAmt = parseFloat((r.programmationAmount || "").replace(",", ".")) || 0;
+        const sessCount = parseInt(r.sessions) || 0;
+        const hasS = r.hasSessions && sessionsAmt > 0;
+        const hasP = r.hasProgrammation && progAmt > 0;
+        // Composition :
+        //  - séances seules → "Coaching sportif", quantité = N (prix unitaire par séance)
+        //  - programmation seule → "Programmation", quantité = 1
+        //  - les deux → forfait unique, quantité = 1
+        let items: InvoiceItem[] = [];
+        if (hasS && hasP) {
+          items = [{ description: `Forfait ${sessCount} séance${sessCount > 1 ? "s" : ""} + programmation`, quantity: 1, amount: sessionsAmt + progAmt }];
+        } else if (hasS) {
+          items = [{ description: "Coaching sportif", quantity: sessCount > 0 ? sessCount : 1, amount: sessionsAmt }];
+        } else if (hasP) {
+          items = [{ description: "Programmation", quantity: 1, amount: progAmt }];
+        }
+        return {
+          entryId: e.id,
+          client_id: e.client_id,
+          external_client_id: e.external_client_id,
+          client_name: e.client_name,
+          client_address: e.client_address,
+          client_phone: e.client_phone,
+          sessions_count: r.hasSessions ? sessCount : 0,
+          total_amount: rowTotal(r),
+          payment_method: r.payment_method,
+          items: items.length > 0 ? items : undefined,
+        };
+      });
 
     if (selected.length === 0) {
       toast.error("Sélectionnez au moins un client");
@@ -196,6 +257,12 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
                   Total : {selectedTotal.toFixed(2)} €
                 </div>
               </div>
+              <Input
+                value={search}
+                onChange={(ev) => setSearch(ev.target.value)}
+                placeholder="Rechercher un nom…"
+                className="h-8 text-sm"
+              />
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-muted-foreground">Espèces ({cashCount}) :</span>
                 <Button
@@ -245,43 +312,51 @@ export function UrssafInvoiceDialog({ open, onOpenChange, entries, currentMonth,
 
             <div className="flex-1 min-h-0 overflow-y-auto pr-3">
               <div className="space-y-2">
-                {billable.map((e) => {
-                  const total = (e.amount_cash || 0) + (e.amount_transfer || 0);
-                  const state = rows[e.id] || { selected: true, payment_method: "virement" as PaymentMethod };
+                {visibleBillable.length === 0 && (
+                  <p className="text-center text-sm text-muted-foreground py-6">Aucun nom ne correspond à « {search} ».</p>
+                )}
+                {visibleBillable.map((e) => {
+                  const state = rows[e.id] || defaultRow(e);
+                  const patch = (p: Partial<RowState>) =>
+                    setRows((prev) => ({ ...prev, [e.id]: { ...(prev[e.id] || defaultRow(e)), ...p } }));
                   return (
                     <div
                       key={e.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                      className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors ${
                         state.selected ? "bg-card border-primary/30" : "bg-muted/30 opacity-60"
                       }`}
                     >
-                      <Checkbox
-                        checked={state.selected}
-                        onCheckedChange={(v) =>
-                          setRows((prev) => ({ ...prev, [e.id]: { ...state, selected: !!v } }))
-                        }
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium truncate">{e.client_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {e.sessions_done || 0} séance(s) · {total.toFixed(2)} €
-                        </div>
+                      {/* Ligne 1 : sélection client + mode de règlement */}
+                      <div className="flex items-center gap-3">
+                        <Checkbox checked={state.selected} onCheckedChange={(v) => patch({ selected: !!v })} />
+                        <div className="font-medium truncate flex-1">{e.client_name}</div>
+                        <div className="text-sm font-semibold tabular-nums">{rowTotal(state).toFixed(2)} €</div>
+                        <Select value={state.payment_method} onValueChange={(v: PaymentMethod) => patch({ payment_method: v })} disabled={!state.selected}>
+                          <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="especes">Espèces</SelectItem>
+                            <SelectItem value="virement">Virement</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <Select
-                        value={state.payment_method}
-                        onValueChange={(v: PaymentMethod) =>
-                          setRows((prev) => ({ ...prev, [e.id]: { ...state, payment_method: v } }))
-                        }
-                        disabled={!state.selected}
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="especes">Espèces</SelectItem>
-                          <SelectItem value="virement">Virement</SelectItem>
-                        </SelectContent>
-                      </Select>
+
+                      {state.selected && (
+                        <div className="flex flex-wrap items-end gap-3 pl-7">
+                          {/* Séances */}
+                          <div className="flex items-center gap-2">
+                            <Checkbox id={`sess-${e.id}`} checked={state.hasSessions} onCheckedChange={(v) => patch({ hasSessions: !!v })} />
+                            <label htmlFor={`sess-${e.id}`} className="text-xs">Séances</label>
+                            <Input type="number" min="0" value={state.sessions} onChange={(ev) => patch({ sessions: ev.target.value })} disabled={!state.hasSessions} className="h-8 w-14 text-center text-sm" title="Nombre de séances" />
+                            <Input type="number" min="0" step="0.01" value={state.sessionsAmount} onChange={(ev) => patch({ sessionsAmount: ev.target.value })} disabled={!state.hasSessions} placeholder="€" className="h-8 w-20 text-center text-sm" title="Montant des séances" />
+                          </div>
+                          {/* Programmation */}
+                          <div className="flex items-center gap-2">
+                            <Checkbox id={`prog-${e.id}`} checked={state.hasProgrammation} onCheckedChange={(v) => patch({ hasProgrammation: !!v })} />
+                            <label htmlFor={`prog-${e.id}`} className="text-xs">Programmation</label>
+                            <Input type="number" min="0" step="0.01" value={state.programmationAmount} onChange={(ev) => patch({ programmationAmount: ev.target.value })} disabled={!state.hasProgrammation} placeholder="€" className="h-8 w-20 text-center text-sm" title="Montant de la programmation" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

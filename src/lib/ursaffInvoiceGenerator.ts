@@ -20,6 +20,12 @@ export interface CoachIssuer {
   bic?: string | null;
 }
 
+export interface InvoiceItem {
+  description: string; // ex. "Coaching sportif" / "Programmation" / "Forfait 3 séances + programmation"
+  quantity: number;    // nb d'unités (N séances, ou 1 pour un forfait/programmation)
+  amount: number;      // montant € total de la ligne
+}
+
 export interface InvoiceClientLine {
   entryId: string;
   client_id?: string | null;
@@ -31,6 +37,7 @@ export interface InvoiceClientLine {
   total_amount: number; // amount_cash + amount_transfer (cumul mois)
   payment_method: PaymentMethod;
   payment_date?: string | null; // ISO yyyy-mm-dd
+  items?: InvoiceItem[]; // lignes détaillées (séances / programmation). Si absent → forfait
 }
 
 const sanitize = (s: string) => s.replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60);
@@ -131,24 +138,24 @@ const buildSingleInvoicePdf = (params: {
   const periodLabel = format(periodStart, "MMMM yyyy", { locale: fr });
   const periodLabelCap = periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1);
 
+  const tableBody = (client.items && client.items.length > 0)
+    ? client.items.map((it) => {
+        const unit = it.quantity > 0 ? it.amount / it.quantity : it.amount;
+        return [`${it.description} — ${periodLabelCap}`, String(it.quantity), formatEuro(unit), formatEuro(it.amount)];
+      })
+    : [[`Accompagnement sportif — forfait mensuel ${periodLabelCap}`, "1", formatEuro(client.total_amount), formatEuro(client.total_amount)]];
+
   autoTable(doc, {
     startY: y,
-    head: [["Désignation", "Quantité", "Prix unitaire", "Montant HT"]],
-    body: [
-      [
-        `Coaching sportif — ${periodLabelCap}`,
-        client.sessions_count > 0 ? `${client.sessions_count} séance(s)` : "Forfait",
-        client.sessions_count > 0 ? formatEuro(unitPrice) : "—",
-        formatEuro(client.total_amount),
-      ],
-    ],
+    head: [["Désignation", "Quantité", "Prix unitaire HT", "Montant HT"]],
+    body: tableBody,
     margin: { left: margin, right: margin },
     styles: { fontSize: 9, cellPadding: 3, textColor: [30, 30, 30] },
     headStyles: { fillColor: [255, 209, 47], textColor: [30, 30, 30], fontStyle: "bold" },
     columnStyles: {
       0: { cellWidth: "auto" },
-      1: { cellWidth: 28, halign: "center" },
-      2: { cellWidth: 30, halign: "right" },
+      1: { cellWidth: 22, halign: "center" },
+      2: { cellWidth: 32, halign: "right" },
       3: { cellWidth: 30, halign: "right", fontStyle: "bold" },
     },
   });
@@ -286,7 +293,7 @@ export const generateMonthlyInvoicesZip = async (params: {
     const basePdfBytes = doc.output("arraybuffer");
 
     // 2bis) Transformer en Factur-X EN 16931 (PDF hybride avec XML CII embarqué)
-    const unitPriceHT = client.sessions_count > 0 ? client.total_amount / client.sessions_count : client.total_amount;
+    const unitPriceHT = client.total_amount;
     const facturXData: FacturXInvoiceData = {
       invoiceNumber,
       issueDate,
@@ -306,15 +313,23 @@ export const generateMonthlyInvoicesZip = async (params: {
         address: client.client_address,
         countryCode: "FR",
       },
-      lines: [
-        {
-          description: `Coaching sportif — ${format(periodStart, "MMMM yyyy", { locale: fr })}`,
-          quantity: client.sessions_count > 0 ? client.sessions_count : 1,
-          unitCode: client.sessions_count > 0 ? "C62" : "C62",
-          unitPriceHT,
-          vatRate: 0, // Franchise en base TVA
-        },
-      ],
+      lines: (client.items && client.items.length > 0)
+        ? client.items.map((it) => ({
+            description: `${it.description} — ${format(periodStart, "MMMM yyyy", { locale: fr })}`,
+            quantity: it.quantity,
+            unitCode: "C62",
+            unitPriceHT: it.quantity > 0 ? it.amount / it.quantity : it.amount,
+            vatRate: 0,
+          }))
+        : [
+            {
+              description: `Accompagnement sportif — forfait mensuel ${format(periodStart, "MMMM yyyy", { locale: fr })}`,
+              quantity: 1,
+              unitCode: "C62",
+              unitPriceHT,
+              vatRate: 0, // Franchise en base TVA
+            },
+          ],
       vatCategory: "E",
       vatExemptionReason: "TVA non applicable, art. 293 B du CGI",
       paymentMeansCode: client.payment_method === "especes" ? "10" : "30",

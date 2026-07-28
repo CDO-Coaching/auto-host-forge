@@ -25,7 +25,6 @@ import {
   Dumbbell,
   Activity,
   StickyNote,
-  X,
   TrendingUp,
   AlertTriangle,
   RefreshCw,
@@ -184,31 +183,41 @@ function getSerieDetailsArray(value: any): SerieDetail[] {
   return [];
 }
 
-// ── Brouillon de programmation (persiste les modifs non validées entre les pages) ──
-const progDraftKey = (athleteId: string, week: number, year: number) =>
-  `prog_draft_${athleteId}_${year}_${week}`;
-
-function loadProgDraft(athleteId: string, week: number, year: number): { sessions: Session[]; sessionExercises: Record<number, Exercise[]> } | null {
+// ── Brouillon de programmation (persiste les modifs non validées, synchronisé
+// entre appareils via Supabase) ──
+async function loadProgDraft(athleteId: string, week: number, year: number): Promise<{ sessions: Session[]; sessionExercises: Record<number, Exercise[]> } | null> {
   try {
-    const raw = localStorage.getItem(progDraftKey(athleteId, week, year));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.sessions)) return null;
-    return parsed;
+    const { data } = await supabase
+      .from("programming_drafts")
+      .select("content")
+      .eq("athlete_id", athleteId)
+      .eq("week_number", week)
+      .eq("year", year)
+      .maybeSingle();
+    const content = (data as any)?.content;
+    if (!content || !Array.isArray(content.sessions)) return null;
+    return content;
   } catch {
     return null;
   }
 }
 
-function saveProgDraft(athleteId: string, week: number, year: number, sessions: Session[], sessionExercises: Record<number, Exercise[]>) {
+async function saveProgDraft(athleteId: string, week: number, year: number, sessions: Session[], sessionExercises: Record<number, Exercise[]>) {
   try {
-    localStorage.setItem(progDraftKey(athleteId, week, year), JSON.stringify({ sessions, sessionExercises, savedAt: Date.now() }));
+    await supabase.from("programming_drafts").upsert({
+      athlete_id: athleteId,
+      week_number: week,
+      year,
+      content: { sessions, sessionExercises } as any,
+      updated_at: new Date().toISOString(),
+    } as any, { onConflict: "coach_id,athlete_id,week_number,year" });
   } catch {}
 }
 
-function clearProgDraft(athleteId: string, week: number, year: number) {
+async function clearProgDraft(athleteId: string, week: number, year: number) {
   try {
-    localStorage.removeItem(progDraftKey(athleteId, week, year));
+    await supabase.from("programming_drafts").delete()
+      .eq("athlete_id", athleteId).eq("week_number", week).eq("year", year);
   } catch {}
 }
 
@@ -241,6 +250,7 @@ export default function ClientDetail() {
   const [isLoadingWeek, setIsLoadingWeek] = useState(false);
   // Empêche la sauvegarde du brouillon pendant le chargement initial d'une semaine
   const suppressDraftSaveRef = useRef(true);
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [expandedHistoricalSessionId, setExpandedHistoricalSessionId] = useState<string | null>(null);
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
@@ -535,7 +545,12 @@ export default function ClientDetail() {
   useEffect(() => {
     if (suppressDraftSaveRef.current) return;
     if (!athleteId || isValidated || isLoadingWeek) return;
-    saveProgDraft(athleteId, selectedWeekToProgram.week, selectedWeekToProgram.year, sessions, sessionExercises);
+    // Débounce : évite d'écrire à chaque frappe
+    if (draftSaveTimerRef.current) clearTimeout(draftSaveTimerRef.current);
+    const week = selectedWeekToProgram.week, year = selectedWeekToProgram.year;
+    draftSaveTimerRef.current = setTimeout(() => {
+      saveProgDraft(athleteId, week, year, sessions, sessionExercises);
+    }, 800);
   }, [sessions, sessionExercises, athleteId, selectedWeekToProgram.week, selectedWeekToProgram.year, isValidated, isLoadingWeek]);
 
   // Note: sessions are now loaded from DB on week change; localStorage save is disabled
@@ -840,7 +855,7 @@ export default function ClientDetail() {
 
       const weekRecord = weekRecords?.[0] ?? null;
       const validated = !!weekRecord?.validated;
-      const draft = validated ? null : loadProgDraft(athleteId, week, year);
+      const draft = validated ? null : await loadProgDraft(athleteId, week, year);
 
       // Un brouillon non validé prime sur la DB (modifs en cours de l'entraîneur)
       if (draft) {
