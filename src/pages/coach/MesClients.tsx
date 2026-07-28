@@ -23,6 +23,8 @@ interface Athlete {
   email: string;
   date_of_birth: string | null;
   gender: string | null;
+  address?: string | null;
+  phone?: string | null;
 }
 
 interface AthleteRelationship {
@@ -117,7 +119,7 @@ export default function MesClients() {
     if (athleteIds.length > 0) {
       const { data: athletes, error: athletesError } = await supabase
         .from("user_profiles")
-        .select("id, first_name, last_name, email, date_of_birth, gender")
+        .select("id, first_name, last_name, email, date_of_birth, gender, address, phone")
         .in("id", athleteIds);
 
       console.log("Profils chargés:", { 
@@ -805,7 +807,7 @@ export default function MesClients() {
                               relationship.client_phone
                             );
                           }}
-                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone ? "text-primary" : "text-muted-foreground"}`}
+                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone || relationship.athlete?.address || relationship.athlete?.phone ? "text-primary" : "text-muted-foreground"}`}
                           title="Adresse / Téléphone"
                         >
                           <MapPin className="h-3.5 w-3.5" />
@@ -902,7 +904,7 @@ export default function MesClients() {
                               relationship.client_phone
                             );
                           }}
-                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone ? "text-primary" : "text-muted-foreground"}`}
+                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone || relationship.athlete?.address || relationship.athlete?.phone ? "text-primary" : "text-muted-foreground"}`}
                           title="Adresse / Téléphone"
                         >
                           <MapPin className="h-3.5 w-3.5" />

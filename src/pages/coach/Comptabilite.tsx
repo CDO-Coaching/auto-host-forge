@@ -93,7 +93,7 @@ export default function Comptabilite() {
   const [hasBackup, setHasBackup] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [hideClientNames, setHideClientNames] = useState(true);
+  const [hideClientNames, setHideClientNames] = useState(false);
   // Clients masqués de la liste "à ajouter" (persisté par coach)
   const hiddenClientsKey = profile?.id ? `compta_hidden_clients_${profile.id}` : "compta_hidden_clients";
   const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
