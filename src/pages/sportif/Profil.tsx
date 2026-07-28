@@ -48,6 +48,8 @@ const profileSchema = z.object({
     { message: "La date de naissance doit être dans le passé" }
   ),
   gender: z.enum(["male", "female", "other"]).optional(),
+  address: z.string().trim().max(300).optional(),
+  phone: z.string().trim().max(30).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -226,6 +228,8 @@ export default function Profil() {
       last_name: "",
       date_of_birth: "",
       gender: undefined,
+      address: "",
+      phone: "",
     },
   });
 
@@ -243,7 +247,7 @@ export default function Profil() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("email, first_name, last_name, date_of_birth, gender, health_data_consent, health_data_consent_at")
+        .select("email, first_name, last_name, date_of_birth, gender, address, phone, health_data_consent, health_data_consent_at")
         .eq("id", session.user.id)
         .single();
 
@@ -256,6 +260,8 @@ export default function Profil() {
           last_name: profile.last_name || "",
           date_of_birth: profile.date_of_birth || "",
           gender: profile.gender || undefined,
+          address: (profile as any).address || "",
+          phone: (profile as any).phone || "",
         });
       }
       setLoading(false);
@@ -275,6 +281,8 @@ export default function Profil() {
           last_name: data.last_name,
           date_of_birth: data.date_of_birth || null,
           gender: data.gender,
+          address: data.address || null,
+          phone: data.phone || null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", userId);
@@ -411,6 +419,34 @@ export default function Profil() {
                         <SelectItem value="other">Non genré</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Adresse (pour les factures)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="12 rue des Sports, 14000 Caen" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Téléphone (pour les factures)</FormLabel>
+                    <FormControl>
+                      <Input type="tel" placeholder="06 12 34 56 78" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

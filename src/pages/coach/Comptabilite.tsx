@@ -94,6 +94,26 @@ export default function Comptabilite() {
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [hideClientNames, setHideClientNames] = useState(true);
+  // Clients masqués de la liste "à ajouter" (persisté par coach)
+  const hiddenClientsKey = profile?.id ? `compta_hidden_clients_${profile.id}` : "compta_hidden_clients";
+  const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
+  const [showHiddenClients, setShowHiddenClients] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(hiddenClientsKey);
+      setHiddenClients(new Set(raw ? JSON.parse(raw) : []));
+    } catch { setHiddenClients(new Set()); }
+  }, [hiddenClientsKey]);
+
+  const toggleHiddenClient = (clientId: string, hide: boolean) => {
+    setHiddenClients((prev) => {
+      const next = new Set(prev);
+      if (hide) next.add(clientId); else next.delete(clientId);
+      try { localStorage.setItem(hiddenClientsKey, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
   const [showUrssafDialog, setShowUrssafDialog] = useState(false);
   const [showCreditsDialog, setShowCreditsDialog] = useState(false);
   // Solde global par client (toutes périodes confondues) : > 0 = crédit prépayé, < 0 = dette
@@ -158,7 +178,7 @@ export default function Comptabilite() {
         const athleteIds = relationships.map((r: any) => r.athlete_id);
         const { data: profiles, error: profilesError } = await supabase
           .from("user_profiles")
-          .select("id, first_name, last_name")
+          .select("id, first_name, last_name, address, phone")
           .in("id", athleteIds);
 
         console.log("Profiles:", profiles, "Error:", profilesError);
@@ -170,6 +190,15 @@ export default function Comptabilite() {
             last_name: p.last_name || "",
             is_external: false
           }));
+          // L'adresse/téléphone saisis par l'athlète priment pour les factures
+          profiles.forEach((p: any) => {
+            const existing = athleteContactMap.get(p.id) || {};
+            athleteContactMap.set(p.id, {
+              ...existing,
+              client_address: p.address || existing.client_address,
+              client_phone: p.phone || existing.client_phone,
+            });
+          });
         }
       }
 
@@ -841,39 +870,95 @@ export default function Comptabilite() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Clients à ajouter</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setHideClientNames(!hideClientNames)}
-                      className="h-8"
-                    >
-                      {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-                      {hideClientNames ? "Afficher" : "Masquer"}
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {hiddenClients.size > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowHiddenClients(!showHiddenClients)}
+                          className="h-8"
+                        >
+                          {showHiddenClients ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
+                          Masqués ({hiddenClients.size})
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setHideClientNames(!hideClientNames)}
+                        className="h-8"
+                      >
+                        {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                        {hideClientNames ? "Afficher" : "Masquer"}
+                      </Button>
+                    </div>
                   </div>
-                  
+
                   {!hideClientNames && (
                     <div className="flex gap-2 flex-wrap">
                       {clients.map(client => {
-                        const hasEntry = entries.some(e => 
+                        const hasEntry = entries.some(e =>
                           (client.is_external && e.external_client_id === client.id) ||
                           (!client.is_external && e.client_id === client.id)
                         );
-                        
                         if (hasEntry) return null;
-                        
+                        if (hiddenClients.has(client.id)) return null;
+
                         return (
+                          <div key={client.id} className="inline-flex items-center rounded-md border border-border bg-background overflow-hidden">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 rounded-none"
+                              onClick={() => addEntry(client.id, client.is_external)}
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              {client.first_name} {client.last_name}
+                              <Badge
+                                variant="outline"
+                                className={`ml-2 text-[9px] px-1 py-0 h-4 ${client.is_external ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}
+                              >
+                                {client.is_external ? "Externe" : "Appli"}
+                              </Badge>
+                            </Button>
+                            <button
+                              type="button"
+                              title="Masquer de la liste"
+                              onClick={() => toggleHiddenClient(client.id, true)}
+                              className="h-8 px-1.5 border-l border-border text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Clients masqués — pour les réafficher */}
+                  {showHiddenClients && hiddenClients.size > 0 && (
+                    <div className="mt-2 p-2 rounded-md border border-dashed border-border space-y-2">
+                      <p className="text-[11px] text-muted-foreground">Clients masqués (clique pour réafficher)</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {clients.filter(c => hiddenClients.has(c.id)).map(client => (
                           <Button
                             key={client.id}
                             variant="outline"
                             size="sm"
-                            onClick={() => addEntry(client.id, client.is_external)}
+                            className="h-8"
+                            onClick={() => toggleHiddenClient(client.id, false)}
                           >
-                            <Plus className="h-3 w-3 mr-1" />
+                            <Eye className="h-3 w-3 mr-1" />
                             {client.first_name} {client.last_name}
+                            <Badge
+                              variant="outline"
+                              className={`ml-2 text-[9px] px-1 py-0 h-4 ${client.is_external ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}
+                            >
+                              {client.is_external ? "Externe" : "Appli"}
+                            </Badge>
                           </Button>
-                        );
-                      })}
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -903,6 +988,9 @@ export default function Comptabilite() {
                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
                               <div className="flex items-center gap-2">
                                 <span>{entry.client_name}</span>
+                                <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${entry.external_client_id ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}>
+                                  {entry.external_client_id ? "Externe" : "Appli"}
+                                </Badge>
                                 <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
                               </div>
                             </TableCell>
@@ -1049,6 +1137,9 @@ export default function Comptabilite() {
                           <div className="flex items-start justify-between">
                             <div className="flex items-center gap-2">
                               <h3 className="font-semibold text-base">{entry.client_name}</h3>
+                              <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${entry.external_client_id ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}>
+                                {entry.external_client_id ? "Externe" : "Appli"}
+                              </Badge>
                               <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
                             </div>
                             <Button
