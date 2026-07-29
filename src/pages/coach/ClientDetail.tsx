@@ -83,6 +83,7 @@ import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
 import { AthleteReadinessCard } from "@/components/AthleteReadinessCard";
 import { DailyDebriefCard } from "@/components/DailyDebriefCard";
 import { AthleteProfileTab } from "@/components/AthleteProfileTab";
+import { WeekAvailabilityCard } from "@/components/WeekAvailabilityCard";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
@@ -5023,6 +5024,9 @@ export default function ClientDetail() {
               </div>
             );
           })()}
+
+          {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
+          <WeekAvailabilityCard athleteId={athleteId!} week={selectedWeekToProgram.week} year={selectedWeekToProgram.year} />
 
           {/* ── Vue mobile (uniquement < sm) ─────────────────────────── */}
           <div className="sm:hidden">

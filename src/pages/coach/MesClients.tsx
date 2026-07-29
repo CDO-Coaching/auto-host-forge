@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { PauseReminderDialog } from "@/components/PauseReminderDialog";
 import { useAthleteSubscriptionStatus } from "@/hooks/useAthleteSubscriptionStatus";
+import { AvailabilityRequestButton } from "@/components/AvailabilityRequestButton";
 
 interface Athlete {
   id: string;
@@ -590,8 +591,11 @@ export default function MesClients() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
-      <h1 className="text-2xl sm:text-3xl font-bold">Mes clients</h1>
-      
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <h1 className="text-2xl sm:text-3xl font-bold">Mes clients</h1>
+        <AvailabilityRequestButton />
+      </div>
+
       <Tabs defaultValue="approved" className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
           <TabsTrigger value="approved" className="text-xs sm:text-sm py-2 sm:py-2.5">
