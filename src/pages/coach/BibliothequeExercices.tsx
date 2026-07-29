@@ -524,7 +524,7 @@ export default function BibliothequeExercices() {
 
       {/* ── Edit Sheet ─────────────────────────────────────────────────────── */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:w-[520px] overflow-y-auto flex flex-col p-0 gap-0 [&>button.absolute]:hidden">
+        <SheetContent className="w-full sm:w-[520px] overflow-y-auto flex flex-col p-0 gap-0 pt-[calc(env(safe-area-inset-top)+0.5rem)] [&>button.absolute]:hidden">
           {editingExercise && (() => {
             const missing = getMissingFields(editingExercise);
             return (
