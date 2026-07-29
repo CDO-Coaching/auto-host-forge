@@ -158,6 +158,10 @@ All colors MUST be HSL.
   /* Sticky header that respects iOS notch */
   .app-header {
     padding-top: env(safe-area-inset-top);
+    /* La zone du notch s'AJOUTE aux 56px de contenu (sinon le bouton menu
+       se retrouve sous l'encoche et devient difficile à toucher). */
+    height: auto !important;
+    min-height: calc(3.5rem + env(safe-area-inset-top));
   }
 
   /* Card "iOS style": rounded, subtle border, generous padding */

@@ -244,9 +244,7 @@ function RenfoExerciseRow({
 
           {/* Steppers 2 colonnes */}
           <div className="grid grid-cols-2 gap-3">
-            <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
-
-            {/* Reps / Durée / Distance avec toggle 3 modes */}
+            {/* Reps / Durée / Distance avec toggle 3 modes (à gauche) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -305,6 +303,9 @@ function RenfoExerciseRow({
                   disabled={isValidated}>+</button>
               </div>
             </div>
+
+            {/* Séries (à droite) */}
+            <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
 
             <Stepper label="Charge (kg)" value={exercise.charge} onChange={(v) => onChange("charge", v)} step={2.5} min={0} freeText />
             <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />

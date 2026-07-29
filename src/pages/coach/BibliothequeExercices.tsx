@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Plus, Search, Dumbbell, ExternalLink, Trash2,
-  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Youtube, VideoOff, ShieldCheck, Loader2,
+  ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Youtube, VideoOff, ShieldCheck, Loader2, ArrowLeft,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -524,7 +524,7 @@ export default function BibliothequeExercices() {
 
       {/* ── Edit Sheet ─────────────────────────────────────────────────────── */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:w-[520px] overflow-y-auto flex flex-col p-0 gap-0">
+        <SheetContent className="w-full sm:w-[520px] overflow-y-auto flex flex-col p-0 gap-0 [&>button.absolute]:hidden">
           {editingExercise && (() => {
             const missing = getMissingFields(editingExercise);
             return (
@@ -532,13 +532,18 @@ export default function BibliothequeExercices() {
                 {/* Sheet header with navigation */}
                 <SheetHeader className="px-5 py-4 border-b border-border/40 shrink-0">
                   <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={sheetIndex <= 0} onClick={() => navigateSheet(-1)}>
-                      <ChevronLeft className="h-4 w-4" />
+                    <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setSheetOpen(false)}>
+                      <ArrowLeft className="h-4 w-4" /> Retour
                     </Button>
-                    <span className="text-xs text-muted-foreground tabular-nums">{sheetIndex + 1} / {filteredExercises.length}</span>
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={sheetIndex >= filteredExercises.length - 1} onClick={() => navigateSheet(1)}>
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1 ml-auto">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={sheetIndex <= 0} onClick={() => navigateSheet(-1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground tabular-nums">{sheetIndex + 1} / {filteredExercises.length}</span>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={sheetIndex >= filteredExercises.length - 1} onClick={() => navigateSheet(1)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   <SheetTitle className="text-base font-bold truncate">{toTitleCase(editingExercise.name)}</SheetTitle>
 
