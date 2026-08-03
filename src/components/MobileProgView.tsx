@@ -311,6 +311,12 @@ function RenfoExerciseRow({
             <Stepper label="RPE" value={exercise.rpe} onChange={(v) => onChange("rpe", v)} step={0.5} min={1} max={10} />
           </div>
 
+          {/* Par côté (unilatéral) */}
+          <label className="flex items-center gap-2 py-1">
+            <Checkbox checked={!!(exercise as any).per_side} onCheckedChange={(c) => onChange("per_side", c === true)} disabled={isValidated} />
+            <span className="text-sm">Par côté (unilatéral)</span>
+          </label>
+
           {/* Récupération */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Récupération</label>

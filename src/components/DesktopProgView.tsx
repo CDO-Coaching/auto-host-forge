@@ -1550,7 +1550,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                   <Checkbox id={`dist-ss-${ex.id}`} checked={ex.is_distance || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "is_distance", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="is_distance" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, ex.id, "is_distance"); } }} />
                                                   <label htmlFor={`dist-ss-${ex.id}`} className="text-xs cursor-pointer select-none">distance (m)</label>
                                                 </div>
-                                                {ex.is_unilateral && (
+                                                {true && (
                                                   <div className="flex items-center gap-1.5">
                                                     <Checkbox id={`side-ss-${ex.id}`} checked={ex.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, ex.id, "per_side", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="per_side" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, ex.id, "per_side"); } }} />
                                                     <label htmlFor={`side-ss-${ex.id}`} className="text-xs cursor-pointer select-none">par côté <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
@@ -1688,7 +1688,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             <Checkbox id={`dist-${selectedSession.id}-${exercise.id}`} checked={exercise.is_distance || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_distance", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="is_distance" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, exercise.id, "is_distance"); } }} />
                                             <label htmlFor={`dist-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer select-none">distance (m)</label>
                                           </div>
-                                          {exercise.is_unilateral && (
+                                          {true && (
                                             <div className="flex items-center gap-1.5">
                                               <Checkbox id={`side-${selectedSession.id}-${exercise.id}`} checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="per_side" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onKeyDown(e, selectedSession.id, exercise.id, "per_side"); } }} />
                                               <label htmlFor={`side-${selectedSession.id}-${exercise.id}`} className="text-xs cursor-pointer select-none">par côté <kbd className="text-[9px] text-muted-foreground/60 font-mono">Space</kbd></label>
