@@ -3994,11 +3994,8 @@ export default function ClientDetail() {
         return;
       }
 
-      // Construire l'ordre dynamiquement selon si l'exo est unilatéral
-      const exercise = sessionExercises[sessionId]?.find((ex) => ex.id === exerciseId);
-      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance"];
-      if (exercise?.is_unilateral) fieldOrder.push("per_side");
-      fieldOrder.push("rpe", "charge", "tempo", "commentaire", "series");
+      // "par côté" est désormais disponible pour tous les exercices
+      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance", "per_side", "rpe", "charge", "tempo", "commentaire", "series"];
 
       const currentIndex = fieldOrder.indexOf(field as string);
       const nextField = fieldOrder[currentIndex + 1];
