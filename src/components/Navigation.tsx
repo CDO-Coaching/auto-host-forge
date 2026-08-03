@@ -10,10 +10,8 @@ const Navigation = () => {
 
   const navItems = [
     { name: "Accueil", path: "/" },
+    { name: "Offres", path: "/coaching" },
     { name: "À propos", path: "/about" },
-    { name: "Coaching", path: "/coaching" },
-    { name: "Rendez-vous", path: "/appointment" },
-    { name: "Contact", path: "/contact" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -43,9 +41,14 @@ const Navigation = () => {
                 {item.name}
               </Link>
             ))}
-            <Link to="/auth">
-              <Button className="ml-4 bg-gradient-cta hover:shadow-glow transition-all">
-                Se connecter / s'inscrire
+            <Link to="/auth" className="ml-2">
+              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+                Se connecter
+              </Button>
+            </Link>
+            <Link to="/contact">
+              <Button className="bg-gradient-cta hover:shadow-glow transition-all">
+                Réserver un appel gratuit
               </Button>
             </Link>
           </div>
@@ -77,9 +80,14 @@ const Navigation = () => {
                   {item.name}
                 </Link>
               ))}
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
+              <Link to="/contact" onClick={() => setIsOpen(false)}>
                 <Button className="w-full mt-2 bg-gradient-cta hover:shadow-glow transition-all">
-                  Se connecter / s'inscrire
+                  Réserver un appel gratuit
+                </Button>
+              </Link>
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" className="w-full">
+                  Se connecter
                 </Button>
               </Link>
             </div>

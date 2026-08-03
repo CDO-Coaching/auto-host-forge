@@ -8,75 +8,102 @@ import coachBW from "@/assets/coach-bw.jpg";
 
 const Coaching = () => {
   const offers = [
-    { 
-      name: "Coaching en Salle", 
-      price: "À partir de 60€", 
-      subtitle: "Conseil",
+    {
+      name: "Coaching en Salle",
+      price: "dès 60€",
+      subtitle: "L'accompagnement en présentiel",
       features: [
-        "Séance individuelle ou en duo",
-        "Correction technique en temps réel",
-        "Programme personnalisé selon tes objectifs",
-        "Suivi de progression détaillé",
-        "Conseils nutrition et récupération"
-      ], 
-      popular: false 
+        "Séance individuelle entièrement dédiée",
+        "Pédagogie adaptée pour une maîtrise parfaite de chaque mouvement",
+        "Conseils experts nutrition & récupération",
+      ],
+      popular: false
     },
-    { 
-      name: "Coaching à Distance", 
-      price: "À partir de 80€/mois", 
-      subtitle: "Suivi complet",
+    {
+      name: "Coaching à Distance",
+      price: "dès 80€/mois",
+      subtitle: "Un suivi complet, où que tu sois",
       features: [
-        "Programme d'entraînement 100% sur mesure",
-        "Vidéos explicatives de chaque exercice",
-        "Suivi hebdomadaire par message",
-        "Ajustements réguliers selon ta progression",
-        "Retours vidéo personnalisés sur ta technique"
-      ], 
-      popular: true 
+        "Programmation 100% sur mesure, ajustée chaque semaine",
+        "Échanges réguliers pour un suivi vraiment personnalisé",
+        "Analyses vidéo et bibliothèque d'exercices",
+      ],
+      popular: false
     },
-    { 
-      name: "Coaching en Entreprise", 
-      price: "Sur devis", 
-      subtitle: "Bien-être au travail",
+    {
+      name: "Suivi Personnalisé",
+      price: "sur mesure",
+      subtitle: "L'excellence : salle + distance",
       features: [
-        "Séances collectives adaptées au groupe",
-        "Programme de cohésion d'équipe",
-        "Amélioration de la condition physique",
-        "Prévention des troubles musculosquelettiques",
-        "Planning flexible selon vos contraintes"
-      ], 
-      popular: false 
+        "Le meilleur du présentiel et du distanciel réunis",
+        "Encadrement rapproché et disponibilité privilégiée",
+        "Programme réajusté chaque semaine, avec toi",
+      ],
+      popular: true
+    },
+    {
+      name: "Coaching en Entreprise",
+      price: "sur devis",
+      subtitle: "Le bien-être de vos équipes",
+      features: [
+        "Séances collectives sur mesure",
+        "Cohésion d'équipe et bien-être durable",
+        "Organisation flexible autour de vos contraintes",
+      ],
+      popular: false
     },
   ];
 
   return (
     <div className="min-h-screen bg-background">
       <Navigation />
-      <section className="pt-32 pb-20 container mx-auto px-4">
-        <h1 className="text-5xl font-black text-center mb-6">Mes Offres de <span className="text-primary">Coaching</span></h1>
+      <section className="pt-24 pb-6 md:pt-28 md:pb-8 container mx-auto px-4">
+        <h1 className="text-3xl md:text-5xl font-black text-center mb-2">Mes offres de <span className="text-primary">coaching</span></h1>
+        <p className="text-center text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto">
+          Choisis la formule qui te correspond. On affine ensemble lors de l'appel gratuit.
+        </p>
       </section>
-      <section className="pb-20 container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <section className="pb-12 container mx-auto px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 max-w-4xl mx-auto">
           {offers.map((offer, i) => (
-            <Card key={i} className={`p-8 ${offer.popular ? 'border-primary shadow-glow' : ''} relative flex flex-col`}>
+            <Card
+              key={i}
+              className={`relative flex flex-col rounded-2xl p-6 sm:p-7 transition-all ${
+                offer.popular
+                  ? "border-primary/60 bg-gradient-to-b from-primary/[0.06] to-transparent shadow-glow"
+                  : "border-border/70 hover:border-primary/40"
+              }`}
+            >
               {offer.popular && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-cta text-primary-foreground px-4 py-1 rounded-full text-sm font-bold shadow-intense">
-                    POPULAIRE
-                  </span>
-                </div>
+                <span className="absolute top-5 right-5 text-[10px] font-semibold tracking-widest text-primary/90 uppercase">
+                  Recommandé
+                </span>
               )}
-              <h3 className="text-2xl font-bold mb-2">{offer.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{offer.subtitle}</p>
-              <p className="text-3xl font-black text-primary mb-6">{offer.price}</p>
-              <ul className="space-y-3 mb-8 flex-grow">
+
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-3">{offer.subtitle}</p>
+              <h3 className="text-2xl font-bold leading-tight">{offer.name}</h3>
+              <p className="mt-1 mb-5 text-primary font-semibold">{offer.price}</p>
+
+              <div className="h-px w-10 bg-primary/40 mb-5" />
+
+              <ul className="space-y-3 mb-7 flex-grow">
                 {offer.features.map((f, j) => (
-                  <li key={j} className="flex items-start"><Check className="w-5 h-5 text-primary mr-2 mt-0.5 flex-shrink-0" /><span className="text-sm">{f}</span></li>
+                  <li key={j} className="flex items-start gap-2.5">
+                    <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" strokeWidth={2.5} />
+                    <span className="text-sm text-foreground/90 leading-snug">{f}</span>
+                  </li>
                 ))}
               </ul>
-              <Button asChild variant={offer.popular ? "hero" : "default"} className="w-full mt-auto"><Link to="/appointment">Demander plus d'infos</Link></Button>
+
+              <Button asChild variant={offer.popular ? "hero" : "outline"} className="w-full mt-auto">
+                <Link to="/contact">Demander plus d'infos</Link>
+              </Button>
             </Card>
           ))}
+        </div>
+        <div className="text-center mt-10">
+          <p className="text-muted-foreground mb-4">Pas sûr de la formule ? On en parle sans engagement.</p>
+          <Button asChild variant="hero" size="lg"><Link to="/contact">Réserver mon appel gratuit</Link></Button>
         </div>
       </section>
       <Footer />

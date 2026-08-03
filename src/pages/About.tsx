@@ -41,17 +41,14 @@ const About = () => {
               <span className="text-primary">Corentin</span>
             </h1>
             <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              Depuis plus de dix ans, j'accompagne des personnes de tous âges et de tous niveaux dans leur progression sportive.
-              Mon parcours m'a amené à explorer différentes approches du coaching : d'abord le développement musculaire, puis la perte de poids, avant de me spécialiser en réathlétisation, correction posturale, développement de la force et haltérophilie.
-            </p>
-            <p className="text-lg text-muted-foreground mb-6 leading-relaxed">
-              Formé dans ces différents domaines, j'ai appris à construire des suivis réellement personnalisés, adaptés au profil, aux objectifs et au rythme de chacun.
-              Passionné de sport depuis l'enfance, je vois la musculation comme un outil d'équilibre, une base solide qui permet d'améliorer n'importe quelle discipline.
+              Depuis plus de 10 ans, j'accompagne des sportifs de tous niveaux. Spécialisé en
+              réathlétisation, force et haltérophilie, je construis des suivis vraiment personnalisés,
+              adaptés à ton profil, tes objectifs et ton rythme.
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Ma philosophie est simple : le mental guide le corps.
-              Mon rôle est d'aider chaque personne à trouver son propre levier de motivation, à progresser à son rythme, et à se sentir plus fort, physiquement comme mentalement.
-              Chaque programme que je conçois est pensé sur mesure, dans le détail, pour un accompagnement à la fois exigeant et bienveillant.
+              Ma philosophie est simple : <span className="text-foreground font-medium">le mental guide le corps.</span>{" "}
+              Mon rôle est de t'aider à progresser durablement et à te sentir plus fort,
+              physiquement comme mentalement — avec exigence et bienveillance.
             </p>
           </div>
 
