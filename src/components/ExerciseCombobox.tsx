@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type ReactNode } from "react";
-import { Check, ChevronsUpDown, Plus, Clock, VideoOff, SlidersHorizontal } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Clock, VideoOff, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,6 +93,7 @@ export function ExerciseCombobox({
   const [recentNames, setRecentNames] = useState<string[]>([]);
   // Filtres multi-critères
   const [muscleView, setMuscleView] = useState<"body" | "list">("body");
+  const [filtersOpen, setFiltersOpen] = useState(false); // replié par défaut (surtout mobile)
   const [fMuscles, setFMuscles] = useState<string[]>([]);
   const [fEquip, setFEquip] = useState<string[]>([]);
   const [fCats, setFCats] = useState<string[]>([]);
@@ -110,7 +111,7 @@ export function ExerciseCombobox({
 
   // Reset state when popover opens
   useEffect(() => {
-    if (open) { setRecentNames(getRecent()); setSearch(""); }
+    if (open) { setRecentNames(getRecent()); setSearch(""); setFiltersOpen(false); }
   }, [open]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
@@ -226,16 +227,22 @@ export function ExerciseCombobox({
           {/* Filtres — tout visible, sans repli */}
           <div className={cn("border-b sm:border-b-0 sm:border-r sm:shrink-0 sm:max-h-[72vh] sm:overflow-y-auto px-2 py-2 space-y-2", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                <SlidersHorizontal className="h-3 w-3" /> Filtres
-              </span>
+              <button type="button" onClick={() => setFiltersOpen((v) => !v)} className="flex items-center gap-1 sm:pointer-events-none">
+                <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Filtres{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                </span>
+                <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform sm:hidden", filtersOpen && "rotate-180")} />
+              </button>
               <span className="text-[11px] text-muted-foreground">· {displayedExercises.length} exo</span>
               {activeFilterCount > 0 && (
                 <button type="button" onClick={clearFilters} className="ml-auto text-[11px] text-primary underline underline-offset-2">
-                  Effacer ({activeFilterCount})
+                  Effacer
                 </button>
               )}
             </div>
+
+            <div className={cn("space-y-2", !filtersOpen && "hidden sm:block")}>
             {/* Bascule Silhouette/Liste — desktop uniquement */}
             <div className="hidden sm:flex items-center gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Muscles</p>
@@ -303,6 +310,7 @@ export function ExerciseCombobox({
                 />
               ))}
             </FilterRow>
+            </div>
           </div>
 
           <CommandList className="max-h-[280px] sm:max-h-[72vh] sm:flex-1">
