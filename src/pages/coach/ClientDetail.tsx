@@ -568,7 +568,7 @@ export default function ClientDetail() {
   };
 
   const loadLibraryExercises = async () => {
-    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral, category, video_url").order("name");
+    const { data, error } = await supabase.from("exercise_library").select("id, name, muscle_principal, muscles_second, unilateral, category, video_url, equipment, load_coefficient").order("name");
 
     if (error) {
       console.error("Erreur lors du chargement des exercices:", error);

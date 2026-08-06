@@ -33,8 +33,7 @@ const MARKERS: Marker[] = [
   { m: "MOLLETS", label: "Mollets", bx: 1336, by: 1155, lx: 1850, ly: 1155, a: "start" },
 ];
 
-function BodySvg({ viewBox, markers, value, toggle }: { viewBox: string; markers: Marker[]; value: MuscleSelection; toggle: (m: string) => void }) {
-  const stateOf = (m: string) => (value.principal === m ? "principal" : value.secondary.includes(m) ? "secondary" : "off");
+function BodySvg({ viewBox, markers, stateOf, toggle }: { viewBox: string; markers: Marker[]; stateOf: (m: string) => "principal" | "secondary" | "off"; toggle: (m: string) => void }) {
   return (
     <svg viewBox={viewBox} className="w-full h-auto select-none" preserveAspectRatio="xMidYMid meet">
       <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
@@ -83,6 +82,8 @@ export function MuscleBodySelector({ value, onChange }: { value: MuscleSelection
     onChange({ principal, secondary });
   };
 
+  const stateOf = (m: string): "principal" | "secondary" | "off" =>
+    value.principal === m ? "principal" : value.secondary.includes(m) ? "secondary" : "off";
   const frontMarkers = MARKERS.filter((mk) => mk.bx < 1000);
   const backMarkers = MARKERS.filter((mk) => mk.bx >= 1000);
 
@@ -90,22 +91,49 @@ export function MuscleBodySelector({ value, onChange }: { value: MuscleSelection
     <div className="space-y-2">
       {/* Desktop : les deux côte à côte */}
       <div className="hidden sm:block">
-        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} value={value} toggle={toggle} />
+        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} stateOf={stateOf} toggle={toggle} />
       </div>
       {/* Mobile : empilés, chacun en grand */}
       <div className="sm:hidden space-y-4">
         <div>
           <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Face</p>
-          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} value={value} toggle={toggle} />
+          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} stateOf={stateOf} toggle={toggle} />
         </div>
         <div>
           <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Dos</p>
-          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} value={value} toggle={toggle} />
+          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} stateOf={stateOf} toggle={toggle} />
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground text-center">
         1er muscle touché = <span className="text-primary font-medium">principal</span>, les suivants = secondaires. Re-toucher pour retirer.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Version FILTRE de la silhouette : multi-sélection simple (pas de principal/secondaire).
+ * Un muscle sélectionné s'affiche en doré ; re-toucher le retire.
+ */
+export function MuscleBodyFilter({ selected, onToggle }: { selected: string[]; onToggle: (m: string) => void }) {
+  const stateOf = (m: string): "principal" | "secondary" | "off" => (selected.includes(m) ? "principal" : "off");
+  const frontMarkers = MARKERS.filter((mk) => mk.bx < 1000);
+  const backMarkers = MARKERS.filter((mk) => mk.bx >= 1000);
+  return (
+    <div className="space-y-2">
+      <div className="hidden sm:block">
+        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} stateOf={stateOf} toggle={onToggle} />
+      </div>
+      <div className="sm:hidden space-y-4">
+        <div>
+          <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Face</p>
+          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} stateOf={stateOf} toggle={onToggle} />
+        </div>
+        <div>
+          <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Dos</p>
+          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} stateOf={stateOf} toggle={onToggle} />
+        </div>
+      </div>
     </div>
   );
 }

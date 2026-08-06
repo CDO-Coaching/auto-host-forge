@@ -64,6 +64,7 @@ const EQUIPMENT_OPTIONS = [
   { value: 'Kettlebell', emoji: '🫖' },
   { value: 'Poids du corps', emoji: '🤸' },
   { value: 'Machine', emoji: '⚙️' },
+  { value: 'Barre à traction', emoji: '🧗' },
   { value: 'Élastique', emoji: '➰' },
   { value: 'Ergo / Cardio', emoji: '🚴' },
   { value: 'Autre', emoji: '➕' },
@@ -285,7 +286,7 @@ export default function BibliothequeExercices() {
     if (!editingExercise) return;
     if (!editingExercise.name) { toast.error("Le nom est obligatoire"); return; }
     if (!editingExercise.muscle_principal) { toast.error("Le muscle principal est obligatoire"); return; }
-    const { error } = await supabase.from("exercise_library").update({
+    const { data, error } = await supabase.from("exercise_library").update({
       name: editingExercise.name,
       category: editingExercise.category,
       muscle_principal: editingExercise.muscle_principal,
@@ -295,8 +296,18 @@ export default function BibliothequeExercices() {
       equipment: editingExercise.equipment,
       unilateral: editingExercise.unilateral,
       load_coefficient: editingExercise.load_coefficient,
-    }).eq("id", editingExercise.id);
-    if (error) { toast.error(`Erreur : ${error.message}`); console.error("edit exercise error", error); }
+    }).eq("id", editingExercise.id).select("id");
+    if (error) {
+      if ((error as any).code === "23505" || /duplicate key/i.test(error.message)) {
+        toast.error("Un exercice porte déjà ce nom. Choisis un nom différent.");
+      } else {
+        toast.error(`Erreur : ${error.message}`);
+      }
+      console.error("edit exercise error", error);
+    }
+    else if (!data || data.length === 0) {
+      toast.error("Modification refusée par la base (droits/RLS). Rien n'a été enregistré.");
+    }
     else {
       toast.success("Exercice mis à jour");
       setExercises((prev) => prev.map((e) => e.id === editingExercise.id ? { ...e, ...editingExercise } : e));
@@ -307,14 +318,16 @@ export default function BibliothequeExercices() {
 
   const handleDeleteExercise = async () => {
     if (!deleteConfirm) return;
-    const { error } = await supabase.from("exercise_library").delete().eq("id", deleteConfirm.id);
-    if (error) { toast.error("Erreur lors de la suppression"); }
-    else {
-      toast.success(`"${deleteConfirm.name}" supprimé`);
-      setDeleteConfirm(null);
-      if (editingExercise?.id === deleteConfirm.id) setSheetOpen(false);
-      loadExercises();
+    const { data, error } = await supabase.from("exercise_library").delete().eq("id", deleteConfirm.id).select("id");
+    if (error) { toast.error(`Erreur : ${error.message}`); console.error("delete error", error); return; }
+    if (!data || data.length === 0) {
+      toast.error("Suppression refusée par la base (droits/RLS). Aucune ligne supprimée.");
+      return;
     }
+    toast.success(`"${deleteConfirm.name}" supprimé`);
+    setDeleteConfirm(null);
+    if (editingExercise?.id === deleteConfirm.id) setSheetOpen(false);
+    loadExercises();
   };
 
   const runVideoAudit = async () => {
@@ -648,7 +661,13 @@ export default function BibliothequeExercices() {
                       </Button>
                     </div>
                   </div>
-                  <h2 className="text-lg font-bold truncate mt-2">{toTitleCase(editingExercise.name)}</h2>
+                  <Input
+                    value={editingExercise.name}
+                    onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+                    className="mt-2 text-lg font-bold h-auto py-1.5 border-transparent bg-transparent hover:border-border focus-visible:border-border px-2 -ml-2"
+                    placeholder="Nom de l'exercice"
+                    title="Cliquer pour renommer"
+                  />
 
                   {/* Rappel à compléter */}
                   {missing.length > 0 ? (
@@ -769,13 +788,6 @@ export default function BibliothequeExercices() {
                   )}
 
                   {/* Étape 5 : Finitions (nom, coefficient, description) */}
-                  {editStep === 4 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom</Label>
-                    <Input value={editingExercise.name} onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })} />
-                  </div>
-                  )}
-
                   {/* Coefficient */}
                   {editStep === 4 && (
                   <div className="space-y-1.5">

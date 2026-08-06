@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Check, ChevronsUpDown, Plus, Clock, VideoOff } from "lucide-react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
+import { Check, ChevronsUpDown, Plus, Clock, VideoOff, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { MuscleBodyFilter } from "@/components/MuscleBodySelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -47,7 +48,28 @@ export interface LibraryExercise {
   muscle_principal?: string | null;
   muscles_second?: string[] | null;
   video_url?: string | null;
+  category?: string | null;
+  equipment?: string | null;
+  load_coefficient?: number | null;
 }
+
+// Options de filtre (alignées sur la bibliothèque)
+const EQUIP_FILTERS = ["Barre", "Haltères", "Kettlebell", "Poids du corps", "Machine", "Barre à traction", "Élastique", "Ergo / Cardio"];
+const CAT_FILTERS: { value: string; label: string }[] = [
+  { value: "cardio", label: "🏃 Cardio" },
+  { value: "mobilité-souplesse", label: "🧘 Mobilité" },
+  { value: "renfo", label: "🏋️ Renfo" },
+  { value: "explosivité-vitesse", label: "⚡ Explosivité" },
+];
+const COEF_FILTERS = [0.3, 0.6, 1.0, 1.2, 1.5, 2.0];
+
+// Regroupement des muscles par région du corps (pastille de couleur + sous-titre)
+const MUSCLE_REGIONS: { title: string; color: string; muscles: string[] }[] = [
+  { title: "Haut du corps", color: "#f2d98a", muscles: ["PEC", "DOS", "DELTOÏDES", "TRAPÈZES", "BICEPS", "TRICEPS", "AVANT-BRAS"] },
+  { title: "Tronc", color: "#e8974a", muscles: ["ABDOS", "OBLIQUES", "LOMBAIRES"] },
+  { title: "Bas du corps", color: "#5aa9e6", muscles: ["FESSIERS", "PETITS ET MOYENS FESSIERS", "QUADRICEPS", "ISCHIOS", "MOLLETS", "ADDUCTEURS", "FLÉCHISSEURS DE HANCHES"] },
+];
+const regionOf = (m: string) => MUSCLE_REGIONS.find((r) => r.muscles.includes(m));
 
 interface ExerciseComboboxProps {
   value: string;
@@ -66,10 +88,20 @@ export function ExerciseCombobox({
   autoOpen, onAutoOpenHandled, onExerciseCreated,
 }: ExerciseComboboxProps) {
   const [open, setOpen] = useState(false);
-  const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [recentNames, setRecentNames] = useState<string[]>([]);
+  // Filtres multi-critères
+  const [muscleView, setMuscleView] = useState<"body" | "list">("body");
+  const [fMuscles, setFMuscles] = useState<string[]>([]);
+  const [fEquip, setFEquip] = useState<string[]>([]);
+  const [fCats, setFCats] = useState<string[]>([]);
+  const [fCoef, setFCoef] = useState<number[]>([]);
+  const activeFilterCount = fMuscles.length + fEquip.length + fCats.length + fCoef.length;
+
+  const clearFilters = () => { setFMuscles([]); setFEquip([]); setFCats([]); setFCoef([]); };
+  const toggleIn = (arr: string[], v: string, set: (a: string[]) => void) =>
+    set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
 
   // Auto-open on keyboard nav
   useEffect(() => {
@@ -78,19 +110,36 @@ export function ExerciseCombobox({
 
   // Reset state when popover opens
   useEffect(() => {
-    if (open) { setRecentNames(getRecent()); setSearch(""); setSelectedMuscle("all"); }
+    if (open) { setRecentNames(getRecent()); setSearch(""); }
   }, [open]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const muscles = useMemo(
-    () => Array.from(new Set(exercises.map((e) => e.muscle_principal).filter(Boolean))).sort() as string[],
+    () => Array.from(new Set(exercises.flatMap((e) => [e.muscle_principal, ...(e.muscles_second || [])]).filter(Boolean))).sort() as string[],
     [exercises],
   );
 
   const displayedExercises = useMemo(() => {
     let list = exercises;
-    if (selectedMuscle !== "all") list = list.filter((e) => e.muscle_principal === selectedMuscle);
+    // Muscles : l'exo doit contenir TOUS les muscles sélectionnés (principal ou secondaire)
+    if (fMuscles.length) {
+      list = list.filter((e) => {
+        const set = new Set([e.muscle_principal, ...(e.muscles_second || [])].filter(Boolean) as string[]);
+        return fMuscles.every((m) => set.has(m));
+      });
+    }
+    // Matériel : au moins un des matériels sélectionnés
+    if (fEquip.length) {
+      list = list.filter((e) => {
+        const eq = (e.equipment || "").toLowerCase();
+        return fEquip.some((m) => eq.includes(m.toLowerCase()));
+      });
+    }
+    // Type : dans les catégories sélectionnées
+    if (fCats.length) list = list.filter((e) => e.category && fCats.includes(e.category));
+    // Intensité (coefficient)
+    if (fCoef.length) list = list.filter((e) => fCoef.some((c) => Math.abs((e.load_coefficient ?? 1) - c) < 0.05));
     if (search.trim()) {
       const s = norm(search.trim());
       list = list
@@ -106,14 +155,14 @@ export function ExerciseCombobox({
         });
     }
     return list;
-  }, [exercises, selectedMuscle, search]);
+  }, [exercises, fMuscles, fEquip, fCats, fCoef, search]);
 
   const recentExercises = useMemo(
     () => recentNames.map((n) => exercises.find((e) => e.name === n)).filter(Boolean) as LibraryExercise[],
     [recentNames, exercises],
   );
 
-  const showRecents = !search.trim() && selectedMuscle === "all" && recentExercises.length > 0;
+  const showRecents = !search.trim() && activeFilterCount === 0 && recentExercises.length > 0;
   const noResults = displayedExercises.length === 0;
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -164,7 +213,7 @@ export function ExerciseCombobox({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="p-0 gap-0 max-w-[95vw] sm:max-w-[420px] top-[12%] translate-y-0">
+        <DialogContent className="p-0 gap-0 max-w-[95vw] sm:max-w-[1100px] top-[6%] translate-y-0">
           <Command shouldFilter={false}>
           {/* Search */}
           <CommandInput
@@ -173,20 +222,90 @@ export function ExerciseCombobox({
             onValueChange={setSearch}
           />
 
-          {/* Muscle pills */}
-          <div className="flex gap-1.5 px-2 py-2 overflow-x-auto border-b scrollbar-none">
-            <MuscleChip label="Tout" active={selectedMuscle === "all"} onClick={() => setSelectedMuscle("all")} />
-            {muscles.map((m) => (
-              <MuscleChip
-                key={m}
-                label={m}
-                active={selectedMuscle === m}
-                onClick={() => setSelectedMuscle(selectedMuscle === m ? "all" : m)}
-              />
-            ))}
+          <div className="sm:flex sm:items-stretch">
+          {/* Filtres — tout visible, sans repli */}
+          <div className={cn("border-b sm:border-b-0 sm:border-r sm:shrink-0 sm:max-h-[72vh] sm:overflow-y-auto px-2 py-2 space-y-2", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <SlidersHorizontal className="h-3 w-3" /> Filtres
+              </span>
+              <span className="text-[11px] text-muted-foreground">· {displayedExercises.length} exo</span>
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={clearFilters} className="ml-auto text-[11px] text-primary underline underline-offset-2">
+                  Effacer ({activeFilterCount})
+                </button>
+              )}
+            </div>
+            {/* Bascule Silhouette/Liste — desktop uniquement */}
+            <div className="hidden sm:flex items-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Muscles</p>
+              <div className="ml-auto flex rounded-md border p-0.5">
+                <button type="button" onClick={() => setMuscleView("body")}
+                  className={cn("rounded px-2 py-0.5 text-[10px] font-medium", muscleView === "body" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                  Silhouette
+                </button>
+                <button type="button" onClick={() => setMuscleView("list")}
+                  className={cn("rounded px-2 py-0.5 text-[10px] font-medium", muscleView === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                  Liste
+                </button>
+              </div>
+            </div>
+
+            {/* Silhouette : desktop seulement, quand mode "body" */}
+            {muscleView === "body" && (
+              <div className="hidden sm:block">
+                <MuscleBodyFilter selected={fMuscles} onToggle={(m) => toggleIn(fMuscles, m, setFMuscles)} />
+              </div>
+            )}
+
+            {/* Liste : toujours sur mobile, sur desktop seulement en mode "list" */}
+            <div className={cn("space-y-2", muscleView === "body" && "sm:hidden")}>
+              {MUSCLE_REGIONS.map((region) => {
+                const items = region.muscles.filter((m) => muscles.includes(m));
+                if (!items.length) return null;
+                return (
+                  <FilterRow key={region.title} title={region.title} dot={region.color}>
+                    {items.map((m) => (
+                      <MuscleChip key={m} label={m} dotColor={region.color} active={fMuscles.includes(m)} onClick={() => toggleIn(fMuscles, m, setFMuscles)} />
+                    ))}
+                  </FilterRow>
+                );
+              })}
+              {(() => {
+                const others = muscles.filter((m) => !regionOf(m));
+                if (!others.length) return null;
+                return (
+                  <FilterRow title="Autre">
+                    {others.map((m) => (
+                      <MuscleChip key={m} label={m} active={fMuscles.includes(m)} onClick={() => toggleIn(fMuscles, m, setFMuscles)} />
+                    ))}
+                  </FilterRow>
+                );
+              })()}
+            </div>
+            <FilterRow title="Matériel">
+              {EQUIP_FILTERS.map((m) => (
+                <MuscleChip key={m} label={m} active={fEquip.includes(m)} onClick={() => toggleIn(fEquip, m, setFEquip)} />
+              ))}
+            </FilterRow>
+            <FilterRow title="Type">
+              {CAT_FILTERS.map((c) => (
+                <MuscleChip key={c.value} label={c.label} active={fCats.includes(c.value)} onClick={() => toggleIn(fCats, c.value, setFCats)} />
+              ))}
+            </FilterRow>
+            <FilterRow title="Intensité (coef.)">
+              {COEF_FILTERS.map((c) => (
+                <MuscleChip
+                  key={c}
+                  label={`×${c}`}
+                  active={fCoef.includes(c)}
+                  onClick={() => setFCoef(fCoef.includes(c) ? fCoef.filter((x) => x !== c) : [...fCoef, c])}
+                />
+              ))}
+            </FilterRow>
           </div>
 
-          <CommandList className="max-h-[280px]">
+          <CommandList className="max-h-[280px] sm:max-h-[72vh] sm:flex-1">
             {/* Recent */}
             {showRecents && (
               <CommandGroup
@@ -276,6 +395,7 @@ export function ExerciseCombobox({
               </div>
             )}
           </CommandList>
+          </div>
           </Command>
         </DialogContent>
       </Dialog>
@@ -285,18 +405,31 @@ export function ExerciseCombobox({
 
 // ─── MuscleChip ───────────────────────────────────────────────────────────────
 
-function MuscleChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function FilterRow({ title, children, dot }: { title: string; children: ReactNode; dot?: string }) {
+  return (
+    <div>
+      <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {dot && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />}
+        {title}
+      </p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
+function MuscleChip({ label, active, onClick, dotColor }: { label: string; active: boolean; onClick: () => void; dotColor?: string }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        "shrink-0 text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap",
+        "flex shrink-0 items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap",
         active
           ? "bg-primary text-primary-foreground border-primary font-medium"
           : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
       )}
     >
+      {dotColor && !active && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: dotColor }} />}
       {label}
     </button>
   );
