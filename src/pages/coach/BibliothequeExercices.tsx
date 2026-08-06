@@ -9,7 +9,6 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { PENDING_COMPLETION_KEY } from "@/components/ExerciseCombobox";
+import { MuscleBodySelector } from "@/components/MuscleBodySelector";
 
 // ─── Types & constants ────────────────────────────────────────────────────────
 
@@ -36,11 +36,51 @@ interface Exercise {
 
 const MUSCLE_GROUPS = [
   'TRICEPS','BICEPS','AVANT-BRAS','DELTOÏDES','TRAPÈZES','DOS',
-  'LOMBAIRES','PEC','ABDOS','OBLIQUES','FESSIERS','QUADRICEPS',
-  'ISCHIOS','MOLLETS','HIP','HALTÉRO','CORE',
+  'LOMBAIRES','PEC','ABDOS','OBLIQUES','FESSIERS','PETITS ET MOYENS FESSIERS',
+  'FLÉCHISSEURS DE HANCHES','ADDUCTEURS','QUADRICEPS','ISCHIOS','MOLLETS','HALTÉRO',
 ] as const;
 
 const CATEGORIES = ['cardio','mobilité-souplesse','renfo','explosivité-vitesse'] as const;
+
+// Emoji par muscle pour repérer plus vite
+const MUSCLE_EMOJI: Record<string, string> = {
+  'TRICEPS': '💪', 'BICEPS': '💪', 'AVANT-BRAS': '✊',
+  'DELTOÏDES': '🙆', 'TRAPÈZES': '🤷', 'DOS': '🔙', 'LOMBAIRES': '🩹',
+  'PEC': '🎽', 'ABDOS': '🧊', 'OBLIQUES': '↔️', 'CORE': '🎯',
+  'FESSIERS': '🍑', 'PETITS ET MOYENS FESSIERS': '🍑', 'FLÉCHISSEURS DE HANCHES': '🕺',
+  'ADDUCTEURS': '🦵', 'QUADRICEPS': '🦵', 'ISCHIOS': '🦵', 'MOLLETS': '🦶',
+  'HALTÉRO': '🏋️',
+};
+const muscleLabel = (m: string) => `${MUSCLE_EMOJI[m] ? MUSCLE_EMOJI[m] + ' ' : ''}${m}`;
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  'cardio': '🏃', 'mobilité-souplesse': '🧘', 'renfo': '🏋️', 'explosivité-vitesse': '⚡',
+};
+
+// Options de matériel (multi-sélection + "Autre")
+const EQUIPMENT_OPTIONS = [
+  { value: 'Barre', emoji: '🏋️' },
+  { value: 'Haltères', emoji: '💪' },
+  { value: 'Kettlebell', emoji: '🫖' },
+  { value: 'Poids du corps', emoji: '🤸' },
+  { value: 'Machine', emoji: '⚙️' },
+  { value: 'Élastique', emoji: '➰' },
+  { value: 'Ergo / Cardio', emoji: '🚴' },
+  { value: 'Autre', emoji: '➕' },
+] as const;
+
+// equipment est stocké en texte (valeurs séparées par des virgules)
+const parseEquipment = (s: string | null): string[] =>
+  (s || '').split(',').map((x) => x.trim()).filter(Boolean);
+const joinEquipment = (arr: string[]): string => arr.join(', ');
+
+// Étapes de la fiche exercice (assistant page par page)
+const EDIT_STEPS = ['Muscles visés', "Type d'exercice", 'Vidéo', 'Matériel', 'Finitions'] as const;
+
+// Sentinel : "cet exercice n'a volontairement aucun muscle secondaire"
+const NONE_SECONDARY = 'AUCUN';
+const hasSecondaryInfo = (ex: { muscles_second: string[] | null }) => (ex.muscles_second?.length ?? 0) > 0;
+const realSecondary = (arr: string[] | null | undefined) => (arr || []).filter((x) => x !== NONE_SECONDARY);
 
 const toTitleCase = (str: string) =>
   str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -54,8 +94,10 @@ interface MissingField { key: string; label: string; required: boolean }
 function getMissingFields(ex: Exercise): MissingField[] {
   const missing: MissingField[] = [];
   if (!ex.muscle_principal) missing.push({ key: "muscle_principal", label: "Muscle principal", required: true });
-  if (!ex.category)         missing.push({ key: "category",         label: "Catégorie",        required: false });
+  if (!hasSecondaryInfo(ex)) missing.push({ key: "muscles_second", label: "Muscle secondaire", required: false });
+  if (!ex.category)         missing.push({ key: "category",         label: "Type d'exercice",  required: false });
   if (!ex.video_url)        missing.push({ key: "video_url",        label: "Vidéo YouTube",    required: false });
+  if (!ex.equipment)        missing.push({ key: "equipment",        label: "Matériel",         required: false });
   return missing;
 }
 
@@ -73,6 +115,53 @@ function CompletenessIndicator({ exercise, size = "sm" }: { exercise: Exercise; 
   );
 }
 
+// ─── Sélecteur de matériel (presets + "Autre" texte libre) ────────────────────
+function EquipmentPicker({ value, onChange, missing }: { value: string | null; onChange: (v: string) => void; missing: boolean }) {
+  const presetVals = EQUIPMENT_OPTIONS.map((o) => o.value);
+  const initial = parseEquipment(value);
+  const [presets, setPresets] = useState<string[]>(() => initial.filter((x) => presetVals.includes(x)));
+  const [otherText, setOtherText] = useState<string>(() => initial.filter((x) => !presetVals.includes(x)).join(", "));
+
+  const emit = (nextPresets: string[], nextOther: string) => {
+    const arr = nextPresets.filter((p) => p !== "Autre");
+    if (nextPresets.includes("Autre")) {
+      arr.push("Autre");
+      if (nextOther.trim()) arr.push(nextOther.trim());
+    }
+    onChange(joinEquipment(arr));
+  };
+
+  const togglePreset = (v: string) => {
+    const next = presets.includes(v) ? presets.filter((x) => x !== v) : [...presets, v];
+    setPresets(next);
+    emit(next, otherText);
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className={cn("text-xs font-semibold uppercase tracking-wide", missing ? "text-amber-500" : "text-muted-foreground")}>
+        Matériel {missing && "· à compléter"}
+      </Label>
+      <div className="flex flex-wrap gap-1.5">
+        {EQUIPMENT_OPTIONS.map((o) => (
+          <button key={o.value} type="button" onClick={() => togglePreset(o.value)}
+            className={cn("text-sm px-3 py-1.5 rounded-full border transition-all", presets.includes(o.value) ? "bg-primary text-primary-foreground border-primary font-medium" : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground")}>
+            {o.emoji} {o.value}
+          </button>
+        ))}
+      </div>
+      {presets.includes("Autre") && (
+        <Input
+          value={otherText}
+          onChange={(e) => { setOtherText(e.target.value); emit(presets, e.target.value); }}
+          placeholder="Précise l'autre matériel (ex : corde à sauter, sangles TRX)"
+          className="mt-1"
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function BibliothequeExercices() {
@@ -81,6 +170,7 @@ export default function BibliothequeExercices() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [showIncomplete, setShowIncomplete] = useState(false);
+  const [showNoSecondary, setShowNoSecondary] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Add dialog
@@ -94,6 +184,7 @@ export default function BibliothequeExercices() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [sheetIndex, setSheetIndex] = useState(0);
+  const [editStep, setEditStep] = useState(0);
 
   // Delete confirm
   const [deleteConfirm, setDeleteConfirm] = useState<Exercise | null>(null);
@@ -107,7 +198,7 @@ export default function BibliothequeExercices() {
   const pendingHandled = useRef(false);
 
   useEffect(() => { loadExercises(); }, []);
-  useEffect(() => { filterExercises(); }, [exercises, searchTerm, selectedMuscle, showIncomplete]);
+  useEffect(() => { filterExercises(); }, [exercises, searchTerm, selectedMuscle, showIncomplete, showNoSecondary]);
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -143,6 +234,7 @@ export default function BibliothequeExercices() {
     );
     if (selectedMuscle !== "all") filtered = filtered.filter((ex) => ex.muscle_principal === selectedMuscle);
     if (showIncomplete) filtered = filtered.filter((ex) => getMissingFields(ex).length > 0);
+    if (showNoSecondary) filtered = filtered.filter((ex) => !hasSecondaryInfo(ex));
     filtered = [...filtered].sort((a, b) => {
       // Incomplete exercises first
       const aMissing = getMissingFields(a).length;
@@ -160,6 +252,7 @@ export default function BibliothequeExercices() {
     const idx = source.findIndex((e) => e.id === exercise.id);
     setEditingExercise({ ...exercise });
     setSheetIndex(idx >= 0 ? idx : 0);
+    setEditStep(0);
     setSheetOpen(true);
   };
 
@@ -203,12 +296,12 @@ export default function BibliothequeExercices() {
       unilateral: editingExercise.unilateral,
       load_coefficient: editingExercise.load_coefficient,
     }).eq("id", editingExercise.id);
-    if (error) { toast.error("Erreur lors de la modification"); }
+    if (error) { toast.error(`Erreur : ${error.message}`); console.error("edit exercise error", error); }
     else {
       toast.success("Exercice mis à jour");
       setExercises((prev) => prev.map((e) => e.id === editingExercise.id ? { ...e, ...editingExercise } : e));
-      // Stay in sheet, update filtered list too
       setFilteredExercises((prev) => prev.map((e) => e.id === editingExercise.id ? { ...e, ...editingExercise } : e));
+      setSheetOpen(false); // ferme la fiche et revient à la bibliothèque
     }
   };
 
@@ -266,6 +359,7 @@ export default function BibliothequeExercices() {
 
   const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort() as string[];
   const incompleteCount = exercises.filter((ex) => getMissingFields(ex).length > 0).length;
+  const noSecondaryCount = exercises.filter((ex) => !hasSecondaryInfo(ex)).length;
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -398,15 +492,24 @@ export default function BibliothequeExercices() {
             <Input placeholder="Rechercher un exercice..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant={selectedMuscle === "all" && !showIncomplete ? "default" : "outline"} className="cursor-pointer" onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); }}>Tous</Badge>
+            <Badge variant={selectedMuscle === "all" && !showIncomplete && !showNoSecondary ? "default" : "outline"} className="cursor-pointer" onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); setShowNoSecondary(false); }}>Tous</Badge>
             {incompleteCount > 0 && (
               <Badge
                 variant={showIncomplete ? "default" : "outline"}
                 className={cn("cursor-pointer gap-1", showIncomplete ? "bg-amber-500 border-amber-500 hover:bg-amber-600" : "border-amber-500 text-amber-600 hover:bg-amber-50")}
-                onClick={() => { setShowIncomplete((v) => !v); setSelectedMuscle("all"); }}
+                onClick={() => { setShowIncomplete((v) => !v); setShowNoSecondary(false); setSelectedMuscle("all"); }}
               >
                 <AlertTriangle className="h-3 w-3" />
                 Incomplets ({incompleteCount})
+              </Badge>
+            )}
+            {noSecondaryCount > 0 && (
+              <Badge
+                variant={showNoSecondary ? "default" : "outline"}
+                className={cn("cursor-pointer gap-1", showNoSecondary ? "bg-primary border-primary" : "border-primary/60 text-primary hover:bg-primary/10")}
+                onClick={() => { setShowNoSecondary((v) => !v); setShowIncomplete(false); setSelectedMuscle("all"); }}
+              >
+                Sans 2ndaire ({noSecondaryCount})
               </Badge>
             )}
             {muscles.map((muscle) => (
@@ -522,15 +625,15 @@ export default function BibliothequeExercices() {
         </>
       )}
 
-      {/* ── Edit Sheet ─────────────────────────────────────────────────────── */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-full sm:w-[520px] overflow-y-auto flex flex-col p-0 gap-0 pt-[calc(env(safe-area-inset-top)+0.5rem)] [&>button.absolute]:hidden">
+      {/* ── Fiche exercice (centrée) ──────────────────────────────────────── */}
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="max-w-5xl w-[97vw] max-h-[92vh] overflow-hidden flex flex-col p-0 gap-0 [&>button.absolute]:hidden">
           {editingExercise && (() => {
             const missing = getMissingFields(editingExercise);
             return (
               <>
-                {/* Sheet header with navigation */}
-                <SheetHeader className="px-5 py-4 border-b border-border/40 shrink-0">
+                {/* En-tête avec navigation */}
+                <div className="px-5 py-4 border-b border-border/40 shrink-0">
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" className="h-8 gap-1" onClick={() => setSheetOpen(false)}>
                       <ArrowLeft className="h-4 w-4" /> Retour
@@ -545,14 +648,14 @@ export default function BibliothequeExercices() {
                       </Button>
                     </div>
                   </div>
-                  <SheetTitle className="text-base font-bold truncate">{toTitleCase(editingExercise.name)}</SheetTitle>
+                  <h2 className="text-lg font-bold truncate mt-2">{toTitleCase(editingExercise.name)}</h2>
 
-                  {/* Completeness summary */}
+                  {/* Rappel à compléter */}
                   {missing.length > 0 ? (
                     <div className="flex flex-wrap gap-1.5 mt-1">
                       {missing.map((f) => (
                         <span key={f.key} className={cn("text-[10px] px-2 py-0.5 rounded-full border font-medium", f.required ? "border-destructive/50 text-destructive bg-destructive/5" : "border-amber-400/50 text-amber-600 bg-amber-50/10")}>
-                          {f.required ? "⚠ " : "· "}{f.label}
+                          {f.required ? "⚠ " : "· "}À compléter : {f.label}
                         </span>
                       ))}
                     </div>
@@ -561,63 +664,85 @@ export default function BibliothequeExercices() {
                       <CheckCircle2 className="h-3.5 w-3.5" /> Fiche complète
                     </p>
                   )}
-                </SheetHeader>
+                </div>
 
-                {/* Form */}
+                {/* Formulaire — assistant page par page */}
                 <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
-                  {/* Name */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom</Label>
-                    <Input value={editingExercise.name} onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })} />
+                  {/* Progression */}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold">{EDIT_STEPS[editStep]}</p>
+                    <span className="text-xs text-muted-foreground">Étape {editStep + 1} / {EDIT_STEPS.length}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {EDIT_STEPS.map((_, i) => (
+                      <div key={i} className={cn("h-1 flex-1 rounded-full", i <= editStep ? "bg-primary" : "bg-muted")} />
+                    ))}
                   </div>
 
-                  {/* Muscle principal */}
-                  <div className="space-y-1.5">
+                  {/* Étape 0 : Muscles visés (sur le corps) */}
+                  {editStep === 0 && (
+                  <div className="space-y-2">
                     <Label className={cn("text-xs font-semibold uppercase tracking-wide", !editingExercise.muscle_principal ? "text-destructive" : "text-muted-foreground")}>
-                      Muscle principal {!editingExercise.muscle_principal && "⚠ manquant"}
+                      Muscles visés {!editingExercise.muscle_principal && "⚠ principal à définir"}
                     </Label>
-                    <div className={cn("flex flex-wrap gap-1.5 p-3 rounded-lg border", !editingExercise.muscle_principal && "border-destructive/50 bg-destructive/5")}>
-                      {MUSCLE_GROUPS.map((m) => (
-                        <button key={m} type="button" onClick={() => setEditingExercise({ ...editingExercise, muscle_principal: editingExercise.muscle_principal === m ? null : m })}
-                          className={cn("text-xs px-2.5 py-1 rounded-full border transition-all", editingExercise.muscle_principal === m ? "bg-primary text-primary-foreground border-primary font-medium" : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground")}>
-                          {m}
-                        </button>
-                      ))}
+                    <MuscleBodySelector
+                      value={{ principal: editingExercise.muscle_principal, secondary: realSecondary(editingExercise.muscles_second) }}
+                      onChange={(sel) => setEditingExercise({ ...editingExercise, muscle_principal: sel.principal, muscles_second: sel.secondary.length ? sel.secondary : null })}
+                    />
+                    {/* Extras : haltérophilie + aucun muscle secondaire */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {['HALTÉRO'].map((m) => {
+                        const isP = editingExercise.muscle_principal === m;
+                        const isS = realSecondary(editingExercise.muscles_second).includes(m);
+                        return (
+                          <button key={m} type="button"
+                            onClick={() => {
+                              if (isP) setEditingExercise({ ...editingExercise, muscle_principal: null });
+                              else if (isS) setEditingExercise({ ...editingExercise, muscles_second: realSecondary(editingExercise.muscles_second).filter((x) => x !== m) });
+                              else if (!editingExercise.muscle_principal) setEditingExercise({ ...editingExercise, muscle_principal: m });
+                              else setEditingExercise({ ...editingExercise, muscles_second: [...realSecondary(editingExercise.muscles_second), m] });
+                            }}
+                            className={cn("text-xs px-3 py-1.5 rounded-full border transition-all", isP ? "bg-primary text-primary-foreground border-primary font-bold" : isS ? "bg-secondary text-foreground border-border" : "border-border/60 text-muted-foreground hover:border-foreground/40")}>
+                            🏋️ {toTitleCase(m)}
+                          </button>
+                        );
+                      })}
+                      {(() => {
+                        const none = (editingExercise.muscles_second || []).includes(NONE_SECONDARY);
+                        return (
+                          <button type="button"
+                            onClick={() => setEditingExercise({ ...editingExercise, muscles_second: none ? null : [NONE_SECONDARY] })}
+                            className={cn("text-xs px-3 py-1.5 rounded-full border transition-all", none ? "bg-primary text-primary-foreground border-primary font-medium" : "border-border/60 text-muted-foreground hover:border-foreground/40")}>
+                            🚫 Aucun muscle secondaire
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
+                  )}
 
-                  {/* Muscles secondaires */}
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Muscles secondaires</Label>
-                    <div className="flex flex-wrap gap-1.5 p-3 rounded-lg border border-border/40">
-                      {MUSCLE_GROUPS.filter((m) => m !== editingExercise.muscle_principal).map((m) => (
-                        <button key={m} type="button" onClick={() => toggleSecondaryMuscle(m, true)}
-                          className={cn("text-xs px-2.5 py-1 rounded-full border transition-all", (editingExercise.muscles_second || []).includes(m) ? "bg-secondary text-foreground border-border font-medium" : "border-border/40 text-muted-foreground hover:border-border hover:text-foreground")}>
-                          {m}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Catégorie */}
+                  {/* Étape 1 : Type d'exercice */}
+                  {editStep === 1 && (
                   <div className="space-y-1.5">
                     <Label className={cn("text-xs font-semibold uppercase tracking-wide", !editingExercise.category ? "text-amber-500" : "text-muted-foreground")}>
-                      Catégorie {!editingExercise.category && "· manquante"}
+                      Type d'exercice {!editingExercise.category && "· à compléter"}
                     </Label>
                     <div className="flex flex-wrap gap-1.5">
                       {CATEGORIES.map((cat) => (
                         <button key={cat} type="button" onClick={() => setEditingExercise({ ...editingExercise, category: editingExercise.category === cat ? null : cat })}
-                          className={cn("text-xs px-3 py-1.5 rounded-lg border capitalize transition-all", editingExercise.category === cat ? "bg-primary text-primary-foreground border-primary font-medium" : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground")}>
-                          {cat}
+                          className={cn("text-sm px-3 py-1.5 rounded-lg border capitalize transition-all", editingExercise.category === cat ? "bg-primary text-primary-foreground border-primary font-medium" : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground")}>
+                          {CATEGORY_EMOJI[cat]} {cat}
                         </button>
                       ))}
                     </div>
                   </div>
+                  )}
 
-                  {/* Vidéo */}
+                  {/* Étape 3 : Vidéo */}
+                  {editStep === 2 && (
                   <div className="space-y-1.5">
                     <Label className={cn("text-xs font-semibold uppercase tracking-wide flex items-center gap-1", !editingExercise.video_url ? "text-amber-500" : "text-muted-foreground")}>
-                      <Youtube className="h-3.5 w-3.5" /> Lien YouTube {!editingExercise.video_url && "· manquant"}
+                      <Youtube className="h-3.5 w-3.5" /> Lien YouTube {!editingExercise.video_url && "· à compléter"}
                     </Label>
                     <Input
                       value={editingExercise.video_url || ""}
@@ -631,63 +756,92 @@ export default function BibliothequeExercices() {
                       </a>
                     )}
                   </div>
+                  )}
 
-                  {/* Équipement */}
-                  <div className="space-y-1.5">
-                    <Label className={cn("text-xs font-semibold uppercase tracking-wide", !editingExercise.equipment ? "text-amber-500" : "text-muted-foreground")}>
-                      Équipement {!editingExercise.equipment && "· manquant"}
-                    </Label>
-                    <Input
-                      value={editingExercise.equipment || ""}
-                      onChange={(e) => setEditingExercise({ ...editingExercise, equipment: e.target.value })}
-                      placeholder="Ex : Barre, Haltères, Poids du corps…"
-                      className={cn(!editingExercise.equipment && "border-amber-400/60 focus-visible:ring-amber-400/30")}
+                  {/* Étape 4 : Matériel (multi-sélection) */}
+                  {editStep === 3 && (
+                    <EquipmentPicker
+                      key={editingExercise.id}
+                      value={editingExercise.equipment}
+                      missing={!editingExercise.equipment}
+                      onChange={(v) => setEditingExercise({ ...editingExercise, equipment: v })}
                     />
-                  </div>
+                  )}
 
-                  {/* Unilatéral */}
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="edit-unilateral" checked={editingExercise.unilateral || false}
-                      onCheckedChange={(c) => setEditingExercise({ ...editingExercise, unilateral: c as boolean })} />
-                    <label htmlFor="edit-unilateral" className="text-sm cursor-pointer">Exercice unilatéral</label>
+                  {/* Étape 5 : Finitions (nom, coefficient, description) */}
+                  {editStep === 4 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nom</Label>
+                    <Input value={editingExercise.name} onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })} />
                   </div>
+                  )}
 
                   {/* Coefficient */}
+                  {editStep === 4 && (
                   <div className="space-y-1.5">
                     <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Coefficient de charge</Label>
-                    <p className="text-xs text-muted-foreground">Squat/Deadlift : 1.5–2.0 · Press/Bench : 1.2 · Isolation : 0.5–0.7</p>
-                    <Input type="number" step="0.1" min="0.1" max="3" value={editingExercise.load_coefficient || 1.0}
-                      onChange={(e) => setEditingExercise({ ...editingExercise, load_coefficient: parseFloat(e.target.value) || 1.0 })} />
+                    <p className="text-xs text-muted-foreground">Sert à estimer la charge de départ selon le type de mouvement.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { v: 0.3, label: "Mobilité / Souplesse", hint: "étirements, mobilité" },
+                        { v: 0.6, label: "Isolation", hint: "curl, extension…" },
+                        { v: 1.0, label: "Standard", hint: "poulie, machine…" },
+                        { v: 1.2, label: "Poussée / Press", hint: "développés" },
+                        { v: 1.5, label: "Gros polyarticulaire", hint: "fentes, hip thrust…" },
+                        { v: 2.0, label: "Squat / Deadlift", hint: "gros bas du corps" },
+                      ].map((opt) => {
+                        const active = Math.abs((editingExercise.load_coefficient || 1.0) - opt.v) < 0.05;
+                        return (
+                          <button key={opt.v} type="button"
+                            onClick={() => setEditingExercise({ ...editingExercise, load_coefficient: opt.v })}
+                            className={cn("text-left rounded-lg border px-3 py-2 transition-all", active ? "border-primary bg-primary/10" : "border-border/60 hover:border-foreground/40")}>
+                            <div className={cn("text-sm font-medium", active && "text-primary")}>{opt.label} <span className="text-xs opacity-70">×{opt.v}</span></div>
+                            <div className="text-[10px] text-muted-foreground">{opt.hint}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                  )}
 
                   {/* Description */}
+                  {editStep === 4 && (
                   <div className="space-y-1.5">
-                    <Label className={cn("text-xs font-semibold uppercase tracking-wide", !editingExercise.description ? "text-amber-500" : "text-muted-foreground")}>
-                      Description {!editingExercise.description && "· manquante"}
-                    </Label>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description (optionnel)</Label>
                     <Textarea
                       value={editingExercise.description || ""}
                       onChange={(e) => setEditingExercise({ ...editingExercise, description: e.target.value })}
                       placeholder="Points techniques, variantes, erreurs courantes…"
                       rows={4}
-                      className={cn(!editingExercise.description && "border-amber-400/60 focus-visible:ring-amber-400/30")}
                     />
                   </div>
+                  )}
                 </div>
 
-                {/* Footer actions */}
-                <div className="px-5 py-4 border-t border-border/40 bg-card/50 flex gap-2 shrink-0">
+                {/* Footer : navigation entre étapes */}
+                <div className="px-5 py-4 border-t border-border/40 bg-card/50 flex items-center gap-2 shrink-0">
                   <Button variant="destructive" size="sm" className="gap-1.5"
                     onClick={() => setDeleteConfirm(filteredExercises[sheetIndex])}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
-                  <Button className="flex-1" onClick={handleEditExercise}>Enregistrer</Button>
+                  {editStep > 0 && (
+                    <Button variant="outline" onClick={() => setEditStep((s) => s - 1)}>
+                      <ChevronLeft className="h-4 w-4 mr-1" /> Précédent
+                    </Button>
+                  )}
+                  {editStep < EDIT_STEPS.length - 1 ? (
+                    <Button className="flex-1" onClick={() => setEditStep((s) => s + 1)}>
+                      Suivant <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" onClick={handleEditExercise}>Enregistrer</Button>
+                  )}
                 </div>
               </>
             );
           })()}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete confirm dialog */}
       <Dialog open={!!deleteConfirm} onOpenChange={(o) => !o && setDeleteConfirm(null)}>

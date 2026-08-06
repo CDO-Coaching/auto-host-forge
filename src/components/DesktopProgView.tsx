@@ -1361,8 +1361,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             <TableHead className="min-w-[160px]">Exercice</TableHead>
                             <TableHead className="min-w-[90px]">Récup</TableHead>
                             <TableHead className="min-w-[70px]">Reps</TableHead>
-                            <TableHead className="min-w-[50px]">RPE</TableHead>
                             <TableHead className="min-w-[80px]">Charge</TableHead>
+                            <TableHead className="min-w-[50px]">RPE</TableHead>
                             <TableHead className="min-w-[70px]">Tempo</TableHead>
                             <TableHead className="min-w-[120px]">Comm.</TableHead>
                             <TableHead className="min-w-[60px]">Séries</TableHead>
@@ -1559,10 +1559,10 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                               </div>
                                             </TableCell>
                                             <TableCell>
-                                              <Input value={ex.rpe} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "rpe", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "rpe")} placeholder="8" disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="rpe" />
+                                              <Input value={ex.charge} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "charge", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "charge")} placeholder={chargeSuggestions[selectedSession.id]?.[ex.id] ? `${chargeSuggestions[selectedSession.id][ex.id]}kg` : "80kg"} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="charge" />
                                             </TableCell>
                                             <TableCell>
-                                              <Input value={ex.charge} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "charge", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "charge")} placeholder={chargeSuggestions[selectedSession.id]?.[ex.id] ? `${chargeSuggestions[selectedSession.id][ex.id]}kg` : "80kg"} disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="charge" />
+                                              <Input value={ex.rpe} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "rpe", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "rpe")} placeholder="8" disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="rpe" />
                                             </TableCell>
                                             <TableCell>
                                               <Input value={ex.tempo} onChange={(e) => onExerciseChange(selectedSession.id, ex.id, "tempo", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, ex.id, "tempo")} placeholder="3010" disabled={isValidated} data-session={selectedSession.id} data-exercise={ex.id} data-field="tempo" />
@@ -1609,13 +1609,13 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                     </Select>
                                                   </TableCell>
                                                   <TableCell className="py-1"><Input value={serie.reps} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "reps", e.target.value)} placeholder={ex.reps || "reps"} disabled={isValidated} className="h-7 text-xs" /></TableCell>
-                                                  <TableCell className="py-1"><Input value={serie.rpe} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "rpe", e.target.value)} placeholder={ex.rpe || "RPE"} disabled={isValidated} className="h-7 text-xs" /></TableCell>
                                                   <TableCell className="py-1">
                                                     <div className="relative">
                                                       <Input value={serie.charge} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "charge", e.target.value)} placeholder={serieChargeSuggestions[`${ex.id}-${si}`] ? `${serieChargeSuggestions[`${ex.id}-${si}`]}kg` : (ex.charge || "charge")} disabled={isValidated} className="h-7 text-xs" />
                                                       {getPercentSuggestion(serie.charge || ex.charge, ex.exercice) && <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">{getPercentSuggestion(serie.charge || ex.charge, ex.exercice)}</span>}
                                                     </div>
                                                   </TableCell>
+                                                  <TableCell className="py-1"><Input value={serie.rpe} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "rpe", e.target.value)} placeholder={ex.rpe || "RPE"} disabled={isValidated} className="h-7 text-xs" /></TableCell>
                                                   <TableCell className="py-1"><Input value={serie.tempo} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "tempo", e.target.value)} placeholder={ex.tempo || "tempo"} disabled={isValidated} className="h-7 text-xs" /></TableCell>
                                                   <TableCell className="py-1"><Input value={serie.commentaire} onChange={(e) => onSerieDetailChange(selectedSession.id, ex.id, si, "commentaire", e.target.value)} placeholder="..." disabled={isValidated} className="h-7 text-xs" /></TableCell>
                                                   <TableCell colSpan={4} />
@@ -1697,15 +1697,15 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         </div>
                                       </TableCell>
                                       <TableCell>
-                                        <Input value={exercise.rpe} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "rpe", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "rpe")} placeholder="8" disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="rpe" />
-                                      </TableCell>
-                                      <TableCell>
                                         <div className="relative">
                                           <Input value={exercise.charge} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "charge", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "charge")} placeholder={!exercise.charge && chargeSuggestions[selectedSession.id]?.[exercise.id] ? `${chargeSuggestions[selectedSession.id][exercise.id]}kg` : "80kg"} disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="charge" />
                                           {getPercentSuggestion(exercise.charge, exercise.exercice) && (
                                             <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">{getPercentSuggestion(exercise.charge, exercise.exercice)}</span>
                                           )}
                                         </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <Input value={exercise.rpe} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "rpe", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "rpe")} placeholder="8" disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="rpe" />
                                       </TableCell>
                                       <TableCell>
                                         <Input value={exercise.tempo} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "tempo", e.target.value)} onKeyDown={(e) => onKeyDown(e, selectedSession.id, exercise.id, "tempo")} placeholder="3010" disabled={isValidated} data-session={selectedSession.id} data-exercise={exercise.id} data-field="tempo" />
@@ -1751,7 +1751,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         </TableRow>
                                         {!collapsedSeriesExercises[exercise.id] && (getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details) : Array.from({ length: parseInt(exercise.series || "0") }, () => ({ reps: exercise.reps ?? "", charge: exercise.charge ?? "", rpe: exercise.rpe ?? "", tempo: exercise.tempo ?? "", commentaire: "", recuperation: exercise.recuperation ?? "" }))).map((serie, si) => {
                                           const totalSeries = getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details).length : parseInt(exercise.series || "0");
-                                          const serieFields = ["reps", "rpe", "charge", "tempo", "commentaire"] as const;
+                                          const serieFields = ["reps", "charge", "rpe", "tempo", "commentaire"] as const;
                                           const handleSerieKeyDown = (e: React.KeyboardEvent, field: string) => {
                                             if (e.key !== "Enter") return;
                                             e.preventDefault();
@@ -1778,13 +1778,13 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                                 </Select>
                                               </TableCell>
                                               <TableCell className="py-1"><Input value={serie.reps} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "reps", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "reps")} placeholder={exercise.reps || "reps"} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="reps" /></TableCell>
-                                              <TableCell className="py-1"><Input value={serie.rpe} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "rpe", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "rpe")} placeholder={exercise.rpe || "RPE"} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="rpe" /></TableCell>
                                               <TableCell className="py-1">
                                                 <div className="relative">
                                                   <Input value={serie.charge} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "charge", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "charge")} placeholder={serieChargeSuggestions[`${exercise.id}-${si}`] ? `${serieChargeSuggestions[`${exercise.id}-${si}`]}kg` : (exercise.charge || "charge")} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="charge" />
                                                   {getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice) && <span className="absolute -bottom-3.5 left-0 text-[9px] text-primary font-medium whitespace-nowrap">{getPercentSuggestion(serie.charge || exercise.charge, exercise.exercice)}</span>}
                                                 </div>
                                               </TableCell>
+                                              <TableCell className="py-1"><Input value={serie.rpe} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "rpe", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "rpe")} placeholder={exercise.rpe || "RPE"} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="rpe" /></TableCell>
                                               <TableCell className="py-1"><Input value={serie.tempo} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "tempo", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "tempo")} placeholder={exercise.tempo || "tempo"} disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="tempo" /></TableCell>
                                               <TableCell className="py-1"><Input value={serie.commentaire} onChange={(e) => onSerieDetailChange(selectedSession.id, exercise.id, si, "commentaire", e.target.value)} onKeyDown={(e) => handleSerieKeyDown(e, "commentaire")} placeholder="..." disabled={isValidated} className="h-7 text-xs" data-serie-exercise={exercise.id} data-serie-index={si} data-serie-field="commentaire" /></TableCell>
                                               <TableCell colSpan={4} />

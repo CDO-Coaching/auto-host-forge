@@ -3995,7 +3995,7 @@ export default function ClientDetail() {
       }
 
       // "par côté" est désormais disponible pour tous les exercices
-      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance", "per_side", "rpe", "charge", "tempo", "commentaire", "series"];
+      const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance", "per_side", "charge", "rpe", "tempo", "commentaire", "series"];
 
       const currentIndex = fieldOrder.indexOf(field as string);
       const nextField = fieldOrder[currentIndex + 1];
