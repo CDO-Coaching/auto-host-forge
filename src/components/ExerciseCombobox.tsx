@@ -10,7 +10,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { MuscleBodyFilter } from "@/components/MuscleBodySelector";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -225,7 +224,7 @@ export function ExerciseCombobox({
 
           <div className="sm:flex sm:items-stretch">
           {/* Filtres — tout visible, sans repli */}
-          <div className={cn("border-b sm:border-b-0 sm:border-r sm:shrink-0 sm:max-h-[72vh] sm:overflow-y-auto px-2 py-2 space-y-2", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
+          <div className={cn("border-b sm:border-b-0 sm:border-r sm:shrink-0 sm:max-h-[72vh] sm:overflow-y-auto px-2 py-1.5 space-y-1.5", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setFiltersOpen((v) => !v)} className="flex items-center gap-1 sm:pointer-events-none">
                 <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
@@ -242,7 +241,7 @@ export function ExerciseCombobox({
               )}
             </div>
 
-            <div className={cn("space-y-2", !filtersOpen && "hidden sm:block")}>
+            <div className={cn("space-y-1.5", !filtersOpen && "hidden sm:block")}>
             {/* Bascule Silhouette/Liste — desktop uniquement */}
             <div className="hidden sm:flex items-center gap-2">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Muscles</p>
@@ -335,11 +334,6 @@ export function ExerciseCombobox({
                     {!ex.video_url && (
                       <VideoOff className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Pas de vidéo" />
                     )}
-                    {ex.muscle_principal && (
-                      <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 shrink-0">
-                        {ex.muscle_principal}
-                      </Badge>
-                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -353,24 +347,13 @@ export function ExerciseCombobox({
                     key={ex.id}
                     value={ex.name}
                     onSelect={() => handleSelect(ex.name)}
-                    className="flex items-start gap-2 py-1.5"
+                    className="flex items-center gap-2 py-1.5"
                   >
-                    <Check className={cn("h-4 w-4 mt-0.5 shrink-0", value === ex.name ? "opacity-100" : "opacity-0")} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium uppercase text-sm">{ex.name}</span>
-                        {!ex.video_url && (
-                          <VideoOff className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Pas de vidéo" />
-                        )}
-                      </div>
-                      {ex.muscles_second && ex.muscles_second.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-0.5">
-                          {ex.muscles_second.map((m, i) => (
-                            <Badge key={i} variant="secondary" className="text-[9px] px-1 py-0 h-4">{m}</Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <Check className={cn("h-4 w-4 shrink-0", value === ex.name ? "opacity-100" : "opacity-0")} />
+                    <span className="font-medium uppercase text-sm flex-1 truncate">{ex.name}</span>
+                    {!ex.video_url && (
+                      <VideoOff className="h-3.5 w-3.5 shrink-0 text-amber-500" title="Pas de vidéo" />
+                    )}
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -416,11 +399,11 @@ export function ExerciseCombobox({
 function FilterRow({ title, children, dot }: { title: string; children: ReactNode; dot?: string }) {
   return (
     <div>
-      <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {dot && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: dot }} />}
+      <p className="mb-0.5 flex items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {dot && <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />}
         {title}
       </p>
-      <div className="flex flex-wrap gap-1.5">{children}</div>
+      <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
 }
@@ -431,13 +414,13 @@ function MuscleChip({ label, active, onClick, dotColor }: { label: string; activ
       type="button"
       onClick={onClick}
       className={cn(
-        "flex shrink-0 items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all whitespace-nowrap",
+        "flex shrink-0 items-center gap-1 text-[11px] leading-none px-2 py-1 rounded-full border transition-all whitespace-nowrap",
         active
           ? "bg-primary text-primary-foreground border-primary font-medium"
           : "border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground",
       )}
     >
-      {dotColor && !active && <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: dotColor }} />}
+      {dotColor && !active && <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dotColor }} />}
       {label}
     </button>
   );

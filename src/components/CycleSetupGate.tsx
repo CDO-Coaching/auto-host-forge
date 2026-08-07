@@ -353,6 +353,7 @@ function MesoForm({ form, onChange }: { form: MesoFormData; onChange: (f: MesoFo
 export function CycleSetupGate({
   athleteId, athleteName, onComplete, onNavigateToObjectives, onDismiss,
 }: CycleSetupGateProps) {
+  const [expanded, setExpanded] = useState(false); // false = petite pastille flottante ; true = formulaire complet
   const [step, setStep] = useState<Step>("macro");
   const [macroForm, setMacroForm] = useState<MacroFormData>(defaultMacroForm(24));
   const [mesoForm, setMesoForm] = useState<MesoFormData>(defaultMesoForm("accumulation", 4));
@@ -543,11 +544,44 @@ export function CycleSetupGate({
     : 0;
 
   return (
-    <Dialog open modal onOpenChange={(o) => { if (!o) onDismiss?.(); }}>
+    <>
+      {/* ── Petite fenêtre flottante (non bloquante) ── */}
+      {!expanded && (
+        <div className="fixed z-50 bottom-4 right-4 left-4 sm:left-auto sm:w-[340px] animate-in slide-in-from-bottom-4 fade-in duration-300">
+          <div className="rounded-2xl border border-primary/30 bg-card shadow-lg shadow-black/20 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setExpanded(true)}
+              className="flex w-full items-center gap-3 p-3.5 text-left active:bg-muted/40 transition-colors"
+            >
+              <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Layers className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold leading-tight truncate">Planifier le macrocycle</p>
+                <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                  {athleteName} · requis avant de programmer
+                </p>
+              </div>
+              <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+            </button>
+          </div>
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              aria-label="Masquer le rappel"
+              className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground shadow hover:text-foreground"
+            >
+              <XIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+    <Dialog open={expanded} modal onOpenChange={(o) => { if (!o) setExpanded(false); }}>
       <DialogContent
         className="max-w-2xl w-[95vw] max-h-[90dvh] flex flex-col p-0 gap-0 overflow-hidden"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => { if (!onDismiss) e.preventDefault(); }}
       >
         {/* Header */}
         <DialogHeader className="px-6 py-5 border-b border-border/40 shrink-0">
@@ -817,5 +851,6 @@ export function CycleSetupGate({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 }
