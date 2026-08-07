@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
@@ -180,6 +181,32 @@ function RenfoExerciseRow({
   onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [seriesOpen, setSeriesOpen] = useState(false); // détail des séries fermé par défaut
+  // Glissé vers la gauche pour révéler "Supprimer"
+  const REVEAL = 88;
+  const [dragX, setDragX] = useState(0);
+  const startX = useRef(0);
+  const baseX = useRef(0);
+  const moved = useRef(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0].clientX;
+    baseX.current = dragX;
+    moved.current = false;
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const delta = e.touches[0].clientX - startX.current;
+    if (Math.abs(delta) > 6) moved.current = true;
+    setDragX(Math.max(-REVEAL, Math.min(0, baseX.current + delta)));
+  };
+  const onTouchEnd = () => {
+    setDragX(dragX < -REVEAL / 2 ? -REVEAL : 0);
+  };
+  const onHeaderClick = () => {
+    if (moved.current) return;        // c'était un glissé, pas un tap
+    if (dragX < 0) { setDragX(0); return; } // referme si ouvert
+    setExpanded((v) => !v);
+  };
 
   const summary = [
     exercise.series && `${exercise.series}×`,
@@ -190,49 +217,63 @@ function RenfoExerciseRow({
 
   return (
     <div className="border-b border-border/30 last:border-0">
-      {/* En-tête de l'exercice — tap pour expand */}
-      <div
-        className="flex items-center gap-3 px-4 py-3 active:bg-muted/40 transition-colors cursor-pointer"
-        onClick={() => setExpanded((v) => !v)}
-      >
-        <div className="flex-1 min-w-0">
-          <p className={cn("font-medium text-sm truncate", feedback?.skipped && "line-through text-muted-foreground")}>
-            {exercise.exercice || <span className="text-muted-foreground italic">Sans nom</span>}
-          </p>
-          {summary && <p className="text-xs text-muted-foreground mt-0.5">{summary}</p>}
-          {feedback && (
-            <div className="mt-1 text-[10px] bg-primary/10 border-l-2 border-primary/50 rounded-r px-1.5 py-0.5">
-              {feedback.skipped ? (
-                <span className="text-destructive font-medium">⚠️ Non fait</span>
-              ) : (
-                <span className="text-muted-foreground">
-                  {feedback.sportif_rpe && <span>RPE réel: <b className="text-foreground">{feedback.sportif_rpe}</b> </span>}
-                  {feedback.sportif_comment && <span className="italic">"{feedback.sportif_comment}"</span>}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Zone glissable : le bouton Supprimer est révélé derrière */}
+      <div className="relative overflow-hidden">
         {!isValidated && (
           <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-2 text-muted-foreground active:text-destructive shrink-0"
+            onClick={() => { onDelete(); setDragX(0); }}
+            className="absolute inset-y-0 right-0 flex items-center justify-center gap-1 bg-destructive px-4 text-destructive-foreground"
+            style={{ width: REVEAL }}
+            aria-label="Supprimer l'exercice"
           >
             <Trash2 className="h-4 w-4" />
+            <span className="text-xs font-medium">Suppr.</span>
           </button>
         )}
-        {expanded ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-        )}
+        {/* En-tête de l'exercice — tap pour expand, glissé gauche pour supprimer */}
+        <div
+          className="relative flex items-center gap-3 bg-background px-4 py-3 active:bg-muted/40 cursor-pointer"
+          style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 || dragX === -REVEAL ? "transform 0.2s ease" : "none", touchAction: "pan-y" }}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onClick={onHeaderClick}
+        >
+          <div className="flex-1 min-w-0">
+            <p className={cn("font-medium text-sm truncate", feedback?.skipped && "line-through text-muted-foreground")}>
+              {exercise.exercice || <span className="text-muted-foreground italic">Sans nom</span>}
+            </p>
+            {summary && <p className="text-xs text-muted-foreground mt-0.5">{summary}</p>}
+            {feedback && (
+              <div className="mt-1 text-[10px] bg-primary/10 border-l-2 border-primary/50 rounded-r px-1.5 py-0.5">
+                {feedback.skipped ? (
+                  <span className="text-destructive font-medium">⚠️ Non fait</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    {feedback.sportif_rpe && <span>RPE réel: <b className="text-foreground">{feedback.sportif_rpe}</b> </span>}
+                    {feedback.sportif_comment && <span className="italic">"{feedback.sportif_comment}"</span>}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          {expanded ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          )}
+        </div>
       </div>
 
-      {/* Contenu inline */}
-      {expanded && (
-        <div className="px-4 pb-5 space-y-4 bg-muted/20">
+      {/* Fenêtre d'édition de l'exercice */}
+      <Dialog open={expanded} onOpenChange={setExpanded}>
+        <DialogContent className="max-w-md w-[96vw] max-h-[90vh] overflow-y-auto rounded-2xl p-4 gap-0">
+          <DialogHeader className="text-left mb-3">
+            <DialogTitle className="text-base pr-8 truncate">{exercise.exercice || "Exercice"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
           {/* Nom */}
-          <div className="space-y-1.5 pt-2">
+          <div className="space-y-1.5">
             <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Exercice</label>
             <ExerciseCombobox
               value={exercise.exercice}
@@ -345,13 +386,19 @@ function RenfoExerciseRow({
             if (details.length < 2) return null;
             return (
               <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSeriesOpen((v) => !v)}
+                  className="flex w-full items-center gap-2 py-1"
+                >
                   <div className="h-px flex-1 bg-border/60" />
-                  <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
-                    Séries individuelles
+                  <span className="flex items-center gap-1 text-[10px] font-semibold text-primary uppercase tracking-wide">
+                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !seriesOpen && "-rotate-90")} />
+                    {seriesOpen ? "Masquer" : "Afficher"} les {details.length} séries
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
-                </div>
+                </button>
+                {seriesOpen && (
                 <div className="space-y-3">
                   {details.map((serie, si) => (
                     <div key={si} className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
@@ -420,6 +467,7 @@ function RenfoExerciseRow({
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             );
           })()}
@@ -430,8 +478,9 @@ function RenfoExerciseRow({
             <Input value={exercise.commentaire} onChange={(e) => onChange("commentaire", e.target.value)}
               placeholder="Consignes…" className="h-11" disabled={isValidated} />
           </div>
-        </div>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -667,14 +716,9 @@ function SessionCard({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" className="h-[92dvh] flex flex-col p-0 rounded-t-2xl">
           <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SheetTitle className="text-base">{session.name}</SheetTitle>
-                <Badge variant="outline" className={cn("text-xs", cfg.color)}>{cfg.emoji} {cfg.label}</Badge>
-              </div>
-              <button onClick={() => setOpen(false)} className="p-1 text-muted-foreground">
-                <X className="h-5 w-5" />
-              </button>
+            <div className="flex items-center gap-2 pr-8">
+              <SheetTitle className="text-base">{session.name}</SheetTitle>
+              <Badge variant="outline" className={cn("text-xs", cfg.color)}>{cfg.emoji} {cfg.label}</Badge>
             </div>
           </SheetHeader>
 
@@ -690,79 +734,95 @@ function SessionCard({
                   </div>
                 ) : (() => {
                   const allGroups = [...new Set(exercises.filter(e => e.super_set_group).map(e => e.super_set_group as string))];
+                  // Regroupe les exercices en blocs : soit un exercice seul, soit un super-set (≥2)
+                  type Block = { kind: "single"; ex: Exercise } | { kind: "super"; gid: string; members: Exercise[] };
+                  const blocks: Block[] = [];
+                  for (let k = 0; k < exercises.length;) {
+                    const ex = exercises[k];
+                    const gid = ex.super_set_group || null;
+                    const size = gid ? exercises.filter(e => e.super_set_group === gid).length : 0;
+                    if (gid && size >= 2) {
+                      const members: Exercise[] = [];
+                      let j = k;
+                      while (j < exercises.length && exercises[j].super_set_group === gid) { members.push(exercises[j]); j++; }
+                      blocks.push({ kind: "super", gid, members });
+                      k = j;
+                    } else {
+                      blocks.push({ kind: "single", ex });
+                      k++;
+                    }
+                  }
+
+                  const renderRow = (ex: Exercise) => (
+                    <RenfoExerciseRow
+                      exercise={ex}
+                      sessionId={session.id}
+                      isValidated={isValidated}
+                      libraryExercises={libraryExercises}
+                      feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
+                      onChange={(field, value) => onExerciseChange(ex.id, field, value)}
+                      onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
+                      onDelete={() => onDeleteExercise(ex.id)}
+                    />
+                  );
+
                   return (
-                    <div>
-                      {exercises.map((ex, idx) => {
-                        const prevEx = exercises[idx - 1];
-                        const nextEx = exercises[idx + 1];
-                        const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
-                        const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
-                        const isFirstInGroup = !!(ex.super_set_group && (!prevEx?.super_set_group || prevEx.super_set_group !== ex.super_set_group));
-                        const isLastInGroup = !!(ex.super_set_group && (!nextEx?.super_set_group || nextEx.super_set_group !== ex.super_set_group));
-                        const linkedWithNext = !!(ex.super_set_group && nextEx?.super_set_group && ex.super_set_group === nextEx.super_set_group);
-                        const groupSize = ex.super_set_group ? exercises.filter(e => e.super_set_group === ex.super_set_group).length : 0;
-
+                    <div className="px-3 py-3 space-y-2">
+                      {blocks.map((block, bIdx) => {
+                        // Id du dernier exercice du bloc → sert au bouton "Lier" vers le bloc suivant
+                        const lastExId = block.kind === "single" ? block.ex.id : block.members[block.members.length - 1].id;
                         return (
-                          <div key={ex.id}>
-                            {/* Header visible pour le premier exercice du groupe */}
-                            {isFirstInGroup && color && (
-                              <div className={cn("flex items-center gap-2 px-4 py-1.5 border-l-4", color.border, color.bg)}>
-                                <Link2 className={cn("h-3.5 w-3.5 shrink-0", color.text)} />
-                                <span className={cn("text-[10px] font-bold uppercase tracking-wider", color.text)}>
-                                  Superset · {groupSize} exercices
-                                </span>
+                          <div key={block.kind === "single" ? block.ex.id : block.gid}>
+                            {block.kind === "single" ? (
+                              /* ── Exercice simple : carte encadrée ── */
+                              <div className="rounded-xl border border-border/60 bg-card/40 overflow-hidden">
+                                {renderRow(block.ex)}
                               </div>
-                            )}
+                            ) : (() => {
+                              /* ── Super-set : cadre distinct englobant ── */
+                              const colorIdx = getSupersetColorIndex(block.gid, allGroups);
+                              const color = SUPERSET_COLORS[colorIdx];
+                              return (
+                                <div className={cn("rounded-xl border-2 overflow-hidden", color.border, color.bg)}>
+                                  <div className={cn("flex items-center gap-2 px-4 py-1.5", color.bg)}>
+                                    <Link2 className={cn("h-3.5 w-3.5 shrink-0", color.text)} />
+                                    <span className={cn("text-[10px] font-bold uppercase tracking-wider", color.text)}>
+                                      Superset · {block.members.length} exercices
+                                    </span>
+                                  </div>
+                                  {block.members.map((mex, mIdx) => (
+                                    <div key={mex.id}>
+                                      <div className="bg-background/60">{renderRow(mex)}</div>
+                                      {/* Bouton Délier entre deux membres */}
+                                      {!isValidated && onToggleSuperSet && mIdx < block.members.length - 1 && (
+                                        <div className={cn("flex justify-center py-1", color.bg)}>
+                                          <button
+                                            onClick={() => onToggleSuperSet(mex.id)}
+                                            className={cn("flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border active:opacity-70", color.badge)}
+                                          >
+                                            <Unlink className="h-3 w-3" /> Délier
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
 
-                            {/* Exercice avec bordure et fond colorés si dans un groupe */}
-                            <div className={cn(color && "border-l-4", color?.border, color?.bg)}>
-                              <RenfoExerciseRow
-                                exercise={ex}
-                                sessionId={session.id}
-                                isValidated={isValidated}
-                                libraryExercises={libraryExercises}
-                                feedback={copiedWeekFeedback?.[`${session.id}-${ex.exercice}`] ?? null}
-                                onChange={(field, value) => onExerciseChange(ex.id, field, value)}
-                                onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
-                                onDelete={() => onDeleteExercise(ex.id)}
-                              />
-                            </div>
-
-                            {/* Connecteur visuel entre exercices du même groupe (toujours visible) */}
-                            {linkedWithNext && color && (
-                              <div className={cn("flex items-center gap-3 px-4 py-0 border-l-4", color.border, color.bg)}>
-                                <div className={cn("w-0.5 h-5 ml-1 rounded-full opacity-40", color.dot)} />
-                              </div>
-                            )}
-
-                            {/* Bouton toggle superset (mode édition seulement) */}
-                            {!isValidated && onToggleSuperSet && idx < exercises.length - 1 && !linkedWithNext && (
-                              <div className="flex items-center gap-2 px-4 py-1.5">
+                            {/* Bouton "Lier en super-set" entre ce bloc et le suivant */}
+                            {!isValidated && onToggleSuperSet && bIdx < blocks.length - 1 && (
+                              <div className="flex items-center gap-2 py-1.5">
                                 <div className="h-px flex-1 border-t border-border/30 border-dashed" />
                                 <button
-                                  onClick={() => onToggleSuperSet(ex.id)}
+                                  onClick={() => onToggleSuperSet(lastExId)}
                                   className="flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border border-border/50 text-muted-foreground bg-secondary active:bg-muted transition-colors shrink-0"
                                 >
-                                  <Link2 className="h-3 w-3" /> Superset
+                                  <Link2 className="h-3 w-3" /> Lier en super-set
                                 </button>
                                 <div className="h-px flex-1 border-t border-border/30 border-dashed" />
                               </div>
                             )}
-
-                            {/* Bouton Délier (mode édition, exercices liés) */}
-                            {!isValidated && onToggleSuperSet && linkedWithNext && color && (
-                              <div className={cn("flex justify-end px-4 py-1 border-l-4", color.border, color.bg)}>
-                                <button
-                                  onClick={() => onToggleSuperSet(ex.id)}
-                                  className={cn("flex items-center gap-1 text-[10px] font-semibold rounded-full px-2.5 py-1 border active:opacity-70", color.badge)}
-                                >
-                                  <Unlink className="h-3 w-3" /> Délier
-                                </button>
-                              </div>
-                            )}
-
-                            {/* Espacement après la fin d'un groupe */}
-                            {isLastInGroup && color && <div className="h-2" />}
                           </div>
                         );
                       })}

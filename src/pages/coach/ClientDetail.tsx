@@ -3352,19 +3352,20 @@ export default function ClientDetail() {
       [sessionId]: [...(prev[sessionId] || []), newExercise],
     }));
 
-    // Après insertion, descendre automatiquement en bas et amener la nouvelle ligne à l'écran
+    // Après insertion, remonter la nouvelle ligne vers le haut de l'écran (pas collée en bas)
     setTimeout(() => {
-      window.scrollTo({
-        top: document.documentElement.scrollHeight,
-        behavior: "smooth",
-      });
-
       const newExerciseButton = document.querySelector(
         `[data-session="${sessionId}"][data-exercise="${newExerciseId}"][data-field="exercice"] button`,
       ) as HTMLElement | null;
 
-      newExerciseButton?.scrollIntoView({ behavior: "smooth", block: "center" });
-      newExerciseButton?.focus();
+      if (newExerciseButton) {
+        // Positionne la ligne à ~180px du haut (sous les en-têtes fixes)
+        const rect = newExerciseButton.getBoundingClientRect();
+        const target = window.scrollY + rect.top - 180;
+        window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+        // preventScroll: le focus ne doit pas re-scroller la vue en bas
+        newExerciseButton.focus({ preventScroll: true });
+      }
 
       // Ouvrir automatiquement le sélecteur (sans click qui toggle et referme)
       if (!isCardio && window.matchMedia("(min-width: 640px)").matches) {
@@ -3847,13 +3848,22 @@ export default function ClientDetail() {
       if (currentGroupIndex !== -1 && nextGroupIndex === currentGroupIndex + 1) {
         // Créer un nouveau groupe pour les exercices après la coupure
         const newGroupId = `group-${Date.now()}`;
-        const updatedExercises = currentExercises.map((ex) => {
+        let updatedExercises = currentExercises.map((ex) => {
           const exIndex = currentExercises.findIndex((e) => e.id === ex.id);
           if (ex.super_set_group === groupId && exIndex > exerciseIndex) {
             return { ...ex, super_set_group: newGroupId };
           }
           return ex;
         });
+
+        // Un super-set doit compter au moins 2 exercices : on vide tout groupe réduit à 1
+        const counts: Record<string, number> = {};
+        updatedExercises.forEach((ex) => {
+          if (ex.super_set_group) counts[ex.super_set_group] = (counts[ex.super_set_group] || 0) + 1;
+        });
+        updatedExercises = updatedExercises.map((ex) =>
+          ex.super_set_group && counts[ex.super_set_group] < 2 ? { ...ex, super_set_group: null } : ex,
+        );
 
         setSessionExercises({
           ...sessionExercises,
@@ -3991,6 +4001,23 @@ export default function ClientDetail() {
       if (field === "series") {
         // Séries est le dernier champ — Entrée crée une nouvelle ligne
         handleAddExercise(sessionId);
+        return;
+      }
+
+      // "commentaire" (Notes) est le dernier champ texte : Entrée passe à
+      // l'exercice suivant, ou crée une nouvelle ligne si c'est le dernier.
+      if (field === "commentaire") {
+        const list = sessionExercises[sessionId] || [];
+        const idx = list.findIndex((ex) => ex.id === exerciseId);
+        const next = idx >= 0 ? list[idx + 1] : undefined;
+        if (next) {
+          const nextEl = document.querySelector(
+            `[data-session="${sessionId}"][data-exercise="${next.id}"][data-field="exercice"] button`,
+          ) as HTMLElement | null;
+          nextEl?.focus();
+        } else {
+          handleAddExercise(sessionId);
+        }
         return;
       }
 

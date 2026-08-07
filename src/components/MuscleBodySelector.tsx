@@ -112,6 +112,39 @@ export function MuscleBodySelector({ value, onChange }: { value: MuscleSelection
 }
 
 /**
+ * Version LECTURE SEULE : affiche les muscles recrutés par un exercice.
+ * principal = doré, secondaires = doré clair. Non cliquable.
+ */
+export function MuscleBodyView({ principal, secondary }: { principal: string | null; secondary: string[] }) {
+  const stateOf = (m: string): "principal" | "secondary" | "off" =>
+    principal === m ? "principal" : secondary.includes(m) ? "secondary" : "off";
+  const noop = () => {};
+  const frontMarkers = MARKERS.filter((mk) => mk.bx < 1000);
+  const backMarkers = MARKERS.filter((mk) => mk.bx >= 1000);
+  return (
+    <div className="space-y-3">
+      <div className="hidden sm:block">
+        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} stateOf={stateOf} toggle={noop} />
+      </div>
+      <div className="sm:hidden space-y-4">
+        <div>
+          <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Face</p>
+          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} stateOf={stateOf} toggle={noop} />
+        </div>
+        <div>
+          <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Dos</p>
+          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} stateOf={stateOf} toggle={noop} />
+        </div>
+      </div>
+      <div className="flex items-center justify-center gap-4 text-[11px]">
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(var(--primary))" }} /> Principal</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "#f2d98a" }} /> Secondaire</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Version FILTRE de la silhouette : multi-sélection simple (pas de principal/secondaire).
  * Un muscle sélectionné s'affiche en doré ; re-toucher le retire.
  */

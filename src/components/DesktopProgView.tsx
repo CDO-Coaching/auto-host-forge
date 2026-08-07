@@ -1381,6 +1381,35 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             const result: React.ReactElement[] = [];
                             let i = 0;
 
+                            // Bouton connecteur entre deux exercices (lier / délier un super-set)
+                            const renderConnector = (idx: number): React.ReactElement | null => {
+                              if (isValidated || idx < 0 || idx >= exercises.length - 1) return null;
+                              const cur = exercises[idx];
+                              const nxt = exercises[idx + 1];
+                              const linked = !!cur.super_set_group && cur.super_set_group === nxt.super_set_group;
+                              const bothDifferentGroups = !!cur.super_set_group && !!nxt.super_set_group && cur.super_set_group !== nxt.super_set_group;
+                              if (bothDifferentGroups) return null; // relier deux groupes distincts n'est pas géré
+                              return (
+                                <TableRow key={`conn-${cur.id}`} className="hover:bg-transparent border-0">
+                                  <TableCell colSpan={10} className="p-0">
+                                    <div className="flex items-center gap-2 px-4 py-0.5">
+                                      <div className="h-px flex-1 border-t border-dashed border-border/40" />
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className={`h-6 gap-1 rounded-full text-[11px] ${linked ? "border-primary/40 text-primary hover:bg-primary/10" : "text-muted-foreground"}`}
+                                        onClick={() => onToggleSuperSet(selectedSession.id, cur.id)}
+                                        title={linked ? "Délier ces deux exercices" : "Lier en super-set avec l'exercice suivant"}
+                                      >
+                                        {linked ? <><Unlink2 className="h-3 w-3" /> Délier</> : <><Link2 className="h-3 w-3" /> Lier en super-set</>}
+                                      </Button>
+                                      <div className="h-px flex-1 border-t border-dashed border-border/40" />
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            };
+
                             while (i < exercises.length) {
                               const exercise = exercises[i];
 
@@ -1587,16 +1616,16 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             const serieList = ownDetails.length > 1 ? ownDetails : Array.from({ length: headerSeries }, () => ({ reps: ex.reps ?? "", charge: ex.charge ?? "", rpe: ex.rpe ?? "", tempo: ex.tempo ?? "", commentaire: "", recuperation: ex.recuperation ?? "" }));
                                             return serieCount > 1 ? (
                                             <>
-                                              <TableRow className="bg-primary/5 border-l-4 border-l-primary cursor-pointer hover:bg-primary/10" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [ex.id]: !prev[ex.id] }))}>
+                                              <TableRow className="bg-primary/5 border-l-4 border-l-primary cursor-pointer hover:bg-primary/10" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [ex.id]: !(prev[ex.id] ?? true) }))}>
                                                 <TableCell colSpan={10} className="py-1 pl-10">
                                                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSeriesExercises[ex.id] ? "-rotate-90" : ""}`} />
-                                                    <span>{collapsedSeriesExercises[ex.id] ? "Afficher" : "Masquer"} le détail des {serieCount} séries</span>
+                                                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${(collapsedSeriesExercises[ex.id] ?? true) ? "-rotate-90" : ""}`} />
+                                                    <span>{(collapsedSeriesExercises[ex.id] ?? true) ? "Afficher" : "Masquer"} le détail des {serieCount} séries</span>
                                                     {(() => { const fb = getExerciseFeedback(selectedSession.id, ex.exercice); const hasFailure = fb?.serie_rpe_details?.some(sd => sd.modification_type === "failure"); const hasTooEasy = fb?.serie_rpe_details?.some(sd => sd.modification_type === "too_easy"); const hasAnyModif = fb?.serie_rpe_details?.some(sd => sd.actual_reps || sd.actual_charge); if (!hasAnyModif) return null; return (<span className={`ml-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${hasFailure ? "bg-red-500/15 text-red-600" : "bg-blue-500/15 text-blue-600"}`}>{hasFailure ? "⬇ échec" : "⬆ ajusté"} — voir les séries</span>); })()}
                                                   </div>
                                                 </TableCell>
                                               </TableRow>
-                                              {!collapsedSeriesExercises[ex.id] && serieList.map((serie, si) => (
+                                              {!(collapsedSeriesExercises[ex.id] ?? true) && serieList.map((serie, si) => (
                                                 <TableRow key={`${ex.id}-ss-serie-${si}`} className="bg-muted/20">
                                                   <TableCell className="pl-10 text-xs text-muted-foreground font-medium py-1">
                                                     Série {si + 1}
@@ -1624,12 +1653,16 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                             </>
                                             ) : null;
                                           })()}
+                                          {/* Connecteur Délier entre deux membres du groupe */}
+                                          {nextEx && renderConnector(i + exIndex)}
                                         </React.Fragment>
                                       );
                                     })}
                                     <TableRow>
                                       <TableCell colSpan={10} className="p-0 h-2 bg-muted/30" />
                                     </TableRow>
+                                    {/* Connecteur Lier entre la fin du groupe et l'exercice suivant */}
+                                    {renderConnector(j - 1)}
                                   </React.Fragment>,
                                 );
                                 i = j;
@@ -1719,19 +1752,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       <TableCell className="text-center">
                                         <Checkbox checked={exercise.request_video || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_video", c === true)} disabled={isValidated} title="Demander une vidéo" />
                                       </TableCell>
-                                      <TableCell className="text-center">
-                                        {!isValidated && i < exercises.length - 1 && (
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className={`h-7 w-7 p-0 ${exercise.super_set_group ? "text-primary" : "text-muted-foreground/40 hover:text-primary"}`}
-                                            onClick={() => onToggleSuperSet(selectedSession.id, exercise.id)}
-                                            title={exercise.super_set_group ? "Retirer du super-set" : "Créer un super-set avec l'exercice suivant"}
-                                          >
-                                            {exercise.super_set_group ? <Unlink2 className="h-3.5 w-3.5" /> : <Link2 className="h-3.5 w-3.5" />}
-                                          </Button>
-                                        )}
-                                      </TableCell>
+                                      <TableCell className="text-center" />
                                       <TableCell>
                                         {!isValidated && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => onDeleteExercise(selectedSession.id, exercise.id)}><X className="h-4 w-4" /></Button>}
                                       </TableCell>
@@ -1740,16 +1761,16 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     {/* Series individuelles */}
                                     {(getSerieDetailsArray(exercise.serie_details).length > 1 || (parseInt(exercise.series || "0") > 1 && !!(getExerciseFeedback(selectedSession.id, exercise.exercice)?.serie_rpe_details?.length))) && (
                                       <>
-                                        <TableRow className="bg-muted/10 cursor-pointer hover:bg-muted/30" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [exercise.id]: !prev[exercise.id] }))}>
+                                        <TableRow className="bg-muted/10 cursor-pointer hover:bg-muted/30" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [exercise.id]: !(prev[exercise.id] ?? true) }))}>
                                           <TableCell colSpan={10} className="py-1 pl-10">
                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${collapsedSeriesExercises[exercise.id] ? "-rotate-90" : ""}`} />
-                                              <span>{collapsedSeriesExercises[exercise.id] ? "Afficher" : "Masquer"} le détail des {getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details).length : parseInt(exercise.series || "0")} séries</span>
+                                              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${(collapsedSeriesExercises[exercise.id] ?? true) ? "-rotate-90" : ""}`} />
+                                              <span>{(collapsedSeriesExercises[exercise.id] ?? true) ? "Afficher" : "Masquer"} le détail des {getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details).length : parseInt(exercise.series || "0")} séries</span>
                                               {(() => { const fb = getExerciseFeedback(selectedSession.id, exercise.exercice); const hasFailure = fb?.serie_rpe_details?.some(sd => sd.modification_type === "failure"); const hasTooEasy = fb?.serie_rpe_details?.some(sd => sd.modification_type === "too_easy"); const hasAnyModif = fb?.serie_rpe_details?.some(sd => sd.actual_reps || sd.actual_charge); if (!hasAnyModif) return null; return (<span className={`ml-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ${hasFailure ? "bg-red-500/15 text-red-600" : "bg-blue-500/15 text-blue-600"}`}>{hasFailure ? "⬇ échec" : "⬆ ajusté"} — voir les séries</span>); })()}
                                             </div>
                                           </TableCell>
                                         </TableRow>
-                                        {!collapsedSeriesExercises[exercise.id] && (getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details) : Array.from({ length: parseInt(exercise.series || "0") }, () => ({ reps: exercise.reps ?? "", charge: exercise.charge ?? "", rpe: exercise.rpe ?? "", tempo: exercise.tempo ?? "", commentaire: "", recuperation: exercise.recuperation ?? "" }))).map((serie, si) => {
+                                        {!(collapsedSeriesExercises[exercise.id] ?? true) && (getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details) : Array.from({ length: parseInt(exercise.series || "0") }, () => ({ reps: exercise.reps ?? "", charge: exercise.charge ?? "", rpe: exercise.rpe ?? "", tempo: exercise.tempo ?? "", commentaire: "", recuperation: exercise.recuperation ?? "" }))).map((serie, si) => {
                                           const totalSeries = getSerieDetailsArray(exercise.serie_details).length > 1 ? getSerieDetailsArray(exercise.serie_details).length : parseInt(exercise.series || "0");
                                           const serieFields = ["reps", "charge", "rpe", "tempo", "commentaire"] as const;
                                           const handleSerieKeyDown = (e: React.KeyboardEvent, field: string) => {
@@ -1795,6 +1816,9 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     )}
                                   </React.Fragment>,
                                 );
+                                // Connecteur Lier entre cet exercice et le suivant
+                                const conn = renderConnector(i);
+                                if (conn) result.push(conn);
                                 i++;
                               }
                             }

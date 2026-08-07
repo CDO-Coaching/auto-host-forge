@@ -4,7 +4,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp, PersonStanding } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
+import { MuscleBodyView } from "@/components/MuscleBodySelector";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
@@ -55,6 +56,8 @@ export default function ExerciceDetail() {
   const { exerciceId } = useParams();
   const navigate = useNavigate();
   const [exercise, setExercise] = useState<any>(null);
+  const [muscles, setMuscles] = useState<{ principal: string | null; secondary: string[] }>({ principal: null, secondary: [] });
+  const [musclesOpen, setMusclesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
@@ -92,6 +95,7 @@ export default function ExerciceDetail() {
   const [isRepsRequired, setIsRepsRequired] = useState(false);
   const [repsRangeOptions, setRepsRangeOptions] = useState<[string, string] | null>(null);
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
+  const [forceDetail, setForceDetail] = useState(false); // forcer l'affichage détaillé si séries identiques
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // Vérifier si la récupération est en mode EMOM
@@ -349,13 +353,17 @@ export default function ExerciceDetail() {
       if (data.exercice) {
         const { data: libraryData } = await supabase
           .from("exercise_library")
-          .select("video_url")
+          .select("video_url, muscle_principal, muscles_second")
           .eq("name", data.exercice)
           .maybeSingle();
 
         if (libraryData?.video_url) {
           setVideoUrl(libraryData.video_url);
         }
+        setMuscles({
+          principal: libraryData?.muscle_principal ?? null,
+          secondary: (libraryData?.muscles_second as string[] | null) ?? [],
+        });
       }
     }
 
@@ -707,6 +715,21 @@ export default function ExerciceDetail() {
   const seriesData = getSeriesData();
   const allSeriesValidated = serieValidations.length > 0 && serieValidations.every(s => s.validated);
 
+  // Toutes les séries ont-elles les mêmes consignes ? (pour simplifier l'affichage)
+  const normVal = (v: unknown) => (v ?? "").toString().trim();
+  const seriesAllSame = seriesData.length > 1 && seriesData.every((s) => {
+    const f = seriesData[0];
+    return (
+      normVal(s.reps) === normVal(f.reps) &&
+      normVal(s.charge) === normVal(f.charge) &&
+      normVal(s.rpe) === normVal(f.rpe) &&
+      normVal(s.tempo) === normVal(f.tempo) &&
+      normVal(s.recuperation || exercise?.recuperation) === normVal(f.recuperation || exercise?.recuperation) &&
+      normVal(s.commentaire) === normVal(f.commentaire)
+    );
+  });
+  const useSimplified = seriesAllSame && !forceDetail;
+
   return (
     <div className="min-h-screen bg-background">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
@@ -934,12 +957,33 @@ export default function ExerciceDetail() {
             onOpenChange={setHistoryOpen}
             hideTrigger
           />
+          {(muscles.principal || muscles.secondary.length > 0) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMusclesOpen(true)}
+              className="h-9 w-9 shrink-0 text-primary"
+              title="Voir les muscles sollicités"
+            >
+              <PersonStanding className="h-6 w-6" />
+            </Button>
+          )}
           {videoUrl && (
             <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
               🎥
             </a>
           )}
         </div>
+
+        {/* Dialog : muscles sollicités sur la silhouette */}
+        <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
+          <DialogContent className="max-w-lg w-[96vw] max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Muscles sollicités — {exercise.exercice}</DialogTitle>
+            </DialogHeader>
+            <MuscleBodyView principal={muscles.principal} secondary={muscles.secondary} />
+          </DialogContent>
+        </Dialog>
 
         {/* EMOM / Tabata buttons */}
         {exercise.recuperation && isEmomRecovery && (
@@ -1038,12 +1082,104 @@ export default function ExerciceDetail() {
                 />
               </div>
 
-              {!seriesCollapsed && (
+              {/* ── Vue simplifiée : séries identiques ── */}
+              {!seriesCollapsed && useSimplified && (() => {
+                const f = seriesData[0];
+                const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
+                const sr = (f.reps ?? "").trim();
+                const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
+                const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : ""}`;
+                const sc = (f.charge ?? "").trim();
+                const chargeNeedsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                const chargeIsRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
+                const chargeNumeric = /^\d+(\.\d+)?$/.test(sc);
+                return (
+                  <div className="space-y-3">
+                    {/* Consignes communes affichées une seule fois */}
+                    <div className="rounded-xl border border-border bg-muted/40 p-3">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">
+                        {seriesData.length} séries identiques
+                      </p>
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                        {sr && (
+                          <StatBlock
+                            label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
+                            value={isRepsRange ? repsDisplay + " reps" : repsDisplay}
+                            className={isRepsRange ? "text-blue-600" : "text-foreground"}
+                          />
+                        )}
+                        {sc && (
+                          <StatBlock
+                            label="Charge"
+                            value={chargeNeedsInput ? (chargeIsRange ? sc + " kg" : "À définir") : `${sc}${chargeNumeric ? " kg" : ""}`}
+                            className={chargeNeedsInput ? "text-orange-500" : "text-red-500"}
+                          />
+                        )}
+                        {f.rpe && <StatBlock label="RPE prévu" value={`${f.rpe}/10`} className="text-yellow-600" />}
+                        {f.tempo && <StatBlock label="Tempo" value={f.tempo} className="text-purple-500" />}
+                        {(f.recuperation || exercise.recuperation) && (
+                          <StatBlock label="Récup" value={f.recuperation || exercise.recuperation} className="text-muted-foreground text-sm" />
+                        )}
+                        {f.commentaire && (
+                          <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{f.commentaire}"</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Validation individuelle : une pastille par série */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {seriesData.map((_, idx) => {
+                        const validation = serieValidations[idx];
+                        const isValidated = validation?.validated;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => { if (!isValidated) handleValidateSerie(idx); }}
+                            disabled={isValidated}
+                            className={`flex items-center justify-between gap-2 rounded-xl border p-3 text-left transition-all ${
+                              isValidated ? "bg-green-500/10 border-green-500/40" : "bg-muted/40 border-border active:bg-muted"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
+                                {isValidated ? <Check className="h-4 w-4" /> : idx + 1}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-semibold leading-tight">Série {idx + 1}</p>
+                                {isValidated && validation.rpe !== null && (
+                                  <p className="text-[10px] text-green-600 leading-tight">RPE {validation.rpe}/10</p>
+                                )}
+                              </div>
+                            </div>
+                            {!isValidated && (
+                              <span className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-semibold text-primary-foreground shrink-0">
+                                <Check className="h-3.5 w-3.5" /> OK
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button type="button" onClick={() => setForceDetail(true)} className="w-full text-center text-xs text-muted-foreground underline underline-offset-2 py-1">
+                      Afficher chaque série en détail
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {!seriesCollapsed && !useSimplified && (
                 <div className="space-y-2">
+                  {seriesAllSame && (
+                    <button type="button" onClick={() => setForceDetail(false)} className="w-full text-center text-xs text-primary underline underline-offset-2 py-1">
+                      ↩ Revenir à la vue simplifiée
+                    </button>
+                  )}
                   {seriesData.map((serie, idx) => {
                     const validation = serieValidations[idx];
                     const isValidated = validation?.validated;
-                    
+
                     const sr = (serie.reps ?? "").trim();
                     const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
                     const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
