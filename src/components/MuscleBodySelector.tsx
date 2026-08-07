@@ -33,7 +33,7 @@ const MARKERS: Marker[] = [
   { m: "MOLLETS", label: "Mollets", bx: 1336, by: 1155, lx: 1850, ly: 1155, a: "start" },
 ];
 
-function BodySvg({ viewBox, markers, stateOf, toggle }: { viewBox: string; markers: Marker[]; stateOf: (m: string) => "principal" | "secondary" | "off"; toggle: (m: string) => void }) {
+function BodySvg({ viewBox, markers, stateOf, toggle, hideOff }: { viewBox: string; markers: Marker[]; stateOf: (m: string) => "principal" | "secondary" | "off"; toggle: (m: string) => void; hideOff?: boolean }) {
   return (
     <svg viewBox={viewBox} className="w-full h-auto select-none" preserveAspectRatio="xMidYMid meet">
       <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
@@ -47,6 +47,7 @@ function BodySvg({ viewBox, markers, stateOf, toggle }: { viewBox: string; marke
       })}
       {markers.map((mk) => {
         const st = stateOf(mk.m);
+        if (hideOff && st === "off") return null;
         const col = st === "principal" ? "hsl(var(--primary))" : st === "secondary" ? "#f2d98a" : "#ffffff";
         const lineStartX = mk.a === "end" ? mk.lx + 14 : mk.lx - 14;
         return (
@@ -124,16 +125,16 @@ export function MuscleBodyView({ principal, secondary }: { principal: string | n
   return (
     <div className="space-y-3">
       <div className="hidden sm:block">
-        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} stateOf={stateOf} toggle={noop} />
+        <BodySvg viewBox="-320 120 2640 1360" markers={MARKERS} stateOf={stateOf} toggle={noop} hideOff />
       </div>
       <div className="sm:hidden space-y-4">
         <div>
           <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Face</p>
-          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} stateOf={stateOf} toggle={noop} />
+          <BodySvg viewBox="-360 120 1360 1360" markers={frontMarkers} stateOf={stateOf} toggle={noop} hideOff />
         </div>
         <div>
           <p className="text-center text-xs font-semibold text-muted-foreground mb-1">Dos</p>
-          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} stateOf={stateOf} toggle={noop} />
+          <BodySvg viewBox="780 120 1580 1360" markers={backMarkers} stateOf={stateOf} toggle={noop} hideOff />
         </div>
       </div>
       <div className="flex items-center justify-center gap-4 text-[11px]">
