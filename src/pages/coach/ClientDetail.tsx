@@ -4004,23 +4004,6 @@ export default function ClientDetail() {
         return;
       }
 
-      // "commentaire" (Notes) est le dernier champ texte : Entrée passe à
-      // l'exercice suivant, ou crée une nouvelle ligne si c'est le dernier.
-      if (field === "commentaire") {
-        const list = sessionExercises[sessionId] || [];
-        const idx = list.findIndex((ex) => ex.id === exerciseId);
-        const next = idx >= 0 ? list[idx + 1] : undefined;
-        if (next) {
-          const nextEl = document.querySelector(
-            `[data-session="${sessionId}"][data-exercise="${next.id}"][data-field="exercice"] button`,
-          ) as HTMLElement | null;
-          nextEl?.focus();
-        } else {
-          handleAddExercise(sessionId);
-        }
-        return;
-      }
-
       // "par côté" est désormais disponible pour tous les exercices
       const fieldOrder: string[] = ["exercice", "recuperation", "reps", "is_duration", "is_distance", "per_side", "charge", "rpe", "tempo", "commentaire", "series"];
 

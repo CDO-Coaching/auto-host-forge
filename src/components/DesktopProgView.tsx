@@ -159,7 +159,16 @@ function SeriesStepper({
         if (isValidated) return;
         if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); increment(); }
         else if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); decrement(); }
-        else if (e.key === "Enter") { e.preventDefault(); onAddExercise(sessionId); }
+        else if (e.key === "Enter") {
+          e.preventDefault();
+          // Si l'exercice n'est pas le dernier → passer au suivant ; sinon nouvelle ligne
+          const fields = Array.from(document.querySelectorAll(`[data-session="${sessionId}"][data-field="exercice"]`));
+          const curIdx = fields.findIndex((el) => el.getAttribute("data-exercise") === String(exercise.id));
+          const nextField = curIdx >= 0 ? fields[curIdx + 1] : undefined;
+          const nextBtn = nextField?.querySelector("button") as HTMLElement | null;
+          if (nextBtn) nextBtn.focus();
+          else onAddExercise(sessionId);
+        }
       }}
       onFocus={(e) => { e.currentTarget.style.outline = "2px solid hsl(var(--ring))"; e.currentTarget.style.outlineOffset = "2px"; }}
       onBlur={(e) => { e.currentTarget.style.outline = ""; e.currentTarget.style.outlineOffset = ""; }}
