@@ -37,6 +37,8 @@ interface AthleteObjective {
   main_objective?: string;
   main_objective_deadline?: string;
   secondary_objective?: string;
+  main_completed?: boolean;
+  main_completed_at?: string | null;
 }
 
 interface ObjectiveMilestone {
@@ -338,6 +340,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         main_objective: objective.main_objective,
         main_objective_deadline: deadline,
         secondary_objective: objective.secondary_objective,
+        main_completed: objective.main_completed ?? false,
+        main_completed_at: objective.main_completed ? (objective.main_completed_at || format(new Date(), "yyyy-MM-dd")) : null,
         updated_at: new Date().toISOString(),
       };
       // Update si une ligne existe déjà, sinon insert — ne dépend pas d'une contrainte unique.
@@ -355,6 +359,21 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       await loadObjectives();
     } catch { toast.error("Erreur lors de l'enregistrement"); }
     finally { setIsSavingMain(false); }
+  };
+
+  // Valider / dévalider l'objectif principal (nécessite qu'il soit déjà enregistré)
+  const handleToggleMainObjective = async () => {
+    if (!objective.id) { toast.error("Enregistre d'abord l'objectif principal"); return; }
+    const next = !objective.main_completed;
+    const completedAt = next ? format(new Date(), "yyyy-MM-dd") : null;
+    setObjective((prev) => ({ ...prev, main_completed: next, main_completed_at: completedAt }));
+    const { error } = await supabase.from("athlete_objectives").update({ main_completed: next, main_completed_at: completedAt }).eq("id", objective.id);
+    if (error) {
+      setObjective((prev) => ({ ...prev, main_completed: !next }));
+      toast.error("Impossible de mettre à jour l'objectif");
+    } else {
+      toast.success(next ? "Objectif principal atteint ! 🏆" : "Objectif remis en cours");
+    }
   };
 
   // ── Milestones ───────────────────────────────────────────────────────────────
@@ -876,13 +895,33 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       <TabsContent value="obj" className="mt-0 space-y-4">
 
       {/* ── Objectif principal ────────────────────────────────────────── */}
-      <Card>
+      <Card className={cn(objective.main_completed && "border-emerald-500/50 bg-emerald-500/5")}>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Target className="h-5 w-5 text-primary" /> Objectif principal
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" /> Objectif principal
+            </div>
+            {objective.id && (
+              <button
+                type="button"
+                onClick={handleToggleMainObjective}
+                title={objective.main_completed ? "Marquer comme en cours" : "Valider l'objectif principal"}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-semibold transition-colors",
+                  objective.main_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary",
+                )}
+              >
+                <Check className="h-4 w-4" /> {objective.main_completed ? "Atteint ✓" : "Valider"}
+              </button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {objective.main_completed && (
+            <p className="text-sm text-emerald-600 font-medium">
+              🏆 Objectif atteint{objective.main_completed_at ? ` le ${format(new Date(objective.main_completed_at), "d MMMM yyyy", { locale: fr })}` : ""} !
+            </p>
+          )}
           <Input
             placeholder="Ex : Semi-marathon en 1h45, 100 kg au squat…"
             value={objective.main_objective || ""}
@@ -982,7 +1021,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       </Card>
 
       {/* ── Timeline de validation ────────────────────────────────────── */}
-      {milestones.length > 0 && (
+      {(milestones.length > 0 || !!objective.main_objective) && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -991,37 +1030,50 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto pb-2">
-              <div className="relative min-w-[520px] pt-2 pb-10">
+              <div className="relative min-w-[520px] pt-2 pb-12">
                 {/* axe */}
-                <div className="absolute left-0 right-0 top-[26px] h-0.5 bg-border" />
-                <div className="flex justify-between gap-2">
-                  {sortMilestones(milestones).map((m) => {
-                    const daysUntil = getDaysUntil(m.target_date);
-                    const isNext = !m.completed && daysUntil !== null && daysUntil >= 0;
-                    const refDate = milestoneRefDate(m);
-                    return (
+                <div className="absolute left-0 right-0 top-[30px] h-0.5 bg-border" />
+                <div className="flex items-start justify-between gap-2">
+                  {(() => {
+                    type TItem = { key: string; label: string; date: string | null; completed: boolean; isNext: boolean; isMain: boolean; onClick: () => void };
+                    const items: TItem[] = sortMilestones(milestones).map((m) => {
+                      const daysUntil = getDaysUntil(m.target_date);
+                      return { key: m.id, label: m.label, date: milestoneRefDate(m) || null, completed: m.completed, isNext: !m.completed && daysUntil !== null && daysUntil >= 0, isMain: false, onClick: () => handleToggleMilestone(m) };
+                    });
+                    if (objective.main_objective && (objective.main_objective_deadline || objective.main_completed)) {
+                      const mdate = objective.main_completed ? (objective.main_completed_at || objective.main_objective_deadline || null) : (objective.main_objective_deadline || null);
+                      items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleToggleMainObjective });
+                    }
+                    items.sort((a, b) => { if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return new Date(a.date).getTime() - new Date(b.date).getTime(); });
+                    return items.map((it) => (
                       <button
-                        key={m.id}
+                        key={it.key}
                         type="button"
-                        onClick={() => handleToggleMilestone(m)}
+                        onClick={it.onClick}
                         className="relative flex-1 min-w-[90px] flex flex-col items-center text-center group"
-                        title={m.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}
+                        title={it.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}
                       >
                         <span className={cn(
-                          "h-4 w-4 rounded-full border-2 border-background z-10",
-                          m.completed ? "bg-emerald-500 ring-4 ring-emerald-500/20"
-                            : isNext ? "bg-primary ring-4 ring-primary/20"
+                          "grid place-items-center rounded-full border-2 border-background z-10 text-[10px]",
+                          it.isMain ? "h-7 w-7" : "h-4 w-4",
+                          it.completed ? "bg-emerald-500 ring-4 ring-emerald-500/25"
+                            : it.isMain ? "bg-primary ring-4 ring-primary/25"
+                            : it.isNext ? "bg-primary ring-4 ring-primary/20"
                             : "bg-muted border-dashed border-muted-foreground/50",
-                        )} />
-                        <span className={cn("mt-3 text-[11px] font-medium leading-tight line-clamp-2", m.completed ? "text-emerald-600" : isNext ? "text-foreground" : "text-muted-foreground")}>
-                          {m.label}{m.completed ? " ✓" : ""}
+                        )}>{it.isMain ? "🎯" : ""}</span>
+                        <span className={cn(
+                          "mt-3 leading-tight line-clamp-2",
+                          it.isMain ? "text-[12px] font-bold" : "text-[11px] font-medium",
+                          it.completed ? "text-emerald-600" : it.isMain || it.isNext ? "text-foreground" : "text-muted-foreground",
+                        )}>
+                          {it.label}{it.completed ? " ✓" : ""}
                         </span>
                         <span className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
-                          {refDate ? format(new Date(refDate), "d MMM", { locale: fr }) : "—"}
+                          {it.date ? format(new Date(it.date), "d MMM", { locale: fr }) : "—"}
                         </span>
                       </button>
-                    );
-                  })}
+                    ));
+                  })()}
                 </div>
               </div>
             </div>
