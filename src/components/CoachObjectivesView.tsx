@@ -23,6 +23,7 @@ import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { YearTimeline } from "./YearTimeline";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,8 +289,15 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   };
 
   const loadObjectives = async () => {
-    const { data } = await supabase.from("athlete_objectives").select("*").eq("athlete_id", athleteId).maybeSingle();
-    if (data) setObjective(data);
+    // .limit(1) plutôt que .maybeSingle() : robuste même si plusieurs lignes existent
+    // pour le même athlète (sinon maybeSingle échoue et rien ne s'affiche).
+    const { data } = await supabase
+      .from("athlete_objectives")
+      .select("*")
+      .eq("athlete_id", athleteId)
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) setObjective(data[0]);
   };
 
   const loadMilestones = async () => {
@@ -324,13 +332,23 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
       const deadline = format(mainDeadlineDate, "yyyy-MM-dd");
-      await supabase.from("athlete_objectives").upsert({
+      const payload = {
         athlete_id: athleteId, coach_id: user.id,
         main_objective: objective.main_objective,
         main_objective_deadline: deadline,
         secondary_objective: objective.secondary_objective,
         updated_at: new Date().toISOString(),
-      }, { onConflict: "athlete_id" });
+      };
+      // Update si une ligne existe déjà, sinon insert — ne dépend pas d'une contrainte unique.
+      const { data: existing } = await supabase
+        .from("athlete_objectives").select("id").eq("athlete_id", athleteId).limit(1);
+      let error;
+      if (existing && existing.length > 0) {
+        ({ error } = await supabase.from("athlete_objectives").update(payload).eq("id", existing[0].id));
+      } else {
+        ({ error } = await supabase.from("athlete_objectives").insert(payload));
+      }
+      if (error) throw error;
       setObjective((prev) => ({ ...prev, main_objective_deadline: deadline }));
       toast.success("Objectif principal enregistré");
       await loadObjectives();
@@ -818,35 +836,63 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   if (loading) return <div className="text-center py-8 text-muted-foreground">Chargement…</div>;
 
   return (
-    <div className="space-y-4">
+    <>
+    <Tabs defaultValue="obj" className="space-y-4">
+      <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsTrigger value="obj">🎯 Objectifs &amp; jalons</TabsTrigger>
+        <TabsTrigger value="plan">📅 Planning annuel</TabsTrigger>
+      </TabsList>
 
-      {/* ── Alertes fin de cycle ──────────────────────────────────────── */}
-      {cycleAlerts.length > 0 && (
-        <div className="space-y-2">
-          {cycleAlerts.map((alert, i) => (
-            <Alert key={i} className="border-amber-500/50 bg-amber-500/10">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertTitle className="text-amber-600">
-                {alert.label} bientôt terminé
-              </AlertTitle>
-              <AlertDescription>
-                « {alert.name} » se termine {alert.daysLeft === 0 ? "aujourd'hui" : alert.daysLeft === 1 ? "demain" : `dans ${alert.daysLeft} jours`}. Planifie la suite.
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
+      {/* ═══════════ ONGLET OBJECTIFS & JALONS ═══════════ */}
+      <TabsContent value="obj" className="mt-0 space-y-4">
 
-      {/* ── Dates d'objectifs ─────────────────────────────────────────── */}
+      {/* ── Objectif principal ────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Target className="h-5 w-5 text-primary" /> Objectif principal
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Input
+            placeholder="Ex : Semi-marathon en 1h45, 100 kg au squat…"
+            value={objective.main_objective || ""}
+            onChange={(e) => setObjective((prev) => ({ ...prev, main_objective: e.target.value }))}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                  <CalendarDays className="mr-2 h-4 w-4" />
+                  {mainDeadlineDate ? format(mainDeadlineDate, "d MMM yyyy", { locale: fr }) : "Échéance"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={mainDeadlineDate} onSelect={setMainDeadlineDate} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            <Button size="sm" onClick={handleSaveMainObjective} disabled={isSavingMain}>
+              <Check className="h-4 w-4 mr-1" /> {isSavingMain ? "Enregistrement…" : "Enregistrer"}
+            </Button>
+          </div>
+          <Input
+            placeholder="Objectif secondaire (optionnel)"
+            value={objective.secondary_objective || ""}
+            onChange={(e) => setObjective((prev) => ({ ...prev, secondary_objective: e.target.value }))}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── Jalons / sous-objectifs ───────────────────────────────────── */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CalendarDays className="h-5 w-5 text-primary" />
-              Dates d'Objectifs
+              Jalons / sous-objectifs
             </div>
             <Button size="sm" onClick={() => handleOpenMilestoneDialog()}>
-              <Plus className="h-4 w-4 mr-2" /> Ajouter
+              <Plus className="h-4 w-4 mr-2" /> Ajouter un jalon
             </Button>
           </CardTitle>
         </CardHeader>
@@ -884,6 +930,25 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           )}
         </CardContent>
       </Card>
+      </TabsContent>
+
+      {/* ═══════════ ONGLET PLANNING ANNUEL ═══════════ */}
+      <TabsContent value="plan" className="mt-0 space-y-4">
+
+      {/* ── Alertes fin de cycle ──────────────────────────────────────── */}
+      {cycleAlerts.length > 0 && (
+        <div className="space-y-2">
+          {cycleAlerts.map((alert, i) => (
+            <Alert key={i} className="border-amber-500/50 bg-amber-500/10">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              <AlertTitle className="text-amber-600">{alert.label} bientôt terminé</AlertTitle>
+              <AlertDescription>
+                « {alert.name} » se termine {alert.daysLeft === 0 ? "aujourd'hui" : alert.daysLeft === 1 ? "demain" : `dans ${alert.daysLeft} jours`}. Planifie la suite.
+              </AlertDescription>
+            </Alert>
+          ))}
+        </div>
+      )}
 
       {/* ── Cycles actifs en résumé ───────────────────────────────────── */}
       {(allActiveMacros.length > 0 || allActiveMesos.length > 0 || allActiveMicros.length > 0) && (
@@ -1008,6 +1073,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           {renderHierarchy()}
         </CardContent>
       </Card>
+      </TabsContent>
+    </Tabs>
 
       {/* ── Dialog milestone ──────────────────────────────────────────── */}
       <Dialog open={showMilestoneDialog} onOpenChange={setShowMilestoneDialog}>
@@ -1271,6 +1338,6 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
