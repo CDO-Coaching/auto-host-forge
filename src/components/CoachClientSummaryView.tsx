@@ -172,6 +172,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
       .select("id, name, target_date, completed")
       .eq("athlete_id", athleteId)
       .eq("completed", false)
+      .not("target_date", "is", null)
       .order("target_date", { ascending: true })
       .limit(3);
     if (data) setMilestones(data);

@@ -40,10 +40,14 @@ interface Microcycle {
 interface ObjectiveMilestone {
   id: string;
   label: string;
-  target_date: string;
+  target_date?: string | null;
+  completed_at?: string | null;
   notes?: string;
   completed: boolean;
 }
+
+// Date effective : validation si atteint, sinon date cible
+const milestoneDate = (m: ObjectiveMilestone) => (m.completed ? (m.completed_at || m.target_date) : m.target_date) || null;
 
 type CycleType = "macro" | "meso" | "micro";
 
@@ -247,7 +251,9 @@ export function YearTimeline({
   // Filter milestones for selected year
   const visibleMilestones = useMemo(() => {
     return milestones.filter(m => {
-      const date = parseISO(m.target_date);
+      const d = milestoneDate(m);
+      if (!d) return false;
+      const date = parseISO(d);
       return isWithinInterval(date, { start: yearStart, end: yearEnd });
     });
   }, [milestones, selectedYear, yearStart, yearEnd]);
@@ -599,8 +605,8 @@ export function YearTimeline({
               >
                 {/* Milestones */}
                 {visibleMilestones.map((milestone) => {
-                  const position = getPositionPercent(milestone.target_date);
-                  
+                  const position = getPositionPercent(milestoneDate(milestone)!);
+
                   return (
                     <Tooltip key={milestone.id}>
                       <TooltipTrigger asChild>
@@ -626,7 +632,7 @@ export function YearTimeline({
                             )}
                           </p>
                           <p className="text-sm">
-                            {format(parseISO(milestone.target_date), "d MMMM yyyy", { locale: fr })}
+                            {milestoneDate(milestone) ? format(parseISO(milestoneDate(milestone)!), "d MMMM yyyy", { locale: fr }) : "Sans date"}
                           </p>
                         </div>
                       </TooltipContent>

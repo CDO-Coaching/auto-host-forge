@@ -42,7 +42,8 @@ interface AthleteObjective {
 interface ObjectiveMilestone {
   id: string;
   label: string;
-  target_date: string;
+  target_date?: string | null;
+  completed_at?: string | null;
   notes?: string;
   completed: boolean;
 }
@@ -257,8 +258,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
   const [mainDeadlineDate, setMainDeadlineDate] = useState<Date | undefined>(undefined);
 
-  const [milestoneForm, setMilestoneForm] = useState({
-    label: "", target_date: new Date(), notes: "", completed: false,
+  const [milestoneForm, setMilestoneForm] = useState<{ label: string; target_date: Date | null; notes: string; completed: boolean }>({
+    label: "", target_date: null, notes: "", completed: false,
   });
 
   const defaultCycleForm = {
@@ -361,10 +362,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   const handleOpenMilestoneDialog = (milestone?: ObjectiveMilestone) => {
     if (milestone) {
       setEditingMilestone(milestone);
-      setMilestoneForm({ label: milestone.label, target_date: new Date(milestone.target_date), notes: milestone.notes || "", completed: milestone.completed });
+      setMilestoneForm({ label: milestone.label, target_date: milestone.target_date ? new Date(milestone.target_date) : null, notes: milestone.notes || "", completed: milestone.completed });
     } else {
       setEditingMilestone(null);
-      setMilestoneForm({ label: "", target_date: new Date(), notes: "", completed: false });
+      setMilestoneForm({ label: "", target_date: null, notes: "", completed: false });
     }
     setShowMilestoneDialog(true);
   };
@@ -377,16 +378,18 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       const data = {
         athlete_id: athleteId, coach_id: user.id,
         label: milestoneForm.label,
-        target_date: format(milestoneForm.target_date, "yyyy-MM-dd"),
+        target_date: milestoneForm.target_date ? format(milestoneForm.target_date, "yyyy-MM-dd") : null,
         notes: milestoneForm.notes || null, completed: milestoneForm.completed,
+        // Si coché "atteint" dans le formulaire et pas encore de date de validation, on met aujourd'hui
+        completed_at: milestoneForm.completed ? (editingMilestone?.completed_at || format(new Date(), "yyyy-MM-dd")) : null,
         updated_at: new Date().toISOString(),
       };
       if (editingMilestone) {
         await supabase.from("objective_milestones").update(data).eq("id", editingMilestone.id);
-        toast.success("Date d'objectif modifiée");
+        toast.success("Jalon modifié");
       } else {
         await supabase.from("objective_milestones").insert(data);
-        toast.success("Date d'objectif ajoutée");
+        toast.success("Jalon ajouté");
       }
       setShowMilestoneDialog(false);
       await loadMilestones();
@@ -403,11 +406,12 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   // Bascule "atteint / à venir" directement depuis la carte du jalon
   const handleToggleMilestone = async (m: ObjectiveMilestone) => {
     const next = !m.completed;
+    const completedAt = next ? format(new Date(), "yyyy-MM-dd") : null;
     // Optimiste : on met à jour localement tout de suite
-    setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: next } : x)));
-    const { error } = await supabase.from("objective_milestones").update({ completed: next }).eq("id", m.id);
+    setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: next, completed_at: completedAt } : x)));
+    const { error } = await supabase.from("objective_milestones").update({ completed: next, completed_at: completedAt }).eq("id", m.id);
     if (error) {
-      setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: !next } : x)));
+      setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: !next, completed_at: m.completed_at } : x)));
       toast.error("Impossible de mettre à jour le jalon");
     } else {
       toast.success(next ? "Jalon validé 🎯" : "Jalon remis à venir");
@@ -838,14 +842,25 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   ].filter(Boolean) as { daysLeft: number; name: string; label: string }[];
 
   // ── getDaysUntil (pour milestones) ────────────────────────────────────────────
-  const getDaysUntil = (d: string) => Math.ceil((new Date(d).getTime() - new Date().getTime()) / 86400000);
+  const getDaysUntil = (d?: string | null) => (d ? Math.ceil((new Date(d).getTime() - new Date().getTime()) / 86400000) : null);
   const getMilestoneBadge = (m: ObjectiveMilestone) => {
     if (m.completed) return "default";
     const d = getDaysUntil(m.target_date);
+    if (d === null) return "outline";
     if (d < 0 || d <= 7) return "destructive";
     if (d <= 14) return "secondary";
     return "outline";
   };
+  // Date qui sert au tri / positionnement : validation si atteint, sinon date cible
+  const milestoneRefDate = (m: ObjectiveMilestone) => m.completed ? (m.completed_at || m.target_date) : m.target_date;
+  const sortMilestones = (list: ObjectiveMilestone[]) =>
+    [...list].sort((a, b) => {
+      const da = milestoneRefDate(a), db = milestoneRefDate(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;   // sans date → à la fin
+      if (!db) return -1;
+      return new Date(da).getTime() - new Date(db).getTime();
+    });
 
   if (loading) return <div className="text-center py-8 text-muted-foreground">Chargement…</div>;
 
@@ -912,10 +927,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardHeader>
         <CardContent>
           {milestones.length === 0 ? (
-            <p className="text-center text-muted-foreground py-3 text-sm">Aucune date d'objectif pour le moment.</p>
+            <p className="text-center text-muted-foreground py-3 text-sm">Aucun jalon pour le moment.</p>
           ) : (
             <div className="space-y-3">
-              {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
+              {sortMilestones(milestones).map((m) => {
                 const daysUntil = getDaysUntil(m.target_date);
                 return (
                   <Card key={m.id} className={cn("p-4", m.completed && "border-emerald-500/40 bg-emerald-500/5")}>
@@ -936,12 +951,21 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                         <div className="flex items-center gap-2 flex-wrap">
                           <h4 className={cn("font-semibold", m.completed && "text-emerald-600")}>{m.label}</h4>
                           <Badge variant={getMilestoneBadge(m)}>
-                            {m.completed ? "Atteint ✓" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
+                            {m.completed ? "Atteint ✓" : daysUntil === null ? "Sans date" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
                           </Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(m.target_date), "EEEE d MMMM yyyy", { locale: fr })}
-                        </p>
+                        {m.completed ? (
+                          <p className="text-sm text-emerald-600">
+                            Validé{m.completed_at ? ` le ${format(new Date(m.completed_at), "d MMMM yyyy", { locale: fr })}` : ""}
+                            {m.target_date ? <span className="text-muted-foreground"> · cible {format(new Date(m.target_date), "d MMM", { locale: fr })}</span> : null}
+                          </p>
+                        ) : m.target_date ? (
+                          <p className="text-sm text-muted-foreground">
+                            {format(new Date(m.target_date), "EEEE d MMMM yyyy", { locale: fr })}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-muted-foreground/60 italic">Pas de date cible</p>
+                        )}
                         {m.notes && <p className="text-sm text-muted-foreground italic">{m.notes}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
@@ -971,9 +995,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                 {/* axe */}
                 <div className="absolute left-0 right-0 top-[26px] h-0.5 bg-border" />
                 <div className="flex justify-between gap-2">
-                  {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
+                  {sortMilestones(milestones).map((m) => {
                     const daysUntil = getDaysUntil(m.target_date);
-                    const isNext = !m.completed && daysUntil >= 0;
+                    const isNext = !m.completed && daysUntil !== null && daysUntil >= 0;
+                    const refDate = milestoneRefDate(m);
                     return (
                       <button
                         key={m.id}
@@ -992,7 +1017,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                           {m.label}{m.completed ? " ✓" : ""}
                         </span>
                         <span className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
-                          {format(new Date(m.target_date), "d MMM", { locale: fr })}
+                          {refDate ? format(new Date(refDate), "d MMM", { locale: fr }) : "—"}
                         </span>
                       </button>
                     );
@@ -1158,18 +1183,26 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       <Dialog open={showMilestoneDialog} onOpenChange={setShowMilestoneDialog}>
         <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>{editingMilestone ? "Modifier la date d'objectif" : "Ajouter une date d'objectif"}</DialogTitle>
+            <DialogTitle>{editingMilestone ? "Modifier le jalon" : "Ajouter un jalon"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 overflow-y-auto flex-1">
             <div className="space-y-2">
-              <Label>Label *</Label>
-              <Input placeholder="Ex: Compétition régionale, Test VMA…" value={milestoneForm.label} onChange={(e) => setMilestoneForm({ ...milestoneForm, label: e.target.value })} />
+              <Label>Intitulé *</Label>
+              <Input placeholder="Ex: 10 km sous 52 min, Test VMA…" value={milestoneForm.label} onChange={(e) => setMilestoneForm({ ...milestoneForm, label: e.target.value })} />
             </div>
             <div className="space-y-2">
-              <Label>Date cible *</Label>
-              <div className="border rounded-md p-2 bg-background">
-                <Calendar mode="single" selected={milestoneForm.target_date} onSelect={(d) => d && setMilestoneForm({ ...milestoneForm, target_date: d })} locale={fr} weekStartsOn={1} className="pointer-events-auto mx-auto" />
+              <div className="flex items-center justify-between">
+                <Label>Date cible <span className="text-muted-foreground font-normal">(facultatif)</span></Label>
+                {milestoneForm.target_date && (
+                  <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setMilestoneForm({ ...milestoneForm, target_date: null })}>
+                    Retirer la date
+                  </Button>
+                )}
               </div>
+              <div className="border rounded-md p-2 bg-background">
+                <Calendar mode="single" selected={milestoneForm.target_date ?? undefined} onSelect={(d) => setMilestoneForm({ ...milestoneForm, target_date: d ?? null })} locale={fr} weekStartsOn={1} className="pointer-events-auto mx-auto" />
+              </div>
+              <p className="text-xs text-muted-foreground">Sans date, le jalon se placera sur la timeline à sa <b>date de validation</b>.</p>
             </div>
             <div className="space-y-2">
               <Label>Notes (optionnel)</Label>
