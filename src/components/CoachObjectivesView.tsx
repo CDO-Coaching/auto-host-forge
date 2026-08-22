@@ -394,10 +394,24 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   };
 
   const handleDeleteMilestone = async (id: string) => {
-    if (!confirm("Supprimer cette date d'objectif ?")) return;
+    if (!confirm("Supprimer ce jalon ?")) return;
     await supabase.from("objective_milestones").delete().eq("id", id);
-    toast.success("Date d'objectif supprimée");
+    toast.success("Jalon supprimé");
     await loadMilestones();
+  };
+
+  // Bascule "atteint / à venir" directement depuis la carte du jalon
+  const handleToggleMilestone = async (m: ObjectiveMilestone) => {
+    const next = !m.completed;
+    // Optimiste : on met à jour localement tout de suite
+    setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: next } : x)));
+    const { error } = await supabase.from("objective_milestones").update({ completed: next }).eq("id", m.id);
+    if (error) {
+      setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, completed: !next } : x)));
+      toast.error("Impossible de mettre à jour le jalon");
+    } else {
+      toast.success(next ? "Jalon validé 🎯" : "Jalon remis à venir");
+    }
   };
 
   // ── Cycles ───────────────────────────────────────────────────────────────────
@@ -904,13 +918,25 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
                 const daysUntil = getDaysUntil(m.target_date);
                 return (
-                  <Card key={m.id} className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-1">
+                  <Card key={m.id} className={cn("p-4", m.completed && "border-emerald-500/40 bg-emerald-500/5")}>
+                    <div className="flex items-start gap-3">
+                      {/* Bouton valider / dévalider */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleMilestone(m)}
+                        title={m.completed ? "Marquer comme à venir" : "Valider ce jalon"}
+                        className={cn(
+                          "mt-0.5 h-7 w-7 shrink-0 rounded-full grid place-items-center border-2 transition-colors",
+                          m.completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-muted-foreground/40 text-transparent hover:border-primary hover:text-primary/40",
+                        )}
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <div className="flex-1 space-y-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h4 className="font-semibold">{m.label}</h4>
+                          <h4 className={cn("font-semibold", m.completed && "text-emerald-600")}>{m.label}</h4>
                           <Badge variant={getMilestoneBadge(m)}>
-                            {m.completed ? "Atteint" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
+                            {m.completed ? "Atteint ✓" : daysUntil < 0 ? `Dépassé de ${Math.abs(daysUntil)} j` : daysUntil === 0 ? "Aujourd'hui" : daysUntil === 1 ? "Demain" : `Dans ${daysUntil} j`}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
@@ -918,7 +944,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                         </p>
                         {m.notes && <p className="text-sm text-muted-foreground italic">{m.notes}</p>}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1 shrink-0">
                         <Button variant="ghost" size="sm" onClick={() => handleOpenMilestoneDialog(m)}><Pencil className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteMilestone(m.id)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
@@ -930,6 +956,58 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           )}
         </CardContent>
       </Card>
+
+      {/* ── Timeline de validation ────────────────────────────────────── */}
+      {milestones.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CalendarDays className="h-5 w-5 text-primary" /> Timeline de validation
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto pb-2">
+              <div className="relative min-w-[520px] pt-2 pb-10">
+                {/* axe */}
+                <div className="absolute left-0 right-0 top-[26px] h-0.5 bg-border" />
+                <div className="flex justify-between gap-2">
+                  {[...milestones].sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime()).map((m) => {
+                    const daysUntil = getDaysUntil(m.target_date);
+                    const isNext = !m.completed && daysUntil >= 0;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleToggleMilestone(m)}
+                        className="relative flex-1 min-w-[90px] flex flex-col items-center text-center group"
+                        title={m.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}
+                      >
+                        <span className={cn(
+                          "h-4 w-4 rounded-full border-2 border-background z-10",
+                          m.completed ? "bg-emerald-500 ring-4 ring-emerald-500/20"
+                            : isNext ? "bg-primary ring-4 ring-primary/20"
+                            : "bg-muted border-dashed border-muted-foreground/50",
+                        )} />
+                        <span className={cn("mt-3 text-[11px] font-medium leading-tight line-clamp-2", m.completed ? "text-emerald-600" : isNext ? "text-foreground" : "text-muted-foreground")}>
+                          {m.label}{m.completed ? " ✓" : ""}
+                        </span>
+                        <span className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
+                          {format(new Date(m.target_date), "d MMM", { locale: fr })}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Validé</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> À venir</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-muted border border-dashed border-muted-foreground/50" /> Dépassé</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       </TabsContent>
 
       {/* ═══════════ ONGLET PLANNING ANNUEL ═══════════ */}
