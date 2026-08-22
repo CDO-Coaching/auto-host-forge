@@ -48,6 +48,8 @@ interface ObjectiveMilestone {
   completed_at?: string | null;
   notes?: string;
   completed: boolean;
+  created_by_role?: string | null;
+  approval_status?: string | null; // 'approved' | 'pending'
 }
 
 interface Cycle {
@@ -401,6 +403,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         notes: milestoneForm.notes || null, completed: milestoneForm.completed,
         // Si coché "atteint" dans le formulaire et pas encore de date de validation, on met aujourd'hui
         completed_at: milestoneForm.completed ? (editingMilestone?.completed_at || format(new Date(), "yyyy-MM-dd")) : null,
+        created_by_role: "coach", approval_status: "approved",
         updated_at: new Date().toISOString(),
       };
       if (editingMilestone) {
@@ -420,6 +423,22 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     await supabase.from("objective_milestones").delete().eq("id", id);
     toast.success("Jalon supprimé");
     await loadMilestones();
+  };
+
+  // Approuver une proposition du sportif
+  const handleApproveMilestone = async (m: ObjectiveMilestone) => {
+    setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, approval_status: "approved" } : x)));
+    const { error } = await supabase.from("objective_milestones").update({ approval_status: "approved" }).eq("id", m.id);
+    if (error) { await loadMilestones(); toast.error("Impossible d'approuver"); }
+    else toast.success("Sous-objectif approuvé ✓");
+  };
+  // Refuser une proposition du sportif (supprime)
+  const handleRejectMilestone = async (m: ObjectiveMilestone) => {
+    if (!confirm("Refuser cette proposition du sportif ?")) return;
+    setMilestones((prev) => prev.filter((x) => x.id !== m.id));
+    const { error } = await supabase.from("objective_milestones").delete().eq("id", m.id);
+    if (error) { await loadMilestones(); toast.error("Impossible de refuser"); }
+    else toast.success("Proposition refusée");
   };
 
   // Bascule "atteint / à venir" directement depuis la carte du jalon
@@ -881,6 +900,12 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       return new Date(da).getTime() - new Date(db).getTime();
     });
 
+  const isPending = (m: ObjectiveMilestone) => m.approval_status === "pending";
+  const pendingMilestones = milestones.filter(isPending);
+  const activeMilestones = milestones.filter((m) => !isPending(m) && !m.completed);
+  const doneMilestones = milestones.filter((m) => !isPending(m) && m.completed);
+  const approvedMilestones = milestones.filter((m) => !isPending(m));
+
   if (loading) return <div className="text-center py-8 text-muted-foreground">Chargement…</div>;
 
   return (
@@ -951,6 +976,37 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
+      {/* ── Propositions du sportif à valider ─────────────────────────── */}
+      {pendingMilestones.length > 0 && (
+        <Card className="border-amber-500/50 bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-amber-600">
+              <AlertTriangle className="h-5 w-5" /> Propositions du sportif à valider ({pendingMilestones.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {sortMilestones(pendingMilestones).map((m) => (
+              <div key={m.id} className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-background p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{m.label}</p>
+                  {m.target_date && <p className="text-xs text-muted-foreground">Cible : {format(new Date(m.target_date), "d MMM yyyy", { locale: fr })}</p>}
+                  {m.notes && <p className="text-xs text-muted-foreground italic">{m.notes}</p>}
+                  <p className="text-[11px] text-amber-600 mt-0.5">Proposé par le sportif</p>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <Button size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={() => handleApproveMilestone(m)}>
+                    <Check className="h-4 w-4 mr-1" /> Valider
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8" onClick={() => handleRejectMilestone(m)}>
+                    <X className="h-4 w-4 mr-1" /> Refuser
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Jalons / sous-objectifs ───────────────────────────────────── */}
       <Card>
         <CardHeader>
@@ -965,11 +1021,11 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {milestones.length === 0 ? (
-            <p className="text-center text-muted-foreground py-3 text-sm">Aucun jalon pour le moment.</p>
+          {activeMilestones.length === 0 ? (
+            <p className="text-center text-muted-foreground py-3 text-sm">Aucun jalon à venir.</p>
           ) : (
             <div className="space-y-3">
-              {sortMilestones(milestones).map((m) => {
+              {sortMilestones(activeMilestones).map((m) => {
                 const daysUntil = getDaysUntil(m.target_date);
                 return (
                   <Card key={m.id} className={cn("p-4", m.completed && "border-emerald-500/40 bg-emerald-500/5")}>
@@ -1020,6 +1076,38 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
+      {/* ── Sous-objectifs validés ────────────────────────────────────── */}
+      {doneMilestones.length > 0 && (
+        <Card className="border-emerald-500/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-emerald-600">
+              <Check className="h-5 w-5" /> Sous-objectifs validés ({doneMilestones.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {sortMilestones(doneMilestones).map((m) => (
+              <div key={m.id} className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                <button
+                  type="button"
+                  onClick={() => handleToggleMilestone(m)}
+                  title="Remettre à venir"
+                  className="h-7 w-7 shrink-0 rounded-full grid place-items-center bg-emerald-500 text-white"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-emerald-600">{m.label}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Validé{m.completed_at ? ` le ${format(new Date(m.completed_at), "d MMMM yyyy", { locale: fr })}` : ""}
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => handleDeleteMilestone(m.id)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {/* ── Timeline de validation ────────────────────────────────────── */}
       {(milestones.length > 0 || !!objective.main_objective) && (
         <Card>
@@ -1036,7 +1124,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                 <div className="flex items-start justify-between gap-2">
                   {(() => {
                     type TItem = { key: string; label: string; date: string | null; completed: boolean; isNext: boolean; isMain: boolean; onClick: () => void };
-                    const items: TItem[] = sortMilestones(milestones).map((m) => {
+                    const items: TItem[] = sortMilestones(approvedMilestones).map((m) => {
                       const daysUntil = getDaysUntil(m.target_date);
                       return { key: m.id, label: m.label, date: milestoneRefDate(m) || null, completed: m.completed, isNext: !m.completed && daysUntil !== null && daysUntil >= 0, isMain: false, onClick: () => handleToggleMilestone(m) };
                     });

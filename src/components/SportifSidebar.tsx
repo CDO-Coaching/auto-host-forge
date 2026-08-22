@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText, LayoutDashboard, HeartPulse, Bell } from "lucide-react";
+import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText, LayoutDashboard, HeartPulse, Bell, Target } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 const baseMenuItems = [
   { title: "Tableau de bord", url: "/sportif/dashboard", icon: LayoutDashboard },
   { title: "Mes séances", url: "/sportif/seances", icon: Calendar },
+  { title: "Mes objectifs", url: "/sportif/objectifs", icon: Target },
   { title: "Mon agenda", url: "/sportif/agenda", icon: ListChecks },
   { title: "Mon suivi fatigue", url: "/sportif/fatigue", icon: Activity },
   { title: "Mes données physio", url: "/sportif/physiologie", icon: HeartPulse },

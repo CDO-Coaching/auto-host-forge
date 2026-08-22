@@ -21,6 +21,7 @@ import { CoachCancellationAlert } from "@/components/CoachCancellationAlert";
 import MesClients from "./coach/MesClients";
 import BibliothequeExercices from "./coach/BibliothequeExercices";
 import ClientDetail from "./coach/ClientDetail";
+import { CoachPendingObjectivesBanner } from "@/components/CoachPendingObjectivesBanner";
 import Profil from "./coach/Profil";
 import Messagerie from "./coach/Messagerie";
 import Questions from "./coach/Questions";
@@ -155,6 +156,7 @@ export default function DashboardCoach() {
                 />
               </div>
             )}
+            <CoachPendingObjectivesBanner />
             {pendingCount > 0 && (
               <Alert className="mb-4 sm:mb-6 border-primary bg-primary/10">
                 <Bell className="h-5 w-5 text-primary" />
