@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
@@ -16,7 +17,7 @@ import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardi
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink, Lock,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink, Lock, StickyNote,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -26,6 +27,7 @@ interface Session {
   name: string;
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
+  coach_note?: string | null;
 }
 
 interface SerieDetail {
@@ -54,6 +56,7 @@ interface Exercise {
   super_set_group?: string | null;
   is_duration?: boolean;
   is_distance?: boolean;
+  coach_note?: string | null;
   [key: string]: unknown;
 }
 
@@ -92,6 +95,7 @@ interface MobileProgViewProps {
   onExerciseChange: (sessionId: number, exerciseId: number, field: string, value: string) => void;
   onSerieDetailChange: (sessionId: number, exerciseId: number, serieIndex: number, field: string, value: string) => void;
   onToggleSuperSet?: (sessionId: number, exerciseId: number) => void;
+  onSessionNoteChange?: (sessionId: number, note: string) => void;
   onSave: () => void;
   onUnvalidate?: () => void;
   isSaving?: boolean;
@@ -478,6 +482,15 @@ function RenfoExerciseRow({
             <Input value={exercise.commentaire} onChange={(e) => onChange("commentaire", e.target.value)}
               placeholder="Consignes…" className="h-11" disabled={isValidated} />
           </div>
+
+          {/* Note privée coach */}
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-1.5 text-[10px] font-semibold text-primary uppercase tracking-wide">
+              <StickyNote className="h-3.5 w-3.5" /> Note privée (coach)
+            </label>
+            <Input value={exercise.coach_note || ""} onChange={(e) => onChange("coach_note", e.target.value)}
+              placeholder="Invisible au sportif, copiée avec la semaine…" className="h-11" />
+          </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -504,7 +517,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -520,6 +533,7 @@ function SessionCard({
   onExerciseChange: (exerciseId: number, field: string, value: string) => void;
   onSerieDetailChange: (exerciseId: number, serieIndex: number, field: string, value: string) => void;
   onToggleSuperSet?: (exerciseId: number) => void;
+  onNoteChange?: (note: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -614,6 +628,25 @@ function SessionCard({
                 : "Vide — tap pour ajouter"}
             </p>
           </div>
+          {/* Note privée coach */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button onClick={(e) => e.stopPropagation()} title={session.coach_note ? "Note du coach" : "Ajouter une note (privée)"}
+                className="relative p-2 text-muted-foreground/50 active:text-primary shrink-0">
+                <StickyNote className="h-4 w-4" />
+                {session.coach_note && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-2" align="end" onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Note privée (coach)</p>
+              <Input
+                defaultValue={session.coach_note || ""}
+                placeholder="Note perso, copiée avec la semaine…"
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => onNoteChange?.(e.target.value)}
+              />
+            </PopoverContent>
+          </Popover>
           {!isValidated && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(e); }}
@@ -1020,7 +1053,7 @@ function SessionCard({
 export function MobileProgView({
   sessions, sessionExercises, selectedWeekToProgram, availableWeeks,
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
-  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet,
+  onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onSessionNoteChange,
   onSave, onUnvalidate, isSaving, allowAddExercises, onToggleAllowAddExercises,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
   athleteFcMax = null, athleteFcRepos = null,
@@ -1153,6 +1186,7 @@ export function MobileProgView({
               onDeleteExercise={(exId) => onDeleteExercise(session.id, exId)}
               onExerciseChange={(exId, field, value) => onExerciseChange(session.id, exId, field, value)}
               onToggleSuperSet={onToggleSuperSet ? (exId) => onToggleSuperSet(session.id, exId) : undefined}
+              onNoteChange={onSessionNoteChange ? (note) => onSessionNoteChange(session.id, note) : undefined}
             />
           ))
         )}

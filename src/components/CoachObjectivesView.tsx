@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { YearTimeline } from "./YearTimeline";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { PhaseBuilder } from "./PhaseBuilder";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   const [microcycles, setMicrocycles] = useState<Microcycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSavingMain, setIsSavingMain] = useState(false);
+  const [editingObjective, setEditingObjective] = useState(false);
 
   // Dialogs
   const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
@@ -358,6 +360,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       if (error) throw error;
       setObjective((prev) => ({ ...prev, main_objective_deadline: deadline }));
       toast.success("Objectif principal enregistré");
+      setEditingObjective(false);
       await loadObjectives();
     } catch { toast.error("Erreur lors de l'enregistrement"); }
     finally { setIsSavingMain(false); }
@@ -910,15 +913,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
   return (
     <>
-    <Tabs defaultValue="obj" className="space-y-4">
-      <TabsList className="grid w-full max-w-md grid-cols-2">
-        <TabsTrigger value="obj">🎯 Objectifs &amp; jalons</TabsTrigger>
-        <TabsTrigger value="plan">📅 Planning annuel</TabsTrigger>
-      </TabsList>
+    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:grid-rows-2 lg:gap-4 lg:h-[calc(100dvh-11rem)]">
 
-      {/* ═══════════ ONGLET OBJECTIFS & JALONS ═══════════ */}
-      <TabsContent value="obj" className="mt-0 space-y-4">
-
+      {/* ═══ Quadrant 1 : Objectif principal ═══ */}
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
       {/* ── Objectif principal ────────────────────────────────────────── */}
       <Card className={cn(objective.main_completed && "border-emerald-500/50 bg-emerald-500/5")}>
         <CardHeader className="pb-3">
@@ -926,7 +924,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             <div className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" /> Objectif principal
             </div>
-            {objective.id && (
+            {objective.id && objective.main_objective && !editingObjective && (
               <button
                 type="button"
                 onClick={handleToggleMainObjective}
@@ -942,40 +940,108 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {objective.main_completed && (
-            <p className="text-sm text-emerald-600 font-medium">
-              🏆 Objectif atteint{objective.main_completed_at ? ` le ${format(new Date(objective.main_completed_at), "d MMMM yyyy", { locale: fr })}` : ""} !
-            </p>
-          )}
-          <Input
-            placeholder="Ex : Semi-marathon en 1h45, 100 kg au squat…"
-            value={objective.main_objective || ""}
-            onChange={(e) => setObjective((prev) => ({ ...prev, main_objective: e.target.value }))}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="justify-start text-left font-normal">
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {mainDeadlineDate ? format(mainDeadlineDate, "d MMM yyyy", { locale: fr }) : "Échéance"}
+          {objective.id && objective.main_objective && !editingObjective ? (
+            /* ── Mode fiche (enregistré) ── */
+            (() => {
+              const dl = objective.main_objective_deadline ? new Date(objective.main_objective_deadline) : null;
+              const days = dl ? Math.ceil((dl.getTime() - new Date().getTime()) / 86400000) : null;
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className={cn("text-lg font-bold leading-tight", objective.main_completed && "text-emerald-600")}>{objective.main_objective}</h3>
+                      {dl && (
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {objective.main_completed
+                            ? `🏆 Atteint${objective.main_completed_at ? ` le ${format(new Date(objective.main_completed_at), "d MMM yyyy", { locale: fr })}` : ""}`
+                            : days !== null && days >= 0
+                              ? `Dans ${days} jour${days > 1 ? "s" : ""} · ${format(dl, "d MMM yyyy", { locale: fr })}`
+                              : `Échéance ${format(dl, "d MMM yyyy", { locale: fr })}`}
+                        </p>
+                      )}
+                      {objective.secondary_objective && (
+                        <p className="text-sm text-muted-foreground mt-1">Aussi : {objective.secondary_objective}</p>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
+                      objective.main_completed ? "bg-emerald-500/15 text-emerald-600" : "bg-primary/15 text-primary",
+                    )}>
+                      {objective.main_completed ? "Validé ✓" : "En cours"}
+                    </span>
+                  </div>
+                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditingObjective(true)}>
+                    <Pencil className="h-3.5 w-3.5" /> Modifier
+                  </Button>
+                </div>
+              );
+            })()
+          ) : (
+            /* ── Mode édition ── */
+            <>
+              <Input
+                placeholder="Ex : Semi-marathon en 1h45, 100 kg au squat…"
+                value={objective.main_objective || ""}
+                onChange={(e) => setObjective((prev) => ({ ...prev, main_objective: e.target.value }))}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                      <CalendarDays className="mr-2 h-4 w-4" />
+                      {mainDeadlineDate ? format(mainDeadlineDate, "d MMM yyyy", { locale: fr }) : "Échéance"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={mainDeadlineDate} onSelect={setMainDeadlineDate} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+                <Button size="sm" onClick={handleSaveMainObjective} disabled={isSavingMain}>
+                  <Check className="h-4 w-4 mr-1" /> {isSavingMain ? "Enregistrement…" : "Enregistrer"}
                 </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={mainDeadlineDate} onSelect={setMainDeadlineDate} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
-              </PopoverContent>
-            </Popover>
-            <Button size="sm" onClick={handleSaveMainObjective} disabled={isSavingMain}>
-              <Check className="h-4 w-4 mr-1" /> {isSavingMain ? "Enregistrement…" : "Enregistrer"}
-            </Button>
-          </div>
-          <Input
-            placeholder="Objectif secondaire (optionnel)"
-            value={objective.secondary_objective || ""}
-            onChange={(e) => setObjective((prev) => ({ ...prev, secondary_objective: e.target.value }))}
-          />
+                {objective.id && objective.main_objective && (
+                  <Button size="sm" variant="ghost" onClick={() => setEditingObjective(false)}>Annuler</Button>
+                )}
+              </div>
+              <Input
+                placeholder="Objectif secondaire (optionnel)"
+                value={objective.secondary_objective || ""}
+                onChange={(e) => setObjective((prev) => ({ ...prev, secondary_objective: e.target.value }))}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
 
+      </div>
+
+      {/* ═══ Quadrant 2 : Phases ═══ */}
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+      {/* ── Phases d'entraînement (liées à l'objectif) ────────────────── */}
+      {objective.main_objective && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-5 w-5 text-primary" /> Phases d'entraînement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PhaseBuilder
+              athleteId={athleteId}
+              deadline={objective.main_objective_deadline || null}
+              phases={mesocycles
+                .filter((m) => !m.macrocycle_id)
+                .map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, coach_note: m.coach_note, color: m.color }))}
+              onReload={loadAll}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      </div>
+
+      {/* ═══ Quadrant 3 : Jalons (propositions + jalons + validés) ═══ */}
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
       {/* ── Propositions du sportif à valider ─────────────────────────── */}
       {pendingMilestones.length > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5">
@@ -1108,6 +1174,10 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </Card>
       )}
 
+      </div>
+
+      {/* ═══ Quadrant 4 : Timeline ═══ */}
+      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
       {/* ── Timeline de validation ────────────────────────────────────── */}
       {(milestones.length > 0 || !!objective.main_objective) && (
         <Card>
@@ -1117,207 +1187,115 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto pb-2">
-              <div className="relative min-w-[520px] pt-2 pb-12">
-                {/* axe */}
-                <div className="absolute left-0 right-0 top-[30px] h-0.5 bg-border" />
-                <div className="flex items-start justify-between gap-2">
-                  {(() => {
-                    type TItem = { key: string; label: string; date: string | null; completed: boolean; isNext: boolean; isMain: boolean; onClick: () => void };
-                    const items: TItem[] = sortMilestones(approvedMilestones).map((m) => {
-                      const daysUntil = getDaysUntil(m.target_date);
-                      return { key: m.id, label: m.label, date: milestoneRefDate(m) || null, completed: m.completed, isNext: !m.completed && daysUntil !== null && daysUntil >= 0, isMain: false, onClick: () => handleToggleMilestone(m) };
-                    });
-                    if (objective.main_objective && (objective.main_objective_deadline || objective.main_completed)) {
-                      const mdate = objective.main_completed ? (objective.main_completed_at || objective.main_objective_deadline || null) : (objective.main_objective_deadline || null);
-                      items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleToggleMainObjective });
-                    }
-                    items.sort((a, b) => { if (!a.date && !b.date) return 0; if (!a.date) return 1; if (!b.date) return -1; return new Date(a.date).getTime() - new Date(b.date).getTime(); });
-                    return items.map((it) => (
-                      <button
-                        key={it.key}
-                        type="button"
-                        onClick={it.onClick}
-                        className="relative flex-1 min-w-[90px] flex flex-col items-center text-center group"
-                        title={it.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}
-                      >
-                        <span className={cn(
-                          "grid place-items-center rounded-full border-2 border-background z-10 text-[10px]",
-                          it.isMain ? "h-7 w-7" : "h-4 w-4",
-                          it.completed ? "bg-emerald-500 ring-4 ring-emerald-500/25"
-                            : it.isMain ? "bg-primary ring-4 ring-primary/25"
-                            : it.isNext ? "bg-primary ring-4 ring-primary/20"
-                            : "bg-muted border-dashed border-muted-foreground/50",
-                        )}>{it.isMain ? "🎯" : ""}</span>
-                        <span className={cn(
-                          "mt-3 leading-tight line-clamp-2",
-                          it.isMain ? "text-[12px] font-bold" : "text-[11px] font-medium",
-                          it.completed ? "text-emerald-600" : it.isMain || it.isNext ? "text-foreground" : "text-muted-foreground",
-                        )}>
-                          {it.label}{it.completed ? " ✓" : ""}
-                        </span>
-                        <span className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
-                          {it.date ? format(new Date(it.date), "d MMM", { locale: fr }) : "—"}
-                        </span>
-                      </button>
-                    ));
-                  })()}
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Validé</span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> À venir</span>
-              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-muted border border-dashed border-muted-foreground/50" /> Dépassé</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      </TabsContent>
+            {(() => {
+              const start = new Date(); start.setHours(0, 0, 0, 0);
+              const dl = objective.main_objective_deadline ? new Date(objective.main_objective_deadline) : null;
+              const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+              const phasesTL = mesocycles
+                .filter((m) => !m.macrocycle_id)
+                .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+              const endOf = (p: Mesocycle) => (p.end_date ? new Date(p.end_date) : (dl || addDays(new Date(p.start_date), 14)));
 
-      {/* ═══════════ ONGLET PLANNING ANNUEL ═══════════ */}
-      <TabsContent value="plan" className="mt-0 space-y-4">
+              // Points (jalons + objectif principal)
+              type TItem = { key: string; label: string; date: string | null; completed: boolean; isNext: boolean; isMain: boolean; onClick: () => void };
+              const items: TItem[] = sortMilestones(approvedMilestones).map((m) => {
+                const daysUntil = getDaysUntil(m.target_date);
+                return { key: m.id, label: m.label, date: milestoneRefDate(m) || null, completed: m.completed, isNext: !m.completed && daysUntil !== null && daysUntil >= 0, isMain: false, onClick: () => handleToggleMilestone(m) };
+              });
+              if (objective.main_objective && (objective.main_objective_deadline || objective.main_completed)) {
+                const mdate = objective.main_completed ? (objective.main_completed_at || objective.main_objective_deadline || null) : (objective.main_objective_deadline || null);
+                items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleToggleMainObjective });
+              }
+              const dated = items.filter((it) => it.date);
 
-      {/* ── Alertes fin de cycle ──────────────────────────────────────── */}
-      {cycleAlerts.length > 0 && (
-        <div className="space-y-2">
-          {cycleAlerts.map((alert, i) => (
-            <Alert key={i} className="border-amber-500/50 bg-amber-500/10">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <AlertTitle className="text-amber-600">{alert.label} bientôt terminé</AlertTitle>
-              <AlertDescription>
-                « {alert.name} » se termine {alert.daysLeft === 0 ? "aujourd'hui" : alert.daysLeft === 1 ? "demain" : `dans ${alert.daysLeft} jours`}. Planifie la suite.
-              </AlertDescription>
-            </Alert>
-          ))}
-        </div>
-      )}
+              // Fin de l'échelle : échéance, sinon max des dates connues, + petite marge
+              const ends = [...phasesTL.map((p) => endOf(p).getTime()), ...dated.map((it) => new Date(it.date!).getTime())];
+              const rangeEnd = dl || new Date(ends.length ? Math.max(...ends) : addWeeks(start, 8).getTime());
+              const totalMs = Math.max(1, rangeEnd.getTime() - start.getTime() + 2 * 86400000);
+              const pos = (ms: number) => Math.max(0, Math.min(100, ((ms - start.getTime()) / totalMs) * 100));
+              const weeksTotal = Math.floor(totalMs / (7 * 86400000));
 
-      {/* ── Cycles actifs en résumé ───────────────────────────────────── */}
-      {(allActiveMacros.length > 0 || allActiveMesos.length > 0 || allActiveMicros.length > 0) && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="h-5 w-5 text-primary" />
-              Phase actuelle
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {/* Pour chaque macro actif, afficher la hiérarchie compacte */}
-            {allActiveMacros.map((macro) => {
-              // Le macro est un conteneur : sa couleur vient du premier méso actif, ou neutre
-              const firstActiveMeso = allActiveMesos.find((m) => m.macrocycle_id === macro.id);
-              const macroColor = firstActiveMeso ? getPhase(firstActiveMeso.phase_type).color : "#6B7280";
-              const activeMesosUnder = allActiveMesos.filter((m) => m.macrocycle_id === macro.id);
               return (
-                <div key={macro.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: `${macroColor}40`, backgroundColor: `${macroColor}08` }}>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-semibold text-sm">{macro.name}</span>
-                    {macro.sport && <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">· {macro.sport}</span>}
-                  </div>
-                  {macro.objective && <p className="text-xs text-muted-foreground italic pl-1">{macro.objective}</p>}
-
-                  {activeMesosUnder.map((meso) => {
-                    const mesoPhase = getPhase(meso.phase_type);
-                    const activeMicrosUnder = allActiveMicros.filter((m) => m.mesocycle_id === meso.id);
-                    return (
-                      <div key={meso.id} className="ml-4 border-l-2 pl-3 space-y-2" style={{ borderColor: `${mesoPhase.color}60` }}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Layers2 className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium text-sm">{meso.name}</span>
-                          <PhaseTag value={meso.phase_type} size="xs" />
-                        </div>
-                        <div className="space-y-1 pl-1">
-                          <DotScale label="Volume" value={meso.volume_target ?? 3} max={5} color={mesoPhase.color} />
-                          <DotScale label="Intensité" value={meso.intensity_target ?? 3} max={5} color={mesoPhase.color} />
-                        </div>
-                        {meso.objective && <p className="text-xs text-muted-foreground italic pl-1">{meso.objective}</p>}
-
-                        {activeMicrosUnder.map((micro) => {
-                          const microPhase = getPhase(micro.phase_type);
-                          const { currentWeek, totalWeeks } = getCycleProgress(micro);
+                <div className="overflow-x-auto pb-2">
+                  <div className="relative min-w-[560px]">
+                    {/* Bande des phases (survole pour le détail) */}
+                    {phasesTL.length > 0 && (
+                      <div className="relative h-3.5 rounded-full bg-muted/40 overflow-hidden mb-3">
+                        {phasesTL.map((p, i) => {
+                          const s = new Date(p.start_date).getTime();
+                          const e = endOf(p).getTime();
+                          const col = p.color || COLORS[i % COLORS.length];
+                          const range = `${format(new Date(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(new Date(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}`;
                           return (
-                            <div key={micro.id} className="ml-4 border-l-2 pl-3" style={{ borderColor: `${microPhase.color}60` }}>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <Layers3 className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-sm">{micro.name}</span>
-                                <PhaseTag value={micro.phase_type} size="xs" />
-                                <span className="text-xs text-muted-foreground">Sem. {currentWeek}/{totalWeeks}</span>
-                              </div>
-                            </div>
+                            <div key={p.id} className="absolute top-0 h-full rounded-full transition-transform hover:scale-y-150 cursor-help"
+                              style={{ left: `${pos(s)}%`, width: `${Math.max(2, pos(e) - pos(s))}%`, backgroundColor: col }}
+                              title={`Phase ${i + 1} · ${p.name} · ${range}`} />
                           );
                         })}
                       </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+                    )}
 
-            {/* Mesos actifs sans macro parent */}
-            {allActiveMesos.filter((m) => !m.macrocycle_id || !macrocycles.find((mac) => mac.id === m.macrocycle_id)).map((meso) => {
-              const mesoPhase = getPhase(meso.phase_type);
-              return (
-                <div key={meso.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: `${mesoPhase.color}40`, backgroundColor: `${mesoPhase.color}08` }}>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Layers2 className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="font-semibold text-sm">{meso.name}</span>
-                    <PhaseTag value={meso.phase_type} size="xs" />
-                  </div>
-                  <div className="space-y-1 pl-1">
-                    <DotScale label="Volume" value={meso.volume_target ?? 3} max={5} color={mesoPhase.color} />
-                    <DotScale label="Intensité" value={meso.intensity_target ?? 3} max={5} color={mesoPhase.color} />
+                    {/* Zone timeline : axe + traits de semaine + points */}
+                    <div className="relative h-[104px]">
+                      {/* Axe */}
+                      <div className="absolute left-0 right-0 top-[14px] h-0.5 bg-border" />
+                      {/* Traits de semaine sur la ligne */}
+                      {weeksTotal >= 1 && weeksTotal <= 80 && Array.from({ length: weeksTotal + 1 }, (_, w) => {
+                        const leftPct = (w * 7 * 86400000 / totalMs) * 100;
+                        const major = w % 4 === 0;
+                        return (
+                          <div key={w} className="absolute -translate-x-1/2 flex flex-col items-center" style={{ left: `${leftPct}%`, top: major ? "8px" : "11px" }}>
+                            <div className={cn("w-px", major ? "h-3 bg-muted-foreground/50" : "h-1.5 bg-muted-foreground/25")} />
+                            {major && <span className="text-[8px] text-muted-foreground/50 tabular-nums leading-none mt-0.5">S{w}</span>}
+                          </div>
+                        );
+                      })}
+                      {/* Points */}
+                      {dated.map((it) => {
+                        const leftPct = pos(new Date(it.date!).getTime());
+                        const d0 = new Date(); d0.setHours(0, 0, 0, 0);
+                        const weeks = Math.ceil((new Date(it.date!).getTime() - d0.getTime()) / (7 * 86400000));
+                        return (
+                          <button key={it.key} type="button" onClick={it.onClick}
+                            className="absolute -translate-x-1/2 flex flex-col items-center text-center w-[84px]"
+                            style={{ left: `${leftPct}%`, top: it.isMain ? "0px" : "6px" }}
+                            title={it.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}>
+                            <span className={cn(
+                              "grid place-items-center rounded-full border-2 border-background z-10 text-[10px]",
+                              it.isMain ? "h-7 w-7" : "h-4 w-4",
+                              it.completed ? "bg-emerald-500 ring-4 ring-emerald-500/25"
+                                : it.isMain ? "bg-primary ring-4 ring-primary/25"
+                                : it.isNext ? "bg-primary ring-4 ring-primary/20"
+                                : "bg-muted border-dashed border-muted-foreground/50",
+                            )}>{it.isMain ? "🎯" : ""}</span>
+                            <span className={cn("mt-2 leading-tight line-clamp-2",
+                              it.isMain ? "text-[11px] font-bold" : "text-[10px] font-medium",
+                              it.completed ? "text-emerald-600" : it.isMain || it.isNext ? "text-foreground" : "text-muted-foreground")}>
+                              {it.label}{it.completed ? " ✓" : ""}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground tabular-nums">{format(new Date(it.date!), "d MMM", { locale: fr })}</span>
+                            {!it.completed && (weeks < 0
+                              ? <span className="text-[9px] text-destructive font-medium">en retard</span>
+                              : <span className={cn("text-[9px] font-semibold", it.isMain ? "text-primary" : "text-muted-foreground")}>dans {weeks} sem.</span>)}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-wrap gap-4 text-[11px] text-muted-foreground pt-1">
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Validé</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-primary" /> À venir</span>
+                      <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-muted border border-dashed border-muted-foreground/50" /> Dépassé</span>
+                    </div>
                   </div>
                 </div>
               );
-            })}
+            })()}
           </CardContent>
         </Card>
       )}
-
-      {/* ── Timeline annuelle (lecture seule) ────────────────────────── */}
-      <YearTimeline
-        macrocycles={macrocycles}
-        mesocycles={mesocycles}
-        microcycles={microcycles}
-        milestones={milestones}
-        mainObjectiveDate={objective.main_objective_deadline}
-        onMacrocycleClick={(m) => handleOpenCycleDialog("macro", m)}
-        onMesocycleClick={(m) => handleOpenCycleDialog("meso", m)}
-        onMicrocycleClick={(m) => handleOpenCycleDialog("micro", m)}
-        onMilestoneClick={handleOpenMilestoneDialog}
-        onAddCycle={(type) => handleOpenCycleDialog(type)}
-        onAddMilestone={() => handleOpenMilestoneDialog()}
-      />
-
-      {/* ── Hiérarchie des cycles ─────────────────────────────────────── */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers className="h-5 w-5 text-primary" />
-              Cycles d'entraînement
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => handleOpenCycleDialog("micro")}>
-                <Layers3 className="h-3.5 w-3.5 mr-1 text-cyan-500" /> Micro
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => handleOpenCycleDialog("meso")}>
-                <Layers2 className="h-3.5 w-3.5 mr-1 text-blue-500" /> Méso
-              </Button>
-              <Button size="sm" onClick={() => handleOpenCycleDialog("macro")}>
-                <Layers className="h-3.5 w-3.5 mr-1" /> Macro
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {renderHierarchy()}
-        </CardContent>
-      </Card>
-      </TabsContent>
-    </Tabs>
+      </div>
+    </div>
 
       {/* ── Dialog milestone ──────────────────────────────────────────── */}
       <Dialog open={showMilestoneDialog} onOpenChange={setShowMilestoneDialog}>

@@ -58,7 +58,7 @@ interface SessionInfo {
 
 interface Milestone {
   id: string;
-  name: string;
+  label: string;
   target_date: string;
   completed: boolean;
 }
@@ -169,7 +169,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
   const loadMilestones = async () => {
     const { data } = await supabase
       .from("objective_milestones")
-      .select("id, name, target_date, completed")
+      .select("id, label, target_date, completed")
       .eq("athlete_id", athleteId)
       .eq("completed", false)
       .not("target_date", "is", null)
@@ -425,7 +425,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
                     <div key={m.id} className="flex items-center justify-between px-2 py-1.5 rounded border bg-muted/20 text-xs">
                       <div className="flex items-center gap-1.5 min-w-0 flex-1">
                         <Flag className="h-3 w-3 text-primary flex-shrink-0" />
-                        <span className="truncate">{m.name}</span>
+                        <span className="truncate">{m.label}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
                         <span className="text-[9px] text-muted-foreground">{format(new Date(m.target_date + "T00:00:00"), "d MMM", { locale: fr })}</span>

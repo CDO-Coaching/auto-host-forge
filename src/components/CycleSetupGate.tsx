@@ -471,19 +471,15 @@ export function CycleSetupGate({
   // ── Étape macro → méso 1 ───────────────────────────────────────────────────
 
   const handleMacroNext = async () => {
-    if (!macroForm.name.trim()) { toast.error("Donne un nom au macrocycle pour continuer"); return; }
+    if (!macroForm.name.trim()) { toast.error("Donne un nom à la grande période pour continuer"); return; }
     setIsSaving(true);
     try {
       const result = await saveMacro();
-      if (!result) { toast.error("Erreur lors de la création du macrocycle"); return; }
+      if (!result) { toast.error("Erreur lors de la création"); return; }
       setCreatedMacroId(result.id);
       setMacroEndDate(result.endDate);
-      // Pré-remplir le 1er méso : commence au début du macro, durée max 4 sem
-      const remWeeks = getRemainingWeeks(macroForm.start_date, result.endDate);
-      setNextMesoStart(macroForm.start_date);
-      setMesoForm(defaultMesoForm("accumulation", Math.min(remWeeks, 4), macroForm.start_date));
-      setMesoIndex(0);
-      setStep("meso");
+      // La grande période est créée : on termine. Les phases s'ajoutent ensuite via le builder.
+      finish();
     } catch { toast.error("Erreur lors de la création"); }
     finally { setIsSaving(false); }
   };
@@ -839,7 +835,7 @@ export function CycleSetupGate({
                 style={step === "meso" ? { backgroundColor: phase.color, borderColor: phase.color } : {}}
               >
                 {isSaving ? "Enregistrement…" : step === "macro" ? (
-                  <><ArrowRight className="h-4 w-4" /> Créer et définir les phases</>
+                  <><ArrowRight className="h-4 w-4" /> Créer la grande période</>
                 ) : macroEndDate && getRemainingWeeks(addDays(addWeeks(mesoForm.start_date, mesoForm.weeks), 0), macroEndDate) < 1 ? (
                   <><CheckCircle2 className="h-4 w-4" /> Créer et programmer</>
                 ) : (

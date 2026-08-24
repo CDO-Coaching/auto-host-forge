@@ -31,11 +31,13 @@ import {
   Link2,
   Unlink2,
   Timer,
+  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -102,6 +104,7 @@ interface Exercise {
   request_video?: boolean;
   request_activity_link?: boolean;
   serie_details?: SerieDetail[] | string;
+  coach_note?: string | null;
 }
 // ── AMRAP helpers ─────────────────────────────────────────────────────────────
 /** Returns duration in seconds if series is in AMRAP format, else null. */
@@ -201,6 +204,7 @@ interface Session {
   name: string;
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
+  coach_note?: string | null;
 }
 
 function getSerieDetailsArray(value: any): SerieDetail[] {
@@ -784,6 +788,31 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                           </span>
                         </div>
                       </div>
+                      {/* Note privée coach (point jaune si présente) */}
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            title={session.coach_note ? "Note du coach" : "Ajouter une note (privée)"}
+                            className="relative h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5 text-muted-foreground/50 hover:text-primary"
+                          >
+                            <StickyNote className="h-3.5 w-3.5" />
+                            {session.coach_note && <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="end" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Note privée (coach)</p>
+                          <Textarea
+                            defaultValue={session.coach_note || ""}
+                            placeholder="Note pour toi — copiée avec la semaine, invisible au sportif…"
+                            rows={4}
+                            className="text-sm resize-none"
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => setSessions((prev) => prev.map((s) => s.id === session.id ? { ...s, coach_note: e.target.value } : s))}
+                          />
+                        </PopoverContent>
+                      </Popover>
                       {!isValidated && (
                         <Button
                           variant="ghost" size="sm"
@@ -1761,7 +1790,23 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                       <TableCell className="text-center">
                                         <Checkbox checked={exercise.request_video || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "request_video", c === true)} disabled={isValidated} title="Demander une vidéo" />
                                       </TableCell>
-                                      <TableCell className="text-center" />
+                                      <TableCell className="text-center">
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <button type="button" title={exercise.coach_note ? "Note du coach" : "Ajouter une note (privée)"}
+                                              className="relative inline-flex h-7 w-7 items-center justify-center text-muted-foreground/50 hover:text-primary">
+                                              <StickyNote className="h-4 w-4" />
+                                              {exercise.coach_note && <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />}
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-64 p-2" align="end">
+                                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Note privée (coach)</p>
+                                            <Textarea defaultValue={exercise.coach_note || ""} rows={4} className="text-sm resize-none"
+                                              placeholder="Note pour toi — copiée avec la semaine, invisible au sportif…"
+                                              onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "coach_note", e.target.value)} />
+                                          </PopoverContent>
+                                        </Popover>
+                                      </TableCell>
                                       <TableCell>
                                         {!isValidated && <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10" onClick={() => onDeleteExercise(selectedSession.id, exercise.id)}><X className="h-4 w-4" /></Button>}
                                       </TableCell>

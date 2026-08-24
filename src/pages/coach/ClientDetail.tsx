@@ -8,6 +8,7 @@ import { parsePaceToDecimal, formatPaceFromDecimal } from "@/lib/cardioCalculati
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowRight,
   User,
   Calendar,
   Mail,
@@ -74,6 +75,7 @@ import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
+import { ProgPhaseFloating } from "@/components/ProgPhaseFloating";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
@@ -118,6 +120,7 @@ interface Session {
   name: string;
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
+  coach_note?: string | null; // note privée coach (invisible au sportif)
 }
 
 interface SerieDetail {
@@ -150,6 +153,7 @@ interface Exercise {
   request_video?: boolean;
   request_activity_link?: boolean;
   serie_details?: SerieDetail[];
+  coach_note?: string | null; // note privée coach (invisible au sportif)
 }
 
 /**
@@ -281,6 +285,7 @@ export default function ClientDetail() {
   const [athleteMicrocycles, setAthleteMicrocycles] = useState<Array<{ id: string; name: string; start_date: string; end_date: string; color: string; description?: string; phase_type?: string; volume_target?: number; intensity_target?: number; objective?: string; coach_note?: string }>>([]);
   // Fermeture temporaire du gate de cycles (non persistée : réapparaît au rechargement de la page)
   const [cycleGateDismissed, setCycleGateDismissed] = useState(false);
+  const [hasMainObjective, setHasMainObjective] = useState<boolean | null>(null);
   const [deleteCycleConfirm, setDeleteCycleConfirm] = useState<{ table: "mesocycles" | "microcycles"; id: string; name: string } | null>(null);
   const [isDeletingCycle, setIsDeletingCycle] = useState(false);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
@@ -904,6 +909,7 @@ export default function ClientDetail() {
           name: s.name,
           isExpanded: false,
           session_type: sessionType || "renfo",
+          coach_note: (s as any).coach_note ?? null,
         };
       });
 
@@ -929,6 +935,7 @@ export default function ClientDetail() {
               is_duration: ex.is_duration || false,
               is_distance: ex.is_distance || false,
               serie_details: ex.serie_details || null,
+              coach_note: ex.coach_note ?? null,
               sportif_rpe: ex.sportif_rpe || null,
               sportif_comment: ex.sportif_comment || null,
               skipped: ex.skipped || false,
@@ -1131,6 +1138,15 @@ export default function ClientDetail() {
       } else {
         setAthleteMacrocycles(macrocyclesData || []);
       }
+
+      // L'objectif principal remplace le macrocycle : le rappel s'appuie dessus
+      const { data: objRows } = await supabase
+        .from("athlete_objectives")
+        .select("main_objective")
+        .eq("athlete_id", athleteId)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      setHasMainObjective(!!objRows?.[0]?.main_objective);
 
       // Charger les microcycles
       const { data: microcyclesData, error: microcyclesError } = await supabase
@@ -2654,6 +2670,7 @@ export default function ClientDetail() {
           session_number: session.id,
           name: session.name,
           session_type: session.session_type, // Ajouter le type de session
+          coach_note: session.coach_note ?? null, // note privée coach
         };
 
         // Si c'est une séance cardio, calculer et ajouter les métriques
@@ -2705,6 +2722,7 @@ export default function ClientDetail() {
             per_side: exercise.per_side || false,
             is_duration: exercise.is_duration || false,
               is_distance: exercise.is_distance || false,
+            coach_note: exercise.coach_note ?? null,
             request_video: exercise.request_video || false,
             request_activity_link: exercise.request_activity_link || false,
             serie_details: (() => { const __sd = getSerieDetailsArray(exercise.serie_details); return __sd.length > 0 ? JSON.stringify(__sd) : null; })(),
@@ -2812,6 +2830,7 @@ export default function ClientDetail() {
             name: session.name,
             isExpanded: false,
             session_type: sessionType || "renfo",
+            coach_note: (session as any).coach_note ?? null,
           };
         });
 
@@ -2866,6 +2885,7 @@ export default function ClientDetail() {
                   per_side: ex.per_side || false,
                   is_unilateral: ex.is_unilateral || false,
                   super_set_group: newSuperSetGroup,
+                  coach_note: ex.coach_note ?? null,
                   request_video: ex.request_video || false,
                   request_activity_link: ex.request_activity_link || false,
                   serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
@@ -2975,6 +2995,7 @@ export default function ClientDetail() {
             name: session.name,
             isExpanded: false,
             session_type: sessionType || "renfo",
+            coach_note: (session as any).coach_note ?? null,
           };
         });
 
@@ -3023,6 +3044,7 @@ export default function ClientDetail() {
                   per_side: ex.per_side || false,
                   is_unilateral: ex.is_unilateral || false,
                   super_set_group: newSuperSetGroup,
+                  coach_note: ex.coach_note ?? null,
                   request_video: ex.request_video || false,
                   request_activity_link: ex.request_activity_link || false,
                   serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details as string) : ex.serie_details) : undefined,
@@ -4347,6 +4369,8 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>
+          {/* Panneau flottant : périodisation (phase en cours + timeline) */}
+          {athleteId && <ProgPhaseFloating athleteId={athleteId} />}
           {/* Boutons flottants en haut - scrollable sur mobile */}
           <div className="fixed top-16 left-0 right-0 z-50 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:w-auto overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 sm:gap-2 w-max mx-auto sm:w-auto">
@@ -4877,36 +4901,37 @@ export default function ClientDetail() {
             </div>
           </div>
 
-          {/* ── Gate cycles : bloque si aucun macrocycle actif ──────── */}
-          {(() => {
-            const today = new Date();
-            const hasActiveMacro = athleteMacrocycles.some(
-              (c) => today >= new Date(c.start_date) && today <= new Date(c.end_date)
-            );
-            console.log("[CycleGate] macrocycles:", athleteMacrocycles.length, "hasActiveMacro:", hasActiveMacro, athleteMacrocycles.map(c => `${c.name} (${c.start_date}→${c.end_date})`));
-            if (!hasActiveMacro && !cycleGateDismissed) {
-              return (
-                <CycleSetupGate
-                  athleteId={athleteId!}
-                  athleteName={athlete?.first_name || "l'athlète"}
-                  onDismiss={() => setCycleGateDismissed(true)}
-                  onComplete={async () => {
-                    // Recharger les cycles après création
-                    const [macroRes, mesoRes, microRes] = await Promise.all([
-                      supabase.from("macrocycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
-                      supabase.from("mesocycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
-                      supabase.from("microcycles").select("*").eq("athlete_id", athleteId!).order("start_date"),
-                    ]);
-                    if (macroRes.data) setAthleteMacrocycles(macroRes.data as any);
-                    if (mesoRes.data) setAthleteMesocycles(mesoRes.data as any);
-                    if (microRes.data) setAthleteMicrocycles(microRes.data as any);
-                  }}
-                  onNavigateToObjectives={() => setActiveTab("objectifs")}
-                />
-              );
-            }
-            return null;
-          })()}
+          {/* ── Rappel : pas d'objectif principal défini ──────────────── */}
+          {hasMainObjective === false && !cycleGateDismissed && activeTab !== "objectifs" && (
+            <div className="fixed z-50 bottom-4 right-4 left-4 sm:left-auto sm:w-[340px] animate-in slide-in-from-bottom-4 fade-in duration-300">
+              <div className="rounded-2xl border border-primary/30 bg-card shadow-lg shadow-black/20 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("objectifs")}
+                  className="flex w-full items-center gap-3 p-3.5 text-left active:bg-muted/40 transition-colors"
+                >
+                  <div className="h-9 w-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                    <Target className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold leading-tight truncate">Définis l'objectif</p>
+                    <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                      {athlete?.first_name || "l'athlète"} · avant de programmer les phases
+                    </p>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-primary shrink-0" />
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCycleGateDismissed(true)}
+                aria-label="Masquer le rappel"
+                className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-secondary border border-border flex items-center justify-center text-muted-foreground shadow hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Alerte de fatigue */}
           {athlete && (
@@ -5046,6 +5071,7 @@ export default function ClientDetail() {
           {/* ── Vue mobile (uniquement < sm) ─────────────────────────── */}
           <div className="sm:hidden">
             <MobileProgView
+              onSessionNoteChange={(sid, note) => setSessions((prev) => prev.map((s) => s.id === sid ? { ...s, coach_note: note } : s))}
               sessions={sessions}
               sessionExercises={sessionExercises}
               selectedWeekToProgram={selectedWeekToProgram}
