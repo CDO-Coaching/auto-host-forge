@@ -4,9 +4,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, addWeeks, addDays, differenceInCalendarDays, startOfDay } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Plus, Trash2, NotebookPen, Infinity as InfinityIcon } from "lucide-react";
+import { Plus, Trash2, NotebookPen, Infinity as InfinityIcon, ChevronDown, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface BuilderPhase {
@@ -41,10 +43,32 @@ export function PhaseBuilder({
   const [newFocus, setNewFocus] = useState("");
   const [newWeeks, setNewWeeks] = useState<number | null>(4); // null = sans durée
   const [openNote, setOpenNote] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false); // n'affiche que la 1re phase par défaut
   const [busy, setBusy] = useState(false);
 
   const today = startOfDay(new Date());
   const dl = deadline ? new Date(deadline) : null;
+
+  // Fixe la date de début d'une phase et ré-enchaîne les suivantes.
+  const setPhaseStart = async (idx: number, date: Date) => {
+    setBusy(true);
+    try {
+      let cursor = startOfDay(date);
+      for (let i = idx; i < ordered.length; i++) {
+        const w = phaseWeeks(ordered[i]);
+        const start = new Date(cursor);
+        const end = w ? addDays(addWeeks(start, w), -1) : null;
+        if (end) cursor = addDays(end, 1);
+        await supabase.from("mesocycles").update({
+          start_date: format(start, "yyyy-MM-dd"),
+          end_date: end ? format(end, "yyyy-MM-dd") : null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", ordered[i].id);
+      }
+      onReload();
+    } catch { toast.error("Erreur"); }
+    finally { setBusy(false); }
+  };
 
   // Recalcule les dates en chaîne depuis aujourd'hui et persiste.
   const persistChain = async (list: { id: string; weeks: number | null }[]) => {
@@ -163,6 +187,7 @@ export function PhaseBuilder({
           <p className="text-sm text-muted-foreground text-center py-2">Aucune phase — ajoute la première ci-dessous.</p>
         )}
         {ordered.map((p, i) => {
+          if (!expanded && i > 0) return null; // seule la Phase 1 visible par défaut
           const color = p.color || PHASE_COLORS[i % PHASE_COLORS.length];
           const w = phaseWeeks(p);
           return (
@@ -193,10 +218,19 @@ export function PhaseBuilder({
                 <button className="text-muted-foreground/60 hover:text-destructive shrink-0 p-1" onClick={() => handleDelete(p.id)} title="Supprimer"><Trash2 className="h-4 w-4" /></button>
               </div>
               <div className="flex items-center justify-between gap-2 pl-[4.4rem] mt-1">
-                <span className="text-[11px] text-muted-foreground tabular-nums">
-                  {format(new Date(p.start_date), "d MMM", { locale: fr })}
-                  {p.end_date ? ` → ${format(new Date(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}
-                </span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground tabular-nums" title="Modifier la date de début">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {format(new Date(p.start_date), "d MMM", { locale: fr })}
+                      {p.end_date ? ` → ${format(new Date(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="px-3 pt-2 text-[11px] text-muted-foreground">Date de début — les phases suivantes se décalent.</div>
+                    <Calendar mode="single" selected={new Date(p.start_date)} onSelect={(d) => d && setPhaseStart(i, d)} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
                 <button onClick={() => setOpenNote(openNote === p.id ? null : p.id)} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
                   <NotebookPen className="h-3.5 w-3.5" /> {p.coach_note ? "Note" : "Ajouter une note"}
                 </button>
@@ -215,6 +249,17 @@ export function PhaseBuilder({
             </div>
           );
         })}
+        {/* Déplier / replier les phases suivantes */}
+        {ordered.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border"
+          >
+            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
+            {expanded ? "Réduire" : `Voir les ${ordered.length - 1} autre${ordered.length - 1 > 1 ? "s" : ""} phase${ordered.length - 1 > 1 ? "s" : ""}`}
+          </button>
+        )}
       </div>
 
       {/* Ajouter une phase */}

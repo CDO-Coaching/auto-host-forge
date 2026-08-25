@@ -192,11 +192,13 @@ export function ProgPhaseFloating({ athleteId }: { athleteId: string }) {
             <div>
               <div className="relative h-3.5 rounded-full bg-muted/40 overflow-hidden">
                 {phases.map((p, i) => {
-                  const s = D(p.start_date).getTime(), e = endOf(p).getTime();
+                  const s = D(p.start_date).getTime();
+                  // fin étendue au jour suivant pour toucher la phase suivante (pas de blanc d'1 jour)
+                  const e = endOf(p).getTime() + 86400000;
                   const col = p.color || COLORS[i % COLORS.length];
                   const range = `${format(D(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(new Date(p.end_date), "d MMM", { locale: fr })}` : " → en cours"}`;
                   return (
-                    <div key={p.id} className={cn("absolute top-0 h-full", i === idxCurrent ? "ring-2 ring-white/70 z-10 rounded-sm" : "")}
+                    <div key={p.id} className={cn("absolute top-0 h-full", i === idxCurrent ? "z-10" : "")}
                       style={{ left: `${pos(s)}%`, width: `${Math.max(2, pos(e) - pos(s))}%`, backgroundColor: col }}
                       title={`${p.name} · ${range}`} />
                   );

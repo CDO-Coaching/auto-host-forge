@@ -286,6 +286,8 @@ export default function ClientDetail() {
   // Fermeture temporaire du gate de cycles (non persistée : réapparaît au rechargement de la page)
   const [cycleGateDismissed, setCycleGateDismissed] = useState(false);
   const [hasMainObjective, setHasMainObjective] = useState<boolean | null>(null);
+  const [mainObjectiveName, setMainObjectiveName] = useState<string | null>(null);
+  const [mainObjectiveDeadline, setMainObjectiveDeadline] = useState<string | null>(null);
   const [deleteCycleConfirm, setDeleteCycleConfirm] = useState<{ table: "mesocycles" | "microcycles"; id: string; name: string } | null>(null);
   const [isDeletingCycle, setIsDeletingCycle] = useState(false);
   const [showObjectivesSheet, setShowObjectivesSheet] = useState(false);
@@ -1142,11 +1144,13 @@ export default function ClientDetail() {
       // L'objectif principal remplace le macrocycle : le rappel s'appuie dessus
       const { data: objRows } = await supabase
         .from("athlete_objectives")
-        .select("main_objective")
+        .select("main_objective, main_objective_deadline")
         .eq("athlete_id", athleteId)
         .order("updated_at", { ascending: false })
         .limit(1);
       setHasMainObjective(!!objRows?.[0]?.main_objective);
+      setMainObjectiveName(objRows?.[0]?.main_objective || null);
+      setMainObjectiveDeadline(objRows?.[0]?.main_objective_deadline || null);
 
       // Charger les microcycles
       const { data: microcyclesData, error: microcyclesError } = await supabase
@@ -4214,44 +4218,27 @@ export default function ClientDetail() {
                     title={`${next.label} — ${new Date(next.target_date).toLocaleDateString("fr-FR")}`}
                     onClick={() => setActiveTab("objectifs")}
                   >
-                    🎯 {label} · {next.label}
+                    🚩 {label} · {next.label}
                   </span>
                 );
               })()}
 
-              {/* Cycles actifs inline */}
-              {(() => {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const filterActive = (arr: typeof athleteMacrocycles) => arr.filter(m => {
-                  const s = new Date(m.start_date); const e = new Date(m.end_date);
-                  return today >= s && today <= e;
-                });
-                const currentMacro = filterActive(athleteMacrocycles);
-                const currentMeso = filterActive(athleteMesocycles);
-                const currentMicro = filterActive(athleteMicrocycles);
-                if (currentMacro.length === 0 && currentMeso.length === 0 && currentMicro.length === 0) return null;
-                const getWeeksInfo = (start: string, end: string) => {
-                  const s = new Date(start); const e = new Date(end);
-                  const totalWeeks = Math.max(1, Math.round((e.getTime() - s.getTime()) / (7 * 24 * 60 * 60 * 1000)));
-                  const elapsedWeeks = Math.max(1, Math.round((today.getTime() - s.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1);
-                  const remaining = Math.max(0, totalWeeks - elapsedWeeks);
-                  return { remaining, total: totalWeeks };
-                };
-                const renderCycleBadge = (c: typeof currentMacro[0], label: string) => {
-                  const w = getWeeksInfo(c.start_date, c.end_date);
-                  return (
-                    <span key={c.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-medium border" style={{ borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color }}>
-                      <span className="opacity-70 uppercase mr-0.5">{label}</span> {c.name} · {Math.min(w.total - w.remaining, w.total)}s/{w.total}s
-                    </span>
-                  );
-                };
+              {/* Objectif principal + semaines avant l'échéance */}
+              {mainObjectiveName && (() => {
+                let weeksLeft: number | null = null;
+                if (mainObjectiveDeadline) {
+                  const t = new Date(); t.setHours(0, 0, 0, 0);
+                  weeksLeft = Math.ceil((new Date(mainObjectiveDeadline + "T00:00:00").getTime() - t.getTime()) / (7 * 86400000));
+                }
                 return (
-                  <>
-                    {currentMacro.map(c => renderCycleBadge(c, "Macro"))}
-                    {currentMeso.map(c => renderCycleBadge(c, "Méso"))}
-                    {currentMicro.map(c => renderCycleBadge(c, "Micro"))}
-                  </>
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium border bg-primary/10 text-primary border-primary/30 cursor-pointer max-w-[240px]"
+                    title={`${mainObjectiveName}${mainObjectiveDeadline ? ` — échéance ${new Date(mainObjectiveDeadline + "T00:00:00").toLocaleDateString("fr-FR")}` : ""}`}
+                    onClick={() => setActiveTab("objectifs")}
+                  >
+                    🎯 <span className="truncate max-w-[160px]">{mainObjectiveName}</span>
+                    {weeksLeft !== null && <span className="opacity-80 shrink-0">· {weeksLeft < 0 ? "dépassé" : `${weeksLeft} sem.`}</span>}
+                  </span>
                 );
               })()}
             </div>
@@ -4902,7 +4889,7 @@ export default function ClientDetail() {
           </div>
 
           {/* ── Rappel : pas d'objectif principal défini ──────────────── */}
-          {hasMainObjective === false && !cycleGateDismissed && activeTab !== "objectifs" && (
+          {hasMainObjective === false && !cycleGateDismissed && activeTab !== "objectifs" && activeTab !== "programmation" && (
             <div className="fixed z-50 bottom-4 right-4 left-4 sm:left-auto sm:w-[340px] animate-in slide-in-from-bottom-4 fade-in duration-300">
               <div className="rounded-2xl border border-primary/30 bg-card shadow-lg shadow-black/20 overflow-hidden">
                 <button
@@ -4941,8 +4928,10 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* ── Bannière de phase active (masquée si gate actif) ─────── */}
+          {/* ── Bannière de phase active retirée (remplacée par le panneau Périodisation) ─────── */}
           {(() => {
+            return null;
+            // eslint-disable-next-line no-unreachable
             const today = new Date();
             const isActive = (c: { start_date: string; end_date: string }) =>
               today >= new Date(c.start_date) && today <= new Date(c.end_date);
@@ -5683,9 +5672,10 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="objectifs" className="space-y-4">
-          <CoachObjectivesView 
-            athleteId={athleteId!} 
-            athleteName={athlete.first_name || "l'athlète"} 
+          <CoachObjectivesView
+            athleteId={athleteId!}
+            athleteName={athlete.first_name || "l'athlète"}
+            onObjectiveChange={(has, name, deadline) => { setHasMainObjective(has); setMainObjectiveName(name || null); setMainObjectiveDeadline(deadline || null); }}
           />
         </TabsContent>
 

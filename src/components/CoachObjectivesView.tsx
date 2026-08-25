@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO, addWeeks, addDays } from "date-fns";
+import { format, differenceInWeeks, differenceInDays, isWithinInterval, parseISO, addWeeks, addDays, addMonths } from "date-fns";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,7 @@ import { PhaseBuilder } from "./PhaseBuilder";
 interface CoachObjectivesViewProps {
   athleteId: string;
   athleteName: string;
+  onObjectiveChange?: (hasObjective: boolean, name?: string | null, deadline?: string | null) => void;
 }
 
 interface AthleteObjective {
@@ -234,7 +235,7 @@ function DotScale({
 
 // ─── Composant principal ──────────────────────────────────────────────────────
 
-export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesViewProps) {
+export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange }: CoachObjectivesViewProps) {
   const [objective, setObjective] = useState<AthleteObjective>({});
   const [milestones, setMilestones] = useState<ObjectiveMilestone[]>([]);
   const [macrocycles, setMacrocycles] = useState<Macrocycle[]>([]);
@@ -243,6 +244,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
   const [loading, setLoading] = useState(true);
   const [isSavingMain, setIsSavingMain] = useState(false);
   const [editingObjective, setEditingObjective] = useState(false);
+  const [showValidated, setShowValidated] = useState(false); // section "validés" repliée par défaut
+  const [tlMonthOffset, setTlMonthOffset] = useState(0); // navigation timeline (mois)
 
   // Dialogs
   const [showMilestoneDialog, setShowMilestoneDialog] = useState(false);
@@ -305,7 +308,11 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
       .eq("athlete_id", athleteId)
       .order("updated_at", { ascending: false })
       .limit(1);
-    if (data && data.length > 0) setObjective(data[0]);
+    const row = data && data.length > 0 ? data[0] : null;
+    if (row) setObjective(row); else setObjective({});
+    // Fiche si un objectif est déjà enregistré, sinon mode saisie (et il y reste tant qu'on n'enregistre pas)
+    setEditingObjective(!row?.main_objective);
+    onObjectiveChange?.(!!row?.main_objective, row?.main_objective || null, row?.main_objective_deadline || null);
   };
 
   const loadMilestones = async () => {
@@ -932,7 +939,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
 
   return (
     <>
-    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:grid-rows-2 lg:gap-4 lg:h-[calc(100dvh-11rem)]">
+    <div className="space-y-4 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-4 lg:h-[calc(100dvh-11rem)]">
 
       {/* ═══ Quadrant 1 : Objectif principal ═══ */}
       <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
@@ -956,7 +963,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {objective.id && objective.main_objective && !editingObjective ? (
+          {!editingObjective && objective.main_objective ? (
             /* ── Mode fiche (enregistré) ── */
             (() => {
               const dl = objective.main_objective_deadline ? new Date(objective.main_objective_deadline) : null;
@@ -1029,35 +1036,8 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
-      </div>
 
-      {/* ═══ Quadrant 2 : Phases ═══ */}
-      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
-      {/* ── Phases d'entraînement (liées à l'objectif) ────────────────── */}
-      {objective.main_objective && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Layers className="h-5 w-5 text-primary" /> Phases d'entraînement
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PhaseBuilder
-              athleteId={athleteId}
-              deadline={objective.main_objective_deadline || null}
-              phases={mesocycles
-                .filter((m) => !m.macrocycle_id)
-                .map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, coach_note: m.coach_note, color: m.color }))}
-              onReload={loadAll}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      </div>
-
-      {/* ═══ Quadrant 3 : Jalons (propositions + jalons + validés) ═══ */}
-      <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+      {/* Jalons / propositions / validés */}
       {/* ── Propositions du sportif à valider ─────────────────────────── */}
       {pendingMilestones.length > 0 && (
         <Card className="border-amber-500/50 bg-amber-500/5">
@@ -1158,14 +1138,18 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
-      {/* ── Objectifs & sous-objectifs validés ────────────────────────── */}
+      {/* ── Objectifs & sous-objectifs validés (repliable) ────────────── */}
       {doneMilestones.length > 0 && (
         <Card className="border-emerald-500/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base text-emerald-600">
-              <Check className="h-5 w-5" /> Objectifs &amp; sous-objectifs validés ({doneMilestones.length})
-            </CardTitle>
-          </CardHeader>
+          <button type="button" onClick={() => setShowValidated((v) => !v)} className="w-full text-left">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base text-emerald-600">
+                <Check className="h-5 w-5" /> Objectifs &amp; sous-objectifs validés ({doneMilestones.length})
+                <ChevronDown className={cn("h-4 w-4 ml-auto transition-transform", showValidated && "rotate-180")} />
+              </CardTitle>
+            </CardHeader>
+          </button>
+          {showValidated && (
           <CardContent className="space-y-2">
             {sortMilestones(doneMilestones).map((m) => (
               <div key={m.id} className={cn("flex items-center gap-3 rounded-lg border p-3", m.is_objective ? "border-primary/40 bg-primary/5" : "border-emerald-500/30 bg-emerald-500/5")}>
@@ -1186,19 +1170,53 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               </div>
             ))}
           </CardContent>
+          )}
         </Card>
       )}
 
       </div>
 
-      {/* ═══ Quadrant 4 : Timeline ═══ */}
+      {/* Colonne droite : Phases + Timeline */}
       <div className="space-y-4 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+      {/* ── Phases d'entraînement (liées à l'objectif) ────────────────── */}
+      {objective.main_objective && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Layers className="h-5 w-5 text-primary" /> Phases d'entraînement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PhaseBuilder
+              athleteId={athleteId}
+              deadline={objective.main_objective_deadline || null}
+              phases={mesocycles
+                .filter((m) => !m.macrocycle_id)
+                .map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, coach_note: m.coach_note, color: m.color }))}
+              onReload={loadAll}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+
       {/* ── Timeline de validation ────────────────────────────────────── */}
       {(milestones.length > 0 || !!objective.main_objective) && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <CalendarDays className="h-5 w-5 text-primary" /> Timeline de validation
+              <div className="ml-auto flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" title="Reculer" onClick={() => setTlMonthOffset((o) => o - 1)}>
+                  <ChevronRight className="h-4 w-4 rotate-180" />
+                </Button>
+                {tlMonthOffset !== 0 && (
+                  <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2" onClick={() => setTlMonthOffset(0)}>Aujourd'hui</Button>
+                )}
+                <Button variant="outline" size="icon" className="h-7 w-7" title="Avancer" onClick={() => setTlMonthOffset((o) => o + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1221,14 +1239,16 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                 const mdate = objective.main_completed ? (objective.main_completed_at || objective.main_objective_deadline || null) : (objective.main_objective_deadline || null);
                 items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleValidateMainObjective });
               }
-              const dated = items.filter((it) => it.date);
-
-              // Fin de l'échelle : échéance, sinon max des dates connues, + petite marge
-              const ends = [...phasesTL.map((p) => endOf(p).getTime()), ...dated.map((it) => new Date(it.date!).getTime())];
-              const rangeEnd = dl || new Date(ends.length ? Math.max(...ends) : addWeeks(start, 8).getTime());
-              const totalMs = Math.max(1, rangeEnd.getTime() - start.getTime() + 2 * 86400000);
-              const pos = (ms: number) => Math.max(0, Math.min(100, ((ms - start.getTime()) / totalMs) * 100));
-              const weeksTotal = Math.floor(totalMs / (7 * 86400000));
+              // Fenêtre glissante : J-2 semaines (gauche) → +6 mois (droite), navigable
+              const windowStart = addMonths(addDays(start, -14), tlMonthOffset);
+              const windowEnd = addMonths(windowStart, 4);
+              const totalMs = windowEnd.getTime() - windowStart.getTime();
+              const pos = (ms: number) => Math.max(0, Math.min(100, ((ms - windowStart.getTime()) / totalMs) * 100));
+              const inWin = (ms: number) => ms >= windowStart.getTime() && ms <= windowEnd.getTime();
+              const weeksTotal = Math.round(totalMs / (7 * 86400000));
+              const dated = items
+                .filter((it) => it.date && inWin(new Date(it.date).getTime()))
+                .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
 
               return (
                 <div className="overflow-x-auto pb-2">
@@ -1238,12 +1258,13 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                       <div className="relative h-3.5 rounded-full bg-muted/40 overflow-hidden mb-3">
                         {phasesTL.map((p, i) => {
                           const s = new Date(p.start_date).getTime();
-                          const e = endOf(p).getTime();
+                          const e = endOf(p).getTime() + 86400000; // +1 jour pour toucher la phase suivante
+                          if (e < windowStart.getTime() || s > windowEnd.getTime()) return null; // hors fenêtre
                           const col = p.color || COLORS[i % COLORS.length];
                           const range = `${format(new Date(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(new Date(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}`;
                           return (
                             <div key={p.id} className="absolute top-0 h-full rounded-full transition-transform hover:scale-y-150 cursor-help"
-                              style={{ left: `${pos(s)}%`, width: `${Math.max(2, pos(e) - pos(s))}%`, backgroundColor: col }}
+                              style={{ left: `${pos(s)}%`, width: `${Math.max(1, pos(e) - pos(s))}%`, backgroundColor: col }}
                               title={`Phase ${i + 1} · ${p.name} · ${range}`} />
                           );
                         })}
@@ -1251,48 +1272,59 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
                     )}
 
                     {/* Zone timeline : axe + traits de semaine + points */}
-                    <div className="relative h-[104px]">
+                    <div className="relative h-[128px]">
                       {/* Axe */}
                       <div className="absolute left-0 right-0 top-[14px] h-0.5 bg-border" />
-                      {/* Traits de semaine sur la ligne */}
-                      {weeksTotal >= 1 && weeksTotal <= 80 && Array.from({ length: weeksTotal + 1 }, (_, w) => {
+                      {/* Curseur "aujourd'hui" */}
+                      {inWin(start.getTime()) && (
+                        <div className="absolute top-[6px] h-4 w-0.5 bg-primary z-20" style={{ left: `${pos(start.getTime())}%` }} title="Aujourd'hui" />
+                      )}
+                      {/* Traits de semaine sur la ligne (label mensuel toutes les 4 sem.) */}
+                      {weeksTotal >= 1 && weeksTotal <= 40 && Array.from({ length: weeksTotal + 1 }, (_, w) => {
                         const leftPct = (w * 7 * 86400000 / totalMs) * 100;
                         const major = w % 4 === 0;
+                        const tickDate = addWeeks(windowStart, w);
                         return (
                           <div key={w} className="absolute -translate-x-1/2 flex flex-col items-center" style={{ left: `${leftPct}%`, top: major ? "8px" : "11px" }}>
                             <div className={cn("w-px", major ? "h-3 bg-muted-foreground/50" : "h-1.5 bg-muted-foreground/25")} />
-                            {major && <span className="text-[8px] text-muted-foreground/50 tabular-nums leading-none mt-0.5">S{w}</span>}
+                            {major && <span className="text-[8px] text-muted-foreground/50 tabular-nums leading-none mt-0.5">{format(tickDate, "d MMM", { locale: fr })}</span>}
                           </div>
                         );
                       })}
-                      {/* Points */}
-                      {dated.map((it) => {
+                      {/* Points (étiquettes alternées sur 2 niveaux pour rester lisibles) */}
+                      {dated.map((it, idx) => {
                         const leftPct = pos(new Date(it.date!).getTime());
                         const d0 = new Date(); d0.setHours(0, 0, 0, 0);
                         const weeks = Math.ceil((new Date(it.date!).getTime() - d0.getTime()) / (7 * 86400000));
+                        const labelTop = 32 + (idx % 2) * 42; // deux rangées
                         return (
-                          <button key={it.key} type="button" onClick={it.onClick}
-                            className="absolute -translate-x-1/2 flex flex-col items-center text-center w-[84px]"
-                            style={{ left: `${leftPct}%`, top: it.isMain ? "0px" : "6px" }}
-                            title={it.completed ? "Cliquer pour dévalider" : "Cliquer pour valider"}>
-                            <span className={cn(
-                              "grid place-items-center rounded-full border-2 border-background z-10 text-[10px]",
-                              it.isMain ? "h-7 w-7" : "h-4 w-4",
-                              it.completed ? "bg-emerald-500 ring-4 ring-emerald-500/25"
-                                : it.isMain ? "bg-primary ring-4 ring-primary/25"
-                                : it.isNext ? "bg-primary ring-4 ring-primary/20"
-                                : "bg-muted border-dashed border-muted-foreground/50",
-                            )}>{it.isMain ? "🎯" : ""}</span>
-                            <span className={cn("mt-2 leading-tight line-clamp-2",
-                              it.isMain ? "text-[11px] font-bold" : "text-[10px] font-medium",
-                              it.completed ? "text-emerald-600" : it.isMain || it.isNext ? "text-foreground" : "text-muted-foreground")}>
-                              {it.label}{it.completed ? " ✓" : ""}
+                          <div key={it.key} className="group absolute -translate-x-1/2" style={{ left: `${leftPct}%`, top: 0 }}>
+                            {/* connecteur point → étiquette */}
+                            <div className="absolute left-1/2 -translate-x-1/2 w-px bg-border/60" style={{ top: "14px", height: `${labelTop - 14}px` }} />
+                            {/* Bulle au survol (nom + date) */}
+                            <span className={cn("pointer-events-none absolute left-1/2 -translate-x-1/2 -top-7 hidden group-hover:block whitespace-nowrap rounded-md border bg-popover px-2 py-1 text-[11px] font-medium shadow-md z-30",
+                              it.completed ? "text-emerald-600" : "text-foreground")}>
+                              {it.isMain ? "🎯 " : ""}{it.label}{it.completed ? " ✓" : ""} · {format(new Date(it.date!), "d MMM yyyy", { locale: fr })}
                             </span>
-                            <span className="text-[9px] text-muted-foreground tabular-nums">{format(new Date(it.date!), "d MMM", { locale: fr })}</span>
-                            {!it.completed && (weeks < 0
-                              ? <span className="text-[9px] text-destructive font-medium">en retard</span>
-                              : <span className={cn("text-[9px] font-semibold", it.isMain ? "text-primary" : "text-muted-foreground")}>dans {weeks} sem.</span>)}
-                          </button>
+                            {/* point sur l'axe (non cliquable) */}
+                            <span
+                              className={cn(
+                                "absolute left-1/2 -translate-x-1/2 grid place-items-center rounded-full border-2 border-background z-10 text-[10px] cursor-help transition-transform group-hover:scale-125",
+                                it.isMain ? "h-7 w-7" : "h-4 w-4",
+                                it.completed ? "bg-emerald-500 ring-4 ring-emerald-500/25"
+                                  : it.isMain ? "bg-primary ring-4 ring-primary/25"
+                                  : it.isNext ? "bg-primary ring-4 ring-primary/20"
+                                  : "bg-muted border-dashed border-muted-foreground/50",
+                              )}
+                              style={{ top: it.isMain ? "1px" : "6px" }}
+                            >{it.isMain ? "🎯" : ""}</span>
+                            {/* étiquette : seulement le compte à rebours */}
+                            <div className="absolute left-1/2 -translate-x-1/2 w-[70px] text-center" style={{ top: `${labelTop}px` }}>
+                              {!it.completed && (weeks < 0
+                                ? <span className="block text-[9px] text-destructive font-medium leading-none">en retard</span>
+                                : <span className={cn("block text-[9px] font-semibold leading-none", it.isMain ? "text-primary" : "text-muted-foreground")}>dans {weeks} sem.</span>)}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -1310,6 +1342,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </Card>
       )}
       </div>
+
     </div>
 
       {/* ── Dialog milestone ──────────────────────────────────────────── */}
