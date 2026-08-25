@@ -345,8 +345,9 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         main_objective: objective.main_objective,
         main_objective_deadline: deadline,
         secondary_objective: objective.secondary_objective,
-        main_completed: objective.main_completed ?? false,
-        main_completed_at: objective.main_completed ? (objective.main_completed_at || format(new Date(), "yyyy-MM-dd")) : null,
+        // Un objectif enregistré/modifié est "en cours" ; la validation passe par l'archivage.
+        main_completed: false,
+        main_completed_at: null,
         updated_at: new Date().toISOString(),
       };
       // Update si une ligne existe déjà, sinon insert — ne dépend pas d'une contrainte unique.
@@ -359,7 +360,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         ({ error } = await supabase.from("athlete_objectives").insert(payload));
       }
       if (error) throw error;
-      setObjective((prev) => ({ ...prev, main_objective_deadline: deadline }));
+      setObjective((prev) => ({ ...prev, main_objective_deadline: deadline, main_completed: false, main_completed_at: null }));
       toast.success("Objectif principal enregistré");
       setEditingObjective(false);
       await loadObjectives();
@@ -380,7 +381,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         label: objective.main_objective,
         target_date: objective.main_objective_deadline || null,
         completed: true, completed_at: objective.main_completed ? (objective.main_completed_at || todayStr) : todayStr,
-        is_objective: true, created_by_role: "coach", approval_status: "approved",
+        created_by_role: "coach", approval_status: "approved",
         updated_at: new Date().toISOString(),
       });
       if (insErr) throw insErr;
