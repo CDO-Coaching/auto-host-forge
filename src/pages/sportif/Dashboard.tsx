@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -357,37 +358,40 @@ export default function SportifDashboard() {
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
 
-      {/* Progression hebdomadaire — avec numéro de semaine intégré */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-3 sm:p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">Progression</span>
-            </div>
-            <span className="text-[10px] text-muted-foreground">
-              S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
-            </span>
-          </div>
-          {weeklyInfo.total > 0 ? (
-            <>
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
-                <span className="font-bold text-primary">{progressPercent}%</span>
+      {/* Progression — objectif principal, sous-objectifs et timeline */}
+      {user?.id && (
+        <div onClick={() => navigate("/sportif/objectifs")} className="cursor-pointer active:opacity-80 transition-opacity">
+          <ProgObjectiveBanner athleteId={user.id} heading="Ma progression" variant="clean" />
+        </div>
+      )}
+
+      {/* Séances de la semaine — avancement */}
+      {weeklyInfo.total > 0 && (
+        <Card className="overflow-hidden">
+          <CardContent className="p-3 sm:p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Dumbbell className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm">Séances de la semaine</span>
               </div>
-              <Progress value={progressPercent} className="h-2" />
-            </>
-          ) : (
-            <p className="text-xs text-muted-foreground">Pas de programme cette semaine</p>
-          )}
-          {progressPercent === 100 && weeklyInfo.total > 0 && (
-            <p className="text-xs text-green-500 font-medium flex items-center gap-1">
-              <CheckCircle2 className="h-3 w-3" />
-              Bravo, semaine complétée ! 🎉
-            </p>
-          )}
-        </CardContent>
-      </Card>
+              <span className="text-[10px] text-muted-foreground">
+                S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
+              <span className="font-bold text-primary">{progressPercent}%</span>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
+            {progressPercent === 100 && (
+              <p className="text-xs text-green-500 font-medium flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Bravo, semaine complétée ! 🎉
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Bilan hebdo — durée + distances par sport */}
       {weeklyStats.completedCount > 0 && (() => {

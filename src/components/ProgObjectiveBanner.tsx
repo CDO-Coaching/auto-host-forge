@@ -29,7 +29,7 @@ const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"
  * de validation (phases, jalons, échéance). Remplace l'ancienne bannière de
  * progression (phase / volume / intensité).
  */
-export function ProgObjectiveBanner({ athleteId }: { athleteId: string }) {
+export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: { athleteId: string; heading?: string; variant?: "phases" | "clean" }) {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [deadline, setDeadline] = useState<string | null>(null);
@@ -103,6 +103,70 @@ export function ProgObjectiveBanner({ athleteId }: { athleteId: string }) {
 
   return (
     <div className="rounded-xl border border-border/40 bg-card px-4 py-3 space-y-2.5">
+      {heading && (
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-sm">{heading}</span>
+        </div>
+      )}
+      {/* ── Variante « clean » (sportif) : route verticale claire, sans phases ── */}
+      {variant === "clean" ? (
+        (() => {
+          const items = [
+            ...datedMs.map((x) => ({ key: x.m.id, label: x.m.label, date: x.d, done: x.m.completed, isObjective: false })),
+            ...(objName ? [{ key: "obj", label: objName, date: deadline, done: objCompleted, isObjective: true }] : []),
+          ].sort((a, b) => {
+            if (!a.date) return 1;
+            if (!b.date) return -1;
+            return D(a.date).getTime() - D(b.date).getTime();
+          });
+          if (items.length === 0) {
+            return <p className="text-sm text-muted-foreground italic">Aucun objectif défini pour l'instant.</p>;
+          }
+          return (
+            <div className="relative pl-1">
+              {items.map((it, i) => {
+                const wk = it.date ? weeksUntil(it.date) : null;
+                const isLast = i === items.length - 1;
+                return (
+                  <div key={it.key} className="relative flex items-start gap-3 pb-3 last:pb-0">
+                    {/* Ligne verticale reliant les points */}
+                    {!isLast && <span className="absolute left-[6px] top-4 bottom-0 w-px bg-border" />}
+                    {/* Point */}
+                    <span className={cn(
+                      "relative z-10 mt-1 shrink-0 flex items-center justify-center rounded-full",
+                      it.isObjective ? "h-3.5 w-3.5" : "h-3 w-3",
+                      it.done ? "bg-emerald-500" : it.isObjective ? "bg-primary ring-2 ring-primary/25" : "bg-primary/70",
+                    )} />
+                    {/* Contenu */}
+                    <div className="min-w-0 flex-1 flex items-baseline gap-2">
+                      <span className={cn(
+                        "truncate leading-tight",
+                        it.isObjective ? "text-sm font-semibold" : "text-sm",
+                        it.done && "text-emerald-600 line-through decoration-emerald-600/40",
+                      )}>
+                        {it.isObjective && "🎯 "}{it.label}
+                      </span>
+                      <span className={cn(
+                        "ml-auto shrink-0 text-[11px] font-semibold tabular-nums",
+                        it.done ? "text-emerald-600" : "text-primary",
+                      )}>
+                        {it.done
+                          ? "validé ✓"
+                          : wk == null
+                            ? ""
+                            : wk <= 0
+                              ? (it.isObjective ? "aujourd'hui" : "cette semaine")
+                              : `dans ${wk} sem.`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()
+      ) : (
+      <>
       {/* Objectif principal + prochain jalon */}
       <div className="flex items-center gap-2 flex-wrap">
         <Target className="h-4 w-4 text-primary shrink-0" />
@@ -158,6 +222,8 @@ export function ProgObjectiveBanner({ athleteId }: { athleteId: string }) {
             <span>{dl ? format(dl, "d MMM yyyy", { locale: fr }) : "Objectif"}</span>
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
