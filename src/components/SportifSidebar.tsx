@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { Calendar, Activity, User, TrendingUp, Scale, ListChecks, HelpCircle, Shield, Wind, CreditCard, FileText, LayoutDashboard, HeartPulse, Bell, Target } from "lucide-react";
+import { Calendar, LayoutDashboard, Target, LineChart, UserCog } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -12,47 +11,17 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
 const baseMenuItems = [
   { title: "Tableau de bord", url: "/sportif/dashboard", icon: LayoutDashboard },
   { title: "Mes séances", url: "/sportif/seances", icon: Calendar },
   { title: "Mes objectifs", url: "/sportif/objectifs", icon: Target },
-  { title: "Mon agenda", url: "/sportif/agenda", icon: ListChecks },
-  { title: "Mon suivi fatigue", url: "/sportif/fatigue", icon: Activity },
-  { title: "Mes données physio", url: "/sportif/physiologie", icon: HeartPulse },
-  { title: "Mes max", url: "/sportif/maxes", icon: TrendingUp },
-  { title: "Mon poids", url: "/sportif/poids", icon: Scale },
-  { title: "Méditation", url: "/sportif/meditation", icon: Wind },
-  { title: "Mon profil", url: "/sportif/profil", icon: User },
-  { title: "Notifications", url: "/sportif/notifications", icon: Bell },
-  { title: "Aide", url: "/sportif/aide", icon: HelpCircle },
-  { title: "Politique RGPD", url: "/politique-rgpd", icon: Shield },
+  { title: "Mon suivi", url: "/sportif/suivi", icon: LineChart },
+  { title: "Mon compte", url: "/sportif/compte", icon: UserCog },
 ];
 
 export function SportifSidebar() {
   const { setOpenMobile, isMobile } = useSidebar();
-  const { user } = useAuth();
-  const [paymentEnabled, setPaymentEnabled] = useState(false);
-
-  useEffect(() => {
-    const checkPaymentEnabled = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from("user_profiles")
-        .select("payment_enabled")
-        .eq("id", user.id)
-        .single();
-      
-      if (!error && data) {
-        setPaymentEnabled(data.payment_enabled || false);
-      }
-    };
-
-    checkPaymentEnabled();
-  }, [user]);
 
   const handleLinkClick = () => {
     if (isMobile) {
@@ -60,27 +29,7 @@ export function SportifSidebar() {
     }
   };
 
-  // Construire le menu dynamiquement
-  const menuItems = [...baseMenuItems];
-  
-  // Ajouter le lien Paiement si activé (après "Mon poids" et avant "Méditation")
-  if (paymentEnabled) {
-    const poidsIndex = menuItems.findIndex(item => item.url === "/sportif/poids");
-    if (poidsIndex !== -1) {
-      menuItems.splice(poidsIndex + 1, 0, 
-        {
-          title: "Mes paiements",
-          url: "/sportif/paiement",
-          icon: CreditCard,
-        },
-        {
-          title: "Mes factures",
-          url: "/sportif/factures",
-          icon: FileText,
-        }
-      );
-    }
-  }
+  const menuItems = baseMenuItems;
 
   return (
     <Sidebar

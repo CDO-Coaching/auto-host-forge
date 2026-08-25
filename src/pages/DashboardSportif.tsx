@@ -22,6 +22,8 @@ import QuestionnaireSurentrainement from "./sportif/QuestionnaireSurentrainement
 import Maxes from "./sportif/Maxes";
 import Poids from "./sportif/Poids";
 import MesObjectifs from "./sportif/MesObjectifs";
+import MonSuivi from "./sportif/MonSuivi";
+import MonCompte from "./sportif/MonCompte";
 import Questions from "./sportif/Questions";
 import Profil from "./sportif/Profil";
 import MesSeances from "./sportif/MesSeances";
@@ -102,6 +104,8 @@ export default function DashboardSportif() {
                 <Route path="/dashboard" element={<SportifDashboard />} />
                 <Route path="/seances" element={<Seances />} />
                 <Route path="/objectifs" element={<MesObjectifs />} />
+                <Route path="/suivi" element={<MonSuivi />} />
+                <Route path="/compte" element={<MonCompte />} />
                 <Route path="/agenda" element={<Agenda />} />
                 <Route path="/mes-seances" element={<MesSeances />} />
                 <Route path="/seance/:weekId/:sessionId" element={<SeanceDetail />} />

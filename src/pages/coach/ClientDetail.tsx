@@ -75,14 +75,12 @@ import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
-import { ProgPhaseFloating } from "@/components/ProgPhaseFloating";
+import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
 import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
-import { CoachAthleteStatusCard } from "@/components/CoachAthleteStatusCard";
 import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
-import { AthleteReadinessCard } from "@/components/AthleteReadinessCard";
 import { DailyDebriefCard } from "@/components/DailyDebriefCard";
 import { AthleteProfileTab } from "@/components/AthleteProfileTab";
 import { WeekAvailabilityCard } from "@/components/WeekAvailabilityCard";
@@ -1770,7 +1768,7 @@ export default function ClientDetail() {
     // Si c'est une séance renfo, ajouter automatiquement une ligne vide et ouvrir le combobox
     if (newSessionType === "renfo") {
       const blankExercise: Exercise = {
-        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
+        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "1",
         charge: "", rpe: "", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
@@ -1839,7 +1837,7 @@ export default function ClientDetail() {
 
     if (type === "renfo") {
       const blankExercise: Exercise = {
-        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
+        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "1",
         charge: "", rpe: "", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
@@ -4301,22 +4299,17 @@ export default function ClientDetail() {
           {/* ── Grille principale 3 colonnes ── */}
           {athlete ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {/* Col 1 : Score Prépa + État de forme + Douleur */}
+              {/* Col 1 : Répartition FC + Douleur */}
               <div className="space-y-2">
-                <CoachAthleteStatusCard
-                  athleteId={athleteId!}
-                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-                />
-                <AthleteReadinessCard athleteId={athleteId!} />
+                <WeeklyHRZonesCard athleteId={athleteId!} />
                 <CoachClientSummaryView
                   athleteId={athleteId!}
                   athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
                   column="injury"
                 />
               </div>
-              {/* Col 2 : Répartition FC + Évolution fatigue */}
+              {/* Col 2 : Évolution fatigue */}
               <div className="space-y-2">
-                <WeeklyHRZonesCard athleteId={athleteId!} />
                 <CoachClientSummaryView
                   athleteId={athleteId!}
                   athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
@@ -4332,7 +4325,6 @@ export default function ClientDetail() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <AthleteReadinessCard athleteId={athleteId!} />
               <WeeklyHRZonesCard athleteId={athleteId!} />
             </div>
           )}
@@ -4356,8 +4348,6 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>
-          {/* Panneau flottant : périodisation (phase en cours + timeline) */}
-          {athleteId && <ProgPhaseFloating athleteId={athleteId} />}
           {/* Boutons flottants en haut - scrollable sur mobile */}
           <div className="fixed top-16 left-0 right-0 z-50 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:w-auto overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 sm:gap-2 w-max mx-auto sm:w-auto">
@@ -4928,131 +4918,8 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* ── Bannière de phase active retirée (remplacée par le panneau Périodisation) ─────── */}
-          {(() => {
-            return null;
-            // eslint-disable-next-line no-unreachable
-            const today = new Date();
-            const isActive = (c: { start_date: string; end_date: string }) =>
-              today >= new Date(c.start_date) && today <= new Date(c.end_date);
-            const activeMacros = athleteMacrocycles.filter(isActive);
-            if (activeMacros.length === 0) return null;
-            const activeMesos = athleteMesocycles.filter(isActive);
-            const activeMicros = athleteMicrocycles.filter(isActive);
-            if (activeMesos.length === 0 && activeMicros.length === 0) return null;
-
-            return (
-              <div className="rounded-xl border border-border/40 overflow-hidden">
-                {/* En-tête avec macros actifs */}
-                <div className="px-4 py-2.5 bg-secondary/30 flex items-center gap-2 flex-wrap border-b border-border/30">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Phase actuelle</span>
-                  {activeMacros.map(mac => (
-                    <span key={mac.id} className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                      {mac.name}{mac.sport ? ` · ${mac.sport}` : ""}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Liste des mésocycles actifs */}
-                <div className="divide-y divide-border/20">
-                  {activeMesos.map((meso) => {
-                    const phase = getPhase(meso.phase_type);
-                    // Week position in phase
-                    const mesoStart = new Date(meso.start_date);
-                    const mesoEnd   = new Date(meso.end_date);
-                    const totalMesoDays = Math.round((mesoEnd.getTime() - mesoStart.getTime()) / 86400000) + 1;
-                    const totalMesoWeeks = Math.max(1, Math.ceil(totalMesoDays / 7));
-                    const daysSinceStart = Math.max(0, Math.floor((today.getTime() - mesoStart.getTime()) / 86400000));
-                    const currentMesoWeek = Math.min(Math.floor(daysSinceStart / 7) + 1, totalMesoWeeks);
-                    // Next upcoming milestone
-                    const nextMilestone = athleteMilestones
-                      .filter(m => !m.completed && new Date(m.target_date) >= today)
-                      .sort((a, b) => new Date(a.target_date).getTime() - new Date(b.target_date).getTime())[0];
-                    const daysToMilestone = nextMilestone
-                      ? Math.ceil((new Date(nextMilestone.target_date).getTime() - today.getTime()) / 86400000)
-                      : null;
-                    return (
-                      <div key={meso.id} className="px-4 py-3 flex items-start gap-3" style={{ borderLeft: `3px solid ${phase.color}` }}>
-                        <div className="flex-1 min-w-0 space-y-1.5">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm">{phase.emoji}</span>
-                            <span className="font-medium text-sm">{meso.name}</span>
-                            <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: `${phase.color}20`, color: phase.color }}>
-                              {phase.label}
-                            </span>
-                            <span className="text-xs text-muted-foreground">Sem. {currentMesoWeek}/{totalMesoWeeks}</span>
-                            {daysToMilestone !== null && (
-                              <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 font-medium">
-                                {daysToMilestone === 0 ? "Objectif aujourd'hui" : daysToMilestone === 1 ? "Objectif demain" : `J-${daysToMilestone} · ${nextMilestone.label}`}
-                              </span>
-                            )}
-                          </div>
-                          {meso.objective && <p className="text-xs text-muted-foreground italic">{meso.objective}</p>}
-                          <div className="flex items-center gap-4 flex-wrap">
-                            {meso.volume_target != null && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-muted-foreground w-14">Volume</span>
-                                <div className="flex gap-1">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (meso.volume_target ?? 3) ? phase.color : "#e5e7eb" }} />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {meso.intensity_target != null && (
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs text-muted-foreground w-14">Intensité</span>
-                                <div className="flex gap-1">
-                                  {Array.from({ length: 5 }, (_, i) => (
-                                    <div key={i} className="h-2 w-2 rounded-full" style={{ backgroundColor: i < (meso.intensity_target ?? 3) ? phase.color : "#e5e7eb" }} />
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          {(phase.value === "decharge" || phase.value === "transition") && (
-                            <p className="text-xs font-medium" style={{ color: phase.color }}>💡 Phase de récupération — Réduis la charge.</p>
-                          )}
-                          {phase.value === "realisation" && (
-                            <p className="text-xs font-medium" style={{ color: phase.color }}>🎯 Intensité max, volume réduit. Priorité aux performances.</p>
-                          )}
-                          {phase.value === "competition" && (
-                            <p className="text-xs font-medium" style={{ color: phase.color }}>🏆 Maintien de la forme, pas de nouveaux stimuli.</p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0 mt-0.5"
-                          onClick={() => setDeleteCycleConfirm({ table: "mesocycles", id: meso.id, name: meso.name })}
-                          title="Supprimer ce mésocycle"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                  {activeMicros.map((micro) => {
-                    const phase = getPhase(micro.phase_type);
-                    return (
-                      <div key={micro.id} className="px-4 py-2.5 flex items-center gap-3 bg-secondary/10" style={{ borderLeft: `3px solid ${phase.color}80` }}>
-                        <span className="text-xs text-muted-foreground flex-1">{phase.emoji} {micro.name} <span className="opacity-60">· Microcycle</span></span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={() => setDeleteCycleConfirm({ table: "microcycles", id: micro.id, name: micro.name })}
-                          title="Supprimer ce microcycle"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
+          {/* ── Objectif principal + timeline de validation ── */}
+          {athleteId && <ProgObjectiveBanner athleteId={athleteId} />}
 
           {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
           <WeekAvailabilityCard athleteId={athleteId!} week={selectedWeekToProgram.week} year={selectedWeekToProgram.year} />

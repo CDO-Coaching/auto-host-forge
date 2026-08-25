@@ -164,8 +164,9 @@ export function PhaseBuilder({
               const w = phaseWeeks(p);
               const days = w ? w * 7 : 14; // les phases ouvertes prennent une part indicative
               return (
-                <div key={p.id} className={cn("flex items-center justify-center text-[9px] font-bold text-black/80 overflow-hidden whitespace-nowrap", !w && "opacity-70")}
-                  style={{ flex: `${days} 0 0`, backgroundColor: p.color || PHASE_COLORS[i % PHASE_COLORS.length] }}>
+                <div key={p.id} className={cn("flex items-center justify-center text-[9px] font-bold text-black/80 overflow-hidden whitespace-nowrap cursor-default", !w && "opacity-70")}
+                  style={{ flex: `${days} 0 0`, backgroundColor: p.color || PHASE_COLORS[i % PHASE_COLORS.length] }}
+                  title={`${p.name || `Phase ${i + 1}`}${p.start_date ? ` · ${format(new Date(p.start_date + "T00:00:00"), "d MMM", { locale: fr })}` : ""}${p.end_date ? ` → ${format(new Date(p.end_date + "T00:00:00"), "d MMM", { locale: fr })}` : w ? "" : " → en cours"}`}>
                   P{i + 1}
                 </div>
               );
