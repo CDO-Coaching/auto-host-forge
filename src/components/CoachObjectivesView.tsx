@@ -51,6 +51,7 @@ interface ObjectiveMilestone {
   completed: boolean;
   created_by_role?: string | null;
   approval_status?: string | null; // 'approved' | 'pending'
+  is_objective?: boolean | null; // true = objectif principal archivé
 }
 
 interface Cycle {
@@ -366,19 +367,36 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
     finally { setIsSavingMain(false); }
   };
 
-  // Valider / dévalider l'objectif principal (nécessite qu'il soit déjà enregistré)
-  const handleToggleMainObjective = async () => {
-    if (!objective.id) { toast.error("Enregistre d'abord l'objectif principal"); return; }
-    const next = !objective.main_completed;
-    const completedAt = next ? format(new Date(), "yyyy-MM-dd") : null;
-    setObjective((prev) => ({ ...prev, main_completed: next, main_completed_at: completedAt }));
-    const { error } = await supabase.from("athlete_objectives").update({ main_completed: next, main_completed_at: completedAt }).eq("id", objective.id);
-    if (error) {
-      setObjective((prev) => ({ ...prev, main_completed: !next }));
-      toast.error("Impossible de mettre à jour l'objectif");
-    } else {
-      toast.success(next ? "Objectif principal atteint ! 🏆" : "Objectif remis en cours");
-    }
+  // Valider l'objectif principal : l'archive dans les "validés" et vide la fiche.
+  const handleValidateMainObjective = async () => {
+    if (!objective.id || !objective.main_objective) { toast.error("Enregistre d'abord l'objectif principal"); return; }
+    if (!confirm("Objectif atteint ? Il rejoint les objectifs validés et la fiche se vide pour un nouvel objectif.")) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const todayStr = format(new Date(), "yyyy-MM-dd");
+      // 1) Archiver comme entrée validée (marquée is_objective)
+      const { error: insErr } = await supabase.from("objective_milestones").insert({
+        athlete_id: athleteId, coach_id: user?.id,
+        label: objective.main_objective,
+        target_date: objective.main_objective_deadline || null,
+        completed: true, completed_at: objective.main_completed ? (objective.main_completed_at || todayStr) : todayStr,
+        is_objective: true, created_by_role: "coach", approval_status: "approved",
+        updated_at: new Date().toISOString(),
+      });
+      if (insErr) throw insErr;
+      // 2) Vider l'objectif principal
+      const { error: updErr } = await supabase.from("athlete_objectives").update({
+        main_objective: null, main_objective_deadline: null, secondary_objective: null,
+        main_completed: false, main_completed_at: null, updated_at: new Date().toISOString(),
+      }).eq("id", objective.id);
+      if (updErr) throw updErr;
+      setObjective({});
+      setMainDeadlineDate(undefined);
+      setEditingObjective(false);
+      toast.success("Objectif atteint et archivé 🏆");
+      await loadObjectives();
+      await loadMilestones();
+    } catch { toast.error("Impossible de valider l'objectif"); }
   };
 
   // ── Milestones ───────────────────────────────────────────────────────────────
@@ -927,14 +945,11 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
             {objective.id && objective.main_objective && !editingObjective && (
               <button
                 type="button"
-                onClick={handleToggleMainObjective}
-                title={objective.main_completed ? "Marquer comme en cours" : "Valider l'objectif principal"}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-full border-2 px-3 py-1 text-xs font-semibold transition-colors",
-                  objective.main_completed ? "bg-emerald-500 border-emerald-500 text-white" : "border-muted-foreground/40 text-muted-foreground hover:border-primary hover:text-primary",
-                )}
+                onClick={handleValidateMainObjective}
+                title="Archive l'objectif dans les validés et vide la fiche pour un nouvel objectif"
+                className="flex items-center gap-1.5 rounded-full border-2 border-emerald-500/50 px-3 py-1 text-xs font-semibold text-emerald-600 hover:bg-emerald-500 hover:text-white transition-colors"
               >
-                <Check className="h-4 w-4" /> {objective.main_completed ? "Atteint ✓" : "Valider"}
+                <Check className="h-4 w-4" /> {objective.main_completed ? "Archiver → nouvel objectif" : "Objectif atteint"}
               </button>
             )}
           </CardTitle>
@@ -1142,31 +1157,30 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
         </CardContent>
       </Card>
 
-      {/* ── Sous-objectifs validés ────────────────────────────────────── */}
+      {/* ── Objectifs & sous-objectifs validés ────────────────────────── */}
       {doneMilestones.length > 0 && (
         <Card className="border-emerald-500/30">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base text-emerald-600">
-              <Check className="h-5 w-5" /> Sous-objectifs validés ({doneMilestones.length})
+              <Check className="h-5 w-5" /> Objectifs &amp; sous-objectifs validés ({doneMilestones.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {sortMilestones(doneMilestones).map((m) => (
-              <div key={m.id} className="flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-                <button
-                  type="button"
-                  onClick={() => handleToggleMilestone(m)}
-                  title="Remettre à venir"
-                  className="h-7 w-7 shrink-0 rounded-full grid place-items-center bg-emerald-500 text-white"
-                >
-                  <Check className="h-4 w-4" />
-                </button>
+              <div key={m.id} className={cn("flex items-center gap-3 rounded-lg border p-3", m.is_objective ? "border-primary/40 bg-primary/5" : "border-emerald-500/30 bg-emerald-500/5")}>
+                <span className={cn("h-7 w-7 shrink-0 rounded-full grid place-items-center text-white", m.is_objective ? "bg-primary text-[13px]" : "bg-emerald-500")}>
+                  {m.is_objective ? "🎯" : <Check className="h-4 w-4" />}
+                </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-emerald-600">{m.label}</p>
+                  {m.is_objective && <p className="text-[9px] uppercase tracking-wide text-primary font-bold leading-none">Objectif atteint</p>}
+                  <p className={cn("font-semibold text-sm", m.is_objective ? "text-primary" : "text-emerald-600")}>{m.label}</p>
                   <p className="text-[11px] text-muted-foreground">
                     Validé{m.completed_at ? ` le ${format(new Date(m.completed_at), "d MMMM yyyy", { locale: fr })}` : ""}
                   </p>
                 </div>
+                {!m.is_objective && (
+                  <button type="button" onClick={() => handleToggleMilestone(m)} title="Remettre à venir" className="text-[11px] text-muted-foreground hover:text-foreground shrink-0">Annuler</button>
+                )}
                 <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0" onClick={() => handleDeleteMilestone(m.id)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
@@ -1204,7 +1218,7 @@ export function CoachObjectivesView({ athleteId, athleteName }: CoachObjectivesV
               });
               if (objective.main_objective && (objective.main_objective_deadline || objective.main_completed)) {
                 const mdate = objective.main_completed ? (objective.main_completed_at || objective.main_objective_deadline || null) : (objective.main_objective_deadline || null);
-                items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleToggleMainObjective });
+                items.push({ key: "main", label: objective.main_objective, date: mdate, completed: !!objective.main_completed, isNext: !objective.main_completed, isMain: true, onClick: handleValidateMainObjective });
               }
               const dated = items.filter((it) => it.date);
 
