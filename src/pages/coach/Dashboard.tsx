@@ -480,24 +480,18 @@ export default function CoachDashboard() {
       : [];
     const hasUnpaid = data.unpaid.length > 0;
     const totalUnpaid = data.unpaid.reduce((s, u) => s + u.count, 0);
+    const weekDone = data.recentActivities.filter(a => a.type === "session_completed");
 
     return (
-      <div className="space-y-5 pb-4">
-        <div>
-          <h1 className="text-xl font-bold text-foreground">Tableau de bord</h1>
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(), "EEEE d MMMM", { locale: fr })}
-          </p>
-        </div>
-
+      <div className="flex flex-col gap-2.5 h-[calc(100dvh-10.5rem)] min-h-[24rem] overflow-hidden">
         {/* Recherche athlète */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un athlète…"
-            className="pl-9"
+            className="pl-9 h-10"
           />
           {searchResults.length > 0 && (
             <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
@@ -520,39 +514,34 @@ export default function CoachDashboard() {
           )}
         </div>
 
-        {/* À traiter : semaines à valider — rétréci si vide */}
+        {/* Prog à traiter : semaines à valider */}
         {!hasUnvalidated ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-1.5 shrink-0">
             <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-            <span className="text-xs text-muted-foreground">Rien à traiter — toutes les semaines sont validées</span>
+            <span className="text-xs text-muted-foreground">Toutes les progs sont validées</span>
           </div>
         ) : (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <ListChecks className="h-4 w-4 text-primary" />
-                À traiter
-                <Badge variant="secondary" className="ml-auto text-xs">{data.unvalidatedAthletes.length}</Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
+          <div className="rounded-lg border border-border overflow-hidden shrink-0 max-h-[38vh] flex flex-col">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20 shrink-0">
+              <ListChecks className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-semibold">Progs à traiter</span>
+              <Badge variant="secondary" className="ml-auto text-xs">{data.unvalidatedAthletes.length}</Badge>
+            </div>
+            <div className="overflow-y-auto divide-y divide-border/60">
               {data.unvalidatedAthletes.map(a => (
                 <div
                   key={a.athleteId}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border"
+                  className="flex items-center gap-2.5 px-3 py-2"
                   onClick={() => navigate(`/coach/client/${a.athleteId}`)}
                 >
-                  <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4 text-primary" />
+                  <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <User className="h-3.5 w-3.5 text-primary" />
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{a.firstName} {a.lastName}</p>
-                    <p className="text-xs text-muted-foreground">Semaine non validée</p>
-                  </div>
+                  <p className="text-sm font-medium text-foreground truncate flex-1">{a.firstName} {a.lastName}</p>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 px-2.5 text-xs text-green-500 border-green-500/50 hover:bg-green-500/10 hover:text-green-400 shrink-0"
+                    className="h-7 px-2 text-xs text-green-500 border-green-500/50 hover:bg-green-500/10 hover:text-green-400 shrink-0"
                     onClick={(e) => handleValidateWeek(a.athleteId, e)}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1" />
@@ -560,15 +549,15 @@ export default function CoachDashboard() {
                   </Button>
                 </div>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Impayés : petite case dépliable */}
         {hasUnpaid && (
-          <div className="rounded-lg border border-orange-400/30 bg-orange-500/5 overflow-hidden">
+          <div className="rounded-lg border border-orange-400/30 bg-orange-500/5 overflow-hidden shrink-0 max-h-[30vh] flex flex-col">
             <button
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left shrink-0"
               onClick={() => setUnpaidOpen(o => !o)}
             >
               <Wallet className="h-4 w-4 text-orange-400 shrink-0" />
@@ -579,16 +568,16 @@ export default function CoachDashboard() {
               <ChevronRight className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${unpaidOpen ? "rotate-90" : ""}`} />
             </button>
             {unpaidOpen && (
-              <div className="border-t border-orange-400/20 divide-y divide-orange-400/10">
+              <div className="border-t border-orange-400/20 divide-y divide-orange-400/10 overflow-y-auto">
                 {data.unpaid.map(u => (
                   <div
                     key={`pay-${u.athleteId}`}
-                    className="flex items-center justify-between gap-2 px-3 py-2.5"
+                    className="flex items-center justify-between gap-2 px-3 py-2"
                     onClick={() => navigate(`/coach/comptabilite`)}
                   >
                     <p className="text-sm text-foreground truncate">{u.athleteName}</p>
                     <span className="text-xs font-semibold text-orange-400 shrink-0">
-                      {u.count} séance{u.count > 1 ? "s" : ""} non réglée{u.count > 1 ? "s" : ""}
+                      {u.count} séance{u.count > 1 ? "s" : ""}
                     </span>
                   </div>
                 ))}
@@ -597,41 +586,40 @@ export default function CoachDashboard() {
           </div>
         )}
 
-        {/* Dernières activités */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              Dernières activités
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data.recentActivities.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Aucune activité récente</p>
+        {/* Cette semaine : qui a fait quoi (scroll interne) */}
+        <div className="rounded-lg border border-border overflow-hidden flex-1 min-h-0 flex flex-col">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20 shrink-0">
+            <Dumbbell className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold">Cette semaine</span>
+            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+              {data.sessionsCompletedThisWeek}/{data.sessionsProgrammedThisWeek} séances
+            </span>
+          </div>
+          <div className="overflow-y-auto flex-1 divide-y divide-border/50">
+            {weekDone.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">Aucune séance réalisée cette semaine</p>
             ) : (
-              data.recentActivities.map(a => (
+              weekDone.map(a => (
                 <div
                   key={a.id}
-                  className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${a.type === "session_completed" ? "hover:bg-secondary/50" : "hover:bg-secondary/30"}`}
+                  className="flex items-center gap-2.5 px-3 py-2 active:bg-secondary/40 transition-colors"
                   onClick={() => {
-                    if (a.type === "session_completed" && a.athleteId) {
-                      setSelectedSession({ id: a.id, athleteId: a.athleteId, athleteName: a.label, sessionType: a.sessionType || "renfo" });
-                    }
+                    if (a.athleteId) setSelectedSession({ id: a.id, athleteId: a.athleteId, athleteName: a.label, sessionType: a.sessionType || "renfo" });
                   }}
                 >
-                  <div className={`h-2 w-2 rounded-full shrink-0 ${a.type === "session_completed" ? "bg-green-500" : a.type === "payment" ? "bg-primary" : "bg-blue-500"}`} />
+                  <span className="h-2 w-2 rounded-full bg-green-500 shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="text-sm text-foreground truncate">
                       <span className="font-medium">{a.label}</span>
                       <span className="text-muted-foreground"> — {a.detail}</span>
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0">{format(parseISO(a.date), "d MMM HH:mm", { locale: fr })}</span>
+                  <span className="text-xs text-muted-foreground shrink-0">{format(parseISO(a.date), "EEE HH:mm", { locale: fr })}</span>
                 </div>
               ))
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         <CoachSessionDetailDialog
           open={!!selectedSession}
