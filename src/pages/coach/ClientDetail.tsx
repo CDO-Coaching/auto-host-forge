@@ -258,6 +258,10 @@ export default function ClientDetail() {
   const [isEditingHistorical, setIsEditingHistorical] = useState(false);
   const [editedHistoricalExercises, setEditedHistoricalExercises] = useState<Record<string, any[]>>({});
   const [showCopyDialog, setShowCopyDialog] = useState(false);
+  // Presse-papier de séance (copier une séance et la coller chez un autre athlète)
+  const [clipboardSession, setClipboardSession] = useState<{ name: string; session_type: Session["session_type"]; exercises: Exercise[] } | null>(() => {
+    try { const raw = localStorage.getItem("cdo_session_clipboard"); return raw ? JSON.parse(raw) : null; } catch { return null; }
+  });
   const [selectedWeekToCopy, setSelectedWeekToCopy] = useState<string>("");
   const [weekToCopyData, setWeekToCopyData] = useState<any>(null);
   const [copiedWeekFeedback, setCopiedWeekFeedback] = useState<Record<string, { 
@@ -3347,6 +3351,44 @@ export default function ClientDetail() {
     });
   };
 
+  // ── Copier une séance dans le presse-papier (pour la coller chez un autre athlète) ──
+  const handleCopySession = (sessionId: number) => {
+    const session = sessions.find((s) => s.id === sessionId);
+    if (!session) return;
+    const exercises = (sessionExercises[sessionId] || []).map((ex) => ({ ...ex }));
+    const payload = { name: session.name, session_type: session.session_type, exercises };
+    try { localStorage.setItem("cdo_session_clipboard", JSON.stringify(payload)); } catch { /* ignore */ }
+    setClipboardSession(payload);
+    toast.success(`Séance « ${session.name} » copiée — colle-la chez un autre athlète`);
+  };
+
+  // ── Coller la séance copiée dans la semaine affichée ──
+  const handlePasteSession = () => {
+    if (!clipboardSession) return;
+    const nextId = sessions.reduce((m, s) => Math.max(m, s.id), 0) + 1;
+    const newSession: Session = {
+      id: nextId,
+      name: clipboardSession.name,
+      isExpanded: false,
+      session_type: clipboardSession.session_type,
+    };
+    // Régénère les ids d'exercices et remappe les groupes de super-set pour éviter les collisions
+    const groupMap = new Map<string, string>();
+    const base = Date.now();
+    const newExercises: Exercise[] = clipboardSession.exercises.map((ex, i) => {
+      let group = ex.super_set_group ?? null;
+      if (group) {
+        if (!groupMap.has(group)) groupMap.set(group, `sg_${base}_${groupMap.size}`);
+        group = groupMap.get(group)!;
+      }
+      return { ...ex, id: base + i + 1, super_set_group: group };
+    });
+    setSessions((prev) => [...prev, newSession]);
+    setSessionExercises((prev) => ({ ...prev, [nextId]: newExercises }));
+    setExpandedSessionId(nextId);
+    toast.success("Séance collée — pense à valider la semaine pour l'enregistrer");
+  };
+
   const handleAddExercise = (sessionId: number) => {
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
@@ -4953,6 +4995,9 @@ export default function ClientDetail() {
               hasPreviousWeeks={historicalWeeks.length > 0}
               onCopyPreviousWeek={handleCopyPreviousWeek}
               onOpenCopyDialog={() => setShowCopyDialog(true)}
+              onCopySession={handleCopySession}
+              onPasteSession={handlePasteSession}
+              clipboardSessionName={clipboardSession?.name ?? null}
               athleteVma={athleteVma}
               athleteFcMax={athleteFcMax}
               athleteFcRepos={athleteFcRepos}
@@ -5028,6 +5073,9 @@ export default function ClientDetail() {
               historicalWeeks={historicalWeeks}
               handleCopyPreviousWeek={handleCopyPreviousWeek}
               setShowCopyDialog={setShowCopyDialog}
+              onCopySession={handleCopySession}
+              onPasteSession={handlePasteSession}
+              clipboardSessionName={clipboardSession?.name ?? null}
               multiWeekMode={multiWeekMode}
               multiWeekCurrent={multiWeekCurrent}
               multiWeekTotal={multiWeekTotal}

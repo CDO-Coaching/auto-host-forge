@@ -17,7 +17,7 @@ import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardi
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy, MessageSquare, Link2, Unlink, Lock, StickyNote,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, ClipboardPaste, MessageSquare, Link2, Unlink, Lock, StickyNote,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -104,6 +104,9 @@ interface MobileProgViewProps {
   hasPreviousWeeks?: boolean;
   onCopyPreviousWeek?: () => void;
   onOpenCopyDialog?: () => void;
+  onCopySession?: (sessionId: number) => void;
+  onPasteSession?: () => void;
+  clipboardSessionName?: string | null;
   athleteVma?: number | null;
   athleteFcMax?: number | null;
   athleteFcRepos?: number | null;
@@ -517,7 +520,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -534,6 +537,7 @@ function SessionCard({
   onSerieDetailChange: (exerciseId: number, serieIndex: number, field: string, value: string) => void;
   onToggleSuperSet?: (exerciseId: number) => void;
   onNoteChange?: (note: string) => void;
+  onCopySession?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -647,6 +651,15 @@ function SessionCard({
               />
             </PopoverContent>
           </Popover>
+          {onCopySession && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCopySession(); }}
+              title="Copier cette séance (pour un autre athlète)"
+              className="p-2 text-muted-foreground/50 active:text-primary transition-colors shrink-0"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          )}
           {!isValidated && (
             <button
               onClick={(e) => { e.stopPropagation(); onDelete(e); }}
@@ -1055,7 +1068,9 @@ export function MobileProgView({
   isValidated, libraryExercises, onWeekChange, onCreateSession, onDeleteSession,
   onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onSessionNoteChange,
   onSave, onUnvalidate, isSaving, allowAddExercises, onToggleAllowAddExercises,
-  hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog, athleteVma,
+  hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog,
+  onCopySession, onPasteSession, clipboardSessionName,
+  athleteVma,
   athleteFcMax = null, athleteFcRepos = null,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
 }: MobileProgViewProps) {
@@ -1156,6 +1171,17 @@ export function MobileProgView({
         </div>
       )}
 
+      {/* ── Coller une séance copiée (depuis un autre athlète) ───────────── */}
+      {!isValidated && clipboardSessionName && onPasteSession && (
+        <button
+          onClick={onPasteSession}
+          className="w-full h-9 rounded-xl border border-primary/40 text-primary flex items-center justify-center gap-1.5 text-xs font-medium active:bg-primary/10 transition-colors mb-3"
+        >
+          <ClipboardPaste className="h-3.5 w-3.5" />
+          Coller « {clipboardSessionName} »
+        </button>
+      )}
+
       {/* ── Liste des séances ───────────────────────────────────────────── */}
       <div className="space-y-3 flex-1 pb-48 sm:pb-4">
         {sessions.length === 0 ? (
@@ -1187,6 +1213,7 @@ export function MobileProgView({
               onExerciseChange={(exId, field, value) => onExerciseChange(session.id, exId, field, value)}
               onToggleSuperSet={onToggleSuperSet ? (exId) => onToggleSuperSet(session.id, exId) : undefined}
               onNoteChange={onSessionNoteChange ? (note) => onSessionNoteChange(session.id, note) : undefined}
+              onCopySession={onCopySession ? () => onCopySession(session.id) : undefined}
             />
           ))
         )}

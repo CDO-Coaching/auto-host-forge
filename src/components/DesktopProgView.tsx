@@ -17,6 +17,7 @@ import {
   Trash2,
   Check,
   Copy,
+  ClipboardPaste,
   MessageSquare,
   GripVertical,
   Dumbbell,
@@ -309,6 +310,11 @@ export interface DesktopProgViewProps {
   handleCopyPreviousWeek: () => void;
   setShowCopyDialog: (v: boolean) => void;
 
+  // Copier / coller une séance vers un autre athlète
+  onCopySession?: (sessionId: number) => void;
+  onPasteSession?: () => void;
+  clipboardSessionName?: string | null;
+
   // All training weeks (for visual indicators)
   allTrainingWeeks?: Array<{ week_number: number; year: number; validated: boolean }>;
   isLoadingWeek?: boolean;
@@ -383,6 +389,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     handleImportTemplateToSession, handleImportRenfoTemplateToSession,
     handleVoiceApply, handleVoiceAddExercise,
     historicalWeeks, handleCopyPreviousWeek, setShowCopyDialog,
+    onCopySession, onPasteSession, clipboardSessionName,
     multiWeekMode, multiWeekCurrent, multiWeekTotal,
     setMultiWeekMode, setMultiWeekTotal, setMultiWeekCurrent, setMultiWeekStartWeek,
     cycleInfo, persistentMethodology, persistentMaxes,
@@ -564,6 +571,13 @@ export function DesktopProgView(props: DesktopProgViewProps) {
               <Copy className="h-3.5 w-3.5 mr-1" />Autre semaine
             </Button>
           </>
+        )}
+
+        {/* Coller une séance copiée (depuis un autre athlète) */}
+        {!isValidated && clipboardSessionName && onPasteSession && (
+          <Button variant="outline" size="sm" className="h-8 text-xs border-primary/40 text-primary hover:bg-primary/10" onClick={onPasteSession} title={`Coller « ${clipboardSessionName} »`}>
+            <ClipboardPaste className="h-3.5 w-3.5 mr-1" />Coller la séance
+          </Button>
         )}
 
         {/* Methodology */}
@@ -1051,6 +1065,16 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {/* Copier la séance (pour la coller chez un autre athlète) */}
+                  {onCopySession && (
+                    <Button
+                      variant="outline" size="sm" className="h-7 text-xs"
+                      onClick={() => onCopySession(selectedSession.id)}
+                      title="Copier cette séance pour la coller chez un autre athlète"
+                    >
+                      <Copy className="h-3 w-3 mr-1" />Copier
+                    </Button>
+                  )}
                   {/* Voice */}
                   {!isValidated && selectedSession.session_type === "renfo" && (
                     <VoiceCommandButton
