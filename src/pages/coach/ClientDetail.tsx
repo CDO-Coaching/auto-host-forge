@@ -1768,7 +1768,7 @@ export default function ClientDetail() {
     // Si c'est une séance renfo, ajouter automatiquement une ligne vide et ouvrir le combobox
     if (newSessionType === "renfo") {
       const blankExercise: Exercise = {
-        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "1",
+        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
         charge: "", rpe: "", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
@@ -1837,7 +1837,7 @@ export default function ClientDetail() {
 
     if (type === "renfo") {
       const blankExercise: Exercise = {
-        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "1",
+        id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
         charge: "", rpe: "", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
