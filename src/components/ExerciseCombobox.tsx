@@ -122,11 +122,15 @@ export function ExerciseCombobox({
 
   const displayedExercises = useMemo(() => {
     let list = exercises;
-    // Muscles : l'exo doit contenir TOUS les muscles sélectionnés (principal ou secondaire)
+    // Muscles : le 1er muscle sélectionné doit être le muscle PRINCIPAL de l'exo,
+    // les muscles suivants affinent (présents en principal ou secondaire).
     if (fMuscles.length) {
+      const [primary, ...rest] = fMuscles;
       list = list.filter((e) => {
+        if (e.muscle_principal !== primary) return false;
+        if (!rest.length) return true;
         const set = new Set([e.muscle_principal, ...(e.muscles_second || [])].filter(Boolean) as string[]);
-        return fMuscles.every((m) => set.has(m));
+        return rest.every((m) => set.has(m));
       });
     }
     // Matériel : au moins un des matériels sélectionnés
