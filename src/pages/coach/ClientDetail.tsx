@@ -3361,7 +3361,7 @@ export default function ClientDetail() {
       exercice: isCardio ? "Séance Cardio" : "",
       recuperation: isCardio ? "" : "1min30s",
       reps: "",
-      series: "1",
+      series: isCardio ? "1" : "4",
       charge: "",
       rpe: "",
       tempo: "",
