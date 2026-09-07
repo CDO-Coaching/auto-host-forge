@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 interface SessionCompletionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onValidate: (data: { date: Date; rpe: number; comment: string; durationMinutes: number }) => Promise<void>;
+  onValidate: (data: { date: Date; rpe: number; comment: string; durationMinutes: number; garminLink: string }) => Promise<void>;
   onCancel: () => void;
   sessionName?: string;
   sessionType?: "renfo" | "cardio" | "recup";
@@ -46,6 +46,7 @@ export function SessionCompletionDialog({
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [garminLink, setGarminLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -61,6 +62,7 @@ export function SessionCompletionDialog({
       // Pré-remplir le RPE avec la moyenne calculée si disponible
       setRpe(defaultRpe != null ? String(defaultRpe) : "");
       setComment("");
+      setGarminLink("");
       // Pre-fill duration only if timer was used for at least 20 minutes
       if (isTimerUsed) {
         setDurationMinutes(String(initialMinutes));
@@ -141,6 +143,7 @@ export function SessionCompletionDialog({
         rpe: rpe.trim() ? Number(rpe) : 0,
         comment: comment.trim(),
         durationMinutes: Math.round(durationNumber),
+        garminLink: garminLink.trim(),
       });
     } catch (error) {
       console.error("Erreur validation:", error);
@@ -154,6 +157,7 @@ export function SessionCompletionDialog({
     setRpe("");
     setComment("");
     setDurationMinutes("");
+    setGarminLink("");
     onCancel();
   };
 
@@ -285,6 +289,24 @@ export function SessionCompletionDialog({
               onChange={(e) => setComment(e.target.value)}
               rows={3}
             />
+          </div>
+
+          {/* Lien Garmin de la séance */}
+          <div className="space-y-2">
+            <Label htmlFor="session-garmin">
+              🔗 Lien Strava (Garmin) de la séance <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
+            </Label>
+            <Input
+              id="session-garmin"
+              type="url"
+              inputMode="url"
+              placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
+              value={garminLink}
+              onChange={(e) => setGarminLink(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ouvre ton activité sur Strava (ou Garmin Connect), copie le lien de partage et colle-le ici pour ton coach.
+            </p>
           </div>
         </div>
 

@@ -6,7 +6,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Pencil, MapPin, Clock, Heart, Gauge, Flame, Footprints, Bike, Waves, Activity, Zap, TrendingUp } from "lucide-react";
+import { Pencil, MapPin, Clock, Heart, Gauge, Flame, Footprints, Bike, Waves, Activity, Zap, TrendingUp, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
@@ -199,6 +199,19 @@ export function CustomSessionDetailDialog({ session, open, onClose, onEdit, fcMa
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Zones de fréquence cardiaque</p>
               <HeartRateZonesBar zones={session.heart_rate_zones} fcMax={fcMax} fcRepos={fcRepos} />
             </div>
+          )}
+
+          {/* Lien Strava (Garmin) */}
+          {session.strava_link && (
+            <a
+              href={session.strava_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-2.5 text-sm text-primary hover:bg-primary/10 transition-colors"
+            >
+              <ExternalLink className="h-4 w-4 shrink-0" />
+              <span className="truncate">Séance Strava (Garmin) — ouvrir</span>
+            </a>
           )}
 
           {/* Description */}

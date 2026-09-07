@@ -400,7 +400,7 @@ export default function SeanceDetail() {
   };
 
   // Validation finale avec date et RPE
-  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string; durationMinutes: number }) => {
+  const handleSessionCompletion = async (data: { date: Date; rpe: number; comment: string; durationMinutes: number; garminLink?: string }) => {
     if (timerInterval) {
       clearInterval(timerInterval);
     }
@@ -453,6 +453,7 @@ export default function SeanceDetail() {
         completed_at: data.date.toISOString(),
         session_rpe: data.rpe || null,
         session_comment: data.comment || null,
+        garmin_link: data.garminLink?.trim() || null,
       })
       .eq("id", sessionId);
 
@@ -522,6 +523,7 @@ export default function SeanceDetail() {
     rpe: string;
     comment: string;
     date: Date;
+    garminLink?: string;
     actualDistance?: number;
     actualDuration?: number;
     actualPace?: string;
@@ -615,6 +617,14 @@ export default function SeanceDetail() {
         variant: "destructive",
       });
       return;
+    }
+
+    // Lien Garmin déposé par l'athlète → enregistré sur la séance
+    if (data.garminLink !== undefined && sessionId) {
+      await supabase
+        .from("training_sessions")
+        .update({ garmin_link: data.garminLink.trim() || null })
+        .eq("id", sessionId);
     }
 
     toast({
@@ -1355,6 +1365,7 @@ export default function SeanceDetail() {
           durationMinutes: session?.duration_minutes,
           sessionRpe: session?.session_rpe,
           sessionComment: session?.session_comment,
+          garminLink: (session as any)?.garmin_link ?? null,
         }}
       />
     </div>

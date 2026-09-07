@@ -81,6 +81,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
   const [elevationGain, setElevationGain] = useState<number | null>(null);
   const [heartRateZones, setHeartRateZones] = useState<any[] | null>(null);
   const [stravaActivityId, setStravaActivityId] = useState<number | null>(null);
+  const [stravaLink, setStravaLink] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // "plan" = planning only, "validate" = completing now
   const [mode, setMode] = useState<"plan" | "validate">("plan");
@@ -113,6 +114,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setElevationGain((editSession as any).elevation_gain ?? null);
       setHeartRateZones((editSession as any).heart_rate_zones ?? null);
       setStravaActivityId((editSession as any).strava_activity_id ?? null);
+      setStravaLink((editSession as any).strava_link ?? "");
     }
   }, [editSession]);
 
@@ -129,6 +131,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setDistanceKm("");
       setAvgPace("");
       setAvgHeartRate("");
+      setStravaLink("");
       setMode("plan");
       setShowValidatePrompt(false);
     }
@@ -171,6 +174,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       setSessionRpe("");
       setSelectedDate(new Date());
       setCardioType((validateSession as any).cardio_type || "");
+      setStravaLink((validateSession as any).strava_link ?? "");
       setMode("validate");
       setShowValidatePrompt(false);
     }
@@ -201,6 +205,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
     setElevationGain(null);
     setHeartRateZones(null);
     setStravaActivityId(null);
+    setStravaLink("");
     setMode("plan");
     setShowValidatePrompt(false);
   };
@@ -282,10 +287,11 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           elevation_gain: elevationGain ?? null,
           heart_rate_zones: heartRateZones ?? null,
           strava_activity_id: stravaActivityId ?? null,
+          strava_link: (cardioType && cardioType !== "none") ? (stravaLink.trim() || null) : null,
         };
         let { error } = await (supabase.from("custom_sessions") as any).update(updatePayload).eq("id", validateSession.id);
         if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
-          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safePayload } = updatePayload;
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, strava_link, ...safePayload } = updatePayload;
           const retry = await (supabase.from("custom_sessions") as any).update(safePayload).eq("id", validateSession.id);
           error = retry.error;
         }
@@ -305,6 +311,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           elevation_gain: elevationGain ?? null,
           heart_rate_zones: heartRateZones ?? null,
           strava_activity_id: stravaActivityId ?? null,
+          strava_link: (cardioType && cardioType !== "none") ? (stravaLink.trim() || null) : null,
         };
         if (isCompleting) {
           updateData.duration_minutes = parseInt(duration);
@@ -313,7 +320,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
 
         let { error } = await (supabase.from("custom_sessions") as any).update(updateData).eq("id", editSession.id);
         if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
-          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safeData } = updateData;
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, strava_link, ...safeData } = updateData;
           const retry = await (supabase.from("custom_sessions") as any).update(safeData).eq("id", editSession.id);
           error = retry.error;
         }
@@ -328,6 +335,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
           description: description.trim() || null,
           scheduled_date: dateStr,
           cardio_type: cardioType || null,
+          strava_link: (cardioType && cardioType !== "none") ? (stravaLink.trim() || null) : null,
         };
 
         if (isCompleting) {
@@ -349,7 +357,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
 
         // Si erreur de colonne manquante (SQL pas encore lancé), retry sans les nouvelles colonnes
         if (error && (error.message?.includes("column") || error.code === "42703" || error.code === "PGRST204")) {
-          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, ...safeData } = insertData;
+          const { max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, strava_link, ...safeData } = insertData;
           const retry = await (supabase.from("custom_sessions") as any).insert(safeData);
           error = retry.error;
         }
@@ -361,6 +369,10 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
       resetForm();
       setOpen(false);
       onSessionCreated?.();
+      // Réinitialiser l'état côté parent (editSession / validateSession / forceOpen)
+      // sinon ces props rouvrent la fenêtre juste après la validation/modification.
+      onClose?.();
+      onForceClose?.();
     } catch (error: any) {
       console.error("Erreur lors de l'enregistrement:", error);
       const msg = error?.message || error?.details || JSON.stringify(error);
@@ -559,60 +571,23 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
                 )}
               </div>
 
-              {cardioType && cardioType !== "none" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="distance">
-                      {cardioType === "natation" ? "Distance (m)" : "Distance (km)"}
-                    </Label>
-                    <Input
-                      id="distance"
-                      type="text"
-                      inputMode="decimal"
-                      placeholder={cardioType === "natation" ? "Ex: 1500" : "Ex: 10.5"}
-                      value={distanceKm}
-                      onChange={(e) => setDistanceKm(e.target.value.replace(",", "."))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="avg-pace">
-                      {cardioType === "velo" ? "Vitesse moy. (km/h)" : cardioType === "natation" ? "Allure (min:sec/100m)" : "Allure moy. (min:sec/km)"}
-                    </Label>
-                    <Input
-                      id="avg-pace"
-                      type="text"
-                      inputMode={cardioType === "velo" ? "decimal" : "text"}
-                      placeholder={cardioType === "velo" ? "Ex: 28.5" : cardioType === "natation" ? "Ex: 2:10" : "Ex: 5:30"}
-                      value={avgPace}
-                      onChange={(e) => {
-                        if (cardioType === "velo") {
-                          setAvgPace(e.target.value.replace(",", "."));
-                        } else {
-                          const val = e.target.value.replace(/[^0-9:]/g, '');
-                          setAvgPace(val);
-                        }
-                      }}
-                      maxLength={cardioType === "velo" ? 6 : 6}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="avg-hr">FC moyenne (bpm)</Label>
-                    <Input
-                      id="avg-hr"
-                      type="number"
-                      inputMode="numeric"
-                      placeholder="Ex: 155"
-                      value={avgHeartRate}
-                      onChange={(e) => {
-                        const val = e.target.value.replace(/[^0-9]/g, '');
-                        setAvgHeartRate(val);
-                      }}
-                      min="30"
-                      max="250"
-                    />
-                  </div>
-                </div>
-              )}
+            </div>
+          )}
+
+          {/* Lien Strava — uniquement pour course/vélo/natation (pas séance libre) */}
+          {cardioType && cardioType !== "none" && (
+            <div className="space-y-2">
+              <Label htmlFor="strava-link">
+                🔗 Lien Strava (Garmin) de la séance <span className="text-muted-foreground font-normal text-xs">(optionnel)</span>
+              </Label>
+              <Input
+                id="strava-link"
+                type="url"
+                inputMode="url"
+                placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
+                value={stravaLink}
+                onChange={(e) => setStravaLink(e.target.value)}
+              />
             </div>
           )}
 

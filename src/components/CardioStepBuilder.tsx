@@ -206,8 +206,14 @@ export function CardioStepBuilder({
             delete updatedStep.distance;
             delete updatedStep.distance_unit;
           } else {
-            updatedStep.distance = sportType === "natation" ? 100 : 1000;
-            updatedStep.distance_unit = "m";
+            // Natation en mètres (100 m) ; course/vélo par défaut en km (5 km)
+            if (sportType === "natation") {
+              updatedStep.distance = 100;
+              updatedStep.distance_unit = "m";
+            } else {
+              updatedStep.distance = 5;
+              updatedStep.distance_unit = "km";
+            }
             delete updatedStep.duration;
           }
         }

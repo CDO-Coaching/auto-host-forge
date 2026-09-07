@@ -119,6 +119,7 @@ interface Session {
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null; // note privée coach (invisible au sportif)
+  garmin_link?: string | null; // lien Garmin déposé par l'athlète à la validation
 }
 
 interface SerieDetail {
@@ -914,6 +915,7 @@ export default function ClientDetail() {
           isExpanded: false,
           session_type: sessionType || "renfo",
           coach_note: (s as any).coach_note ?? null,
+          garmin_link: (s as any).garmin_link ?? null,
         };
       });
 
@@ -1026,7 +1028,7 @@ export default function ClientDetail() {
   const loadCoachCustomSessions = async () => {
     if (!athleteId) return;
     const { data } = await (supabase.from("custom_sessions") as any)
-      .select("id, session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, session_rpe, description, completed_at, scheduled_date, max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id")
+      .select("id, session_name, cardio_type, duration_minutes, distance_km, avg_pace, avg_heart_rate, session_rpe, description, completed_at, scheduled_date, max_heart_rate, cadence, calories, elevation_gain, heart_rate_zones, strava_activity_id, strava_link")
       .eq("user_id", athleteId)
       .order("completed_at", { ascending: false })
       .limit(50);

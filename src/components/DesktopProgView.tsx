@@ -30,6 +30,7 @@ import {
   ChevronDown,
   Minus,
   Link2,
+  ExternalLink,
   Unlink2,
   Timer,
   StickyNote,
@@ -206,6 +207,7 @@ interface Session {
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null;
+  garmin_link?: string | null;
 }
 
 function getSerieDetailsArray(value: any): SerieDetail[] {
@@ -1015,6 +1017,19 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                 )}
               </div>
 
+              {/* Lien Strava (Garmin) déposé par l'athlète */}
+              {selectedCustomSession.strava_link && (
+                <a
+                  href={selectedCustomSession.strava_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Séance Strava (Garmin) — ouvrir</span>
+                </a>
+              )}
+
               {/* Zones FC */}
               {selectedCustomSession.heart_rate_zones && Array.isArray(selectedCustomSession.heart_rate_zones) && selectedCustomSession.heart_rate_zones.length > 0 && (
                 <div className="rounded-lg bg-muted/30 border border-border/40 p-3 space-y-2">
@@ -1140,6 +1155,19 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                   )}
                 </div>
               </div>
+
+              {/* Lien Garmin déposé par l'athlète à la validation */}
+              {selectedSession.garmin_link && (
+                <a
+                  href={selectedSession.garmin_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 border-b border-border/40 bg-primary/5 text-sm text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Séance Strava (Garmin) de l'athlète — ouvrir</span>
+                </a>
+              )}
 
               {/* Exercise content */}
               <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-4">

@@ -225,6 +225,16 @@ export const getStepSpeed = (step: CardioStep, athleteVma: number | null): numbe
 };
 
 /**
+ * Distance d'un step convertie en mètres, en respectant l'unité choisie
+ * (distance_unit "km" ou "m"). Sans cette conversion, "12 km" était traité
+ * comme 12 m.
+ */
+const stepDistanceMeters = (step: CardioStep): number => {
+  const d = step.distance || 0;
+  return step.distance_unit === 'km' ? d * 1000 : d;
+};
+
+/**
  * Calcule la durée totale estimée d'une séance cardio en secondes
  */
 export const calculateCardioSessionDuration = (cardioData: CardioData, athleteVma: number | null): number => {
@@ -238,7 +248,7 @@ export const calculateCardioSessionDuration = (cardioData: CardioData, athleteVm
     } else if (step.effort_type === 'distance') {
       const speed = getStepSpeed(step, athleteVma);
       if (speed > 0) {
-        const distanceKm = (step.distance || 0) / 1000;
+        const distanceKm = stepDistanceMeters(step) / 1000;
         return (distanceKm / speed) * 3600; // Convertir en secondes
       }
     }
@@ -322,8 +332,8 @@ export const calculateCardioMetrics = (cardioData: CardioData, athleteVma: numbe
         stepDistance = (speed * (stepDuration / 3600)) * 1000; // en mètres
       }
     } else if (step.effort_type === 'distance') {
-      // Distance fixe
-      stepDistance = step.distance || 0;
+      // Distance fixe (convertie en mètres selon l'unité)
+      stepDistance = stepDistanceMeters(step);
       // Calculer la durée basée sur la vitesse
       if (speed > 0) {
         stepDuration = (stepDistance / 1000 / speed) * 3600; // en secondes

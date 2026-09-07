@@ -33,6 +33,7 @@ interface EditSessionDialogProps {
     durationMinutes: number | null;
     sessionRpe: number | null;
     sessionComment: string | null;
+    garminLink?: string | null;
   };
 }
 
@@ -49,6 +50,7 @@ export function EditSessionDialog({
   const [rpe, setRpe] = useState("");
   const [comment, setComment] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [garminLink, setGarminLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -59,6 +61,7 @@ export function EditSessionDialog({
       setRpe(currentData.sessionRpe?.toString() || "");
       setComment(currentData.sessionComment || "");
       setDurationMinutes(currentData.durationMinutes?.toString() || "");
+      setGarminLink(currentData.garminLink || "");
     }
   }, [open, currentData]);
 
@@ -135,6 +138,7 @@ export function EditSessionDialog({
           duration_minutes: Math.round(durationNumber),
           session_rpe: rpe.trim() ? Number(rpe) : null,
           session_comment: comment.trim() || null,
+          garmin_link: garminLink.trim() || null,
         })
         .eq("id", sessionId);
 
@@ -263,6 +267,21 @@ export function EditSessionDialog({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={3}
+            />
+          </div>
+
+          {/* Lien Strava (Garmin) */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-session-garmin">
+              🔗 Lien Strava (Garmin) de la séance <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
+            </Label>
+            <Input
+              id="edit-session-garmin"
+              type="url"
+              inputMode="url"
+              placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
+              value={garminLink}
+              onChange={(e) => setGarminLink(e.target.value)}
             />
           </div>
         </div>

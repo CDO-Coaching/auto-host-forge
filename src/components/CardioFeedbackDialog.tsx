@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
@@ -21,6 +20,7 @@ interface CardioFeedbackDialogProps {
     rpe: string;
     comment: string;
     date: Date;
+    garminLink?: string;
     actualDistance?: number;
     actualDuration?: number;
     actualPace?: string;
@@ -42,12 +42,8 @@ export function CardioFeedbackDialog({
   sportifId,
 }: CardioFeedbackDialogProps) {
   const [rpe, setRpe] = useState("");
-  const [comment, setComment] = useState("");
   const [date, setDate] = useState<Date>(new Date());
-  const [actualDistance, setActualDistance] = useState("");
-  const [actualDuration, setActualDuration] = useState("");
-  const [actualPace, setActualPace] = useState("");
-  const [actualAvgHeartRate, setActualAvgHeartRate] = useState("");
+  const [garminLink, setGarminLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastWeekRpe, setLastWeekRpe] = useState<number | null>(null);
 
@@ -93,6 +89,7 @@ export function CardioFeedbackDialog({
   useEffect(() => {
     if (open) {
       setDate(new Date());
+      setGarminLink("");
     }
   }, [open]);
 
@@ -101,35 +98,10 @@ export function CardioFeedbackDialog({
 
     const data: any = {
       rpe: rpe.trim(),
-      comment: comment.trim(),
+      comment: "",
       date,
+      garminLink: garminLink.trim(),
     };
-
-    // Ajouter les données optionnelles si elles sont renseignées
-    if (actualDistance.trim()) {
-      const distanceNum = parseFloat(actualDistance);
-      if (!isNaN(distanceNum) && distanceNum > 0) {
-        data.actualDistance = distanceNum;
-      }
-    }
-
-    if (actualDuration.trim()) {
-      const durationNum = parseFloat(actualDuration);
-      if (!isNaN(durationNum) && durationNum > 0) {
-        data.actualDuration = durationNum;
-      }
-    }
-
-    if (actualPace.trim()) {
-      data.actualPace = actualPace.trim();
-    }
-
-    if (actualAvgHeartRate.trim()) {
-      const hrNum = parseInt(actualAvgHeartRate);
-      if (!isNaN(hrNum) && hrNum > 0 && hrNum < 250) {
-        data.actualAvgHeartRate = hrNum;
-      }
-    }
 
     onValidate(data);
     setIsSubmitting(false);
@@ -137,12 +109,8 @@ export function CardioFeedbackDialog({
 
   const handleCancel = () => {
     setRpe("");
-    setComment("");
     setDate(new Date());
-    setActualDistance("");
-    setActualDuration("");
-    setActualPace("");
-    setActualAvgHeartRate("");
+    setGarminLink("");
     setIsSubmitting(false);
     onCancel();
   };
@@ -207,86 +175,21 @@ export function CardioFeedbackDialog({
             <p className="text-xs text-muted-foreground">Obligatoire - Ressenti de l'effort (1 = très facile, 10 = maximum)</p>
           </div>
 
-          <div className="border-t pt-4 space-y-4">
-            <p className="text-sm font-medium text-muted-foreground">Données de la séance (optionnel)</p>
-            
-            <div className="space-y-2">
-              <Label htmlFor="distance" className="text-sm">
-                Distance parcourue (km)
-              </Label>
-              <Input
-                id="distance"
-                type="number"
-                step="0.1"
-                min="0"
-                value={actualDistance}
-                onChange={(e) => setActualDistance(e.target.value)}
-                placeholder="Ex: 10.5"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="duration" className="text-sm">
-                Durée de la séance (minutes)
-              </Label>
-              <Input
-                id="duration"
-                type="number"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                step="1"
-                min="1"
-                max="600"
-                value={actualDuration}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/[^0-9]/g, '');
-                  setActualDuration(val);
-                }}
-                placeholder="Ex: 45"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="pace" className="text-sm">
-                Allure moyenne (min/km)
-              </Label>
-              <Input
-                id="pace"
-                type="text"
-                value={actualPace}
-                onChange={(e) => setActualPace(e.target.value)}
-                placeholder="Ex: 5:30"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="heartrate" className="text-sm">
-                Fréquence cardiaque moyenne (bpm)
-              </Label>
-              <Input
-                id="heartrate"
-                type="number"
-                min="0"
-                max="250"
-                step="1"
-                value={actualAvgHeartRate}
-                onChange={(e) => setActualAvgHeartRate(e.target.value)}
-                placeholder="Ex: 155"
-              />
-            </div>
-          </div>
-
           <div className="space-y-2 border-t pt-4">
-            <Label htmlFor="comment" className="text-sm">
-              Commentaire
+            <Label htmlFor="garmin" className="text-sm">
+              🔗 Lien Strava (Garmin) de la séance <span className="text-muted-foreground font-normal">(optionnel)</span>
             </Label>
-            <Textarea
-              id="comment"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Ajoute un commentaire sur la séance..."
-              rows={3}
+            <Input
+              id="garmin"
+              type="url"
+              inputMode="url"
+              value={garminLink}
+              onChange={(e) => setGarminLink(e.target.value)}
+              placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
             />
+            <p className="text-xs text-muted-foreground">
+              Ouvre ton activité sur Strava (ou Garmin Connect), copie le lien de partage et colle-le ici pour ton coach.
+            </p>
           </div>
         </div>
 

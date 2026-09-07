@@ -17,7 +17,7 @@ import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardi
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
-  Trash2, ChevronDown, ChevronUp, Save, X, Copy, ClipboardPaste, MessageSquare, Link2, Unlink, Lock, StickyNote,
+  Trash2, ChevronDown, ChevronUp, Save, X, Copy, ClipboardPaste, MessageSquare, Link2, Unlink, Lock, StickyNote, ExternalLink,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -28,6 +28,7 @@ interface Session {
   isExpanded: boolean;
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null;
+  garmin_link?: string | null;
 }
 
 interface SerieDetail {
@@ -669,6 +670,20 @@ function SessionCard({
             </button>
           )}
         </div>
+
+        {/* Lien Garmin déposé par l'athlète */}
+        {session.garmin_link && (
+          <a
+            href={session.garmin_link}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="mt-2 flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-xs text-primary active:bg-primary/10"
+          >
+            <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">Séance Strava (Garmin) — ouvrir</span>
+          </a>
+        )}
 
         {/* Preview des 2 premiers exercices (renfo) */}
         {session.session_type === "renfo" && exercises.length > 0 && (() => {
