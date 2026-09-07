@@ -221,6 +221,34 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
             <span>Auj.</span>
             <span>{dl ? format(dl, "d MMM yyyy", { locale: fr }) : "Objectif"}</span>
           </div>
+
+          {/* Légende : noms des phases et des jalons, sans chevauchement */}
+          {(phases.length > 0 || datedMs.length > 0) && (
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
+              {phases.map((p, i) => {
+                const col = p.color || COLORS[i % COLORS.length];
+                return (
+                  <span key={`lg-${p.id}`} className="inline-flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: col }} />
+                    <span className={cn("truncate max-w-[160px]", i === idxCurrent ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                      {p.name}{i === idxCurrent ? " · en cours" : ""}
+                    </span>
+                  </span>
+                );
+              })}
+              {datedMs.map(({ m, d }) => (
+                <span key={`lgm-${m.id}`} className="inline-flex items-center gap-1.5">
+                  <span className={cn("h-2 w-2 rounded-full shrink-0", m.completed ? "bg-emerald-500" : "bg-primary")} />
+                  <span className={cn("truncate max-w-[160px]", m.completed ? "text-emerald-600 line-through decoration-emerald-600/40" : "text-muted-foreground")}>
+                    {m.label}
+                  </span>
+                  <span className={cn("shrink-0 tabular-nums", m.completed ? "text-emerald-600" : "text-primary")}>
+                    {m.completed ? "✓" : `${weeksUntil(d)} sem.`}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
       </>
