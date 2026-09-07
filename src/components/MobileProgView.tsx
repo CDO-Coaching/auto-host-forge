@@ -88,7 +88,7 @@ interface MobileProgViewProps {
   isValidated: boolean;
   libraryExercises: LibraryExercise[];
   onWeekChange: (week: number, year: number) => void;
-  onCreateSession: (type: "renfo" | "cardio" | "recup") => void;
+  onCreateSession: (type: "renfo" | "cardio" | "recup", cardioSport?: "course" | "velo" | "natation") => void;
   onDeleteSession: (sessionId: number, e: React.MouseEvent) => void;
   onAddExercise: (sessionId: number) => void;
   onDeleteExercise: (sessionId: number, exerciseId: number) => void;
@@ -1253,6 +1253,34 @@ export function MobileProgView({
             {(["renfo", "cardio", "recup"] as const).map((type) => {
               const cfg = SESSION_TYPE_CONFIG[type];
               const Icon = cfg.icon;
+              // Pour le cardio : choix du sport (course / vélo / natation)
+              if (type === "cardio") {
+                const sports: { key: "course" | "velo" | "natation"; label: string; emoji: string }[] = [
+                  { key: "course", label: "Course", emoji: "🏃" },
+                  { key: "velo", label: "Vélo", emoji: "🚴" },
+                  { key: "natation", label: "Natation", emoji: "🏊" },
+                ];
+                return (
+                  <div key={type} className={cn("w-full rounded-2xl border-2 px-4 py-3 space-y-2", cfg.color)}>
+                    <div className="flex items-center gap-3">
+                      <Icon className="h-6 w-6 shrink-0" />
+                      <p className="font-bold text-sm">{cfg.emoji} {cfg.createLabel}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {sports.map((s) => (
+                        <button
+                          key={s.key}
+                          onClick={() => { onCreateSession("cardio", s.key); setShowCreateSheet(false); }}
+                          className="h-11 rounded-xl bg-background/60 border border-border/60 flex flex-col items-center justify-center gap-0.5 active:scale-[0.97] transition-transform"
+                        >
+                          <span className="text-base leading-none">{s.emoji}</span>
+                          <span className="text-[11px] font-medium">{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
               return (
                 <button
                   key={type}

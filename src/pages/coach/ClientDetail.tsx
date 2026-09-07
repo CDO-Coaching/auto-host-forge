@@ -1825,9 +1825,10 @@ export default function ClientDetail() {
     toast.success(`Séance créée`);
   };
 
-  /** Wrapper for mobile UX — accepts session type directly */
-  const handleCreateSessionByType = (type: "renfo" | "cardio" | "recup") => {
+  /** Wrapper for mobile UX — accepts session type directly (+ sport cardio optionnel) */
+  const handleCreateSessionByType = (type: "renfo" | "cardio" | "recup", cardioSport: "course" | "velo" | "natation" = "course") => {
     setNewSessionType(type);
+    if (type === "cardio") setSelectedCardioSport(cardioSport);
     const nextSessionNumber = sessions.length + 1;
     const sessionName = type === "cardio"
       ? `Cardio ${nextSessionNumber}`
@@ -1852,7 +1853,7 @@ export default function ClientDetail() {
     if (type === "cardio") {
       setSessionExercises((prev) => ({
         ...prev,
-        [nextSessionNumber]: [{ id: 1, exercice: "Séance Cardio", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "", cardio_sport: selectedCardioSport, cardio_content: "", cardio_pace: "" }],
+        [nextSessionNumber]: [{ id: 1, exercice: "Séance Cardio", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "", cardio_sport: cardioSport, cardio_content: "", cardio_pace: "" }],
       }));
     } else if (type === "recup") {
       setSessionExercises((prev) => ({
