@@ -283,6 +283,14 @@ export function EditSessionDialog({
               value={garminLink}
               onChange={(e) => setGarminLink(e.target.value)}
             />
+            <a
+              href="https://www.strava.com/athlete/training"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              Ouvrir mes activités Strava ↗
+            </a>
           </div>
         </div>
 

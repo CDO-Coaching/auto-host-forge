@@ -304,8 +304,16 @@ export function SessionCompletionDialog({
               value={garminLink}
               onChange={(e) => setGarminLink(e.target.value)}
             />
+            <a
+              href="https://www.strava.com/athlete/training"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              Ouvrir mes activités Strava ↗
+            </a>
             <p className="text-xs text-muted-foreground">
-              Ouvre ton activité sur Strava (ou Garmin Connect), copie le lien de partage et colle-le ici pour ton coach.
+              Ouvre ton activité, copie le lien de partage et colle-le ici pour ton coach.
             </p>
           </div>
         </div>
