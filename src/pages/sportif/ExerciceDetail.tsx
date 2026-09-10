@@ -41,6 +41,20 @@ interface SerieValidation {
 }
 
 /** Bloc statistique lisible : petit label au-dessus, valeur en gras dessous. */
+const RPE_WORDS: Record<number, string> = {
+  1: "Repos",
+  2: "Très facile",
+  3: "Facile",
+  4: "Confortable",
+  5: "Modéré",
+  6: "Soutenu",
+  7: "Difficile",
+  8: "Intense",
+  9: "Extrême",
+  10: "Maximal",
+};
+const rpeWord = (v: number) => RPE_WORDS[Math.round(v)] || `${v}/10`;
+
 function StatBlock({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className="flex flex-col leading-none">
@@ -1273,9 +1287,9 @@ export default function ExerciceDetail() {
                           )}
 
                           {isValidated && validation.rpe !== null ? (
-                            <StatBlock label="RPE réalisé" value={<span className="text-xl font-extrabold">{validation.rpe}</span>} className="text-green-600" />
+                            <StatBlock label={`RPE ${validation.rpe}`} value={rpeWord(validation.rpe)} className="text-green-600" />
                           ) : (serie.rpe || exercise.rpe) ? (
-                            <StatBlock label="RPE prévu" value={<span className="text-xl font-extrabold">{serie.rpe || exercise.rpe}</span>} className="text-yellow-600" />
+                            <StatBlock label={`RPE ${serie.rpe || exercise.rpe}`} value={rpeWord(Number(serie.rpe || exercise.rpe))} className="text-yellow-600" />
                           ) : null}
 
                           {(serie.tempo || exercise.tempo) && (
