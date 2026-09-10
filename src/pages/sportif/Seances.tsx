@@ -512,7 +512,7 @@ export default function Seances() {
                         {(cardioDur || (completed && session.duration_minutes)) && (
                           <span className="inline-flex items-center gap-0.5">⏱ {completed && session.duration_minutes ? `${session.duration_minutes} min` : cardioDur}</span>
                         )}
-                        {avgRpe !== null && (
+                        {completed && avgRpe !== null && (
                           <span className={`font-semibold ${
                             avgRpe <= 4 ? "text-green-500" :
                             avgRpe <= 6 ? "text-yellow-500" :
