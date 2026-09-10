@@ -56,6 +56,7 @@ export default function SeanceDetail() {
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
+  const [startPrompt, setStartPrompt] = useState<null | (() => void)>(null);
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [cardioFeedbackDialogOpen, setCardioFeedbackDialogOpen] = useState(false);
@@ -352,6 +353,15 @@ export default function SeanceDetail() {
 
     setExercises(sorted);
     setLoading(false);
+  };
+
+  // Ouverture d'un exercice : si la séance n'est pas encore démarrée, on demande d'abord
+  const openExercise = (go: () => void) => {
+    if (!isSessionActive && !allCompleted) {
+      setStartPrompt(() => go);
+    } else {
+      go();
+    }
   };
 
   const startSession = () => {
@@ -765,6 +775,26 @@ export default function SeanceDetail() {
     <div className="min-h-screen bg-background pb-20">
       <FloatingSessionTimer sessionId={sessionId!} />
       <UniversalTimer />
+
+      {/* Démarrage de séance au 1er clic sur un exercice */}
+      <AlertDialog open={!!startPrompt} onOpenChange={(o) => !o && setStartPrompt(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tu commences la séance ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Le chrono démarre et s'affiche en bas à droite. Tu pourras la terminer quand tu veux.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { const go = startPrompt; setStartPrompt(null); go && go(); }}>
+              Juste regarder
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const go = startPrompt; setStartPrompt(null); startSession(); go && go(); }}>
+              Oui, c'est parti !
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <CelebrationOverlay
         show={showCelebration}
         message={session?.name || ""}
@@ -836,20 +866,13 @@ export default function SeanceDetail() {
 
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+          <div className="w-full">
             {!isSessionActive ? (
-              <>
-                <Button onClick={startSession} className="w-full" size="lg">
-                  <Play className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Démarrer la séance</span>
-                </Button>
-                <Button onClick={requestEndSession} variant="outline" className="w-full" size="lg">
-                  <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
-                  <span>Séance terminée</span>
-                </Button>
-              </>
+              <p className="text-xs text-muted-foreground text-center py-1">
+                Touche un exercice pour démarrer la séance
+              </p>
             ) : (
-              <Button onClick={requestEndSession} variant="destructive" className="w-full sm:col-span-2" size="lg">
+              <Button onClick={requestEndSession} variant="destructive" className="w-full" size="lg">
                 <Square className="h-4 w-4 mr-2 flex-shrink-0" />
                 <span>Terminer la séance</span>
               </Button>
@@ -906,7 +929,7 @@ export default function SeanceDetail() {
                     onClick={
                       allCompleted
                         ? undefined
-                        : () => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`)
+                        : () => openExercise(() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`))
                     }
                   >
                     <CardContent className="p-3 sm:p-4">
@@ -1037,8 +1060,8 @@ export default function SeanceDetail() {
                       allCompleted
                         ? undefined
                         : isCardio
-                          ? () => handleCardioClick(item)
-                          : () => navigate(`/sportif/exercice/${item.id}`)
+                          ? () => openExercise(() => handleCardioClick(item))
+                          : () => openExercise(() => navigate(`/sportif/exercice/${item.id}`))
                     }
                   >
                     <CardContent className="p-3 sm:p-4">
