@@ -44,8 +44,8 @@ interface SerieValidation {
 function StatBlock({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className="flex flex-col leading-none">
-      <span className="text-[9px] uppercase tracking-wide text-muted-foreground mb-1">{label}</span>
-      <span className={`text-base font-bold ${className || "text-foreground"}`}>{value}</span>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">{label}</span>
+      <span className={`text-lg font-bold ${className || "text-foreground"}`}>{value}</span>
     </div>
   );
 }
@@ -478,13 +478,19 @@ export default function ExerciceDetail() {
       : (hasModif && rpeActualReps.trim() ? rpeActualReps.trim() : null);
 
     const newValidations = [...serieValidations];
-    newValidations[rpeDialogSerieIndex] = {
+    const entry = {
       validated: true,
       rpe: rpeNumber,
       actual_reps: actualReps,
       actual_charge: actualCharge,
       modification_type: hasModif ? modificationType : null,
     };
+    if (isEmomRecovery) {
+      // EMOM : une seule note de fatigue → valide toutes les séries d'un coup
+      for (let i = 0; i < seriesData.length; i++) newValidations[i] = { ...entry };
+    } else {
+      newValidations[rpeDialogSerieIndex] = entry;
+    }
     setSerieValidations(newValidations);
     setCompletedSets(newValidations.filter(s => s.validated).length);
 
@@ -728,7 +734,7 @@ export default function ExerciceDetail() {
       normVal(s.commentaire) === normVal(f.commentaire)
     );
   });
-  const useSimplified = seriesAllSame && !forceDetail;
+  const useSimplified = false; // toujours la vue détaillée (cases par série)
 
   return (
     <div className="min-h-screen bg-background">
@@ -968,12 +974,25 @@ export default function ExerciceDetail() {
               <PersonStanding className="h-6 w-6" />
             </Button>
           )}
-          {videoUrl && (
-            <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="text-2xl sm:text-3xl">
-              🎥
-            </a>
-          )}
         </div>
+
+        {/* Vidéo de démonstration — mise en avant */}
+        {videoUrl && (
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-xl border-2 border-primary/50 bg-primary/10 px-4 py-3 active:scale-[0.99] transition-transform"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
+              <Play className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-primary leading-tight">Vidéo dispo — regarder la démo</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Comment bien faire le mouvement</p>
+            </div>
+          </a>
+        )}
 
         {/* Dialog : muscles sollicités sur la silhouette */}
         <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
@@ -1095,35 +1114,35 @@ export default function ExerciceDetail() {
                 const chargeNumeric = /^\d+(\.\d+)?$/.test(sc);
                 return (
                   <div className="space-y-3">
-                    {/* Consignes communes affichées une seule fois */}
-                    <div className="rounded-xl border border-border bg-muted/40 p-3">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2">
-                        {seriesData.length} séries identiques
-                      </p>
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-                        {sr && (
-                          <StatBlock
-                            label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
-                            value={isRepsRange ? repsDisplay + " reps" : repsDisplay}
-                            className={isRepsRange ? "text-blue-600" : "text-foreground"}
-                          />
-                        )}
-                        {sc && (
-                          <StatBlock
-                            label="Charge"
-                            value={chargeNeedsInput ? (chargeIsRange ? sc + " kg" : "À définir") : `${sc}${chargeNumeric ? " kg" : ""}`}
-                            className={chargeNeedsInput ? "text-orange-500" : "text-red-500"}
-                          />
-                        )}
-                        {f.rpe && <StatBlock label="RPE prévu" value={`${f.rpe}/10`} className="text-yellow-600" />}
-                        {f.tempo && <StatBlock label="Tempo" value={f.tempo} className="text-purple-500" />}
-                        {(f.recuperation || exercise.recuperation) && (
-                          <StatBlock label="Récup" value={f.recuperation || exercise.recuperation} className="text-muted-foreground text-sm" />
-                        )}
-                        {f.commentaire && (
-                          <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{f.commentaire}"</span>
-                        )}
+                    {/* Consigne mise en avant : Séries · Reps · Charge */}
+                    <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4">
+                      <div className="grid grid-cols-3 divide-x divide-border/50 text-center">
+                        <div className="px-1">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Séries</p>
+                          <p className="text-2xl font-extrabold leading-none">{seriesData.length}</p>
+                        </div>
+                        <div className="px-1">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{repsLabel}{exercise.per_side ? " /côté" : ""}</p>
+                          <p className={`text-2xl font-extrabold leading-none ${isRepsRange ? "text-blue-500" : "text-foreground"}`}>{sr ? repsDisplay : "—"}</p>
+                        </div>
+                        <div className="px-1">
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Charge</p>
+                          <p className={`text-2xl font-extrabold leading-none ${chargeNeedsInput ? "text-orange-500" : "text-foreground"}`}>
+                            {sc ? (chargeNeedsInput ? (chargeIsRange ? sc : "?") : `${sc}${chargeNumeric ? "" : ""}`) : "—"}
+                            {sc && chargeNumeric && <span className="text-sm font-bold"> kg</span>}
+                          </p>
+                        </div>
                       </div>
+                      {(f.rpe || f.tempo || (f.recuperation || exercise.recuperation)) && (
+                        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">
+                          {f.rpe && <span>RPE prévu <b className="text-yellow-600">{f.rpe}/10</b></span>}
+                          {f.tempo && <span>Tempo <b className="text-purple-500">{f.tempo}</b></span>}
+                          {(f.recuperation || exercise.recuperation) && <span>Récup <b className="text-foreground">{f.recuperation || exercise.recuperation}</b></span>}
+                        </div>
+                      )}
+                      {f.commentaire && (
+                        <p className="text-muted-foreground italic text-xs whitespace-pre-wrap break-words mt-2 text-center">"{f.commentaire}"</p>
+                      )}
                     </div>
 
                     {/* Validation individuelle : une pastille par série */}
@@ -1169,13 +1188,28 @@ export default function ExerciceDetail() {
                 );
               })()}
 
-              {!seriesCollapsed && !useSimplified && (
+              {/* EMOM : une seule validation globale (fatigue totale) au lieu de N séries */}
+              {!seriesCollapsed && isEmomRecovery && (
+                <button
+                  type="button"
+                  onClick={() => { if (!allSeriesValidated) handleValidateSerie(0); }}
+                  disabled={allSeriesValidated}
+                  className={`w-full flex items-center justify-between gap-2 rounded-xl border-2 p-4 text-left transition-all ${
+                    allSeriesValidated ? "bg-green-500/10 border-green-500/40" : "bg-muted/40 border-primary/40 active:bg-muted"
+                  }`}
+                >
+                  <div>
+                    <p className="font-bold text-base">{allSeriesValidated ? "EMOM validé" : "Valider l'EMOM"}</p>
+                    <p className="text-xs text-muted-foreground">{seriesData.length} min · une seule note de fatigue globale</p>
+                  </div>
+                  <span className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold shrink-0 ${allSeriesValidated ? "bg-green-600 text-white" : "bg-primary text-primary-foreground"}`}>
+                    <Check className="h-4 w-4" /> {allSeriesValidated ? `RPE ${serieValidations[0]?.rpe ?? "-"}/10` : "OK"}
+                  </span>
+                </button>
+              )}
+
+              {!seriesCollapsed && !useSimplified && !isEmomRecovery && (
                 <div className="space-y-2">
-                  {seriesAllSame && (
-                    <button type="button" onClick={() => setForceDetail(false)} className="w-full text-center text-xs text-primary underline underline-offset-2 py-1">
-                      ↩ Revenir à la vue simplifiée
-                    </button>
-                  )}
                   {seriesData.map((serie, idx) => {
                     const validation = serieValidations[idx];
                     const isValidated = validation?.validated;
@@ -1191,9 +1225,9 @@ export default function ExerciceDetail() {
                     const chargeNumeric = /^\d+(\.\d+)?$/.test(sc);
 
                     return (
+                      <div key={idx} className="space-y-1.5">
                       <div
-                        key={idx}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all ${
                           isValidated
                             ? "bg-green-500/10 border-green-500/40"
                             : "bg-muted/40 border-border"
@@ -1204,11 +1238,12 @@ export default function ExerciceDetail() {
                           <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
                             {isValidated ? <Check className="h-5 w-5" /> : idx + 1}
                           </div>
-                          <span className="text-[9px] uppercase tracking-wide text-muted-foreground mt-1">Série</span>
+                          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mt-1">Série</span>
                         </div>
 
-                        {/* Métriques */}
-                        <div className="flex-1 flex flex-wrap items-center gap-x-5 gap-y-2 min-w-0">
+                        {/* Métriques — style tableau (cases) */}
+                        <div className="flex-1 min-w-0">
+                        <div className="flex rounded-lg border border-border/70 divide-x divide-border/70 overflow-x-auto bg-card/40 [&>div]:px-2.5 [&>div]:py-1.5 [&>div]:shrink-0">
                           {sr && (
                             <StatBlock
                               label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
@@ -1227,7 +1262,7 @@ export default function ExerciceDetail() {
                                     ? (chargeIsRange ? sc + " kg" : "À définir")
                                     : `${sc}${chargeNumeric ? " kg" : ""}`
                               }
-                              className={chargeNeedsInput && !(isValidated && validation?.actual_charge) ? "text-orange-500" : "text-red-500"}
+                              className={chargeNeedsInput && !(isValidated && validation?.actual_charge) ? "text-orange-500" : "text-foreground"}
                             />
                           )}
 
@@ -1240,10 +1275,7 @@ export default function ExerciceDetail() {
                           {serie.tempo && (
                             <StatBlock label="Tempo" value={serie.tempo} className="text-purple-500" />
                           )}
-
-                          {(serie.recuperation || exercise.recuperation) && (
-                            <StatBlock label="Récup" value={serie.recuperation || exercise.recuperation} className="text-muted-foreground text-sm" />
-                          )}
+                        </div>
 
                           {serie.commentaire && (
                             <span className="basis-full text-muted-foreground italic text-xs whitespace-pre-wrap break-words">"{serie.commentaire}"</span>
@@ -1263,6 +1295,10 @@ export default function ExerciceDetail() {
                           </Button>
                         )}
                       </div>
+                      {(serie.recuperation || exercise.recuperation) && idx < seriesData.length - 1 && (
+                        <p className="text-center text-[11px] text-muted-foreground/80">⏱ récup {serie.recuperation || exercise.recuperation}</p>
+                      )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1273,41 +1309,6 @@ export default function ExerciceDetail() {
                   {completedSets} série{completedSets > 1 ? "s" : ""} validée{completedSets > 1 ? "s" : ""} sur {seriesData.length}
                 </div>
               )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Chrono récupération (visible quand timer tourne ou a tourné) */}
-        {exercise.recuperation && exercise.recuperation !== "0s" && !isEmomRecovery && !isDurationMode && (
-          <Card className="border-2 border-muted-foreground/20 bg-muted/50">
-            <CardContent className="p-3 sm:p-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    <Label className="text-sm sm:text-base font-semibold">Récupération</Label>
-                  </div>
-                  <div className={`text-2xl sm:text-3xl font-bold font-mono ${timeRemaining === 0 ? "text-green-500" : "text-foreground"}`}>
-                    {formatTime(timeRemaining)}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {!isTimerRunning ? (
-                    <Button size="sm" onClick={startTimer} disabled={timeRemaining === 0} className="flex-1 h-9">
-                      <Play className="h-4 w-4 mr-1" />
-                      Start
-                    </Button>
-                  ) : (
-                    <Button size="sm" onClick={pauseTimer} variant="secondary" className="flex-1 h-9">
-                      <Pause className="h-4 w-4 mr-1" />
-                      Pause
-                    </Button>
-                  )}
-                  <Button size="sm" onClick={resetTimer} variant="outline" className="h-9 w-9 p-0">
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         )}

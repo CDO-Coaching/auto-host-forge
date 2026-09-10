@@ -3,9 +3,10 @@ import { Timer } from "lucide-react";
 
 interface FloatingSessionTimerProps {
   sessionId: string;
+  onClick?: () => void;
 }
 
-export function FloatingSessionTimer({ sessionId }: FloatingSessionTimerProps) {
+export function FloatingSessionTimer({ sessionId, onClick }: FloatingSessionTimerProps) {
   const [duration, setDuration] = useState<number>(0);
   const [isActive, setIsActive] = useState(false);
 
@@ -50,10 +51,15 @@ export function FloatingSessionTimer({ sessionId }: FloatingSessionTimerProps) {
 
   return (
     <div className="fixed bottom-24 right-4 z-50" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 font-mono text-sm font-semibold">
+      <button
+        type="button"
+        onClick={onClick}
+        className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 font-mono text-sm font-semibold active:scale-95 transition-transform"
+        title="Terminer la séance"
+      >
         <Timer className="h-3.5 w-3.5" />
         <span>{formatDuration(duration)}</span>
-      </div>
+      </button>
     </div>
   );
 }

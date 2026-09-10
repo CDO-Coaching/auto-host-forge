@@ -11,7 +11,6 @@ import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
-import { UniversalTimer } from "@/components/UniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import {
@@ -57,6 +56,7 @@ export default function SeanceDetail() {
   const [sessionDuration, setSessionDuration] = useState<number>(0);
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [startPrompt, setStartPrompt] = useState<null | (() => void)>(null);
+  const [finishPrompt, setFinishPrompt] = useState(false);
   const [timerInterval, setTimerInterval] = useState<ReturnType<typeof setInterval> | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [cardioFeedbackDialogOpen, setCardioFeedbackDialogOpen] = useState(false);
@@ -407,6 +407,16 @@ export default function SeanceDetail() {
   // Ouvre le dialog de validation
   const requestEndSession = () => {
     setCompletionDialogOpen(true);
+  };
+
+  // Annule le chrono en cours (sans enregistrer)
+  const cancelSession = () => {
+    if (timerInterval) clearInterval(timerInterval);
+    setTimerInterval(null);
+    setIsSessionActive(false);
+    setSessionStartTime(null);
+    setSessionDuration(0);
+    localStorage.removeItem(`session_timer_${sessionId}`);
   };
 
   // Validation finale avec date et RPE
@@ -773,8 +783,29 @@ export default function SeanceDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <FloatingSessionTimer sessionId={sessionId!} />
-      <UniversalTimer />
+      <FloatingSessionTimer sessionId={sessionId!} onClick={() => setFinishPrompt(true)} />
+
+      {/* Clic sur le chrono : demander si la séance est terminée */}
+      <AlertDialog open={finishPrompt} onOpenChange={setFinishPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Séance terminée ?</AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2">
+            <AlertDialogAction className="w-full mt-0 h-12 text-base font-semibold" onClick={() => { setFinishPrompt(false); requestEndSession(); }}>
+              Oui, terminer
+            </AlertDialogAction>
+            <Button
+              variant="outline"
+              className="w-full text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => { setFinishPrompt(false); cancelSession(); }}
+            >
+              Annuler le chrono
+            </Button>
+            <AlertDialogCancel className="w-full mt-0">Fermer</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Démarrage de séance au 1er clic sur un exercice */}
       <AlertDialog open={!!startPrompt} onOpenChange={(o) => !o && setStartPrompt(null)}>
@@ -802,7 +833,7 @@ export default function SeanceDetail() {
         type="session"
       />
 
-      <div className="sticky top-0 z-10 bg-background border-b p-4 flex items-center justify-between">
+      <div className="sticky top-0 z-10 bg-background border-b py-2 px-4 flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={() => navigate("/sportif/seances")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Retour
@@ -818,24 +849,19 @@ export default function SeanceDetail() {
         </Button>
       </div>
 
-      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+      <div className={`p-3 sm:p-4 space-y-2 ${!isCardioSession && !allCompleted ? "flex flex-col min-h-[calc(100svh-7rem)]" : ""}`}>
         <AthleteFatigueAlert />
-        
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold">{session.name}</h1>
-          <div className="flex items-center gap-1.5 sm:gap-2 mt-2 flex-wrap">
-            <Badge variant="outline" className="text-xs sm:text-sm">{exercises.length} exercices</Badge>
-            {isSessionActive && (
-              <Badge variant="secondary" className="bg-green-600/20 text-green-600 border-green-600/30 text-xs sm:text-sm">
-                {formatDuration(sessionDuration)}
-              </Badge>
-            )}
-            {allCompleted && (
-              <Badge variant="outline" className="border-green-600 text-green-600 text-xs sm:text-sm">
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-lg sm:text-xl font-bold">{session.name}</h1>
+          <Badge variant="outline" className="text-[11px]">{exercises.length} exercices</Badge>
+          {allCompleted && (
+            <div className="flex items-center gap-1.5">
+              <Badge variant="outline" className="border-green-600 text-green-600 text-[11px]">
                 Séance terminée
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Demande du coach : envoyer le lien Garmin/Strava de la sortie */}
@@ -866,18 +892,15 @@ export default function SeanceDetail() {
 
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
-          <div className="w-full">
-            {!isSessionActive ? (
-              <p className="text-xs text-muted-foreground text-center py-1">
-                Touche un exercice pour démarrer la séance
-              </p>
-            ) : (
-              <Button onClick={requestEndSession} variant="destructive" className="w-full" size="lg">
-                <Square className="h-4 w-4 mr-2 flex-shrink-0" />
-                <span>Terminer la séance</span>
-              </Button>
-            )}
-          </div>
+          !isSessionActive ? (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Touche un exercice pour démarrer la séance
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Touche le chrono en bas à droite pour terminer la séance
+            </p>
+          )
         ) : allCompleted ? (
           <div className="grid grid-cols-2 gap-2 w-full">
             <Button variant="outline" size="lg" className="w-full" onClick={() => setEditSessionDialogOpen(true)}>
@@ -908,9 +931,9 @@ export default function SeanceDetail() {
           </div>
         ) : null}
 
-        <div className="space-y-2 sm:space-y-3">
+        <div className={`grid grid-cols-2 gap-3 ${!isCardioSession && !allCompleted ? "auto-rows-fr flex-1 min-h-0" : ""}`}>
           {sortedExercises.length === 0 ? (
-            <Card>
+            <Card className="col-span-2">
               <CardContent className="py-8">
                 <p className="text-center text-muted-foreground">Aucun exercice pour cette séance</p>
               </CardContent>
@@ -923,7 +946,7 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.super_set_group}
-                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`h-full ${allCompleted ? "col-span-2" : ""} ${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
                     onClick={
@@ -932,20 +955,25 @@ export default function SeanceDetail() {
                         : () => openExercise(() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`))
                     }
                   >
-                    <CardContent className="p-3 sm:p-4">
-                      <div className="flex items-center justify-between mb-2">
+                    <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-start">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 sm:gap-2">
-                            <Badge className={`text-xs ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>
-                              Superset
-                            </Badge>
-                            {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-2">{item.exercises.length} exercices</p>
+                          <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5 flex-wrap">
+                            {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                            <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {index + 1}</span>
+                            <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
+                          </p>
                         </div>
-                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
                       </div>
 
+                      {!allCompleted && (
+                        <p className="text-xs sm:text-sm text-muted-foreground uppercase leading-tight break-words">
+                          {item.exercises.map((ex: any) => ex.exercice).join(" + ")}
+                        </p>
+                      )}
+
+                      {allCompleted && (
                       <div className={`space-y-2 ${allCompleted ? "mt-4 border-t pt-3" : ""}`}>
                         {item.exercises.map((ex: any, exIndex: number) => (
                           <div
@@ -1043,6 +1071,7 @@ export default function SeanceDetail() {
                           </div>
                         ))}
                       </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -1053,7 +1082,7 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.id}
-                    className={`${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`h-full ${isCardio ? "col-span-2" : ""} ${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
                     onClick={
@@ -1064,14 +1093,17 @@ export default function SeanceDetail() {
                           : () => openExercise(() => navigate(`/sportif/exercice/${item.id}`))
                     }
                   >
-                    <CardContent className="p-3 sm:p-4">
+                    <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-start">
                       <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-                              {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />}
-                              <p className="font-semibold text-base sm:text-lg truncate uppercase">{item.exercice}</p>
-                            </div>
+                            <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5">
+                              {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                              <span className={isCompleted ? "text-green-600" : "text-foreground"}>
+                                {isCardio ? "Cardio" : `Exercice ${index + 1}`}
+                              </span>
+                            </p>
+                            <p className="text-xs sm:text-sm text-muted-foreground uppercase mt-1 leading-tight break-words">{item.exercice}</p>
                             {isCardio && (
                               <div className="space-y-3">
                                 {item.cardio_sport && (
