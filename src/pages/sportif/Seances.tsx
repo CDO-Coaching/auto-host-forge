@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ChevronRight,
   CheckCircle2,
+  Check,
   Clock,
   Pencil,
   Trash2,
@@ -26,7 +27,6 @@ import {
 import { CustomSessionDialog } from "@/components/CustomSessionDialog";
 import { CustomSessionDetailDialog } from "@/components/CustomSessionDetailDialog";
 import { ScheduleSessionDialog } from "@/components/ScheduleSessionDialog";
-import { StravaActivityMatcher } from "@/components/StravaActivityMatcher";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import { WeeklyCompletionCelebration } from "@/components/WeeklyCompletionCelebration";
 import { useWeeklyCompletionCelebration } from "@/hooks/useWeeklyCompletionCelebration";
@@ -335,16 +335,6 @@ export default function Seances() {
               <Plus className="h-3.5 w-3.5" />
               Perso
             </button>
-            {userId && selectedWeek && (
-              <StravaActivityMatcher
-                athleteId={userId}
-                currentWeekSessions={sessions}
-                onLinked={() => {
-                  loadWeekSessions(selectedWeek.id);
-                  loadCustomSessions();
-                }}
-              />
-            )}
           </div>
         </div>
       )}
@@ -437,18 +427,34 @@ export default function Seances() {
                   ? Math.round(rpeValues.reduce((s: number, v: any) => s + Number(v), 0) / rpeValues.length)
                   : null;
 
-                const borderCls = completed
-                  ? "border-green-500/40 bg-green-500/5"
-                  : hasSchedule
-                  ? "border-orange-500/40 bg-orange-500/5"
+                // Sport : depuis les données, sinon déduit du nom de la séance
+                const nameLc = (displayName || "").toLowerCase();
+                const resolvedSport = sport
+                  || (/(vélo|velo|bike)/.test(nameLc) ? "velo"
+                    : /(natation|nage|swim)/.test(nameLc) ? "natation"
+                    : /(course|run|footing)/.test(nameLc) ? "course"
+                    : null);
+
+                // Couleur & emoji selon le type de séance
+                const meta = session.session_type === "recup"
+                  ? { emoji: "💆", accent: "#a855f7" }
+                  : session.session_type === "cardio"
+                    ? (resolvedSport === "velo" ? { emoji: "🚴", accent: "#06b6d4" }
+                      : resolvedSport === "natation" ? { emoji: "🏊", accent: "#22b8cf" }
+                      : { emoji: "🏃", accent: "#3b82f6" })
+                    : { emoji: "🏋️", accent: "#e8c466" };
+                const accent = completed ? "#22c55e" : meta.accent;
+
+                const containerCls = completed
+                  ? "border-green-500/30 bg-green-500/[0.04]"
                   : isFirstToDo
-                  ? "border-primary/60 bg-primary/5"
-                  : "border-border/50 hover:border-primary/30";
+                    ? "border-primary/50 bg-gradient-to-r from-primary/10 to-transparent shadow-sm"
+                    : "border-border/60 bg-card hover:border-primary/40 hover:shadow-sm";
 
                 return (
                   <div
                     key={session.id}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors hover:bg-accent/40 ${borderCls}`}
+                    className={`group relative flex items-center gap-3 rounded-2xl border pl-4 pr-2.5 py-3 cursor-pointer transition-all active:scale-[0.99] ${containerCls}`}
                     onClick={() => {
                       if (session.session_type === "recup") {
                         navigate(`/sportif/recup/${selectedWeek.id}/${session.id}`);
@@ -457,48 +463,37 @@ export default function Seances() {
                       }
                     }}
                   >
-                    {/* Status icon */}
-                    <div className="shrink-0">
-                      {completed ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <div
-                          className={`h-5 w-5 rounded-full border-2 ${
-                            isFirstToDo ? "border-primary" : "border-muted-foreground/30"
-                          }`}
-                        />
+                    {/* Barre d'accent */}
+                    <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-full" style={{ backgroundColor: accent }} />
+
+                    {/* Tuile icône type */}
+                    <div className="relative h-11 w-11 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ backgroundColor: `${accent}22` }}>
+                      <span aria-hidden>{meta.emoji}</span>
+                      {completed && (
+                        <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-500 flex items-center justify-center ring-2 ring-background">
+                          <Check className="h-2.5 w-2.5 text-white" />
+                        </span>
                       )}
                     </div>
 
-                    {/* Main content */}
+                    {/* Contenu */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-sm">{displayName}</span>
-
+                        <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
                         {session.athlete_custom_name && (
-                          <span className="text-xs text-muted-foreground">({session.name})</span>
+                          <span className="text-[11px] text-muted-foreground">({session.name})</span>
                         )}
-
                         {isFirstToDo && !hasSchedule && (
-                          <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
-                            À faire
-                          </Badge>
+                          <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">À faire</Badge>
                         )}
-
                         {hasSchedule && (
                           <Badge variant="outline" className="text-[10px] border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10 px-1.5 py-0 h-4">
                             📅 {format(new Date(session.scheduled_date), "EEE d", { locale: fr })}
                           </Badge>
                         )}
-
-                        {session.session_type === "recup" && (
-                          <Badge variant="outline" className="text-[10px] border-purple-500 text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0 h-4">
-                            Récup
-                          </Badge>
+                        {completed && (
+                          <Badge variant="outline" className="text-[10px] border-green-500 text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0 h-4">Validée</Badge>
                         )}
-
-                        {session.session_type === "cardio" && <SportBadge sport={sport} />}
-
                         {session.linked_strava_activity_id && (
                           <Badge className="text-[10px] bg-[#FC4C02]/15 text-[#FC4C02] border border-[#FC4C02]/30 px-1.5 py-0 h-4">
                             <svg viewBox="0 0 24 24" className="w-2 h-2 fill-[#FC4C02] mr-0.5">
@@ -509,37 +504,36 @@ export default function Seances() {
                         )}
                       </div>
 
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {exCount} exercice{exCount > 1 ? "s" : ""}
-                        {completed && session.duration_minutes ? ` · ${session.duration_minutes} min` : ""}
-                        {cardioDur ? ` · ⏱ ${cardioDur}` : ""}
+                      <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                          {exCount} exercice{exCount > 1 ? "s" : ""}
+                        </span>
+                        {(cardioDur || (completed && session.duration_minutes)) && (
+                          <span className="inline-flex items-center gap-0.5">⏱ {completed && session.duration_minutes ? `${session.duration_minutes} min` : cardioDur}</span>
+                        )}
                         {avgRpe !== null && (
-                          <span className={`ml-1 font-semibold ${
+                          <span className={`font-semibold ${
                             avgRpe <= 4 ? "text-green-500" :
                             avgRpe <= 6 ? "text-yellow-500" :
-                            avgRpe <= 8 ? "text-orange-500" :
-                            "text-red-500"
-                          }`}>· RPE {avgRpe}/10</span>
+                            avgRpe <= 8 ? "text-orange-500" : "text-red-500"
+                          }`}>RPE {avgRpe}/10</span>
                         )}
-                      </p>
+                      </div>
                     </div>
 
-                    {/* Right actions */}
+                    {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       {!completed && (
                         <button
-                          className="p-1 rounded hover:bg-accent transition-colors"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSchedulingSession(session);
-                          }}
+                          className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+                          onClick={(e) => { e.stopPropagation(); setSchedulingSession(session); }}
+                          aria-label="Planifier"
                         >
-                          <CalendarPlus
-                            className={`h-4 w-4 ${hasSchedule ? "text-orange-500" : "text-muted-foreground/50"}`}
-                          />
+                          <CalendarPlus className={`h-4 w-4 ${hasSchedule ? "text-orange-500" : "text-muted-foreground/50"}`} />
                         </button>
                       )}
-                      <ChevronRight className="h-4 w-4 text-muted-foreground/60" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/60 group-hover:text-primary transition-colors" />
                     </div>
                   </div>
                 );
@@ -575,29 +569,38 @@ export default function Seances() {
                       month: "short",
                     });
 
+                    const csMeta = cs.cardio_type === "velo" ? { emoji: "🚴", accent: "#06b6d4" }
+                      : cs.cardio_type === "natation" ? { emoji: "🏊", accent: "#06b6d4" }
+                      : cs.cardio_type === "course" ? { emoji: "🏃", accent: "#3b82f6" }
+                      : { emoji: "✨", accent: "#e8c466" };
+                    const csAccent = isPlanned ? csMeta.accent : "#22c55e";
                     return (
                       <div
                         key={cs.id}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer hover:bg-muted/40 transition-colors ${
+                        className={`group relative flex items-center gap-3 rounded-2xl border pl-4 pr-2.5 py-3 cursor-pointer transition-all active:scale-[0.99] ${
                           isPlanned
-                            ? "border-orange-500/30 bg-orange-500/5"
-                            : "border-primary/30 bg-primary/5"
+                            ? "border-border/60 bg-card hover:border-primary/40 hover:shadow-sm"
+                            : "border-green-500/30 bg-green-500/[0.04]"
                         }`}
                         onClick={() => isPlanned ? setEditingCustomSession(cs) : setViewingCustomSession(cs)}
                       >
-                        {/* Status */}
-                        <div className="shrink-0">
-                          {isPlanned ? (
-                            <div className="h-5 w-5 rounded-full border-2 border-orange-400/60" />
-                          ) : (
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        {/* Barre d'accent */}
+                        <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-full" style={{ backgroundColor: csAccent }} />
+
+                        {/* Tuile icône */}
+                        <div className="relative h-11 w-11 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ backgroundColor: `${csAccent}22` }}>
+                          <span aria-hidden>{csMeta.emoji}</span>
+                          {!isPlanned && (
+                            <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-500 flex items-center justify-center ring-2 ring-background">
+                              <Check className="h-2.5 w-2.5 text-white" />
+                            </span>
                           )}
                         </div>
 
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium text-sm">{cs.session_name}</span>
+                            <span className="font-semibold text-[15px] leading-tight">{cs.session_name}</span>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                               Perso
                             </Badge>

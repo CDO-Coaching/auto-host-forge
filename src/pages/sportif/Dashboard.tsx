@@ -16,12 +16,10 @@ import {
   Dumbbell,
   Activity,
   ChevronRight,
-  MessageSquare,
-  CalendarCheck,
   CalendarDays,
-  AlertTriangle,
   CheckCircle2,
   Clock,
+  Play,
   Smile,
   Frown,
   Meh,
@@ -29,10 +27,12 @@ import {
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
 import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
 
+interface SessionRef { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string; estimatedDuration: string | null }
 interface WeeklySessionInfo {
   total: number;
   completed: number;
-  nextSession: { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string; estimatedDuration: string | null } | null;
+  nextSession: SessionRef | null;
+  inProgress: SessionRef | null; // séance commencée mais pas terminée
 }
 
 interface FatigueInfo {
@@ -53,7 +53,7 @@ export default function SportifDashboard() {
   const navigate = useNavigate();
   const firstName = profile?.first_name || "Champion";
 
-  const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null });
+  const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null, inProgress: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
   const [unreadCount, setUnreadCount] = useState(0);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats>({ totalDurationMinutes: 0, completedCount: 0, distanceBySport: { course: 0, velo: 0, natation: 0 } });
@@ -104,7 +104,7 @@ export default function SportifDashboard() {
       .maybeSingle();
 
     if (!week) {
-      setWeeklyInfo({ total: 0, completed: 0, nextSession: null });
+      setWeeklyInfo({ total: 0, completed: 0, nextSession: null, inProgress: null });
       return;
     }
 
@@ -115,7 +115,7 @@ export default function SportifDashboard() {
       .order("session_number");
 
     if (!sessions || sessions.length === 0) {
-      setWeeklyInfo({ total: 0, completed: 0, nextSession: null });
+      setWeeklyInfo({ total: 0, completed: 0, nextSession: null, inProgress: null });
       return;
     }
 
@@ -143,18 +143,26 @@ export default function SportifDashboard() {
       return a.session_number - b.session_number;
     });
 
-    const nextS = incompleteSessions[0] || null;
     const todayStr = format(new Date(), "yyyy-MM-dd");
-    const isOverdue = nextS?.scheduled_date ? nextS.scheduled_date < todayStr : false;
-    const nextSession: WeeklySessionInfo["nextSession"] = nextS ? {
-      name: nextS.athlete_custom_name || nextS.name,
-      type: nextS.session_type || "renfo",
-      id: nextS.id,
+    const toRef = (s: any): SessionRef => ({
+      name: s.athlete_custom_name || s.name,
+      type: s.session_type || "renfo",
+      id: s.id,
       weekId: week.id,
-      overdue: isOverdue,
-      scheduledLabel: nextS.scheduled_date ? format(new Date(nextS.scheduled_date + "T00:00:00"), "EEEE d", { locale: fr }) : "",
-      estimatedDuration: isCardioSession(nextS) ? getCardioEstimatedDuration(nextS.session_exercises || [], athleteVma) : null,
-    } : null;
+      overdue: s.scheduled_date ? s.scheduled_date < todayStr : false,
+      scheduledLabel: s.scheduled_date ? format(new Date(s.scheduled_date + "T00:00:00"), "EEEE d", { locale: fr }) : "",
+      estimatedDuration: isCardioSession(s) ? getCardioEstimatedDuration(s.session_exercises || [], athleteVma) : null,
+    });
+
+    // Séance commencée mais pas terminée : au moins un exercice validé (RPE saisi)
+    const isStarted = (s: any) =>
+      Array.isArray(s.session_exercises) &&
+      s.session_exercises.some((ex: any) => ex.sportif_rpe !== null && ex.sportif_rpe !== undefined);
+    const startedS = incompleteSessions.find(isStarted) || null;
+    const inProgress: SessionRef | null = startedS ? toRef(startedS) : null;
+
+    const nextS = incompleteSessions[0] || null;
+    const nextSession: SessionRef | null = nextS ? toRef(nextS) : null;
 
     // Also count custom sessions for the week
     const mondayISO = getMondayISO(weekNumber, year);
@@ -173,6 +181,7 @@ export default function SportifDashboard() {
       total: sessions.length + customTotal,
       completed: completed + customCompleted,
       nextSession,
+      inProgress,
     });
   };
 
@@ -352,215 +361,134 @@ export default function SportifDashboard() {
 
   const recoveryPercentForBanner = fatigue.avgScore !== null ? getRecoveryPercent(fatigue.avgScore) : null;
 
+  // Séance à mettre en avant : en cours d'abord, sinon la prochaine
+  const primary = weeklyInfo.inProgress ?? weeklyInfo.nextSession;
+  const urgent = !!weeklyInfo.inProgress || !!weeklyInfo.nextSession?.overdue;
+  const goToSession = (s: SessionRef) =>
+    navigate(s.type === "recup" ? `/sportif/recup/${s.weekId}/${s.id}` : `/sportif/seance/${s.weekId}/${s.id}`);
+  const typeLabel = (t: string) => (t === "recup" ? "Récup" : t === "cardio" ? "Cardio" : "Renfo");
+
+  // Carte fusionnée « Ta semaine » : avancement + séance à faire + action principale
+  const semaineCard = weeklyInfo.total > 0 ? (
+    <Card className="overflow-hidden">
+      <CardContent className="p-3 sm:p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Dumbbell className="h-4 w-4 text-primary" />
+            <span className="font-semibold text-sm">Ta semaine</span>
+          </div>
+          <span className="text-[10px] text-muted-foreground">
+            S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
+          </span>
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
+            <span className="font-bold text-primary">{progressPercent}%</span>
+          </div>
+          <Progress value={progressPercent} className="h-2" />
+        </div>
+
+        {primary ? (
+          <div className="space-y-2">
+            {weeklyInfo.inProgress && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30">
+                <Clock className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">Séance commencée — termine de la remplir</span>
+              </div>
+            )}
+            {!weeklyInfo.inProgress && primary.overdue && (
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30">
+                <span className="text-xs">❓</span>
+                <span className="text-[11px] font-medium text-destructive">À valider — {primary.scheduledLabel}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm truncate">{primary.name}</p>
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{typeLabel(primary.type)}</Badge>
+                  {primary.estimatedDuration && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">⏱ {primary.estimatedDuration}</Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+            <Button className="w-full h-12 text-sm font-semibold" onClick={() => goToSession(primary)}>
+              <Play className="h-4 w-4 mr-1.5" />
+              {weeklyInfo.inProgress ? "Reprendre ma séance" : primary.overdue ? "Valider ma séance" : "Commencer ma séance"}
+            </Button>
+          </div>
+        ) : progressPercent === 100 ? (
+          <p className="text-sm text-green-500 font-medium flex items-center gap-1.5">
+            <CheckCircle2 className="h-4 w-4" /> Bravo, semaine complétée ! 🎉
+          </p>
+        ) : null}
+      </CardContent>
+    </Card>
+  ) : (
+    <Card>
+      <CardContent className="p-4 text-center">
+        <p className="text-sm text-muted-foreground">Pas encore de programme cette semaine</p>
+      </CardContent>
+    </Card>
+  );
+
+  // Carte objectif / progression
+  const progressionCard = user?.id ? (
+    <div onClick={() => navigate("/sportif/objectifs")} className="cursor-pointer active:opacity-80 transition-opacity">
+      <ProgObjectiveBanner athleteId={user.id} heading="Ma progression" variant="clean" />
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-2 sm:space-y-3 pb-20 sm:pb-4">
       <AthleteSfmsRequestBanner />
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
 
-      {/* Progression — objectif principal, sous-objectifs et timeline */}
-      {user?.id && (
-        <div onClick={() => navigate("/sportif/objectifs")} className="cursor-pointer active:opacity-80 transition-opacity">
-          <ProgObjectiveBanner athleteId={user.id} heading="Ma progression" variant="clean" />
-        </div>
+      {/* Ordre adaptatif : si une séance est en cours / à valider, elle passe en premier */}
+      {urgent ? (
+        <>
+          {semaineCard}
+          {progressionCard}
+        </>
+      ) : (
+        <>
+          {progressionCard}
+          {semaineCard}
+        </>
       )}
 
-      {/* Séances de la semaine — avancement */}
-      {weeklyInfo.total > 0 && (
-        <Card className="overflow-hidden">
-          <CardContent className="p-3 sm:p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Dumbbell className="h-4 w-4 text-primary" />
-                <span className="font-semibold text-sm">Séances de la semaine</span>
-              </div>
-              <span className="text-[10px] text-muted-foreground">
-                S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
-              <span className="font-bold text-primary">{progressPercent}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-2" />
-            {progressPercent === 100 && (
-              <p className="text-xs text-green-500 font-medium flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" />
-                Bravo, semaine complétée ! 🎉
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Bilan hebdo — durée + distances par sport */}
-      {weeklyStats.completedCount > 0 && (() => {
-        const total = weeklyStats.totalDurationMinutes;
-        const h = Math.floor(total / 60);
-        const m = total % 60;
-        const durLabel = h > 0 ? `${h}h${m.toString().padStart(2, "0")}` : `${total} min`;
-        const stats = [
-          ...(total > 0 ? [{ emoji: "⏱", value: durLabel, label: "Entraînement" }] : []),
-          ...(weeklyStats.distanceBySport.course > 0 ? [{ emoji: "🏃", value: `${Math.round(weeklyStats.distanceBySport.course * 100) / 100} km`, label: "Course" }] : []),
-          ...(weeklyStats.distanceBySport.velo > 0 ? [{ emoji: "🚴", value: `${Math.round(weeklyStats.distanceBySport.velo * 100) / 100} km`, label: "Vélo" }] : []),
-          ...(weeklyStats.distanceBySport.natation > 0 ? [{ emoji: "🏊", value: `${Math.round(weeklyStats.distanceBySport.natation)} m`, label: "Natation" }] : []),
-        ];
-        return (
-          <Card className="cursor-pointer active:bg-muted/30 transition-colors" onClick={() => navigate("/sportif/bilan")}>
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex items-center gap-1.5 mb-2.5">
-                <Clock className="h-3.5 w-3.5 text-primary" />
-                <span className="text-xs font-medium text-muted-foreground">Bilan</span>
-              </div>
-              <div className={`grid gap-2 ${stats.length <= 2 ? "grid-cols-2" : stats.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4"}`}>
-                {stats.map((s) => (
-                  <div key={s.label} className="flex items-center gap-2">
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <span className="text-sm leading-none">{s.emoji}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-foreground leading-tight truncate">{s.value}</p>
-                      <p className="text-[10px] text-muted-foreground leading-tight">{s.label}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
-
-      {/* Récupération + Messagerie — side by side */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-4">
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
+      {/* Rappel doux : ressenti du jour non rempli */}
+      {!fatigue.hasToday && (
+        <button
           onClick={() => navigate("/sportif/fatigue")}
+          className="w-full flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-2.5 text-sm active:bg-orange-500/10 transition-colors"
         >
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <Activity className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-xs sm:text-sm">Récupération</span>
-            </div>
-            {fatigue.avgScore !== null ? (() => {
-              const percent = getRecoveryPercent(fatigue.avgScore);
-              return (
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {getRecoveryIcon(percent, true)}
-                    <p className={`text-lg font-bold ${getRecoveryColor(percent)}`}>
-                      {percent}%
-                    </p>
-                  </div>
-                  <Progress value={percent} className="h-1.5" />
-                  <p className="text-[10px] text-muted-foreground">{getRecoveryLabel(percent)} • {fatigue.entryCount}j</p>
-                </div>
-              );
-            })() : (
-              <p className="text-xs text-muted-foreground">Aucune donnée</p>
-            )}
-            {!fatigue.hasToday && (
-              <Badge variant="outline" className="mt-1.5 border-orange-500 text-orange-500 text-[10px] px-1.5 py-0">
-                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
-                Non rempli
-              </Badge>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate("/sportif/messagerie")}
-        >
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 mb-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-xs sm:text-sm">Messages</span>
-            </div>
-            {unreadCount > 0 ? (
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-bold text-primary">{unreadCount}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  non lu{unreadCount > 1 ? "s" : ""}
-                </p>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">Aucun nouveau</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Prochaine séance + Programmer */}
-      {weeklyInfo.nextSession && (
-        <Card
-          className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => {
-            const s = weeklyInfo.nextSession!;
-            if (s.type === "recup") {
-              navigate(`/sportif/recup/${s.weekId}/${s.id}`);
-            } else {
-              navigate(`/sportif/seance/${s.weekId}/${s.id}`);
-            }
-          }}
-        >
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <CalendarCheck className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-xs sm:text-sm">Prochaine séance</span>
-            </div>
-            {weeklyInfo.nextSession.overdue && (
-              <div className="flex items-center gap-1.5 mb-1.5 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30">
-                <span className="text-xs">❓</span>
-                <span className="text-[10px] font-medium text-destructive">À valider — {weeklyInfo.nextSession.scheduledLabel}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-sm sm:text-base">{weeklyInfo.nextSession.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
-                    {weeklyInfo.nextSession.type === "recup"
-                      ? "Récup"
-                      : weeklyInfo.nextSession.type === "cardio"
-                      ? "Cardio"
-                      : "Renfo"}
-                  </Badge>
-                  {weeklyInfo.nextSession.estimatedDuration && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      ⏱ {weeklyInfo.nextSession.estimatedDuration}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
+          <Activity className="h-4 w-4 text-orange-500 shrink-0" />
+          <span className="font-medium">Comment tu te sens aujourd'hui ?</span>
+          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+        </button>
       )}
 
-      {/* Boutons d'action */}
+      {/* Accès secondaires */}
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="outline"
-          className="h-10 text-sm"
-          onClick={() => navigate("/sportif/seances")}
-        >
+        <Button variant="outline" className="h-10 text-sm" onClick={() => navigate("/sportif/seances")}>
           Mes séances
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
-        <Button
-          className="h-10 text-sm"
-          onClick={() => navigate("/sportif/programmer")}
-        >
+        <Button variant="outline" className="h-10 text-sm" onClick={() => navigate("/sportif/programmer")}>
           <CalendarDays className="h-4 w-4 mr-1" />
           Programmer
         </Button>
       </div>
 
-      {/* Citation motivante de la semaine */}
-      <WeeklyQuote />
+      {/* Citation motivante — discrète, en bas */}
+      <div className="pt-1 opacity-70">
+        <WeeklyQuote />
+      </div>
     </div>
   );
 }

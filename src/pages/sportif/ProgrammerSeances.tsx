@@ -18,6 +18,7 @@ import {
   ArrowUp,
   ArrowDown,
   Dumbbell,
+  CalendarClock,
 } from "lucide-react";
 import {
   Dialog,
@@ -25,6 +26,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+// Construit le lien "Ajouter à Google Agenda" (heure locale, pas de compte requis)
+function googleCalendarUrl(title: string, start: Date, durationMin: number, details?: string) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fmt = (d: Date) => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const end = new Date(start.getTime() + durationMin * 60000);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${fmt(start)}/${fmt(end)}`,
+  });
+  if (details) params.set("details", details);
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
 
 interface SessionToSchedule {
   id: string;
@@ -50,6 +67,7 @@ export default function ProgrammerSeances() {
   const [saving, setSaving] = useState(false);
   const [pickingDay, setPickingDay] = useState<string | null>(null); // session id being placed
   const [orderDialogDay, setOrderDialogDay] = useState<string | null>(null);
+  const [agendaTarget, setAgendaTarget] = useState<{ title: string; estimatedDuration: string | null; defaultDate: string | null } | null>(null);
 
   const now = new Date();
   const monday = getMondayOfWeek(now);
@@ -309,199 +327,150 @@ export default function ProgrammerSeances() {
         <div>
           <h1 className="text-xl sm:text-2xl font-bold">Programmer ma semaine</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Place chaque séance sur le jour qui t'arrange
+            Choisis une séance et ajoute-la à ton agenda
           </p>
         </div>
       </div>
 
-      {/* Unassigned sessions pool */}
-      {unassigned.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">
-            Séances à placer ({unassigned.length})
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {unassigned.map((s) => {
-              const isActive = pickingDay === s.id;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setPickingDay(isActive ? null : s.id)}
-                  className={`
-                    flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 transition-all text-left
-                    ${isActive
-                      ? "border-primary bg-primary/15 shadow-lg shadow-primary/20 scale-105"
-                      : `${getTypeColor(s.session_type)} hover:scale-[1.02]`
-                    }
-                  `}
-                >
-                  <Dumbbell className="h-4 w-4 flex-shrink-0" />
-                  <div>
-                    <span className="text-sm font-semibold block leading-tight">
-                      {s.athlete_custom_name || s.name}
-                    </span>
-                    <span className="text-[11px] opacity-70">
-                      {getTypeLabel(s.session_type)}
-                      {s.estimatedDuration && ` • ⏱ ${s.estimatedDuration}`}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {pickingDay && (
-            <p className="text-xs text-primary font-medium animate-pulse">
-              👇 Touche le jour où tu veux placer cette séance
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Week days */}
+      {/* Liste de toutes les séances (coach + perso) */}
       <div className="space-y-2">
-        {weekDays.map((day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const dayPast = isPast(day);
-          const dayIsToday = isToday(day);
-          const sessionsOnDay = (dayAssignments[dateStr] || [])
-            .map(getSession)
-            .filter(Boolean) as SessionToSchedule[];
-          const customOnDay = customSessions.filter(cs => cs.scheduled_date === dateStr);
-
+        {sessions.map((s) => {
+          const title = s.athlete_custom_name || s.name;
           return (
-            <Card
-              key={dateStr}
-              className={`overflow-hidden transition-all ${
-                pickingDay && !dayPast
-                  ? "ring-2 ring-primary/40 cursor-pointer hover:ring-primary hover:bg-primary/5"
-                  : ""
-              } ${dayIsToday ? "border-primary/50" : ""} ${dayPast ? "opacity-40" : ""}`}
-              onClick={() => {
-                if (pickingDay && !dayPast) {
-                  placeSession(pickingDay, dateStr);
-                }
-              }}
+            <div
+              key={s.id}
+              className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 ${getTypeColor(s.session_type)}`}
             >
-              <CardContent className="p-3 sm:p-4">
-                <div className="flex items-center gap-3">
-                  {/* Day label */}
-                  <div
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl flex flex-col items-center justify-center flex-shrink-0 ${
-                      dayIsToday
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <span className="text-[10px] sm:text-xs font-medium uppercase leading-tight">
-                      {format(day, "EEE", { locale: fr })}
-                    </span>
-                    <span className="text-lg sm:text-xl font-bold leading-tight">
-                      {format(day, "d")}
-                    </span>
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    {sessionsOnDay.length === 0 && customOnDay.length === 0 ? (
-                      <p className="text-sm text-muted-foreground italic">
-                        {dayPast ? "Passé" : "Aucune séance"}
-                      </p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {sessionsOnDay.map((s, idx) => (
-                          <div
-                            key={s.id}
-                            className={`flex items-center gap-2 p-1.5 rounded-lg ${getTypeColor(s.session_type)}`}
-                          >
-                            {sessionsOnDay.length > 1 && (
-                              <span className="text-xs font-bold opacity-60 w-4 text-center">
-                                {idx + 1}
-                              </span>
-                            )}
-                            <span className="text-sm font-medium truncate flex-1">
-                              {s.athlete_custom_name || s.name}
-                            </span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-current opacity-60">
-                              {getTypeLabel(s.session_type)}
-                            </Badge>
-                            {s.estimatedDuration && (
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
-                                ⏱ {s.estimatedDuration}
-                              </Badge>
-                            )}
-                            {!dayPast && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeFromDay(s.id);
-                                }}
-                                className="p-0.5 rounded hover:bg-destructive/20 transition-colors"
-                              >
-                                <X className="h-3.5 w-3.5 text-destructive" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        {/* Custom planned sessions */}
-                        {customOnDay.map((cs: any) => (
-                          <div
-                            key={cs.id}
-                            className="flex items-center gap-2 p-1.5 rounded-lg border-orange-500/50 bg-orange-500/10 text-orange-600 dark:text-orange-400"
-                          >
-                            <span className="text-sm font-medium truncate flex-1">
-                              {cs.session_name}
-                            </span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 border-orange-500 text-orange-600 dark:text-orange-400">
-                              Perso
-                            </Badge>
-                          </div>
-                        ))}
-                        {sessionsOnDay.length >= 2 && !dayPast && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOrderDialogDay(dateStr);
-                            }}
-                            className="text-[11px] text-primary font-medium hover:underline"
-                          >
-                            Changer l'ordre
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Add button for unassigned */}
-                  {!dayPast && sessionsOnDay.length === 0 && !pickingDay && unassigned.length > 0 && (
-                    <div className="flex-shrink-0">
-                      <Plus className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+              <Dumbbell className="h-4 w-4 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold block leading-tight truncate">{title}</span>
+                <span className="text-[11px] opacity-70">
+                  {getTypeLabel(s.session_type)}{s.estimatedDuration && ` • ⏱ ${s.estimatedDuration}`}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => setAgendaTarget({ title, estimatedDuration: s.estimatedDuration, defaultDate: s.scheduled_date })}
+              >
+                <CalendarClock className="h-4 w-4" />
+                <span className="text-xs">Agenda</span>
+              </Button>
+            </div>
           );
         })}
+
+        {customSessions.map((cs: any) => {
+          const est = cs.duration_minutes ? `${cs.duration_minutes}min` : null;
+          return (
+            <div
+              key={cs.id}
+              className="flex items-center gap-3 rounded-xl border-2 border-orange-500/50 bg-orange-500/10 text-orange-600 dark:text-orange-400 px-3 py-2.5"
+            >
+              <Dumbbell className="h-4 w-4 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-semibold block leading-tight truncate">{cs.session_name}</span>
+                <span className="text-[11px] opacity-70">Perso{est && ` • ⏱ ${est}`}</span>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-8 shrink-0 gap-1.5"
+                onClick={() => setAgendaTarget({ title: cs.session_name, estimatedDuration: est, defaultDate: cs.scheduled_date })}
+              >
+                <CalendarClock className="h-4 w-4" />
+                <span className="text-xs">Agenda</span>
+              </Button>
+            </div>
+          );
+        })}
+
+        {sessions.length === 0 && customSessions.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-6">Aucune séance disponible.</p>
+        )}
       </div>
 
-      {/* Save */}
-      <Button
-        className="w-full h-12 text-base font-semibold"
-        onClick={handleSave}
-        disabled={saving}
-      >
-        {saving ? "Enregistrement..." : "Valider ma programmation"}
-      </Button>
-
-      {/* Order dialog */}
-      <OrderDialog
-        open={!!orderDialogDay}
-        dateStr={orderDialogDay}
-        sessionIds={orderDialogDay ? dayAssignments[orderDialogDay] || [] : []}
-        sessions={sessions}
-        onMove={(id, dir) => orderDialogDay && moveInDay(orderDialogDay, id, dir)}
-        onClose={() => setOrderDialogDay(null)}
+      {/* Google Agenda dialog */}
+      <GoogleAgendaDialog
+        target={agendaTarget}
+        onClose={() => setAgendaTarget(null)}
       />
     </div>
+  );
+}
+
+function GoogleAgendaDialog({
+  target,
+  onClose,
+}: {
+  target: { title: string; estimatedDuration: string | null; defaultDate: string | null } | null;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("18:00");
+  const [duration, setDuration] = useState("60");
+
+  useEffect(() => {
+    if (target) {
+      setDate(target.defaultDate || format(new Date(), "yyyy-MM-dd"));
+      setTime("18:00");
+      // Durée estimée (ex: "34min", "1h05") → minutes, sinon 60
+      const est = target.estimatedDuration || "";
+      const hm = est.match(/(\d+)\s*h\s*(\d+)?/i);
+      const mn = est.match(/(\d+)\s*min/i);
+      const mins = hm ? Number(hm[1]) * 60 + Number(hm[2] || 0) : mn ? Number(mn[1]) : 60;
+      setDuration(String(mins || 60));
+    }
+  }, [target]);
+
+  if (!target) return null;
+
+  const handleAdd = () => {
+    if (!date) return;
+    const [h, m] = time.split(":").map((n) => parseInt(n) || 0);
+    const start = new Date(date + "T00:00:00");
+    start.setHours(h, m, 0, 0);
+    const url = googleCalendarUrl(target.title, start, parseInt(duration) || 60, "Séance planifiée depuis CDO Coaching");
+    window.open(url, "_blank", "noopener,noreferrer");
+    onClose();
+  };
+
+  return (
+    <Dialog open={!!target} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-[380px]">
+        <DialogHeader>
+          <DialogTitle>Ajouter à Google Agenda</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+            <p className="font-semibold text-sm">{target.title}</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ga-date">Date</Label>
+            <Input id="ga-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ga-time">Heure</Label>
+              <Input id="ga-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ga-dur">Durée (min)</Label>
+              <Input id="ga-dur" type="number" inputMode="numeric" min="5" max="600" value={duration}
+                onChange={(e) => setDuration(e.target.value.replace(/[^0-9]/g, ""))} />
+            </div>
+          </div>
+          <Button className="w-full h-11" onClick={handleAdd} disabled={!date}>
+            <CalendarClock className="h-4 w-4 mr-1.5" />
+            Ouvrir dans Google Agenda
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Google Agenda s'ouvre avec l'événement pré-rempli — il te reste à confirmer.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

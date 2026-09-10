@@ -734,7 +734,7 @@ export default function SupersetDetail() {
                     <div className="space-y-1.5">
                       {prescribedReps && !isRepsRequired && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Reps (prévu: {prescribedReps})</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{(ex as any)?.is_duration ? "Durée" : (ex as any)?.is_distance ? "Distance (m)" : "Reps"} (prévu: {prescribedReps}{(ex as any)?.is_distance ? " m" : ""})</span>
                           <Input type="number" inputMode="numeric" value={rpeActualReps}
                             onChange={e => setRpeActualReps(e.target.value)}
                             placeholder={prescribedReps} className="h-7 text-sm flex-1 min-w-0" />

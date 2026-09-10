@@ -247,7 +247,7 @@ export interface DesktopProgViewProps {
   onToggleAllowAddExercises?: (value: boolean) => void;
 
   // Session CRUD
-  onCreateSession: (type: "renfo" | "cardio" | "recup") => void;
+  onCreateSession: (type: "renfo" | "cardio" | "recup", cardioSport?: "course" | "velo" | "natation") => void;
   onDeleteSession: (id: number, e: React.MouseEvent) => void;
 
   // Exercise CRUD
@@ -409,6 +409,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
   } = props;
 
   const [selectedCustomSessionId, setSelectedCustomSessionId] = React.useState<string | null>(null);
+  const [cardioMenuOpen, setCardioMenuOpen] = React.useState(false);
 
   const selectedSession = sessions.find((s) => s.id === expandedSessionId) ?? null;
   const selectedCustomSession = customSessions.find((s) => s.id === selectedCustomSessionId) ?? null;
@@ -696,9 +697,29 @@ export function DesktopProgView(props: DesktopProgViewProps) {
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs px-1" onClick={() => onCreateSession("renfo")}>
                 <Plus className="h-3 w-3 mr-0.5" />Renfo
               </Button>
-              <Button size="sm" variant="outline" className="flex-1 h-8 text-xs px-1" onClick={() => onCreateSession("cardio")}>
-                <Plus className="h-3 w-3 mr-0.5" />Cardio
-              </Button>
+              <Popover open={cardioMenuOpen} onOpenChange={setCardioMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button size="sm" variant="outline" className="flex-1 h-8 text-xs px-1">
+                    <Plus className="h-3 w-3 mr-0.5" />Cardio
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-40 p-1.5" align="start">
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground px-1.5 pb-1">Type de cardio</p>
+                  {([
+                    { key: "course", label: "🏃 Course" },
+                    { key: "velo", label: "🚴 Vélo" },
+                    { key: "natation", label: "🏊 Natation" },
+                  ] as const).map((s) => (
+                    <button
+                      key={s.key}
+                      className="w-full text-left text-sm px-2 py-1.5 rounded-md hover:bg-accent transition-colors"
+                      onClick={() => { onCreateSession("cardio", s.key); setCardioMenuOpen(false); }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </PopoverContent>
+              </Popover>
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs px-1" onClick={() => onCreateSession("recup")}>
                 <Plus className="h-3 w-3 mr-0.5" />Récup
               </Button>

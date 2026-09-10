@@ -907,7 +907,7 @@ export default function ExerciceDetail() {
                     <div className="space-y-1.5">
                       {prescribedReps && !isRepsRequired && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Reps (prévu: {prescribedReps})</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance (m)" : "Reps"} (prévu: {prescribedReps}{(exercise as any)?.is_distance ? " m" : ""})</span>
                           <Input type="number" inputMode="numeric" value={rpeActualReps}
                             onChange={(e) => setRpeActualReps(e.target.value)}
                             placeholder={prescribedReps} className="h-7 text-sm flex-1 min-w-0" />
@@ -1212,7 +1212,7 @@ export default function ExerciceDetail() {
                           {sr && (
                             <StatBlock
                               label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
-                              value={isValidated && validation?.actual_reps ? `${validation.actual_reps}${exercise.is_duration || (exercise as any).is_distance ? "" : " reps"}` : (isRepsRange ? repsDisplay + " reps" : repsDisplay)}
+                              value={isValidated && validation?.actual_reps ? `${validation.actual_reps}${exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}` : (isRepsRange ? repsDisplay + " reps" : repsDisplay)}
                               className={isValidated && validation?.actual_reps ? "text-green-600" : isRepsRange ? "text-blue-600" : "text-foreground"}
                             />
                           )}

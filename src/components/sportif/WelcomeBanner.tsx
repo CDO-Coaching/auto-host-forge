@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Flame, CalendarCheck, Sparkles } from "lucide-react";
+import { Flame, CalendarCheck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,10 +105,6 @@ export function WelcomeBanner({ firstName, recoveryPercent }: Props) {
               <span className="truncate">Salut {firstName}</span>
               <span aria-hidden>{moodEmoji}</span>
             </h2>
-            <p className="text-[11px] sm:text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-primary" />
-              Prêt à donner le meilleur ?
-            </p>
           </div>
           {streak > 0 && (
             <div

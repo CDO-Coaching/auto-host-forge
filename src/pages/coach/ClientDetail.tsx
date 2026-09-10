@@ -1754,14 +1754,23 @@ export default function ClientDetail() {
 
   const [newSessionType, setNewSessionType] = useState<"renfo" | "cardio" | "recup">("renfo");
 
+  // Nom par défaut : numéroté par préfixe (Salle/Renfo 1, Course 2, Vélo 1…)
+  const cardioPrefix = (sport: "course" | "velo" | "natation") =>
+    sport === "velo" ? "Vélo" : sport === "natation" ? "Natation" : "Course";
+  const nextNameFor = (prefix: string) => {
+    const p = prefix.toLowerCase();
+    const n = sessions.filter((s) => (s.name || "").toLowerCase().startsWith(p)).length + 1;
+    return `${prefix} ${n}`;
+  };
+  const defaultSessionName = (type: "renfo" | "cardio" | "recup", sport: "course" | "velo" | "natation" = "course") =>
+    type === "cardio" ? nextNameFor(cardioPrefix(sport))
+      : type === "recup" ? nextNameFor("Récup/Mobilité")
+      : nextNameFor("Salle/Renfo");
+
   const handleCreateSession = () => {
     const nextSessionNumber = sessions.length + 1;
-    const sessionName = newSessionType === "cardio" 
-      ? `Cardio ${nextSessionNumber}` 
-      : newSessionType === "recup" 
-      ? `Récup/Mobilité ${nextSessionNumber}`
-      : `Séance ${nextSessionNumber}`;
-      
+    const sessionName = defaultSessionName(newSessionType, selectedCardioSport);
+
     const newSession: Session = {
       id: nextSessionNumber,
       name: sessionName,
@@ -1832,11 +1841,7 @@ export default function ClientDetail() {
     setNewSessionType(type);
     if (type === "cardio") setSelectedCardioSport(cardioSport);
     const nextSessionNumber = sessions.length + 1;
-    const sessionName = type === "cardio"
-      ? `Cardio ${nextSessionNumber}`
-      : type === "recup"
-      ? `Récup/Mobilité ${nextSessionNumber}`
-      : `Séance ${nextSessionNumber}`;
+    const sessionName = defaultSessionName(type, cardioSport);
 
     const newSession: Session = { id: nextSessionNumber, name: sessionName, isExpanded: false, session_type: type };
     const updatedSessions = [...sessions, newSession];
