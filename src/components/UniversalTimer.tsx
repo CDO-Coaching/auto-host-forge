@@ -30,9 +30,11 @@ export interface UniversalTimerRef {
 
 interface UniversalTimerProps {
   ref?: React.Ref<UniversalTimerRef>;
+  hideTrigger?: boolean;
 }
 
 export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>((props, ref) => {
+  const { hideTrigger } = props;
   const [open, setOpen] = useState(false);
   const {
     settings,
@@ -90,14 +92,16 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="icon"
-          className="fixed bottom-24 left-4 sm:bottom-6 z-50 h-14 w-14 rounded-full bg-gradient-cta shadow-glow hover:shadow-glow hover:scale-110 transition-all"
-        >
-          <Timer className="h-6 w-6" />
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button
+            size="icon"
+            className="fixed bottom-24 left-4 sm:bottom-6 z-50 h-14 w-14 rounded-full bg-gradient-cta shadow-glow hover:shadow-glow hover:scale-110 transition-all"
+          >
+            <Timer className="h-6 w-6" />
+          </Button>
+        </DialogTrigger>
+      )}
 
       <DialogContent className="max-w-full h-screen max-h-screen p-6 overflow-y-auto bg-background flex flex-col">
         <div className="flex justify-between items-center mb-6">

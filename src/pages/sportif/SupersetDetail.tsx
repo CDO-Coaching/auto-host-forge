@@ -540,7 +540,7 @@ export default function SupersetDetail() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
-      <UniversalTimer />
+      <UniversalTimer hideTrigger />
 
       <CelebrationOverlay
         show={showCelebration}

@@ -44,8 +44,8 @@ interface SerieValidation {
 function StatBlock({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className="flex flex-col leading-none">
-      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">{label}</span>
-      <span className={`text-lg font-bold ${className || "text-foreground"}`}>{value}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={`text-sm font-bold ${className || "text-foreground"}`}>{value}</span>
     </div>
   );
 }
@@ -739,7 +739,7 @@ export default function ExerciceDetail() {
   return (
     <div className="min-h-screen bg-background">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
-      <UniversalTimer ref={timerRef} />
+      <UniversalTimer ref={timerRef} hideTrigger />
       <CelebrationOverlay
         show={showCelebration}
         message={exercise?.exercice || ""}
@@ -1224,26 +1224,32 @@ export default function ExerciceDetail() {
                     const chargeIsRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
                     const chargeNumeric = /^\d+(\.\d+)?$/.test(sc);
 
+                    // Halo dégradé léger autour de la case selon l'intensité du RPE (réalisé sinon prévu)
+                    const rpeVal = (isValidated ? validation?.rpe : null) ?? ((serie.rpe || exercise.rpe) ? Number(serie.rpe || exercise.rpe) : null);
+                    const rpeColor = rpeVal == null ? null
+                      : rpeVal < 5 ? "#22c55e"
+                      : rpeVal <= 6 ? "#eab308"
+                      : rpeVal <= 8 ? "#f97316"
+                      : "#ef4444";
+                    const rpeGlow = rpeColor ? { boxShadow: `0 0 10px 1px ${rpeColor}66, 0 0 0 1px ${rpeColor}55` } : undefined;
+
                     return (
                       <div key={idx} className="space-y-1.5">
                       <div
-                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-all ${
-                          isValidated
-                            ? "bg-green-500/10 border-green-500/40"
-                            : "bg-muted/40 border-border"
-                        }`}
+                        style={rpeGlow}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
                       >
                         {/* Numéro de série */}
-                        <div className="flex flex-col items-center shrink-0 w-10">
-                          <div className={`h-9 w-9 rounded-full flex items-center justify-center font-bold text-sm ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
-                            {isValidated ? <Check className="h-5 w-5" /> : idx + 1}
+                        <div className="flex flex-col items-center shrink-0 w-7">
+                          <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
+                            {isValidated ? <Check className="h-4 w-4" /> : idx + 1}
                           </div>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mt-1">Série</span>
+                          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Série</span>
                         </div>
 
                         {/* Métriques — style tableau (cases) */}
                         <div className="flex-1 min-w-0">
-                        <div className="flex rounded-lg border border-border/70 divide-x divide-border/70 overflow-x-auto bg-card/40 [&>div]:px-2.5 [&>div]:py-1.5 [&>div]:shrink-0">
+                        <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
                           {sr && (
                             <StatBlock
                               label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
@@ -1267,13 +1273,13 @@ export default function ExerciceDetail() {
                           )}
 
                           {isValidated && validation.rpe !== null ? (
-                            <StatBlock label="RPE réalisé" value={`${validation.rpe}/10`} className="text-green-600" />
-                          ) : serie.rpe ? (
-                            <StatBlock label="RPE prévu" value={`${serie.rpe}/10`} className="text-yellow-600" />
+                            <StatBlock label="RPE réalisé" value={<span className="text-xl font-extrabold">{validation.rpe}</span>} className="text-green-600" />
+                          ) : (serie.rpe || exercise.rpe) ? (
+                            <StatBlock label="RPE prévu" value={<span className="text-xl font-extrabold">{serie.rpe || exercise.rpe}</span>} className="text-yellow-600" />
                           ) : null}
 
-                          {serie.tempo && (
-                            <StatBlock label="Tempo" value={serie.tempo} className="text-purple-500" />
+                          {(serie.tempo || exercise.tempo) && (
+                            <StatBlock label="Tempo" value={serie.tempo || exercise.tempo} className="text-purple-500" />
                           )}
                         </div>
 
@@ -1288,7 +1294,7 @@ export default function ExerciceDetail() {
                             size="sm"
                             variant="default"
                             onClick={() => handleValidateSerie(idx)}
-                            className="h-10 px-4 shrink-0 font-semibold"
+                            className="h-8 px-3 shrink-0 font-semibold"
                           >
                             <Check className="h-4 w-4 mr-1" />
                             OK
