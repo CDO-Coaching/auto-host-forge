@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Timer } from "lucide-react";
 
 interface FloatingSessionTimerProps {
@@ -9,20 +9,20 @@ interface FloatingSessionTimerProps {
 export function FloatingSessionTimer({ sessionId, onClick }: FloatingSessionTimerProps) {
   const [duration, setDuration] = useState<number>(0);
   const [isActive, setIsActive] = useState(false);
-  const [prevActive, setPrevActive] = useState(false);
+  const prevActiveRef = useRef(false);
   // Animation d'apparition : gros au centre puis rejoint le coin bas-droite
   const [intro, setIntro] = useState<null | "big" | "settle">(null);
 
   useEffect(() => {
-    if (isActive && !prevActive) {
+    if (isActive && !prevActiveRef.current) {
+      prevActiveRef.current = true;
       setIntro("big");
       const r = requestAnimationFrame(() => requestAnimationFrame(() => setIntro("settle")));
       const t = setTimeout(() => setIntro(null), 1100);
-      setPrevActive(true);
       return () => { cancelAnimationFrame(r); clearTimeout(t); };
     }
-    if (!isActive && prevActive) setPrevActive(false);
-  }, [isActive, prevActive]);
+    if (!isActive) prevActiveRef.current = false;
+  }, [isActive]);
 
   useEffect(() => {
     const checkTimer = () => {
