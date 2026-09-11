@@ -370,63 +370,64 @@ export default function SportifDashboard() {
 
   // Carte fusionnée « Ta semaine » : avancement + séance à faire + action principale
   const semaineCard = weeklyInfo.total > 0 ? (
-    <Card className="overflow-hidden">
-      <CardContent className="p-3 sm:p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">Ta semaine</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground">
-            S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
-          </span>
-        </div>
+    <div className="rounded-[22px] border border-[#33301f] bg-[linear-gradient(165deg,#17140c,#131316_42%)] p-[18px] space-y-3.5">
+      <div className="flex items-center justify-between">
+        <span className="font-bold text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Ta semaine</span>
+        <span className="text-[11px] text-muted-foreground">
+          S{currentWeek} · {formatWeekRangeFromNumber(currentWeek, currentYear)}
+        </span>
+      </div>
 
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
-            <span className="font-bold text-primary">{progressPercent}%</span>
-          </div>
-          <Progress value={progressPercent} className="h-2" />
+      <div>
+        <div className="flex items-end justify-between mb-2">
+          <span className="text-[13px] text-muted-foreground">{weeklyInfo.completed}/{weeklyInfo.total} séances</span>
+          <span className="text-[20px] font-extrabold text-primary" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{progressPercent}%</span>
         </div>
+        <div className="h-[9px] rounded-md bg-[#232228] overflow-hidden">
+          <div className="h-full rounded-md bg-[linear-gradient(90deg,#d8ad4a,#f2d488)]" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </div>
 
-        {primary ? (
-          <div className="space-y-2">
-            {weeklyInfo.inProgress && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30">
-                <Clock className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">Séance commencée — termine de la remplir</span>
-              </div>
-            )}
-            {!weeklyInfo.inProgress && primary.overdue && (
-              <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30">
-                <span className="text-xs">❓</span>
-                <span className="text-[11px] font-medium text-destructive">À valider — {primary.scheduledLabel}</span>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">{primary.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0">{typeLabel(primary.type)}</Badge>
-                  {primary.estimatedDuration && (
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">⏱ {primary.estimatedDuration}</Badge>
-                  )}
-                </div>
-              </div>
+      {primary ? (
+        <div className="space-y-3">
+          {weeklyInfo.inProgress && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30">
+              <Clock className="h-3.5 w-3.5 text-amber-600" />
+              <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">Séance commencée — termine de la remplir</span>
             </div>
-            <Button className="w-full h-12 text-sm font-semibold" onClick={() => goToSession(primary)}>
-              <Play className="h-4 w-4 mr-1.5" />
-              {weeklyInfo.inProgress ? "Reprendre ma séance" : primary.overdue ? "Valider ma séance" : "Commencer ma séance"}
-            </Button>
+          )}
+          {!weeklyInfo.inProgress && primary.overdue && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-destructive/10 border border-destructive/30">
+              <span className="text-xs">❓</span>
+              <span className="text-[11px] font-medium text-destructive">À valider — {primary.scheduledLabel}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <span className="h-[42px] w-[42px] rounded-[14px] flex items-center justify-center shrink-0 bg-primary/10 border border-primary/25">
+              <Dumbbell className="h-5 w-5 text-primary" />
+            </span>
+            <div className="min-w-0">
+              <p className="font-bold text-[15px] truncate leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{primary.name}</p>
+              <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide mt-0.5">
+                {typeLabel(primary.type)}{primary.estimatedDuration ? ` · ⏱ ${primary.estimatedDuration}` : ""}
+              </p>
+            </div>
           </div>
-        ) : progressPercent === 100 ? (
-          <p className="text-sm text-green-500 font-medium flex items-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4" /> Bravo, semaine complétée ! 🎉
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
+          <button
+            onClick={() => goToSession(primary)}
+            className="w-full h-[52px] rounded-2xl text-[15px] font-extrabold text-[#1a1608] flex items-center justify-center gap-2 bg-[linear-gradient(180deg,#eccb6c,#d8ad4a)] shadow-[0_8px_22px_-8px_#e8c46688] active:scale-[0.99] transition-transform"
+            style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
+          >
+            <Play className="h-[18px] w-[18px] fill-[#1a1608]" />
+            {weeklyInfo.inProgress ? "Reprendre ma séance" : primary.overdue ? "Valider ma séance" : "Commencer ma séance"}
+          </button>
+        </div>
+      ) : progressPercent === 100 ? (
+        <p className="text-sm text-green-500 font-medium flex items-center gap-1.5">
+          <CheckCircle2 className="h-4 w-4" /> Bravo, semaine complétée ! 🎉
+        </p>
+      ) : null}
+    </div>
   ) : (
     <Card>
       <CardContent className="p-4 text-center">

@@ -1,0 +1,163 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap">
+  <style>
+    body { margin: 0; }
+    a { color: #e8c466; } a:hover { color: #f0d488; }
+    * { box-sizing: border-box; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 980px; background: radial-gradient(120% 60% at 50% -10%, #1a1712 0%, #0b0b0d 46%); font-family: 'Manrope', system-ui, sans-serif; color: #f5f3ee; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 16px;">
+
+  <!-- Greeting -->
+  <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+    <div style="display: flex; flex-direction: column; gap: 3px;">
+      <span style="font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #8f8b81;">Vendredi 11 septembre</span>
+      <span style="font-family: 'Sora', sans-serif; font-weight: 800; font-size: 24px; line-height: 1.05;">Salut Corentin</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 8px 12px; border-radius: 16px; background: linear-gradient(160deg, #221a0c, #171512); border: 1px solid #3a2e12;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3c1 3-1 4-1 6 0 1.5 1 2.2 1 2.2S15 9 14.5 6.5C16.5 8 18 10.4 18 13a6 6 0 1 1-12 0c0-2.3 1.4-4.2 2.8-5.6C8.4 9 9 10.4 10 10.8 9.5 8 11 5.5 12 3Z" fill="#e8974a"/></svg>
+      <span style="font-family: 'Sora', sans-serif; font-weight: 800; font-size: 17px; color: #f0a95a; line-height: 1;">1</span>
+      <span style="font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: #9a7a4e;">Jour</span>
+    </div>
+  </div>
+
+  <!-- Ma progression -->
+  <div style="background: #131316; border: 1px solid #26262b; border-radius: 22px; padding: 18px 18px 16px;">
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#e8c466" stroke-width="1.6"/><circle cx="12" cy="12" r="4.2" stroke="#e8c466" stroke-width="1.6"/><circle cx="12" cy="12" r="1" fill="#e8c466"/></svg>
+      <span style="font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px;">Ma progression</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column;">
+
+      <!-- validated -->
+      <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: start; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #34d399; box-shadow: 0 0 0 3px #34d39922;"></span>
+          <span style="width: 2px; flex: 1; min-height: 22px; background: linear-gradient(#34d39955, #2a2a30);"></span>
+        </div>
+        <div style="padding-bottom: 14px;">
+          <div style="font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px; color: #34d399;">10 km</div>
+        </div>
+        <span style="font-size: 12px; font-weight: 700; color: #34d399; white-space: nowrap;">validé ✓</span>
+      </div>
+
+      <!-- upcoming rows -->
+      <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: start; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #191713; border: 2px solid #e8c466;"></span>
+          <span style="width: 2px; flex: 1; min-height: 22px; background: #2a2a30;"></span>
+        </div>
+        <div style="padding-bottom: 14px;">
+          <div style="font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px;">14 km trail</div>
+        </div>
+        <span style="font-size: 12px; font-weight: 700; color: #e8c466; white-space: nowrap;">dans 4 sem.</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: start; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #191713; border: 2px solid #e8c466;"></span>
+          <span style="width: 2px; flex: 1; min-height: 22px; background: #2a2a30;"></span>
+        </div>
+        <div style="padding-bottom: 14px;">
+          <div style="font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px;">Faire un 17 en trail</div>
+        </div>
+        <span style="font-size: 12px; font-weight: 700; color: #e8c466; white-space: nowrap;">dans 11 sem.</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: start; gap: 10px;">
+        <div style="display: flex; flex-direction: column; align-items: center;">
+          <span style="width: 12px; height: 12px; border-radius: 50%; background: #191713; border: 2px solid #e8c466;"></span>
+          <span style="width: 2px; flex: 1; min-height: 22px; background: #2a2a30;"></span>
+        </div>
+        <div style="padding-bottom: 14px;">
+          <div style="font-family: 'Sora', sans-serif; font-weight: 600; font-size: 14px;">Faire un 21 en trail</div>
+        </div>
+        <span style="font-size: 12px; font-weight: 700; color: #e8c466; white-space: nowrap;">dans 20 sem.</span>
+      </div>
+
+      <!-- main objective -->
+      <div style="display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 10px;">
+        <div style="display: flex; justify-content: center;">
+          <span style="width: 18px; height: 18px; border-radius: 50%; background: #e8c466; display: flex; align-items: center; justify-content: center;">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="#1a1608" stroke-width="2.2"/><circle cx="12" cy="12" r="3" fill="#1a1608"/></svg>
+          </span>
+        </div>
+        <div style="font-family: 'Sora', sans-serif; font-weight: 800; font-size: 14px; color: #f5f3ee;">Machine d'endurance</div>
+        <span style="font-size: 12px; font-weight: 800; color: #e8c466; white-space: nowrap;">dans 26 sem.</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Ta semaine -->
+  <div style="background: linear-gradient(165deg, #17140c, #131316 42%); border: 1px solid #33301f; border-radius: 22px; padding: 18px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+      <span style="font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px;">Ta semaine</span>
+      <span style="font-size: 11px; color: #8f8b81;">S37 · 07/09 – 13/09</span>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 8px;">
+      <span style="font-size: 13px; color: #b8b4aa;">6/7 séances</span>
+      <span style="font-family: 'Sora', sans-serif; font-weight: 800; font-size: 20px; color: #e8c466;">86%</span>
+    </div>
+    <div style="height: 9px; border-radius: 6px; background: #232228; overflow: hidden; margin-bottom: 18px;">
+      <div style="width: 86%; height: 100%; border-radius: 6px; background: linear-gradient(90deg, #d8ad4a, #f2d488);"></div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+      <span style="width: 42px; height: 42px; border-radius: 14px; background: #1c2a24; border: 1px solid #2b4a3c; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4ec78a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.6"/><path d="M8 22l2.5-6 3 2 1 4"/><path d="M6 12l3-2 2 3 4-1 3 2"/></svg>
+      </span>
+      <div style="display: flex; flex-direction: column; gap: 3px;">
+        <span style="font-family: 'Sora', sans-serif; font-weight: 700; font-size: 15px;">run 4</span>
+        <span style="font-size: 11px; color: #6fb9e6; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;">Cardio · course</span>
+      </div>
+    </div>
+
+    <button style="width: 100%; height: 52px; border: none; border-radius: 16px; background: linear-gradient(180deg, #eccb6c, #d8ad4a); color: #1a1608; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; box-shadow: 0 8px 22px -8px #e8c46688;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="#1a1608"><path d="M8 5v14l11-7z"/></svg>
+      Commencer ma séance
+    </button>
+  </div>
+
+  <!-- soft nudge -->
+  <button style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 16px; border-radius: 16px; background: #17120c; border: 1px solid #3a2e18; cursor: pointer; color: #f5f3ee;">
+    <span style="width: 30px; height: 30px; border-radius: 10px; background: #241a0e; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#e8974a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l2 5 4-13 2 8h4"/></svg>
+    </span>
+    <span style="font-weight: 600; font-size: 14px; flex: 1; text-align: left;">Comment tu te sens aujourd'hui ?</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8f8b81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+  </button>
+
+  <!-- secondary actions -->
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    <button style="height: 46px; border-radius: 14px; background: #141416; border: 1px solid #2a2a30; color: #f5f3ee; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;">
+      Mes séances
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a968d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+    <button style="height: 46px; border-radius: 14px; background: #141416; border: 1px solid #2a2a30; color: #f5f3ee; font-family: 'Manrope', sans-serif; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e8c466" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9h18M8 3v3M16 3v3"/></svg>
+      Programmer
+    </button>
+  </div>
+
+  <!-- quote -->
+  <div style="margin-top: 2px; padding: 16px 18px; border-radius: 16px; background: #101012; border: 1px solid #202024;">
+    <p style="margin: 0; font-family: 'Sora', sans-serif; font-style: italic; font-weight: 500; font-size: 14px; color: #cfcabf; line-height: 1.4;">« Le mental est tout. »</p>
+    <p style="margin: 8px 0 0; text-align: right; font-size: 12px; color: #7d7970;">— Buddha</p>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

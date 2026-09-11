@@ -101,7 +101,7 @@ export function WelcomeBanner({ firstName, recoveryPercent }: Props) {
               <CalendarCheck className="h-3 w-3" />
               {today}
             </p>
-            <h2 className="text-base sm:text-2xl font-bold mt-0.5 flex items-center gap-1.5">
+            <h2 className="text-base sm:text-2xl font-extrabold mt-0.5 flex items-center gap-1.5" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
               <span className="truncate">Salut {firstName}</span>
               <span aria-hidden>{moodEmoji}</span>
             </h2>

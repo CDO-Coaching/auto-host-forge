@@ -105,7 +105,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
     <div className="rounded-xl border border-border/40 bg-card px-4 py-3 space-y-2.5">
       {heading && (
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-sm">{heading}</span>
+          <span className="font-bold text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{heading}</span>
         </div>
       )}
       {/* ── Variante « clean » (sportif) : route verticale claire, sans phases ── */}
