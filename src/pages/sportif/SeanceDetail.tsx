@@ -279,25 +279,15 @@ export default function SeanceDetail() {
   // Fonction pour trier les exercices
   const getSortedExercises = (exercisesList: any[]) => {
     const safeList = Array.isArray(exercisesList) ? exercisesList.filter(Boolean) : [];
-    // Vérifier si tous les exercices sont complétés
     const allCompleted = safeList.every(isExerciseCompleted);
-
-    // Si tous complétés, retourner l'ordre d'origine
     if (allCompleted) {
       return [...safeList].sort((a: any, b: any) => getItemOrder(a) - getItemOrder(b));
     }
-
-    // Sinon, mettre les non complétés en premier
+    // Les exercices validés descendent en bas, mais gardent leur numéro (basé sur l'ordre d'origine)
     return [...safeList].sort((a: any, b: any) => {
       const aCompleted = isExerciseCompleted(a);
       const bCompleted = isExerciseCompleted(b);
-
-      // Si l'un est complété et l'autre non, le non complété passe en premier
-      if (aCompleted !== bCompleted) {
-        return aCompleted ? 1 : -1;
-      }
-
-      // Sinon, garder l'ordre d'origine
+      if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
       return getItemOrder(a) - getItemOrder(b);
     });
   };
@@ -960,7 +950,7 @@ export default function SeanceDetail() {
                         <div className="flex-1 min-w-0">
                           <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5 flex-wrap">
                             {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
-                            <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {index + 1}</span>
+                            <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {exercises.indexOf(item) + 1}</span>
                             <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
                           </p>
                         </div>
@@ -1100,7 +1090,7 @@ export default function SeanceDetail() {
                             <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5">
                               {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
                               <span className={isCompleted ? "text-green-600" : "text-foreground"}>
-                                {isCardio ? "Cardio" : `Exercice ${index + 1}`}
+                                {isCardio ? "Cardio" : `Exercice ${exercises.indexOf(item) + 1}`}
                               </span>
                             </p>
                             <p className="text-xs sm:text-sm text-muted-foreground uppercase mt-1 leading-tight break-words">{item.exercice}</p>

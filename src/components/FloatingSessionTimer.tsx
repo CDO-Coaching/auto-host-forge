@@ -9,6 +9,20 @@ interface FloatingSessionTimerProps {
 export function FloatingSessionTimer({ sessionId, onClick }: FloatingSessionTimerProps) {
   const [duration, setDuration] = useState<number>(0);
   const [isActive, setIsActive] = useState(false);
+  const [prevActive, setPrevActive] = useState(false);
+  // Animation d'apparition : gros au centre puis rejoint le coin bas-droite
+  const [intro, setIntro] = useState<null | "big" | "settle">(null);
+
+  useEffect(() => {
+    if (isActive && !prevActive) {
+      setIntro("big");
+      const r = requestAnimationFrame(() => requestAnimationFrame(() => setIntro("settle")));
+      const t = setTimeout(() => setIntro(null), 1100);
+      setPrevActive(true);
+      return () => { cancelAnimationFrame(r); clearTimeout(t); };
+    }
+    if (!isActive && prevActive) setPrevActive(false);
+  }, [isActive, prevActive]);
 
   useEffect(() => {
     const checkTimer = () => {
@@ -54,7 +68,15 @@ export function FloatingSessionTimer({ sessionId, onClick }: FloatingSessionTime
       <button
         type="button"
         onClick={onClick}
-        className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 font-mono text-sm font-semibold active:scale-95 transition-transform"
+        className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 font-mono text-sm font-semibold"
+        style={
+          intro
+            ? {
+                transform: intro === "big" ? "translate(-38vw, -40vh) scale(3.2)" : "none",
+                transition: intro === "big" ? "none" : "transform 900ms cubic-bezier(0.22, 1, 0.36, 1)",
+              }
+            : { transition: "transform 150ms" }
+        }
         title="Terminer la séance"
       >
         <Timer className="h-3.5 w-3.5" />
