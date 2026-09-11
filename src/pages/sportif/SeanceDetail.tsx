@@ -945,20 +945,17 @@ export default function SeanceDetail() {
                         : () => openExercise(() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`))
                     }
                   >
-                    <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-start">
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5 flex-wrap">
-                            {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
-                            <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {exercises.indexOf(item) + 1}</span>
-                            <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
-                          </p>
-                        </div>
-                        {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />}
+                    <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
+                      <div className="mb-1.5">
+                        <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center justify-center gap-1.5 flex-wrap">
+                          {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                          <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {exercises.indexOf(item) + 1}</span>
+                          <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
+                        </p>
                       </div>
 
                       {!allCompleted && (
-                        <p className="text-xs sm:text-sm text-muted-foreground uppercase leading-tight break-words">
+                        <p className="text-sm text-muted-foreground uppercase leading-tight break-words">
                           {item.exercises.map((ex: any) => ex.exercice).join(" + ")}
                         </p>
                       )}
@@ -1083,17 +1080,17 @@ export default function SeanceDetail() {
                           : () => openExercise(() => navigate(`/sportif/exercice/${item.id}`))
                     }
                   >
-                    <CardContent className="p-3 sm:p-4 h-full flex flex-col justify-start">
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center gap-1.5">
+                    <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
+                      <div className="space-y-2 sm:space-y-3 w-full">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="w-full">
+                            <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center justify-center gap-1.5">
                               {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
                               <span className={isCompleted ? "text-green-600" : "text-foreground"}>
                                 {isCardio ? "Cardio" : `Exercice ${exercises.indexOf(item) + 1}`}
                               </span>
                             </p>
-                            <p className="text-xs sm:text-sm text-muted-foreground uppercase mt-1 leading-tight break-words">{item.exercice}</p>
+                            <p className="text-sm text-muted-foreground uppercase mt-1.5 leading-tight break-words">{item.exercice}</p>
                             {isCardio && (
                               <div className="space-y-3">
                                 {item.cardio_sport && (
@@ -1264,7 +1261,6 @@ export default function SeanceDetail() {
                               </div>
                             )}
                           </div>
-                          {!allCompleted && <ChevronRight className="h-5 w-5 text-muted-foreground" />}
                         </div>
 
                         {isCompleted && allCompleted && (
