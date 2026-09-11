@@ -172,6 +172,8 @@ export const formatPaceFromDecimal = (paceDecimal: number | null | undefined): s
  * >= 60 sec : affiche "Xmin" ou "XminYsec"
  */
 export const formatCardioTime = (seconds: number): string => {
+  if (seconds == null || isNaN(Number(seconds))) return "—";
+  seconds = Math.round(Number(seconds));
   if (seconds < 60) {
     return `${seconds}sec`;
   }
