@@ -474,16 +474,23 @@ export default function SportifDashboard() {
         </button>
       )}
 
-      {/* Accès secondaires */}
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" className="h-10 text-sm" onClick={() => navigate("/sportif/seances")}>
-          Mes séances
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-        <Button variant="outline" className="h-10 text-sm" onClick={() => navigate("/sportif/programmer")}>
-          <CalendarDays className="h-4 w-4 mr-1" />
+      {/* Accès : Programmer mis en avant (accent doré), Mes séances discret */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
+          onClick={() => navigate("/sportif/programmer")}
+          className="h-12 rounded-2xl flex items-center justify-center gap-2 text-[14px] font-bold text-primary bg-primary/10 border-2 border-primary/50 active:scale-[0.99] transition-transform"
+          style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
+        >
+          <CalendarDays className="h-[18px] w-[18px]" />
           Programmer
-        </Button>
+        </button>
+        <button
+          onClick={() => navigate("/sportif/seances")}
+          className="h-12 rounded-2xl flex items-center justify-center gap-1.5 text-[13px] font-medium text-muted-foreground bg-card border border-border active:scale-[0.99] transition-transform"
+        >
+          Mes séances
+          <ChevronRight className="h-4 w-4" />
+        </button>
       </div>
 
       {/* Citation motivante — discrète, en bas */}
