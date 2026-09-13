@@ -95,6 +95,7 @@ export default function ExerciceDetail() {
 
   // Serie-level validation
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
+  const [editMode, setEditMode] = useState(false);
   const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
@@ -213,19 +214,7 @@ export default function ExerciceDetail() {
   useEffect(() => {
     if (exercise) {
       const totalSets = exercise.series ? parseInt(exercise.series) : 0;
-      // Restore from localStorage if available
-      const savedValidations = localStorage.getItem(`serie-validations-${exerciceId}`);
-      if (savedValidations) {
-        try {
-          const parsed = JSON.parse(savedValidations);
-          if (Array.isArray(parsed) && parsed.length === totalSets) {
-            setSerieValidations(parsed);
-            setCompletedSets(parsed.filter((s: SerieValidation) => s.validated).length);
-            return;
-          }
-        } catch (e) {}
-      }
-      // Sinon, restaurer le RPE déjà rempli par l'athlète (séance validée) depuis la BDD
+      // 1) Priorité : RPE déjà rempli par l'athlète (séance validée) depuis la BDD
       let dbDetails = (exercise as any).serie_rpe_details;
       if (typeof dbDetails === "string") { try { dbDetails = JSON.parse(dbDetails); } catch { dbDetails = null; } }
       if (Array.isArray(dbDetails) && dbDetails.some((d: any) => d && d.rpe != null)) {
@@ -239,13 +228,25 @@ export default function ExerciceDetail() {
         setCompletedSets(vals.filter((v) => v.validated).length);
         return;
       }
-      // Sinon, si un RPE global existe (fallback), l'appliquer à toutes les séries
+      // 2) Sinon RPE global (fallback) appliqué à toutes les séries
       const globalRpe = (exercise as any).sportif_rpe;
       if (globalRpe != null && totalSets > 0) {
         const vals = Array.from({ length: totalSets }, () => ({ validated: true, rpe: Number(globalRpe), actual_reps: null, actual_charge: null, modification_type: null }));
         setSerieValidations(vals);
         setCompletedSets(totalSets);
         return;
+      }
+      // 3) Sinon reprise d'une session en cours depuis localStorage
+      const savedValidations = localStorage.getItem(`serie-validations-${exerciceId}`);
+      if (savedValidations) {
+        try {
+          const parsed = JSON.parse(savedValidations);
+          if (Array.isArray(parsed) && parsed.length === totalSets) {
+            setSerieValidations(parsed);
+            setCompletedSets(parsed.filter((s: SerieValidation) => s.validated).length);
+            return;
+          }
+        } catch (e) {}
       }
       setSerieValidations(Array.from({ length: totalSets }, () => ({ validated: false, rpe: null })));
     }
@@ -1244,7 +1245,40 @@ export default function ExerciceDetail() {
                 </button>
               )}
 
-              {!seriesCollapsed && !useSimplified && !isEmomRecovery && (
+              {/* ── Récapitulatif : exercice entièrement validé ── */}
+              {!seriesCollapsed && !isEmomRecovery && allSeriesValidated && !editMode && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-1">
+                    <p className="text-sm font-bold text-green-600" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Exercice terminé ✓</p>
+                    <button onClick={() => setEditMode(true)} className="text-xs font-semibold text-primary underline underline-offset-2">Modifier</button>
+                  </div>
+                  {seriesData.map((serie, idx) => {
+                    const v = serieValidations[idx];
+                    const rpe = v?.rpe ?? null;
+                    const col = rpe == null ? "#9a968d" : rpe < 5 ? "#22c55e" : rpe <= 6 ? "#eab308" : rpe <= 8 ? "#f97316" : "#ef4444";
+                    const reps = v?.actual_reps || serie.reps;
+                    const charge = v?.actual_charge || serie.charge;
+                    const chargeChanged = v?.actual_charge && String(v.actual_charge) !== (serie.charge ?? "").trim();
+                    return (
+                      <div key={idx} className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
+                        <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</div>
+                        <div className="flex-1 min-w-0 text-[13px]">
+                          <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
+                          {charge && <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}{chargeChanged ? " (modifié)" : ""}</span>}
+                        </div>
+                        {rpe != null && (
+                          <div className="shrink-0 text-right">
+                            <p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">RPE {rpe}</p>
+                            <p className="text-sm font-extrabold leading-tight" style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeWord(rpe)}</p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {!seriesCollapsed && !useSimplified && !isEmomRecovery && (!allSeriesValidated || editMode) && (
                 <div className="space-y-2">
                   {seriesData.map((serie, idx) => {
                     const validation = serieValidations[idx];
