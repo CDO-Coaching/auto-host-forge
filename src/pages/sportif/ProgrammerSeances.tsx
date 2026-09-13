@@ -313,8 +313,37 @@ export default function ProgrammerSeances() {
     );
   }
 
+  const rowMeta = (type: string, name: string) => {
+    const n = (name || "").toLowerCase();
+    if (type === "recup") return { emoji: "💆", accent: "#a855f7" };
+    if (type === "cardio" || /(vélo|velo|natation|nage|course|run)/.test(n)) {
+      if (/(vélo|velo)/.test(n)) return { emoji: "🚴", accent: "#06b6d4" };
+      if (/(natation|nage)/.test(n)) return { emoji: "🏊", accent: "#22b8cf" };
+      return { emoji: "🏃", accent: "#3b82f6" };
+    }
+    return { emoji: "🏋️", accent: "#e8c466" };
+  };
+
+  const SessionRow = ({ title, subtitle, accent, emoji, onAgenda }: { title: string; subtitle: string; accent: string; emoji: string; onAgenda: () => void }) => (
+    <div className="relative flex items-center gap-3 rounded-2xl border border-border/60 bg-card pl-4 pr-2.5 py-3">
+      <span className="absolute left-0 top-2.5 bottom-2.5 w-1 rounded-full" style={{ backgroundColor: accent }} />
+      <span className="h-11 w-11 rounded-xl flex items-center justify-center text-xl shrink-0" style={{ backgroundColor: `${accent}22` }}>{emoji}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-[15px] leading-tight truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{title}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+      </div>
+      <button
+        onClick={onAgenda}
+        className="h-9 shrink-0 flex items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-primary bg-primary/10 border border-primary/40 active:scale-[0.98] transition-transform"
+      >
+        <CalendarClock className="h-4 w-4" />
+        Agenda
+      </button>
+    </div>
+  );
+
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-4 pb-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -325,7 +354,7 @@ export default function ProgrammerSeances() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold">Programmer ma semaine</h1>
+          <h1 className="text-xl sm:text-2xl font-extrabold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Programmer ma semaine</h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
             Choisis une séance et ajoute-la à ton agenda
           </p>
@@ -333,56 +362,34 @@ export default function ProgrammerSeances() {
       </div>
 
       {/* Liste de toutes les séances (coach + perso) */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {sessions.map((s) => {
           const title = s.athlete_custom_name || s.name;
+          const m = rowMeta(s.session_type, title);
           return (
-            <div
+            <SessionRow
               key={s.id}
-              className={`flex items-center gap-3 rounded-xl border-2 px-3 py-2.5 ${getTypeColor(s.session_type)}`}
-            >
-              <Dumbbell className="h-4 w-4 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-semibold block leading-tight truncate">{title}</span>
-                <span className="text-[11px] opacity-70">
-                  {getTypeLabel(s.session_type)}{s.estimatedDuration && ` • ⏱ ${s.estimatedDuration}`}
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 shrink-0 gap-1.5"
-                onClick={() => setAgendaTarget({ title, estimatedDuration: s.estimatedDuration, defaultDate: s.scheduled_date })}
-              >
-                <CalendarClock className="h-4 w-4" />
-                <span className="text-xs">Agenda</span>
-              </Button>
-            </div>
+              title={title}
+              subtitle={`${getTypeLabel(s.session_type)}${s.estimatedDuration ? ` · ⏱ ${s.estimatedDuration}` : ""}`}
+              accent={m.accent}
+              emoji={m.emoji}
+              onAgenda={() => setAgendaTarget({ title, estimatedDuration: s.estimatedDuration, defaultDate: s.scheduled_date })}
+            />
           );
         })}
 
         {customSessions.map((cs: any) => {
           const est = cs.duration_minutes ? `${cs.duration_minutes}min` : null;
+          const m = rowMeta(cs.cardio_type || "", cs.session_name);
           return (
-            <div
+            <SessionRow
               key={cs.id}
-              className="flex items-center gap-3 rounded-xl border-2 border-orange-500/50 bg-orange-500/10 text-orange-600 dark:text-orange-400 px-3 py-2.5"
-            >
-              <Dumbbell className="h-4 w-4 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-semibold block leading-tight truncate">{cs.session_name}</span>
-                <span className="text-[11px] opacity-70">Perso{est && ` • ⏱ ${est}`}</span>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="h-8 shrink-0 gap-1.5"
-                onClick={() => setAgendaTarget({ title: cs.session_name, estimatedDuration: est, defaultDate: cs.scheduled_date })}
-              >
-                <CalendarClock className="h-4 w-4" />
-                <span className="text-xs">Agenda</span>
-              </Button>
-            </div>
+              title={cs.session_name}
+              subtitle={`Perso${est ? ` · ⏱ ${est}` : ""}`}
+              accent={m.accent}
+              emoji={cs.cardio_type ? m.emoji : "✨"}
+              onAgenda={() => setAgendaTarget({ title: cs.session_name, estimatedDuration: est, defaultDate: cs.scheduled_date })}
+            />
           );
         })}
 
