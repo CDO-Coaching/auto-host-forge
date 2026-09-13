@@ -407,9 +407,9 @@ export default function Seances() {
             {sessions.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Aucune séance pour cette semaine.</p>
             ) : (
-              sessions.map((session, index) => {
+              (() => { const firstToDoIndex = sessions.findIndex((s: any) => !isSessionCompleted(s)); return sessions.map((session, index) => {
                 const completed = isSessionCompleted(session);
-                const isFirstToDo = index === 0 && !completed;
+                const isFirstToDo = index === firstToDoIndex;
                 const displayName = session.athlete_custom_name || session.name;
                 const hasSchedule = session.scheduled_date && !completed;
                 const exCount = session.session_exercises?.length || 0;
@@ -479,7 +479,7 @@ export default function Seances() {
                     {/* Contenu */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-[15px] leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{displayName}</span>
+                        <span className="font-extrabold text-[17px] leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{displayName}</span>
                         {session.athlete_custom_name && (
                           <span className="text-[11px] text-muted-foreground">({session.name})</span>
                         )}
@@ -504,14 +504,24 @@ export default function Seances() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                          {exCount} exercice{exCount > 1 ? "s" : ""}
-                        </span>
-                        {(cardioDur || (completed && session.duration_minutes)) && (
-                          <span className="inline-flex items-center gap-0.5">⏱ {completed && session.duration_minutes ? `${session.duration_minutes} min` : cardioDur}</span>
+                      <div className="flex items-center gap-2.5 mt-1 text-[12px]">
+                        {!isCardioSession(session) && (
+                          <span className="inline-flex items-center gap-1 text-muted-foreground">
+                            <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                            {exCount} exercice{exCount > 1 ? "s" : ""}
+                          </span>
                         )}
+                        {(() => {
+                          const durLabel = completed && session.duration_minutes ? `${session.duration_minutes} min` : cardioDur;
+                          if (!durLabel) return null;
+                          return (
+                            <span className="inline-flex items-baseline gap-1 font-bold text-foreground">
+                              <Clock className="h-3.5 w-3.5 self-center text-primary" />
+                              {durLabel}
+                              <span className="text-[10px] font-medium text-muted-foreground">{completed ? "réalisé" : "à faire"}</span>
+                            </span>
+                          );
+                        })()}
                         {completed && avgRpe !== null && (
                           <span className={`font-semibold ${
                             avgRpe <= 4 ? "text-green-500" :
@@ -537,7 +547,7 @@ export default function Seances() {
                     </div>
                   </div>
                 );
-              })
+              }); })()
             )}
 
             {/* ── Custom (perso) sessions for this week ──────────────────── */}
