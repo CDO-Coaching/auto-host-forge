@@ -1185,17 +1185,17 @@ export default function SeanceDetail() {
                                               return (
                                                 <div
                                                   key={step.id}
-                                                  className={`text-xs rounded-r-md px-3 py-2 ${(step.movement_type === "marche" || step.movement_type === "repos") ? "border-l-2 border-blue-400/60 bg-blue-500/5" : step.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
+                                                  className={`text-[13px] rounded-r-md px-3 py-2.5 ${(step.movement_type === "marche" || step.movement_type === "repos") ? "border-l-[3px] border-blue-400/70 bg-blue-500/5" : step.movement_type === "velo" ? "border-l-[3px] border-cyan-400/70 bg-cyan-500/5" : "border-l-[3px] border-orange-400/70 bg-orange-500/5"}`}
                                                 >
-                                                  <div className="flex gap-2 flex-wrap items-center">
-                                                    <span className="font-medium capitalize">{step.movement_type}</span>
-                                                    <span className="text-muted-foreground">•</span>
+                                                  <div className="flex gap-x-2 gap-y-1 flex-wrap items-center">
+                                                    <span className="font-extrabold capitalize text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{step.movement_type}</span>
+                                                    <span className="text-muted-foreground/50">•</span>
                                                     {step.effort_type === "duration" ? (
-                                                      <span>{formatCardioTime(step.duration)}</span>
+                                                      <span className="font-bold text-[15px]">{formatCardioTime(step.duration)}</span>
                                                     ) : (
-                                                      <span>{formatCardioDistance(step.distance)}</span>
+                                                      <span className="font-bold text-[15px]">{formatCardioDistance(step.distance)}</span>
                                                     )}
-                                                    {(() => { const p = calculatePace(step.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground">•</span><span className="text-blue-400">{p}</span></> : null; })()}
+                                                    {(() => { const p = calculatePace(step.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground/50">•</span><span className="text-blue-400 font-bold text-[15px]">{p}</span></> : null; })()}
                                                     {step.ftp_percentage ? (
                                                       <>
                                                         <span className="text-muted-foreground">•</span>
@@ -1213,8 +1213,8 @@ export default function SeanceDetail() {
                                                         : "";
                                                       return (
                                                         <>
-                                                          <span className="text-muted-foreground">•</span>
-                                                          <span className="text-rose-400 font-medium">❤️ {step.target_heart_rate}{bpmStr}</span>
+                                                          <span className="text-muted-foreground/50">•</span>
+                                                          <span className="text-rose-400 font-bold text-[15px]">❤️ {step.target_heart_rate}{bpmStr}</span>
                                                         </>
                                                       );
                                                     })()}
