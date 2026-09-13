@@ -1266,12 +1266,25 @@ export default function ExerciceDetail() {
                           <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
                           {charge && <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}{chargeChanged ? " (modifié)" : ""}</span>}
                         </div>
-                        {rpe != null && (
-                          <div className="shrink-0 text-right">
-                            <p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">RPE {rpe}</p>
-                            <p className="text-sm font-extrabold leading-tight" style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeWord(rpe)}</p>
-                          </div>
-                        )}
+                        {(() => {
+                          const asked = serie.rpe || exercise.rpe;
+                          return (
+                            <div className="shrink-0 flex items-center gap-3">
+                              {asked && (
+                                <div className="text-right">
+                                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Demandé</p>
+                                  <p className="text-sm font-bold text-yellow-600 leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{asked}</p>
+                                </div>
+                              )}
+                              {rpe != null && (
+                                <div className="text-right">
+                                  <p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Ton RPE {rpe}</p>
+                                  <p className="text-sm font-extrabold leading-tight" style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeWord(rpe)}</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     );
                   })}
