@@ -1343,11 +1343,9 @@ export default function ExerciceDetail() {
                             />
                           )}
 
-                          {isValidated && validation.rpe !== null ? (
-                            <StatBlock label={`RPE ${validation.rpe}`} value={rpeWord(validation.rpe)} className="text-green-600" />
-                          ) : (serie.rpe || exercise.rpe) ? (
+                          {(serie.rpe || exercise.rpe) && (
                             <StatBlock label={`RPE ${serie.rpe || exercise.rpe}`} value={rpeWord(Number(serie.rpe || exercise.rpe))} className="text-yellow-600" />
-                          ) : null}
+                          )}
 
                           {(serie.tempo || exercise.tempo) && (
                             <StatBlock label="Tempo" value={serie.tempo || exercise.tempo} className="text-purple-500" />
@@ -1371,7 +1369,10 @@ export default function ExerciceDetail() {
                         ) : (
                           <div className="shrink-0 flex flex-col items-end gap-0.5 min-w-[52px]">
                             {validation.rpe != null && (
-                              <span className="text-base font-extrabold leading-none" style={{ color: rpeColor || undefined, fontFamily: "'Sora', system-ui, sans-serif" }}>{validation.rpe}</span>
+                              <>
+                                <span className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Ton RPE</span>
+                                <span className="text-base font-extrabold leading-none" style={{ color: rpeColor || undefined, fontFamily: "'Sora', system-ui, sans-serif" }}>{validation.rpe}</span>
+                              </>
                             )}
                             {validation.actual_charge && String(validation.actual_charge) !== sc && (
                               <span className="text-[10px] text-muted-foreground leading-none">{validation.actual_charge}{/^\d+(\.\d+)?$/.test(String(validation.actual_charge)) ? " kg" : ""}</span>
