@@ -1237,10 +1237,13 @@ export default function ExerciceDetail() {
                 >
                   <div>
                     <p className="font-bold text-base">{allSeriesValidated ? "EMOM validé" : "Valider l'EMOM"}</p>
-                    <p className="text-xs text-muted-foreground">{seriesData.length} min · une seule note de fatigue globale</p>
+                    <p className="text-xs text-muted-foreground">
+                      {seriesData.length} min · fatigue globale
+                      {(seriesData[0]?.rpe || exercise.rpe) && <> · RPE demandé <span className="font-semibold text-yellow-600">{seriesData[0]?.rpe || exercise.rpe}</span></>}
+                    </p>
                   </div>
                   <span className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-semibold shrink-0 ${allSeriesValidated ? "bg-green-600 text-white" : "bg-primary text-primary-foreground"}`}>
-                    <Check className="h-4 w-4" /> {allSeriesValidated ? `RPE ${serieValidations[0]?.rpe ?? "-"}/10` : "OK"}
+                    {allSeriesValidated ? <>Ton RPE {serieValidations[0]?.rpe ?? "-"}</> : <><Check className="h-4 w-4" /> OK</>}
                   </span>
                 </button>
               )}

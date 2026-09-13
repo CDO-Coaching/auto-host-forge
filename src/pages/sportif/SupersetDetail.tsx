@@ -1009,14 +1009,14 @@ export default function SupersetDetail() {
                                       </span>
                                     );
                                   })()}
-                                  {dispRpe && !isValidated && (
+                                  {dispRpe && (
                                     <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
-                                      <span className="text-[10px] uppercase opacity-70">RPE prévu</span>{dispRpe}/10
+                                      <span className="text-[10px] uppercase opacity-70">RPE demandé</span>{dispRpe}
                                     </span>
                                   )}
                                   {isValidated && validation.rpe !== null && (
                                     <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 font-semibold">
-                                      <span className="text-[10px] uppercase opacity-70">RPE réalisé</span>{validation.rpe}/10
+                                      <span className="text-[10px] uppercase opacity-70">Ton RPE</span>{validation.rpe}
                                     </span>
                                   )}
                                   {serieData.tempo && (
