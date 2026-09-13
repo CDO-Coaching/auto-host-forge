@@ -1273,7 +1273,8 @@ export default function ExerciceDetail() {
                       <div key={idx} className="space-y-1.5">
                       <div
                         style={rpeGlow}
-                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
+                        onClick={() => handleValidateSerie(idx)}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer active:scale-[0.99] ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
                       >
                         {/* Numéro de série */}
                         <div className="flex flex-col items-center shrink-0 w-7">
@@ -1325,16 +1326,29 @@ export default function ExerciceDetail() {
                         </div>
 
                         {/* Action */}
-                        {!isValidated && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleValidateSerie(idx)}
-                            className="h-8 px-3 shrink-0 font-semibold"
+                        {!isValidated ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleValidateSerie(idx); }}
+                            className="shrink-0 h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+                            aria-label="Valider la série"
                           >
-                            <Check className="h-4 w-4 mr-1" />
-                            OK
-                          </Button>
+                            <Check className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <div className="shrink-0 flex flex-col items-end gap-0.5 min-w-[52px]">
+                            {validation.rpe != null && (
+                              <span className="text-base font-extrabold leading-none" style={{ color: rpeColor || undefined, fontFamily: "'Sora', system-ui, sans-serif" }}>{validation.rpe}</span>
+                            )}
+                            {validation.actual_charge && String(validation.actual_charge) !== sc && (
+                              <span className="text-[10px] text-muted-foreground leading-none">{validation.actual_charge}{/^\d+(\.\d+)?$/.test(String(validation.actual_charge)) ? " kg" : ""}</span>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleValidateSerie(idx); }}
+                              className="text-[10px] text-primary underline underline-offset-2"
+                            >
+                              Modifier
+                            </button>
+                          </div>
                         )}
                       </div>
                       {(serie.recuperation || exercise.recuperation) && idx < seriesData.length - 1 && (
