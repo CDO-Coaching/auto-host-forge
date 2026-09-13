@@ -248,6 +248,7 @@ export default function SupersetDetail() {
   const getValidationIndex = (roundIdx: number, exIdx: number) => roundIdx * exercises.length + exIdx;
 
   const completedCount = serieValidations.filter(s => s.validated).length;
+  const completedRounds = Array.from({ length: totalRounds }).filter((_, r) => exercises.every((_, e) => serieValidations[r * exercises.length + e]?.validated)).length;
   const allValidated = serieValidations.length > 0 && serieValidations.every(s => s.validated);
 
   const handleValidateSerie = (roundIdx: number, exIdx: number) => {
@@ -903,7 +904,7 @@ export default function SupersetDetail() {
               </div>
               <Separator className="my-3" />
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold">Progression — {completedCount}/{totalValidationSlots}</p>
+                <p className="text-sm font-semibold">Progression — {completedRounds}/{totalRounds} série{totalRounds > 1 ? "s" : ""}</p>
                 {completedCount > 0 && (
                   <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
                     {seriesCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
@@ -1017,8 +1018,7 @@ export default function SupersetDetail() {
                                 </div>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-[13px] uppercase leading-tight truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</p>
-                                <div className="grid grid-cols-2 gap-1 mt-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
+                                <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
                                   {dispReps && (
                                     <div className="flex flex-col leading-none">
                                       <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{ex.is_duration ? "Durée" : (ex as any).is_distance ? "Distance" : "Reps"}{ex.per_side ? " /côté" : ""}</span>
