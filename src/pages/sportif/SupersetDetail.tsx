@@ -925,8 +925,8 @@ export default function SupersetDetail() {
                 <button onClick={() => setEditMode(true)} className="text-xs font-semibold text-primary underline underline-offset-2">Modifier</button>
               </div>
               {Array.from({ length: totalRounds }, (_, roundIdx) => (
-                <div key={roundIdx} className="rounded-xl border border-green-500/30 bg-green-500/[0.04] p-3 space-y-2">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Série {roundIdx + 1}</p>
+                <div key={roundIdx} className="space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground px-1">Série {roundIdx + 1}</p>
                   {exercises.map((ex, exIdx) => {
                     const v = serieValidations[getValidationIndex(roundIdx, exIdx)];
                     const sd = allSeriesData[exIdx]?.[roundIdx] || {};
@@ -934,11 +934,20 @@ export default function SupersetDetail() {
                     const charge = v?.actual_charge || sd.charge || (ex as any).charge;
                     const asked = sd.rpe || (ex as any).rpe;
                     return (
-                      <div key={exIdx} className="flex items-center gap-2 text-[13px]">
-                        <span className="font-bold uppercase truncate flex-1 min-w-0" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</span>
-                        <span className="text-muted-foreground shrink-0">{reps}{(ex as any).is_distance ? "m" : " reps"}{charge ? ` · ${charge}${/^\d+(\.\d+)?$/.test(String(charge)) ? "kg" : ""}` : ""}</span>
-                        {asked && <span className="text-[10px] text-yellow-600 shrink-0">dem. {asked}</span>}
-                        {v?.rpe != null && <span className="text-xs font-extrabold shrink-0" style={{ color: col(v.rpe) }}>{v.rpe} {word(v.rpe)}</span>}
+                      <div key={exIdx} className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/[0.04] px-3 py-2.5">
+                        <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{exIdx + 1}</div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-bold uppercase truncate leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</p>
+                          <p className="text-[13px] mt-0.5"><span className="font-bold">{reps}{(ex as any).is_distance ? " m" : " reps"}</span>{charge ? <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}</span> : null}</p>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-3">
+                          {asked && (
+                            <div className="text-right"><p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Demandé</p><p className="text-sm font-bold text-yellow-600 leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{asked}</p></div>
+                          )}
+                          {v?.rpe != null && (
+                            <div className="text-right"><p className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Ton RPE {v.rpe}</p><p className="text-sm font-extrabold leading-tight" style={{ color: col(v.rpe), fontFamily: "'Sora', system-ui, sans-serif" }}>{word(v.rpe)}</p></div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
