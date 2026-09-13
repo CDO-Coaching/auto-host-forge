@@ -402,7 +402,7 @@ export default function Seances() {
         </Card>
       ) : (
         selectedWeek && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {/* ── Coach sessions ─────────────────────────────────────────── */}
             {sessions.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">Aucune séance pour cette semaine.</p>
@@ -479,7 +479,7 @@ export default function Seances() {
                     {/* Contenu */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-semibold text-[15px] leading-tight">{displayName}</span>
+                        <span className="font-semibold text-[15px] leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{displayName}</span>
                         {session.athlete_custom_name && (
                           <span className="text-[11px] text-muted-foreground">({session.name})</span>
                         )}
@@ -557,7 +557,7 @@ export default function Seances() {
               if (weekCustomSessions.length === 0) return null;
 
               return (
-                <div className="mt-3 space-y-2">
+                <div className="mt-4 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
                     Séances perso
                   </p>
@@ -600,7 +600,7 @@ export default function Seances() {
                         {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-semibold text-[15px] leading-tight">{cs.session_name}</span>
+                            <span className="font-semibold text-[15px] leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{cs.session_name}</span>
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
                               Perso
                             </Badge>
