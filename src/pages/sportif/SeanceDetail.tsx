@@ -1087,17 +1087,12 @@ export default function SeanceDetail() {
                             <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center justify-center gap-1.5">
                               {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
                               <span className={isCompleted ? "text-green-600" : "text-foreground"}>
-                                {isCardio ? "Cardio" : `Exercice ${exercises.indexOf(item) + 1}`}
+                                {isCardio ? ((item.cardio_sport ? item.cardio_sport.charAt(0).toUpperCase() + item.cardio_sport.slice(1) : "Cardio")) : `Exercice ${exercises.indexOf(item) + 1}`}
                               </span>
                             </p>
-                            <p className="text-sm text-muted-foreground uppercase mt-1.5 leading-tight break-words">{item.exercice}</p>
+                            {!isCardio && <p className="text-sm text-muted-foreground uppercase mt-1.5 leading-tight break-words">{item.exercice}</p>}
                             {isCardio && (
                               <div className="space-y-3">
-                                {item.cardio_sport && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {item.cardio_sport}
-                                  </Badge>
-                                )}
                                 {item.cardio_content &&
                                   (() => {
                                     try {
@@ -1108,39 +1103,14 @@ export default function SeanceDetail() {
                                       const metrics = calculateCardioMetrics(cardioData, athleteVma);
 
                                       return (
-                                        <div className="space-y-3 mt-2">
-                                          {(() => {
-                                            const avgPace = calculatePace(metrics.averageIntensity, athleteVma);
-                                            const hrStep = steps.find((s: any) => s.target_heart_rate);
-                                            let hrLabel: string | null = null;
-                                            if (hrStep) {
-                                              const zNum = parseInt(String(hrStep.target_heart_rate).replace("Z", ""));
-                                              const Z = [{min:50,max:60},{min:60,max:70},{min:70,max:80},{min:80,max:90},{min:90,max:100}][zNum-1];
-                                              if (Z && athleteFcMax && athleteFcRepos) {
-                                                const bpm = (p:number)=>Math.round(athleteFcRepos + (athleteFcMax-athleteFcRepos)*p/100);
-                                                hrLabel = `${bpm(Z.min)}–${bpm(Z.max)}`;
-                                              } else if (Z) hrLabel = `Z${zNum}`;
-                                            }
-                                            const tiles = [
-                                              estimatedDuration > 0 ? { label: "Durée", value: formatCardioSessionDuration(estimatedDuration), color: "text-foreground" } : null,
-                                              metrics.totalDistanceKm > 0 ? { label: "Distance", value: formatCardioDistance(metrics.totalDistanceKm * 1000), color: "text-foreground" } : null,
-                                              avgPace ? { label: "Allure moy.", value: avgPace, color: "text-blue-400" } : null,
-                                              hrLabel ? { label: "Cœur", value: hrLabel, unit: hrLabel.includes("–") ? "bpm" : "", color: "text-red-400" } : null,
-                                            ].filter(Boolean) as { label: string; value: string; unit?: string; color: string }[];
-                                            if (tiles.length === 0) return null;
-                                            return (
-                                              <div className="grid grid-cols-2 gap-2">
-                                                {tiles.map((t) => (
-                                                  <div key={t.label} className="rounded-xl border border-border/60 bg-card px-3 py-2.5">
-                                                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{t.label}</p>
-                                                    <p className={`text-xl font-extrabold leading-none ${t.color}`} style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-                                                      {t.value}{t.unit ? <span className="text-xs font-bold"> {t.unit}</span> : null}
-                                                    </p>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            );
-                                          })()}
+                                        <div className="space-y-2 mt-1">
+                                          {(estimatedDuration > 0 || metrics.totalDistanceKm > 0) && (
+                                            <p className="text-xs text-muted-foreground">
+                                              <span className="font-semibold text-foreground">Prévu</span>
+                                              {estimatedDuration > 0 && <> · ⏱ {formatCardioSessionDuration(estimatedDuration)}</>}
+                                              {metrics.totalDistanceKm > 0 && <> · {formatCardioDistance(metrics.totalDistanceKm * 1000)}</>}
+                                            </p>
+                                          )}
                                           {(() => {
                                             const displayedBlocks = new Set();
                                             return steps.map((step: any, stepIndex: number) => {
