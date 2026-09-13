@@ -55,6 +55,32 @@ const RPE_WORDS: Record<number, string> = {
 };
 const rpeWord = (v: number) => RPE_WORDS[Math.round(v)] || `${v}/10`;
 
+/**
+ * Échelle A — efforts musculation (renfo / force).
+ * Zone haute (7–10) : ancrage "reps en réserve" (proximité de l'échec).
+ * Zone basse (1–6) : ancrage sensation de facilité.
+ * Source : échelles-rpe-cdo.md
+ */
+const RPE_REPERE: Record<number, string> = {
+  1: "Récupération — quasi aucun effort",
+  2: "Mobilité — mouvement à vide ou presque",
+  3: "Échauffement actif",
+  4: "Très facile — effort léger",
+  5: "Facile — tu finis la série bien frais",
+  6: "Encore 4–5 reps possibles — ça demande de la concentration",
+  7: "Il te reste environ 3 reps en réserve",
+  8: "Il te reste environ 2 reps en réserve",
+  9: "Il te reste 1 rep — presque l'échec",
+  10: "Échec — la charge ne monte plus",
+};
+const rpeRepere = (v: number) => RPE_REPERE[Math.round(v)] || "";
+/** Reps en réserve pour la zone haute (7→3, 8→2, 9→1, 10→0). null en dessous de 7. */
+const rpeReserve = (v: number): number | null => {
+  const r = Math.round(v);
+  return r >= 7 && r <= 10 ? 10 - r : null;
+};
+const rpeColorFor = (v: number) => (v < 5 ? "#22c55e" : v <= 6 ? "#eab308" : v <= 8 ? "#f97316" : "#ef4444");
+
 function StatBlock({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className="flex flex-col leading-none">
@@ -1031,6 +1057,62 @@ export default function ExerciceDetail() {
           </a>
         )}
 
+        {/* ── Intensité demandée par le coach — élément central de la séance renfo ── */}
+        {!isEmomRecovery && (() => {
+          const targets = getSeriesData()
+            .map((s) => parseInt(String(s.rpe || exercise.rpe)))
+            .filter((n) => !isNaN(n) && n >= 1 && n <= 10);
+          if (targets.length === 0) return null;
+          const minR = Math.min(...targets);
+          const maxR = Math.max(...targets);
+          const isRange = minR !== maxR;
+          const ref = maxR; // on ancre le sens sur l'effort le plus haut demandé
+          const col = rpeColorFor(ref);
+          const reserve = rpeReserve(ref);
+          return (
+            <div
+              className="rounded-2xl border-2 p-4"
+              style={{ borderColor: `${col}80`, background: `linear-gradient(135deg, ${col}1f, transparent 70%)` }}
+            >
+              <div className="flex items-center gap-1.5 mb-3">
+                <Zap className="h-4 w-4" style={{ color: col }} />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Intensité demandée</span>
+                <RPEExplanationDialog />
+              </div>
+              <div className="flex items-center gap-4">
+                {/* Gros chiffre RPE */}
+                <div className="flex flex-col items-center leading-none shrink-0">
+                  <span
+                    className="text-6xl font-black tabular-nums"
+                    style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}
+                  >
+                    {isRange ? `${minR}–${maxR}` : ref}
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">RPE / 10</span>
+                </div>
+                {/* Sens de l'effort */}
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-xl font-extrabold leading-tight"
+                    style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}
+                  >
+                    {isRange ? `${rpeWord(minR)} → ${rpeWord(maxR)}` : rpeWord(ref)}
+                  </p>
+                  <p className="text-[13px] text-foreground/80 leading-snug mt-1">{rpeRepere(ref)}</p>
+                  {reserve !== null && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 mt-2 text-[11px] font-bold"
+                      style={{ backgroundColor: `${col}22`, color: col }}
+                    >
+                      {reserve === 0 ? "Jusqu'à l'échec" : `≈ ${reserve} rep${reserve > 1 ? "s" : ""} en réserve`}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Dialog : muscles sollicités sur la silhouette */}
         <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
           <DialogContent className="max-w-lg w-[96vw] max-h-[90vh] overflow-y-auto">
@@ -1359,9 +1441,11 @@ export default function ExerciceDetail() {
                             />
                           )}
 
-                          {(serie.rpe || exercise.rpe) && (
-                            <StatBlock label={`RPE ${serie.rpe || exercise.rpe}`} value={rpeWord(Number(serie.rpe || exercise.rpe))} className="text-yellow-600" />
-                          )}
+                          {(serie.rpe || exercise.rpe) && (() => {
+                            const dr = Number(serie.rpe || exercise.rpe);
+                            const dc = dr < 5 ? "text-green-500" : dr <= 6 ? "text-yellow-600" : dr <= 8 ? "text-orange-500" : "text-red-500";
+                            return <StatBlock label={`RPE ${serie.rpe || exercise.rpe} demandé`} value={rpeWord(dr)} className={dc} />;
+                          })()}
 
                           {(serie.tempo || exercise.tempo) && (
                             <StatBlock label="Tempo" value={serie.tempo || exercise.tempo} className="text-purple-500" />
