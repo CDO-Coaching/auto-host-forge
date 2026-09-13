@@ -444,7 +444,7 @@ export default function SportifDashboard() {
   ) : null;
 
   return (
-    <div className="space-y-2 sm:space-y-3 pb-20 sm:pb-4">
+    <div className="space-y-4 pb-20 sm:pb-4">
       <AthleteSfmsRequestBanner />
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
@@ -493,10 +493,6 @@ export default function SportifDashboard() {
         </button>
       </div>
 
-      {/* Citation motivante — discrète, en bas */}
-      <div className="pt-1 opacity-70">
-        <WeeklyQuote />
-      </div>
     </div>
   );
 }
