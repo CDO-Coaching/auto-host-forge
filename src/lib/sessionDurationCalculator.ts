@@ -21,6 +21,8 @@ export interface Exercise {
   super_set_group?: string | null;
   per_side?: boolean;
   is_duration?: boolean;
+  is_distance?: boolean;
+  charge?: string | number | null;
   serie_details?: SerieDetail[] | string | null;
 }
 
@@ -164,10 +166,20 @@ function parseRepsDuration(
   exerciseName: string,
   isDuration?: boolean,
   perSide?: boolean,
+  isDistance?: boolean,
 ): number {
   if (!reps) return 0;
 
   const multiplier = perSide ? 2 : 1;
+
+  // Distance déclarée (case "distance" cochée) : la valeur est en mètres,
+  // même sans suffixe. Ex. "400" → 400 m. "1.5km" reste géré aussi.
+  if (isDistance) {
+    const distExplicit = parseDistance(reps);
+    if (distExplicit !== null) return estimateRunDuration(distExplicit);
+    const numM = parseFloat(reps.replace(",", "."));
+    if (!isNaN(numM) && numM > 0) return estimateRunDuration(numM);
+  }
 
   // Distance explicite dans les reps ("2000m", "400m", "1km", "1.5km")
   const distanceM = parseDistance(reps);
@@ -274,7 +286,7 @@ function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
   const numSeries = getSeriesCount(ex);
   if (numSeries === 0) return 0;
 
-  const repsDur = parseRepsDuration(ex.reps, ex.tempo, ex.exercice, ex.is_duration, ex.per_side);
+  const repsDur = parseRepsDuration(ex.reps, ex.tempo, ex.exercice, ex.is_duration, ex.per_side, ex.is_distance);
   const recup = parseRecuperationSeconds(ex.recuperation);
 
   // Séries de travail : (reps × séries) + récup × (séries - 1)
@@ -308,7 +320,7 @@ function calcSupersetDuration(exos: Exercise[], isFirst: boolean): number {
   // Durée d'un round : somme des efforts + micro-transitions (8 s entre exos)
   let roundDur = 0;
   exos.forEach((ex, i) => {
-    roundDur += parseRepsDuration(ex.reps, ex.tempo, ex.exercice, ex.is_duration, ex.per_side);
+    roundDur += parseRepsDuration(ex.reps, ex.tempo, ex.exercice, ex.is_duration, ex.per_side, ex.is_distance);
     if (i < exos.length - 1) roundDur += 8; // transition entre exos dans le superset
   });
 
@@ -341,9 +353,6 @@ export function calculateSessionDuration(exercises: Exercise[]): number {
   let blockCount = 0;
   let isFirst = true;
 
-  // Échauffement général : 10 min
-  totalSeconds += 10 * 60;
-
   for (let i = 0; i < exercises.length; i++) {
     if (processed.has(i)) continue;
 
@@ -370,6 +379,11 @@ export function calculateSessionDuration(exercises: Exercise[]): number {
 
   // Transitions entre blocs : 75 s chacune
   if (blockCount > 1) totalSeconds += (blockCount - 1) * 75;
+
+  // Échauffement général proportionnel à la taille de la séance : 4 min + 1 min/bloc,
+  // borné entre 4 et 10 min (une petite séance n'a pas 10 min de chauffe).
+  const generalWarmup = Math.min(10, Math.max(4, 4 + blockCount)) * 60;
+  totalSeconds += generalWarmup;
 
   // Marge de réalité : +7%
   return Math.round(totalSeconds * 1.07);
