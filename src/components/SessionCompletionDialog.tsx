@@ -291,7 +291,8 @@ export function SessionCompletionDialog({
             />
           </div>
 
-          {/* Lien Garmin de la séance */}
+          {/* Lien Garmin/Strava de la séance — cardio uniquement */}
+          {sessionType === "cardio" && (
           <div className="space-y-2">
             <Label htmlFor="session-garmin">
               🔗 Lien Strava (Garmin) de la séance <span className="text-muted-foreground text-sm font-normal">(optionnel)</span>
@@ -316,6 +317,7 @@ export function SessionCompletionDialog({
               Ouvre ton activité, copie le lien de partage et colle-le ici pour ton coach.
             </p>
           </div>
+          )}
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
