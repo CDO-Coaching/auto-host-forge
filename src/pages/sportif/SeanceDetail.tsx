@@ -943,15 +943,15 @@ export default function SeanceDetail() {
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="mb-1.5">
-                        <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center justify-center gap-1.5 flex-wrap">
-                          {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                        <p className="text-2xl font-extrabold leading-none flex items-center justify-center gap-1.5 flex-wrap" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+                          {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                           <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {exercises.indexOf(item) + 1}</span>
                           <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
                         </p>
                       </div>
 
-                      <p className="text-sm text-muted-foreground uppercase leading-tight break-words">
-                        {item.exercises.map((ex: any) => ex.exercice).join(" + ")}
+                      <p className="text-[13px] font-medium text-muted-foreground/90 mt-2 leading-snug break-words capitalize" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+                        {item.exercises.map((ex: any) => (ex.exercice || "").toLowerCase()).join(" + ")}
                       </p>
                       {isCompleted && (
                         <p className="text-[11px] text-muted-foreground mt-1.5">
@@ -983,13 +983,13 @@ export default function SeanceDetail() {
                       <div className="space-y-2 sm:space-y-3 w-full">
                         <div className="flex flex-col items-center gap-1">
                           <div className="w-full">
-                            <p className="text-lg sm:text-xl font-extrabold leading-none flex items-center justify-center gap-1.5">
-                              {isCompleted && <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 shrink-0" />}
+                            <p className="text-2xl font-extrabold leading-none flex items-center justify-center gap-1.5" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+                              {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                               <span className={isCompleted ? "text-green-600" : "text-foreground"}>
                                 {isCardio ? ((item.cardio_sport ? item.cardio_sport.charAt(0).toUpperCase() + item.cardio_sport.slice(1) : "Cardio")) : `Exercice ${exercises.indexOf(item) + 1}`}
                               </span>
                             </p>
-                            {!isCardio && <p className="text-sm text-muted-foreground uppercase mt-1.5 leading-tight break-words">{item.exercice}</p>}
+                            {!isCardio && <p className="text-[13px] font-medium text-muted-foreground/90 mt-2 leading-snug break-words capitalize" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{(item.exercice || "").toLowerCase()}</p>}
                             {isCardio && (
                               <div className="space-y-3">
                                 {item.cardio_content &&
