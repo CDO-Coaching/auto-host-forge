@@ -839,7 +839,7 @@ export default function SeanceDetail() {
         </Button>
       </div>
 
-      <div className={`p-3 sm:p-4 space-y-2 ${!isCardioSession && !allCompleted ? "flex flex-col min-h-[calc(100svh-7rem)]" : ""}`}>
+      <div className={`p-3 sm:p-4 space-y-2 `}>
         <AthleteFatigueAlert />
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -921,7 +921,7 @@ export default function SeanceDetail() {
           </div>
         ) : null}
 
-        <div className={`grid grid-cols-2 gap-3 ${!isCardioSession && !allCompleted ? "auto-rows-fr flex-1 min-h-0" : ""}`}>
+        <div className={`grid grid-cols-2 gap-3 `}>
           {sortedExercises.length === 0 ? (
             <Card className="col-span-2">
               <CardContent className="py-8">
@@ -936,14 +936,10 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.super_set_group}
-                    className={`h-full ${allCompleted ? "col-span-2" : ""} ${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`h-full cursor-pointer hover:border-primary transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : "border-orange-500/50 bg-orange-500/5"
                     }`}
-                    onClick={
-                      allCompleted
-                        ? undefined
-                        : () => openExercise(() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`))
-                    }
+                    onClick={() => openExercise(() => navigate(`/sportif/superset/${sessionId}/${item.super_set_group}`))}
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="mb-1.5">
@@ -954,110 +950,13 @@ export default function SeanceDetail() {
                         </p>
                       </div>
 
-                      {!allCompleted && (
-                        <p className="text-sm text-muted-foreground uppercase leading-tight break-words">
-                          {item.exercises.map((ex: any) => ex.exercice).join(" + ")}
+                      <p className="text-sm text-muted-foreground uppercase leading-tight break-words">
+                        {item.exercises.map((ex: any) => ex.exercice).join(" + ")}
+                      </p>
+                      {isCompleted && (
+                        <p className="text-[11px] text-muted-foreground mt-1.5">
+                          RPE ressenti : <span className="font-semibold text-foreground">{item.exercises.map((ex: any) => ex.sportif_rpe).filter((v: any) => v != null).join(" · ") || "-"}</span>
                         </p>
-                      )}
-
-                      {allCompleted && (
-                      <div className={`space-y-2 ${allCompleted ? "mt-4 border-t pt-3" : ""}`}>
-                        {item.exercises.map((ex: any, exIndex: number) => (
-                          <div
-                            key={exIndex}
-                            className={allCompleted ? "bg-muted/30 rounded-lg p-3 space-y-2" : "space-y-1"}
-                          >
-                            <p className={`${allCompleted ? "font-medium" : "text-sm text-muted-foreground"}`}>
-                              {!allCompleted && `${exIndex + 1}. `}
-                              <span className="uppercase">{ex.exercice}</span>
-                            </p>
-
-                            {ex.commentaire && (
-                              <div className="flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                                <span className="text-sm">📝</span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
-                                  <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{ex.commentaire}</p>
-                                </div>
-                              </div>
-                            )}
-
-                            {allCompleted && (
-                              <div className="flex gap-2 flex-wrap">
-                                {ex.series && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {ex.series} séries
-                                  </Badge>
-                                )}
-                                {ex.reps && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {(ex as any).is_duration ? formatDurationSec(ex.reps) : `${ex.reps}${(ex as any).is_distance ? "m" : " reps"}`}{ex.per_side ? " (par côté)" : ""}
-                                  </Badge>
-                                )}
-                                {ex.charge && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {ex.charge}
-                                  </Badge>
-                                )}
-                                {ex.rpe && (
-                                  <Badge variant="outline" className="text-xs">
-                                    RPE prescrit: {ex.rpe}
-                                  </Badge>
-                                )}
-                                {ex.tempo && (
-                                  <Badge variant="outline" className="text-xs">
-                                    Tempo: {ex.tempo}
-                                  </Badge>
-                                )}
-                                {ex.recuperation && (
-                                  ex.recuperation === "0s" ? (
-                                    <Badge className="text-xs bg-amber-500/20 text-amber-600 border-amber-500/30">
-                                      ⚡ Enchaîné
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      Récup: {ex.recuperation}
-                                    </Badge>
-                                  )
-                                )}
-                              </div>
-                            )}
-
-                            {isCompleted && allCompleted && (
-                              <>
-                                <div className="flex items-center justify-between gap-2 border-t pt-2">
-                                  <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
-                                    <Badge variant="secondary" className="text-xs bg-primary/10 text-primary">
-                                      RPE ressenti: {ex.sportif_rpe || "-"}
-                                    </Badge>
-                                    {ex.sportif_feedback_at && (
-                                      <span className="text-muted-foreground">
-                                        {new Date(ex.sportif_feedback_at).toLocaleDateString("fr-FR", {
-                                          day: "2-digit",
-                                          month: "2-digit",
-                                          hour: "2-digit",
-                                          minute: "2-digit",
-                                        })}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 flex-shrink-0"
-                                    onClick={(e) => handleOpenEditFeedback(ex, e)}
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                                {ex.sportif_comment && (
-                                  <p className="text-xs text-muted-foreground italic">💬 {ex.sportif_comment}</p>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
                       )}
                     </CardContent>
                   </Card>
@@ -1254,7 +1153,13 @@ export default function SeanceDetail() {
                           </div>
                         </div>
 
-                        {isCompleted && allCompleted && (
+                        {isCompleted && allCompleted && !isCardio && (
+                          <p className="text-[11px] text-muted-foreground mt-1.5">
+                            RPE ressenti : <span className="font-semibold text-foreground">{item.sportif_rpe || "-"}</span>
+                          </p>
+                        )}
+
+                        {isCompleted && allCompleted && isCardio && (
                           <div className="border-t pt-3 space-y-2">
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 text-xs flex-wrap flex-1">
@@ -1284,7 +1189,7 @@ export default function SeanceDetail() {
                             {item.sportif_comment && (
                               <p className="text-xs text-muted-foreground italic">💬 {item.sportif_comment}</p>
                             )}
-                            
+
                             {/* Données réelles saisies (pour séances cardio) */}
                             {(item.actual_distance_km || item.actual_duration_minutes || item.actual_pace_min_per_km || item.actual_avg_heart_rate) && (
                               <div className="bg-green-50 dark:bg-green-950/20 p-2 rounded-md border border-green-200 dark:border-green-800">
