@@ -523,11 +523,11 @@ export default function Seances() {
                           );
                         })()}
                         {completed && avgRpe !== null && (
-                          <span className={`font-semibold ${
-                            avgRpe <= 4 ? "text-green-500" :
-                            avgRpe <= 6 ? "text-yellow-500" :
-                            avgRpe <= 8 ? "text-orange-500" : "text-red-500"
-                          }`}>RPE {avgRpe}/10</span>
+                          <span className={`text-[10px] font-medium ${
+                            avgRpe <= 4 ? "text-green-500/80" :
+                            avgRpe <= 6 ? "text-yellow-500/80" :
+                            avgRpe <= 8 ? "text-orange-500/80" : "text-red-500/80"
+                          }`}>RPE {avgRpe}</span>
                         )}
                       </div>
                     </div>
