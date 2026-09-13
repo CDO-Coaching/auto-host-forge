@@ -67,6 +67,7 @@ export default function SupersetDetail() {
 
   // Per-series validation: indexed by global series index (round * numExercises + exerciseIdx)
   const [serieValidations, setSerieValidations] = useState<SerieValidation[]>([]);
+  const [editMode, setEditMode] = useState(false);
   const [rpeDialogOpen, setRpeDialogOpen] = useState(false);
   const [rpeDialogSerieIndex, setRpeDialogSerieIndex] = useState<number | null>(null);
   const [rpeInputValue, setRpeInputValue] = useState("");
@@ -910,8 +911,42 @@ export default function SupersetDetail() {
           </Card>
         )}
 
+        {/* ── Récapitulatif : superset entièrement validé ── */}
+        {!isAmrap && !seriesCollapsed && allValidated && !editMode && (() => {
+          const word = (v: number) => (v < 5 ? "Facile" : v <= 6 ? "Modéré" : v <= 8 ? "Difficile" : "Maximal");
+          const col = (v: number) => (v < 5 ? "#22c55e" : v <= 6 ? "#eab308" : v <= 8 ? "#f97316" : "#ef4444");
+          return (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-sm font-bold text-green-600" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Superset terminé ✓</p>
+                <button onClick={() => setEditMode(true)} className="text-xs font-semibold text-primary underline underline-offset-2">Modifier</button>
+              </div>
+              {Array.from({ length: totalRounds }, (_, roundIdx) => (
+                <div key={roundIdx} className="rounded-xl border border-green-500/30 bg-green-500/[0.04] p-3 space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Série {roundIdx + 1}</p>
+                  {exercises.map((ex, exIdx) => {
+                    const v = serieValidations[getValidationIndex(roundIdx, exIdx)];
+                    const sd = allSeriesData[exIdx]?.[roundIdx] || {};
+                    const reps = v?.actual_reps || sd.reps || (ex as any).reps;
+                    const charge = v?.actual_charge || sd.charge || (ex as any).charge;
+                    const asked = sd.rpe || (ex as any).rpe;
+                    return (
+                      <div key={exIdx} className="flex items-center gap-2 text-[13px]">
+                        <span className="font-bold uppercase truncate flex-1 min-w-0" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</span>
+                        <span className="text-muted-foreground shrink-0">{reps}{(ex as any).is_distance ? "m" : " reps"}{charge ? ` · ${charge}${/^\d+(\.\d+)?$/.test(String(charge)) ? "kg" : ""}` : ""}</span>
+                        {asked && <span className="text-[10px] text-yellow-600 shrink-0">dem. {asked}</span>}
+                        {v?.rpe != null && <span className="text-xs font-extrabold shrink-0" style={{ color: col(v.rpe) }}>{v.rpe} {word(v.rpe)}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {/* Series rounds — hidden in AMRAP mode (counter replaces per-round cards) */}
-        {!isAmrap && !seriesCollapsed && (
+        {!isAmrap && !seriesCollapsed && (!allValidated || editMode) && (
           <div className="space-y-4">
             {Array.from({ length: totalRounds }, (_, roundIdx) => {
               const roundValidations = exercises.map((_, exIdx) => {
