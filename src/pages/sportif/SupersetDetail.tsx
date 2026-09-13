@@ -882,7 +882,7 @@ export default function SupersetDetail() {
                 {exercises.map((ex, idx) => (
                   <div key={ex.id} className="space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold text-primary">{idx + 1}</span>
+                      <span className="flex items-center justify-center h-6 w-6 rounded-full text-sm font-extrabold shrink-0" style={{ backgroundColor: `${["#e8c466","#8b5cf6","#06b6d4","#ec4899"][idx % 4]}22`, color: ["#e8c466","#8b5cf6","#06b6d4","#ec4899"][idx % 4] }}>{idx + 1}</span>
                       <span className="font-medium uppercase">{ex.exercice}</span>
                       {videoUrls[ex.exercice] && (
                         <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
@@ -1005,17 +1005,23 @@ export default function SupersetDetail() {
                         const chargeNumeric = /^\d+(\.\d+)?$/.test(scRaw);
                         const rpeRealized = isValidated ? validation?.rpe : null;
                         const rColor = rpeRealized == null ? null : rpeRealized < 5 ? "#22c55e" : rpeRealized <= 6 ? "#eab308" : rpeRealized <= 8 ? "#f97316" : "#ef4444";
+                        // Couleur propre à chaque exercice du superset (pour repérer 1 et 2 sur chaque ligne)
+                        const exColor = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][exIdx % 4];
                         return (
                           <div key={`${roundIdx}-${exIdx}`}>
                             {/* Exercise row — même format que les exos simples */}
                             <div
                               onClick={() => handleValidateSerie(roundIdx, exIdx)}
-                              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border cursor-pointer active:scale-[0.99] transition-all ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
+                              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border cursor-pointer active:scale-[0.99] transition-all bg-muted/40"
+                              style={{ borderColor: `${exColor}66`, boxShadow: isValidated ? `inset 3px 0 0 ${exColor}` : `inset 3px 0 0 ${exColor}55` }}
                             >
-                              <div className="flex flex-col items-center shrink-0 w-7">
-                                <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${isValidated ? "bg-green-600 text-white" : "bg-orange-500/20 text-orange-500"}`}>
-                                  {isValidated ? <Check className="h-4 w-4" /> : exIdx + 1}
-                                </div>
+                              <div className="relative flex items-center justify-center shrink-0 h-8 w-8 rounded-full font-extrabold text-sm" style={{ backgroundColor: `${exColor}22`, color: exColor, fontFamily: "'Sora', system-ui, sans-serif" }}>
+                                {exIdx + 1}
+                                {isValidated && (
+                                  <span className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-green-500 flex items-center justify-center ring-2 ring-background">
+                                    <Check className="h-2.5 w-2.5 text-white" />
+                                  </span>
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
