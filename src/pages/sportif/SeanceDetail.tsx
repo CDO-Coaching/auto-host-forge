@@ -892,33 +892,9 @@ export default function SeanceDetail() {
             </p>
           )
         ) : allCompleted ? (
-          <div className="grid grid-cols-2 gap-2 w-full">
-            <Button variant="outline" size="lg" className="w-full" onClick={() => setEditSessionDialogOpen(true)}>
-              <Settings className="h-4 w-4 mr-2" />
-              Modifier
-            </Button>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="lg" className="w-full">
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Invalider
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Invalider cette séance ?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action va supprimer tous tes retours (RPE et commentaires) pour cette séance. Tu pourras la
-                    refaire comme si tu ne l'avais jamais complétée.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleInvalidateSession}>Confirmer</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <p className="text-xs text-muted-foreground text-center py-1">
+            Touche un exercice pour voir ou modifier ce que tu as rempli
+          </p>
         ) : null}
 
         <div className={`grid grid-cols-2 gap-3 `}>
@@ -968,16 +944,13 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.id}
-                    className={`h-full ${isCardio ? "col-span-2" : ""} ${allCompleted ? "" : "cursor-pointer hover:border-primary"} transition-colors border-2 ${
+                    className={`h-full ${isCardio ? "col-span-2" : ""} cursor-pointer hover:border-primary transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
-                    onClick={
-                      allCompleted
-                        ? undefined
-                        : isCardio
-                          ? () => openExercise(() => handleCardioClick(item))
-                          : () => openExercise(() => navigate(`/sportif/exercice/${item.id}`))
-                    }
+                    onClick={() => {
+                      const go = isCardio ? () => handleCardioClick(item) : () => navigate(`/sportif/exercice/${item.id}`);
+                      if (allCompleted) go(); else openExercise(go);
+                    }}
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="space-y-2 sm:space-y-3 w-full">
