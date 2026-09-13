@@ -28,6 +28,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const SS_RPE_WORDS: Record<number, string> = { 1: "Repos", 2: "Très facile", 3: "Facile", 4: "Confortable", 5: "Modéré", 6: "Soutenu", 7: "Difficile", 8: "Intense", 9: "Extrême", 10: "Maximal" };
+const ssRpeWord = (v: number) => SS_RPE_WORDS[Math.round(v)] || `${v}`;
+
 interface SerieDetail {
   reps?: string;
   charge?: string;
@@ -1024,7 +1027,7 @@ export default function SupersetDetail() {
                                   {dispRpe && (
                                     <div className="flex flex-col leading-none">
                                       <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">RPE {dispRpe}</span>
-                                      <span className="text-sm font-bold text-yellow-600">Demandé</span>
+                                      <span className="text-sm font-bold text-yellow-600">{ssRpeWord(Number(dispRpe))}</span>
                                     </div>
                                   )}
                                   {serieData.tempo && (
