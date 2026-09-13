@@ -56,25 +56,9 @@ const RPE_WORDS: Record<number, string> = {
 const rpeWord = (v: number) => RPE_WORDS[Math.round(v)] || `${v}/10`;
 
 /**
- * Échelle A — efforts musculation (renfo / force).
- * Zone haute (7–10) : ancrage "reps en réserve" (proximité de l'échec).
- * Zone basse (1–6) : ancrage sensation de facilité.
- * Source : échelles-rpe-cdo.md
+ * Échelle A — efforts musculation (renfo / force). Source : échelles-rpe-cdo.md
+ * Reps en réserve pour la zone haute (7→3, 8→2, 9→1, 10→0). null en dessous de 7.
  */
-const RPE_REPERE: Record<number, string> = {
-  1: "Récupération — quasi aucun effort",
-  2: "Mobilité — mouvement à vide ou presque",
-  3: "Échauffement actif",
-  4: "Très facile — effort léger",
-  5: "Facile — tu finis la série bien frais",
-  6: "Encore 4–5 reps possibles — ça demande de la concentration",
-  7: "Il te reste environ 3 reps en réserve",
-  8: "Il te reste environ 2 reps en réserve",
-  9: "Il te reste 1 rep — presque l'échec",
-  10: "Échec — la charge ne monte plus",
-};
-const rpeRepere = (v: number) => RPE_REPERE[Math.round(v)] || "";
-/** Reps en réserve pour la zone haute (7→3, 8→2, 9→1, 10→0). null en dessous de 7. */
 const rpeReserve = (v: number): number | null => {
   const r = Math.round(v);
   return r >= 7 && r <= 10 ? 10 - r : null;
@@ -1377,11 +1361,13 @@ export default function ExerciceDetail() {
                               {rpeWord(demanded)}
                             </span>
                             <span className="text-[11px] font-bold" style={{ color: demandedColor! }}>RPE {demanded}</span>
-                            <span className="text-[11px] text-foreground/70">
-                              {demandedReserve != null
-                                ? (demandedReserve === 0 ? "· jusqu'à l'échec" : `· ${demandedReserve} rep${demandedReserve > 1 ? "s" : ""} en réserve`)
-                                : `· ${rpeRepere(demanded)}`}
-                            </span>
+                            {(demandedReserve != null || demanded === 6) && (
+                              <span className="text-[11px] text-foreground/70">
+                                {demandedReserve != null
+                                  ? (demandedReserve === 0 ? "· jusqu'à l'échec" : `· ${demandedReserve} rep${demandedReserve > 1 ? "s" : ""} en réserve`)
+                                  : "· encore 4–5 reps possibles"}
+                              </span>
+                            )}
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
