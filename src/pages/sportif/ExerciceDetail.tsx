@@ -1370,22 +1370,18 @@ export default function ExerciceDetail() {
                         {/* Intensité demandée par le coach (échelle A musculation) */}
                         {demanded != null && (
                           <div
-                            className="rounded-lg px-2.5 py-1.5"
+                            className="flex items-baseline gap-2 flex-wrap rounded-lg px-2.5 py-1.5"
                             style={{ backgroundColor: `${demandedColor}1f`, boxShadow: `inset 3px 0 0 ${demandedColor}` }}
                           >
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Intensité demandée</span>
-                              <span className="text-base font-extrabold leading-none" style={{ color: demandedColor!, fontFamily: "'Sora', system-ui, sans-serif" }}>
-                                {rpeWord(demanded)}
-                              </span>
-                              <span className="text-[11px] font-bold" style={{ color: demandedColor! }}>RPE {demanded}</span>
-                              {demandedReserve != null && (
-                                <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5" style={{ backgroundColor: `${demandedColor}22`, color: demandedColor! }}>
-                                  {demandedReserve === 0 ? "jusqu'à l'échec" : `≈ ${demandedReserve} en réserve`}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-[11px] text-foreground/70 leading-snug mt-0.5">{rpeRepere(demanded)}</p>
+                            <span className="text-base font-extrabold leading-none" style={{ color: demandedColor!, fontFamily: "'Sora', system-ui, sans-serif" }}>
+                              {rpeWord(demanded)}
+                            </span>
+                            <span className="text-[11px] font-bold" style={{ color: demandedColor! }}>RPE {demanded}</span>
+                            <span className="text-[11px] text-foreground/70">
+                              {demandedReserve != null
+                                ? (demandedReserve === 0 ? "· jusqu'à l'échec" : `· ${demandedReserve} rep${demandedReserve > 1 ? "s" : ""} en réserve`)
+                                : `· ${rpeRepere(demanded)}`}
+                            </span>
                           </div>
                         )}
                         <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
