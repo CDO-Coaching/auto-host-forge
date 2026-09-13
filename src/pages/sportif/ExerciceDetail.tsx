@@ -225,6 +225,28 @@ export default function ExerciceDetail() {
           }
         } catch (e) {}
       }
+      // Sinon, restaurer le RPE déjà rempli par l'athlète (séance validée) depuis la BDD
+      let dbDetails = (exercise as any).serie_rpe_details;
+      if (typeof dbDetails === "string") { try { dbDetails = JSON.parse(dbDetails); } catch { dbDetails = null; } }
+      if (Array.isArray(dbDetails) && dbDetails.some((d: any) => d && d.rpe != null)) {
+        const vals = Array.from({ length: totalSets }, (_, i) => {
+          const d = dbDetails[i];
+          return d && d.rpe != null
+            ? { validated: true, rpe: d.rpe ?? null, actual_reps: d.actual_reps ?? null, actual_charge: d.actual_charge ?? null, modification_type: d.modification_type ?? null }
+            : { validated: false, rpe: null };
+        });
+        setSerieValidations(vals);
+        setCompletedSets(vals.filter((v) => v.validated).length);
+        return;
+      }
+      // Sinon, si un RPE global existe (fallback), l'appliquer à toutes les séries
+      const globalRpe = (exercise as any).sportif_rpe;
+      if (globalRpe != null && totalSets > 0) {
+        const vals = Array.from({ length: totalSets }, () => ({ validated: true, rpe: Number(globalRpe), actual_reps: null, actual_charge: null, modification_type: null }));
+        setSerieValidations(vals);
+        setCompletedSets(totalSets);
+        return;
+      }
       setSerieValidations(Array.from({ length: totalSets }, () => ({ validated: false, rpe: null })));
     }
   }, [exercise?.id]);

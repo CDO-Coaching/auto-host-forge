@@ -945,13 +945,8 @@ export default function SeanceDetail() {
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
                     onClick={() => {
-                      if (allCompleted) {
-                        if (isCardio) handleCardioClick(item);
-                        else handleOpenEditFeedback(item);
-                        return;
-                      }
                       const go = isCardio ? () => handleCardioClick(item) : () => navigate(`/sportif/exercice/${item.id}`);
-                      openExercise(go);
+                      if (allCompleted) go(); else openExercise(go);
                     }}
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
