@@ -842,15 +842,12 @@ export default function SeanceDetail() {
       <div className={`p-3 sm:p-4 space-y-2 `}>
         <AthleteFatigueAlert />
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <h1 className="text-lg sm:text-xl font-bold">{session.name}</h1>
-          <Badge variant="outline" className="text-[11px]">{exercises.length} exercices</Badge>
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <h1 className="text-xl sm:text-2xl font-extrabold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{session.name}</h1>
           {allCompleted && (
-            <div className="flex items-center gap-1.5">
-              <Badge variant="outline" className="border-green-600 text-green-600 text-[11px]">
-                Séance terminée
-              </Badge>
-            </div>
+            <Badge variant="outline" className="border-green-600 text-green-600 text-[11px]">
+              Séance terminée
+            </Badge>
           )}
         </div>
 
@@ -948,8 +945,13 @@ export default function SeanceDetail() {
                       isCompleted ? "border-green-500/50 bg-green-500/5" : ""
                     }`}
                     onClick={() => {
+                      if (allCompleted) {
+                        if (isCardio) handleCardioClick(item);
+                        else handleOpenEditFeedback(item);
+                        return;
+                      }
                       const go = isCardio ? () => handleCardioClick(item) : () => navigate(`/sportif/exercice/${item.id}`);
-                      if (allCompleted) go(); else openExercise(go);
+                      openExercise(go);
                     }}
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
