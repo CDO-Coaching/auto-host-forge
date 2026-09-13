@@ -1160,7 +1160,7 @@ export default function SeanceDetail() {
                                                               )}
                                                               {(() => { const p = calculatePace(blockStep.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground/50">•</span><span className="text-blue-400 font-bold text-[15px]">{p}</span></> : null; })()}
                                                               {blockStep.target_heart_rate && (() => {
-                                                                const zNum = parseInt(blockStep.target_heart_rate.replace("Z", ""));
+                                                                const zNum = parseInt(String(blockStep.target_heart_rate).replace("Z", ""));
                                                                 const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
                                                                 const zd = FCR_ZONES_DISP.find(z => z.z === zNum);
                                                                 const bpmStr = zd && athleteFcMax && athleteFcRepos
@@ -1213,7 +1213,7 @@ export default function SeanceDetail() {
                                                       </>
                                                     ) : null}
                                                     {step.target_heart_rate && (() => {
-                                                      const zNum = parseInt(step.target_heart_rate.replace("Z", ""));
+                                                      const zNum = parseInt(String(step.target_heart_rate).replace("Z", ""));
                                                       const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
                                                       const zd = FCR_ZONES_DISP.find(z => z.z === zNum);
                                                       const bpmStr = zd && athleteFcMax && athleteFcRepos
