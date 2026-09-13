@@ -1057,62 +1057,6 @@ export default function ExerciceDetail() {
           </a>
         )}
 
-        {/* ── Intensité demandée par le coach — élément central de la séance renfo ── */}
-        {!isEmomRecovery && (() => {
-          const targets = getSeriesData()
-            .map((s) => parseInt(String(s.rpe || exercise.rpe)))
-            .filter((n) => !isNaN(n) && n >= 1 && n <= 10);
-          if (targets.length === 0) return null;
-          const minR = Math.min(...targets);
-          const maxR = Math.max(...targets);
-          const isRange = minR !== maxR;
-          const ref = maxR; // on ancre le sens sur l'effort le plus haut demandé
-          const col = rpeColorFor(ref);
-          const reserve = rpeReserve(ref);
-          return (
-            <div
-              className="rounded-2xl border-2 p-4"
-              style={{ borderColor: `${col}80`, background: `linear-gradient(135deg, ${col}1f, transparent 70%)` }}
-            >
-              <div className="flex items-center gap-1.5 mb-3">
-                <Zap className="h-4 w-4" style={{ color: col }} />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Intensité demandée</span>
-                <RPEExplanationDialog />
-              </div>
-              <div className="flex items-center gap-4">
-                {/* Gros chiffre RPE */}
-                <div className="flex flex-col items-center leading-none shrink-0">
-                  <span
-                    className="text-6xl font-black tabular-nums"
-                    style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}
-                  >
-                    {isRange ? `${minR}–${maxR}` : ref}
-                  </span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mt-1">RPE / 10</span>
-                </div>
-                {/* Sens de l'effort */}
-                <div className="min-w-0 flex-1">
-                  <p
-                    className="text-xl font-extrabold leading-tight"
-                    style={{ color: col, fontFamily: "'Sora', system-ui, sans-serif" }}
-                  >
-                    {isRange ? `${rpeWord(minR)} → ${rpeWord(maxR)}` : rpeWord(ref)}
-                  </p>
-                  <p className="text-[13px] text-foreground/80 leading-snug mt-1">{rpeRepere(ref)}</p>
-                  {reserve !== null && (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 mt-2 text-[11px] font-bold"
-                      style={{ backgroundColor: `${col}22`, color: col }}
-                    >
-                      {reserve === 0 ? "Jusqu'à l'échec" : `≈ ${reserve} rep${reserve > 1 ? "s" : ""} en réserve`}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
         {/* Dialog : muscles sollicités sur la silhouette */}
         <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
           <DialogContent className="max-w-lg w-[96vw] max-h-[90vh] overflow-y-auto">
@@ -1401,6 +1345,11 @@ export default function ExerciceDetail() {
                       : "#ef4444";
                     const rpeGlow = rpeColor ? { boxShadow: `0 0 10px 1px ${rpeColor}66, 0 0 0 1px ${rpeColor}55` } : undefined;
 
+                    // RPE demandé par le coach = intensité mise en avant dans la ligne
+                    const demanded = (serie.rpe || exercise.rpe) ? Number(serie.rpe || exercise.rpe) : null;
+                    const demandedColor = demanded == null ? null : rpeColorFor(demanded);
+                    const demandedReserve = demanded == null ? null : rpeReserve(demanded);
+
                     return (
                       <div key={idx} className="space-y-1.5">
                       <div
@@ -1416,8 +1365,29 @@ export default function ExerciceDetail() {
                           <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Série</span>
                         </div>
 
-                        {/* Métriques — style tableau (cases) */}
-                        <div className="flex-1 min-w-0">
+                        {/* Métriques — l'intensité/RPE demandé domine la ligne */}
+                        <div className="flex-1 min-w-0 space-y-1.5">
+                        {/* Intensité demandée par le coach (échelle A musculation) */}
+                        {demanded != null && (
+                          <div
+                            className="rounded-lg px-2.5 py-1.5"
+                            style={{ backgroundColor: `${demandedColor}1f`, boxShadow: `inset 3px 0 0 ${demandedColor}` }}
+                          >
+                            <div className="flex items-baseline gap-2 flex-wrap">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Intensité demandée</span>
+                              <span className="text-base font-extrabold leading-none" style={{ color: demandedColor!, fontFamily: "'Sora', system-ui, sans-serif" }}>
+                                {rpeWord(demanded)}
+                              </span>
+                              <span className="text-[11px] font-bold" style={{ color: demandedColor! }}>RPE {demanded}</span>
+                              {demandedReserve != null && (
+                                <span className="text-[10px] font-bold rounded-full px-1.5 py-0.5" style={{ backgroundColor: `${demandedColor}22`, color: demandedColor! }}>
+                                  {demandedReserve === 0 ? "jusqu'à l'échec" : `≈ ${demandedReserve} en réserve`}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-foreground/70 leading-snug mt-0.5">{rpeRepere(demanded)}</p>
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
                           {sr && (
                             <StatBlock
@@ -1440,12 +1410,6 @@ export default function ExerciceDetail() {
                               className={chargeNeedsInput && !(isValidated && validation?.actual_charge) ? "text-orange-500" : "text-foreground"}
                             />
                           )}
-
-                          {(serie.rpe || exercise.rpe) && (() => {
-                            const dr = Number(serie.rpe || exercise.rpe);
-                            const dc = dr < 5 ? "text-green-500" : dr <= 6 ? "text-yellow-600" : dr <= 8 ? "text-orange-500" : "text-red-500";
-                            return <StatBlock label={`RPE ${serie.rpe || exercise.rpe} demandé`} value={rpeWord(dr)} className={dc} />;
-                          })()}
 
                           {(serie.tempo || exercise.tempo) && (
                             <StatBlock label="Tempo" value={serie.tempo || exercise.tempo} className="text-purple-500" />
