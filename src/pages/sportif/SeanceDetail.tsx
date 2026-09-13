@@ -171,6 +171,22 @@ export default function SeanceDetail() {
     };
   }, [timerInterval]);
 
+  // Signature des retours de l'athlète : change dès qu'un RPE est ajouté ou modifié.
+  // Sert à ne rouvrir la validation QUE s'il y a une réelle modification (pas
+  // simplement en revenant consulter ses retours).
+  const feedbackSignature = () => {
+    const parts: string[] = [];
+    exercises.forEach((item: any) => {
+      if (item?.isSuperset) {
+        (item.exercises || []).forEach((ex: any) => parts.push(`${ex.id}:${ex.sportif_rpe ?? ""}`));
+      } else if (item) {
+        parts.push(`${item.id}:${item.sportif_rpe ?? ""}`);
+      }
+    });
+    return parts.join("|");
+  };
+  const completionSigKey = `session_completion_sig_${sessionId}`;
+
   // Arrêter automatiquement le timer de séance quand tous les exercices sont validés
   // Fonctionne pour tous les types de séances (renfo, cardio, recup)
   useEffect(() => {
@@ -188,6 +204,17 @@ export default function SeanceDetail() {
     // Ne déclencher l'ouverture automatique qu'une seule fois : sinon, fermer la
     // modale (croix / Annuler) la rouvrirait instantanément.
     if (completionAutoOpened) return;
+
+    // Ne PAS rouvrir automatiquement si l'athlète revient simplement consulter ses
+    // retours sans rien modifier : on ne rouvre que si la signature des retours a
+    // changé depuis le dernier passage (= une vraie modification).
+    const currentSig = feedbackSignature();
+    let storedSig: string | null = null;
+    try { storedSig = localStorage.getItem(completionSigKey); } catch { /* ignore */ }
+    if (storedSig !== null && storedSig === currentSig) {
+      setCompletionAutoOpened(true);
+      return;
+    }
 
     // Pour les séances cardio: auto-compléter quand tous les exercices sont terminés (pas besoin de timer)
     const isCardio = session?.session_type === 'course' || session?.session_type === 'velo' || session?.session_type === 'natation' || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
@@ -490,7 +517,14 @@ export default function SeanceDetail() {
     }
   };
 
+  const rememberCompletionSignature = () => {
+    try { localStorage.setItem(completionSigKey, feedbackSignature()); } catch { /* ignore */ }
+  };
+
   const handleCancelCompletion = () => {
+    // Mémoriser l'état actuel des retours : tant que rien ne change, on ne rouvrira pas.
+    rememberCompletionSignature();
+
     // Arrêter le timer et nettoyer complètement l'état
     if (timerInterval) {
       clearInterval(timerInterval);
