@@ -1105,18 +1105,11 @@ export default function SeanceDetail() {
                                       return (
                                         <div className="space-y-2 mt-1">
                                           {(estimatedDuration > 0 || metrics.totalDistanceKm > 0) && (
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Prévu</span>
-                                              {estimatedDuration > 0 && (
-                                                <span className="inline-flex items-baseline gap-1 font-extrabold text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-                                                  <Clock className="h-3.5 w-3.5 self-center text-primary" />{formatCardioSessionDuration(estimatedDuration)}
-                                                </span>
-                                              )}
-                                              {estimatedDuration > 0 && metrics.totalDistanceKm > 0 && <span className="text-muted-foreground/50">•</span>}
-                                              {metrics.totalDistanceKm > 0 && (
-                                                <span className="font-extrabold text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{formatCardioDistance(metrics.totalDistanceKm * 1000)}</span>
-                                              )}
-                                            </div>
+                                            <p className="text-xs text-muted-foreground">
+                                              <span className="font-semibold text-foreground">Prévu</span>
+                                              {estimatedDuration > 0 && <> · ⏱ {formatCardioSessionDuration(estimatedDuration)}</>}
+                                              {metrics.totalDistanceKm > 0 && <> · {formatCardioDistance(metrics.totalDistanceKm * 1000)}</>}
+                                            </p>
                                           )}
                                           {(() => {
                                             const displayedBlocks = new Set();
