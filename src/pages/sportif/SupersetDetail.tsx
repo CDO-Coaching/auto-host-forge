@@ -987,96 +987,76 @@ export default function SupersetDetail() {
                         const dispCharge = serieData.charge || (ex as any).charge || "";
                         const dispRpe = serieData.rpe || (ex as any).rpe || "";
 
+                        const scRaw = (dispCharge || "").trim();
+                        const chargeNeedsInput = scRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(scRaw);
+                        const chargeNumeric = /^\d+(\.\d+)?$/.test(scRaw);
+                        const rpeRealized = isValidated ? validation?.rpe : null;
+                        const rColor = rpeRealized == null ? null : rpeRealized < 5 ? "#22c55e" : rpeRealized <= 6 ? "#eab308" : rpeRealized <= 8 ? "#f97316" : "#ef4444";
                         return (
                           <div key={`${roundIdx}-${exIdx}`}>
-                            {/* Exercise row */}
-                            <div className={`flex items-center gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg border transition-all ${
-                              isValidated
-                                ? "bg-green-500/10 border-green-500/30"
-                                : "bg-muted/30 border-border"
-                            }`}>
-                              <div className="flex-1 min-w-0">
-                                <p className={`font-medium text-sm uppercase ${isValidated ? "text-green-700 dark:text-green-400" : ""}`}>
-                                  {ex.exercice}
-                                </p>
-                                <div className="flex items-center gap-2 flex-wrap text-xs mt-1">
-                                  {dispReps && (() => {
-                                    const sr = dispReps.trim();
-                                    const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
-                                    if (isRepsRange) {
-                                      return isValidated && validation?.actual_reps ? (
-                                        <span className="font-medium">{validation.actual_reps} reps</span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 rounded bg-blue-500/15 px-1.5 py-0.5 text-blue-600 font-semibold">
-                                          {sr} reps
-                                        </span>
-                                      );
-                                    }
-                                    return (
-                                      <span className="font-medium">
-                                        {sr}{ex.is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
-                                        {ex.per_side && " /côté"}
-                                      </span>
-                                    );
-                                  })()}
-                                  {dispCharge && (() => {
-                                    const sc = dispCharge.trim();
-                                    const isUnknown = sc === "??";
-                                    const isRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
-                                    const needsInput = isUnknown || isRange;
-                                    if (needsInput) {
-                                      return isValidated && validation?.actual_charge ? (
-                                        <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                                          <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                          {validation.actual_charge} kg
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1 rounded bg-orange-500/15 px-1.5 py-0.5 text-orange-600 font-semibold">
-                                          <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                          {isRange ? sc + " kg" : "À définir"}
-                                        </span>
-                                      );
-                                    }
-                                    return (
-                                      <span className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600 font-semibold">
-                                        <span className="text-[10px] uppercase opacity-70">Charge</span>
-                                        {sc}{/^\d+(\.\d+)?$/.test(sc) ? " kg" : ""}
-                                      </span>
-                                    );
-                                  })()}
-                                  {dispRpe && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-700 font-medium">
-                                      <span className="text-[10px] uppercase opacity-70">RPE demandé</span>{dispRpe}
-                                    </span>
-                                  )}
-                                  {isValidated && validation.rpe !== null && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-green-700 font-semibold">
-                                      <span className="text-[10px] uppercase opacity-70">Ton RPE</span>{validation.rpe}
-                                    </span>
-                                  )}
-                                  {serieData.tempo && (
-                                    <span className="inline-flex items-center gap-1 rounded bg-purple-500/10 px-1.5 py-0.5 text-purple-600 font-medium">
-                                      <span className="text-[10px] uppercase opacity-70">Tempo</span>{serieData.tempo}
-                                    </span>
-                                  )}
-                                  {serieData.commentaire && (
-                                    <span className="basis-full text-muted-foreground italic whitespace-pre-wrap break-words">"{serieData.commentaire}"</span>
-                                  )}
+                            {/* Exercise row — même format que les exos simples */}
+                            <div
+                              onClick={() => handleValidateSerie(roundIdx, exIdx)}
+                              className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border cursor-pointer active:scale-[0.99] transition-all ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
+                            >
+                              <div className="flex flex-col items-center shrink-0 w-7">
+                                <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${isValidated ? "bg-green-600 text-white" : "bg-orange-500/20 text-orange-500"}`}>
+                                  {isValidated ? <Check className="h-4 w-4" /> : exIdx + 1}
                                 </div>
                               </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-[13px] uppercase leading-tight truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</p>
+                                <div className="grid grid-cols-2 gap-1 mt-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
+                                  {dispReps && (
+                                    <div className="flex flex-col leading-none">
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{ex.is_duration ? "Durée" : (ex as any).is_distance ? "Distance" : "Reps"}{ex.per_side ? " /côté" : ""}</span>
+                                      <span className="text-sm font-bold">{isValidated && validation?.actual_reps ? validation.actual_reps : dispReps}{(ex as any).is_distance ? " m" : ""}</span>
+                                    </div>
+                                  )}
+                                  {dispCharge && (
+                                    <div className="flex flex-col leading-none">
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Charge</span>
+                                      <span className={`text-sm font-bold ${chargeNeedsInput && !(isValidated && validation?.actual_charge) ? "text-orange-500" : "text-foreground"}`}>
+                                        {isValidated && validation?.actual_charge ? `${validation.actual_charge}${/^\d+(\.\d+)?$/.test(String(validation.actual_charge)) ? " kg" : ""}` : (chargeNeedsInput ? "À définir" : `${scRaw}${chargeNumeric ? " kg" : ""}`)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  {dispRpe && (
+                                    <div className="flex flex-col leading-none">
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">RPE {dispRpe}</span>
+                                      <span className="text-sm font-bold text-yellow-600">Demandé</span>
+                                    </div>
+                                  )}
+                                  {serieData.tempo && (
+                                    <div className="flex flex-col leading-none">
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Tempo</span>
+                                      <span className="text-sm font-bold text-purple-500">{serieData.tempo}</span>
+                                    </div>
+                                  )}
+                                </div>
+                                {serieData.commentaire && (
+                                  <p className="text-muted-foreground italic text-xs whitespace-pre-wrap break-words mt-1">"{serieData.commentaire}"</p>
+                                )}
+                              </div>
 
-                              {isValidated ? (
-                                <Check className="h-5 w-5 text-green-600 shrink-0" />
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => handleValidateSerie(roundIdx, exIdx)}
-                                  className="h-8 px-3 shrink-0"
+                              {!isValidated ? (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleValidateSerie(roundIdx, exIdx); }}
+                                  className="shrink-0 h-8 w-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center active:scale-95 transition-transform"
+                                  aria-label="Valider"
                                 >
-                                  <Check className="h-3.5 w-3.5 mr-1" />
-                                  OK
-                                </Button>
+                                  <Check className="h-4 w-4" />
+                                </button>
+                              ) : (
+                                <div className="shrink-0 flex flex-col items-end gap-0.5 min-w-[48px]">
+                                  {rpeRealized != null && (
+                                    <>
+                                      <span className="text-[9px] uppercase tracking-wide text-muted-foreground leading-none">Ton RPE</span>
+                                      <span className="text-base font-extrabold leading-none" style={{ color: rColor || undefined, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeRealized}</span>
+                                    </>
+                                  )}
+                                  <button onClick={(e) => { e.stopPropagation(); handleValidateSerie(roundIdx, exIdx); }} className="text-[10px] text-primary underline underline-offset-2">Modifier</button>
+                                </div>
                               )}
                             </div>
 
