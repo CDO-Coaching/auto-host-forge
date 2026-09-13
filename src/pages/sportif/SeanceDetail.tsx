@@ -1128,9 +1128,10 @@ export default function SeanceDetail() {
                                                 
                                                 const blockSteps = steps.filter((s: any) => s.block_id === step.block_id);
                                                 return (
-                                                  <div key={`block-${block.id}`} className="border rounded-lg p-3 bg-muted/30">
-                                                    <div className="font-medium text-sm mb-2 text-primary">
-                                                      Bloc répété - {block.repetitions}x
+                                                  <div key={`block-${block.id}`} className="border border-primary/30 rounded-xl p-3 bg-primary/[0.06]">
+                                                    <div className="flex items-center gap-2 mb-2.5">
+                                                      <span className="inline-flex items-center justify-center h-7 min-w-7 px-2 rounded-lg bg-primary text-primary-foreground font-extrabold text-sm" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{block.repetitions}×</span>
+                                                      <span className="font-bold text-sm text-primary" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Bloc répété</span>
                                                     </div>
                                                     <div className="space-y-1.5">
                                                       {blockSteps.map((blockStep: any) => {
@@ -1138,19 +1139,19 @@ export default function SeanceDetail() {
                                                         return (
                                                           <div
                                                             key={blockStep.id}
-                                                            className={`text-xs rounded-r-md px-3 py-1.5 ${blockStep.movement_type === "marche" ? "border-l-2 border-blue-400/60 bg-blue-500/5" : blockStep.movement_type === "velo" ? "border-l-2 border-cyan-400/60 bg-cyan-500/5" : "border-l-2 border-orange-400/60 bg-orange-500/5"}`}
+                                                            className={`text-[13px] rounded-r-md px-3 py-2 ${blockStep.movement_type === "marche" ? "border-l-[3px] border-blue-400/70 bg-blue-500/5" : blockStep.movement_type === "velo" ? "border-l-[3px] border-cyan-400/70 bg-cyan-500/5" : "border-l-[3px] border-orange-400/70 bg-orange-500/5"}`}
                                                           >
-                                                            <div className="flex gap-2 flex-wrap items-center">
-                                                              <span className="font-medium capitalize">
+                                                            <div className="flex gap-x-2 gap-y-1 flex-wrap items-center">
+                                                              <span className="font-extrabold capitalize text-[15px]" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                                                                 {blockStep.movement_type}
                                                               </span>
-                                                              <span className="text-muted-foreground">•</span>
+                                                              <span className="text-muted-foreground/50">•</span>
                                                               {blockStep.effort_type === "duration" ? (
-                                                                <span>{formatCardioTime(blockStep.duration)}</span>
+                                                                <span className="font-bold text-[15px]">{formatCardioTime(blockStep.duration)}</span>
                                                               ) : (
-                                                                <span>{formatCardioDistance(blockStep.distance)}</span>
+                                                                <span className="font-bold text-[15px]">{formatCardioDistance(blockStep.distance)}</span>
                                                               )}
-                                                              {(() => { const p = calculatePace(blockStep.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground">•</span><span className="text-blue-400">{p}</span></> : null; })()}
+                                                              {(() => { const p = calculatePace(blockStep.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground/50">•</span><span className="text-blue-400 font-bold text-[15px]">{p}</span></> : null; })()}
                                                               {blockStep.target_heart_rate && (() => {
                                                                 const zNum = parseInt(blockStep.target_heart_rate.replace("Z", ""));
                                                                 const FCR_ZONES_DISP = [{z:1,pMin:50,pMax:60},{z:2,pMin:60,pMax:70},{z:3,pMin:70,pMax:80},{z:4,pMin:80,pMax:90},{z:5,pMin:90,pMax:100}];
@@ -1160,8 +1161,8 @@ export default function SeanceDetail() {
                                                                   : "";
                                                                 return (
                                                                   <>
-                                                                    <span className="text-muted-foreground">•</span>
-                                                                    <span className="text-rose-400 font-medium">❤️ {blockStep.target_heart_rate}{bpmStr}</span>
+                                                                    <span className="text-muted-foreground/50">•</span>
+                                                                    <span className="text-rose-400 font-bold text-[15px]">❤️ {blockStep.target_heart_rate}{bpmStr}</span>
                                                                   </>
                                                                 );
                                                               })()}
