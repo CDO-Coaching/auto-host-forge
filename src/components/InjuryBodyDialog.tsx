@@ -9,7 +9,25 @@ const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑
 
 // Marqueurs de zones dans l'espace de la planche anatomique (image 2000 x 1657).
 // bx < 1000 = corps de FACE (gauche) ; bx >= 1000 = corps de DOS (droite).
-type Marker = { zone: string; bx: number; by: number; sideable?: boolean };
+type Marker = { zone: string; bx: number; by: number; sideable?: boolean; sideHint?: "gauche" | "droite" };
+
+const FRONT_CX = 366;
+const BACK_CX = 1336;
+
+// Duplique les marqueurs latéralisables des deux côtés du corps pour qu'on puisse
+// cliquer aussi bien le côté gauche que le côté droit du personnage.
+function expandSides(markers: Marker[], cx: number): Marker[] {
+  const out: Marker[] = [];
+  for (const m of markers) {
+    if (!m.sideable) { out.push(m); continue; }
+    const a = m.bx;
+    const b = 2 * cx - m.bx; // reflet
+    const leftX = Math.min(a, b), rightX = Math.max(a, b);
+    out.push({ ...m, bx: leftX, sideHint: "gauche" });
+    out.push({ ...m, bx: rightX, sideHint: "droite" });
+  }
+  return out;
+}
 
 const MARKERS: Marker[] = [
   // ── FACE ──
@@ -48,8 +66,8 @@ const RED = "#ef5a3c";
 
 // La planche est cliquable directement (pas de points). On repère la position du clic
 // dans l'espace de l'image, puis le parent propose la/les zone(s) la/les plus proche(s).
-function BodyPlate({ vb, markers, selected, onClickPoint }: {
-  vb: [number, number, number, number]; markers: Marker[]; selected: string; onClickPoint: (x: number, y: number) => void;
+function BodyPlate({ vb, point, onClickPoint }: {
+  vb: [number, number, number, number]; point: { bx: number; by: number } | null; onClickPoint: (x: number, y: number) => void;
 }) {
   const [vx, vy, vw, vh] = vb;
   const handle = (e: MouseEvent<SVGSVGElement>) => {
@@ -58,16 +76,15 @@ function BodyPlate({ vb, markers, selected, onClickPoint }: {
     const ny = (e.clientY - r.top) / r.height;
     onClickPoint(vx + nx * vw, vy + ny * vh);
   };
-  const sel = markers.find((m) => m.zone === selected);
   return (
     <svg viewBox={vb.join(" ")} onClick={handle}
       className="w-full h-auto select-none cursor-crosshair" preserveAspectRatio="xMidYMid meet">
       <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
-      {/* Seul repère affiché : la zone actuellement choisie */}
-      {sel && (
+      {/* Repère affiché là où l'athlète a cliqué */}
+      {point && (
         <>
-          <circle cx={sel.bx} cy={sel.by} r={74} fill={RED} opacity={0.3} />
-          <circle cx={sel.bx} cy={sel.by} r={30} fill={RED} stroke="#fff" strokeWidth={6} />
+          <circle cx={point.bx} cy={point.by} r={74} fill={RED} opacity={0.3} />
+          <circle cx={point.bx} cy={point.by} r={30} fill={RED} stroke="#fff" strokeWidth={6} />
         </>
       )}
     </svg>
@@ -89,9 +106,10 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
   const [candidates, setCandidates] = useState<string[]>([]);
   const [side, setSide] = useState<"" | "gauche" | "droite" | "les deux">("");
   const [level, setLevel] = useState<number>(3);
+  const [point, setPoint] = useState<{ bx: number; by: number } | null>(null);
 
-  const frontMarkers = useMemo(() => MARKERS.filter((m) => m.bx < 1000), []);
-  const backMarkers = useMemo(() => MARKERS.filter((m) => m.bx >= 1000), []);
+  const frontMarkers = useMemo(() => expandSides(MARKERS.filter((m) => m.bx < 1000), FRONT_CX), []);
+  const backMarkers = useMemo(() => expandSides(MARKERS.filter((m) => m.bx >= 1000), BACK_CX), []);
   const backZones = useMemo(() => new Set(backMarkers.map((m) => m.zone)), [backMarkers]);
   const frontZones = useMemo(() => new Set(frontMarkers.map((m) => m.zone)), [frontMarkers]);
 
@@ -107,24 +125,42 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
     setSide(s);
     setLevel(initialLevel && initialLevel >= 1 ? initialLevel : 3);
     setView(backZones.has(z) && !frontZones.has(z) ? "back" : "front");
-  }, [open, initialLocation, initialLevel, backZones, frontZones]);
+    // Repère : marqueur de la zone (côté choisi si connu)
+    const all = [...frontMarkers, ...backMarkers];
+    const mk = all.find((m) => m.zone === z && (s === "gauche" || s === "droite" ? m.sideHint === s : true));
+    setPoint(mk ? { bx: mk.bx, by: mk.by } : null);
+  }, [open, initialLocation, initialLevel, backZones, frontZones, frontMarkers, backMarkers]);
 
   const current = useMemo(() => MARKERS.find((m) => m.zone === zone), [zone]);
   const canSide = !!current?.sideable;
 
-  // Clic sur le corps → zone(s) la/les plus proche(s) du point cliqué
+  // Clic sur le corps → zone la plus proche + côté déduit du point cliqué
   const handleClickPoint = (x: number, y: number) => {
     const ms = view === "front" ? frontMarkers : backMarkers;
     const withD = ms
       .map((m) => ({ m, d: Math.hypot(m.bx - x, m.by - y) }))
       .sort((a, b) => a.d - b.d);
     if (withD.length === 0) return;
-    const nearest = withD[0];
-    // La plus proche + les autres dans une marge de ~150 (zones voisines), max 3
-    const near = withD.filter((w) => w.d <= nearest.d + 150).slice(0, 3).map((w) => w.m.zone);
-    setZone(nearest.m.zone);
-    setSide("");
+    const nearest = withD[0].m;
+    // Zones voisines à proposer (dédupliquées), dans une marge de ~150
+    const near: string[] = [];
+    for (const w of withD) {
+      if (w.d > withD[0].d + 150) break;
+      if (!near.includes(w.m.zone)) near.push(w.m.zone);
+      if (near.length >= 3) break;
+    }
+    setZone(nearest.zone);
+    setSide(nearest.sideHint || "");
     setCandidates(near);
+    setPoint({ bx: nearest.bx, by: nearest.by });
+  };
+
+  // Choix d'une zone voisine (chip) : garde le côté, replace le repère
+  const pickCandidate = (z: string) => {
+    setZone(z);
+    const ms = view === "front" ? frontMarkers : backMarkers;
+    const mk = ms.find((m) => m.zone === z && (side === "gauche" || side === "droite" ? m.sideHint === side : true));
+    if (mk) setPoint({ bx: mk.bx, by: mk.by });
   };
 
   const validate = () => {
@@ -151,8 +187,8 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
 
         <div className="w-full rounded-2xl overflow-hidden bg-black/20">
           {view === "front"
-            ? <BodyPlate vb={[-190, 135, 1120, 1370]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
-            : <BodyPlate vb={[910, 135, 1300, 1370]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
+            ? <BodyPlate vb={[-190, 135, 1120, 1370]} point={point} onClickPoint={handleClickPoint} />
+            : <BodyPlate vb={[910, 135, 1300, 1370]} point={point} onClickPoint={handleClickPoint} />}
         </div>
 
         {zone ? (
@@ -163,7 +199,7 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
                 <p className="text-center text-xs text-muted-foreground">Précise la zone :</p>
                 <div className="flex flex-wrap justify-center gap-1.5">
                   {candidates.map((c) => (
-                    <button key={c} type="button" onClick={() => { setZone(c); setSide(""); }}
+                    <button key={c} type="button" onClick={() => pickCandidate(c)}
                       className={`px-3 h-8 rounded-full text-[13px] font-semibold border transition-colors ${zone === c ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.16)] text-[#ff9a80]" : "border-border text-muted-foreground"}`}>
                       {c}
                     </button>
@@ -176,7 +212,14 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
             {canSide && (
               <div className="flex gap-2">
                 {(["gauche", "droite", "les deux"] as const).map((s) => (
-                  <button key={s} type="button" onClick={() => setSide((p) => (p === s ? "" : s))}
+                  <button key={s} type="button" onClick={() => {
+                    setSide((p) => (p === s ? "" : s));
+                    if (s === "gauche" || s === "droite") {
+                      const ms = view === "front" ? frontMarkers : backMarkers;
+                      const mk = ms.find((m) => m.zone === zone && m.sideHint === s);
+                      if (mk) setPoint({ bx: mk.bx, by: mk.by });
+                    }
+                  }}
                     className={`flex-1 h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${side === s ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.16)] text-[#ff9a80]" : "border-border text-muted-foreground"}`}>
                     {s}
                   </button>
