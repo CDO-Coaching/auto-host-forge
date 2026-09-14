@@ -151,8 +151,8 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
 
         <div className="w-full rounded-2xl overflow-hidden bg-black/20">
           {view === "front"
-            ? <BodyPlate vb={[-260, 130, 1240, 1400]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
-            : <BodyPlate vb={[840, 130, 1420, 1400]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
+            ? <BodyPlate vb={[-190, 135, 1120, 1370]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
+            : <BodyPlate vb={[910, 135, 1300, 1370]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
         </div>
 
         {zone ? (
