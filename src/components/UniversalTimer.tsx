@@ -111,7 +111,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
           {/* Phase + tour */}
           <button type="button" onClick={() => setOpen(true)} className="flex flex-col items-start min-w-0 flex-1 text-left">
             <span className="text-[11px] font-bold uppercase tracking-wide leading-none" style={{ color: phaseColor }}>
-              {isCountingDown ? 'Prépare-toi' : isTabata ? (isWorkPhase ? '🔥 Travail' : '💤 Repos') : 'Minuteur'}
+              {isCountingDown ? 'Prépare-toi' : isTabata ? (isWorkPhase ? '🔥 Travail' : '💤 Repos') : settings.type === 'emom' ? '⏱ EMOM' : 'Minuteur'}
             </span>
             {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
               <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Tour {currentRound} / {getTotalRounds()}</span>
