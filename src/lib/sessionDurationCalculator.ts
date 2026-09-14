@@ -246,7 +246,7 @@ function parseRecuperationSeconds(recuperation: string): number {
   if (secMatch) total += parseInt(secMatch[1], 10);
 
   if (total === 0) total = 60;
-  return total + 15; // latence humaine
+  return total + 8; // petite latence humaine (installation série suivante)
 }
 
 /**
@@ -302,8 +302,9 @@ function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
     }
   }
 
-  // Temps d'installation (déplacement + réglage charges)
-  const install = isFirst ? 90 : 60;
+  // Temps d'installation / passage à l'exercice (déplacement + réglage charges).
+  // Couvre à lui seul la transition entre exercices (pas de double comptage ailleurs).
+  const install = isFirst ? 60 : 45;
 
   return workDur + warmup + install;
 }
@@ -377,12 +378,12 @@ export function calculateSessionDuration(exercises: Exercise[]): number {
     isFirst = false;
   }
 
-  // Transitions entre blocs : 75 s chacune
-  if (blockCount > 1) totalSeconds += (blockCount - 1) * 75;
+  // Le passage entre exercices est déjà compté dans "install" (pas de transition
+  // supplémentaire ici, sinon on double le temps de déplacement).
 
-  // Échauffement général proportionnel à la taille de la séance : 4 min + 1 min/bloc,
-  // borné entre 4 et 10 min (une petite séance n'a pas 10 min de chauffe).
-  const generalWarmup = Math.min(10, Math.max(4, 4 + blockCount)) * 60;
+  // Échauffement général proportionnel à la taille de la séance : ~3 min + 0,5 min/bloc,
+  // borné entre 4 et 8 min (une petite séance n'a pas 10 min de chauffe).
+  const generalWarmup = Math.round(Math.min(8, Math.max(4, 3 + blockCount * 0.5))) * 60;
   totalSeconds += generalWarmup;
 
   // Marge de réalité : +7%
