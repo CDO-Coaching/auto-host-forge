@@ -24,6 +24,7 @@ import { SendVideoDialog } from "@/components/SendVideoDialog";
 import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
 import { BarChart3 } from "lucide-react";
 import { formatDurationSec } from "@/lib/formatDuration";
+import { SoundSystem } from "@/lib/soundSystem";
 import {
   Dialog,
   DialogContent,
@@ -100,6 +101,7 @@ export default function ExerciceDetail() {
   const [coachId, setCoachId] = useState<string | null>(null);
   const { toast } = useToast();
   const timerRef = useRef<UniversalTimerRef>(null);
+  const soundRef = useRef<SoundSystem | null>(null);
   const [showVideoDialog, setShowVideoDialog] = useState(false);
   const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
 
@@ -323,6 +325,7 @@ export default function ExerciceDetail() {
     return () => {
       if (timerInterval) clearInterval(timerInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      try { soundRef.current?.close(); soundRef.current = null; } catch { /* ignore */ }
     };
   }, [exerciceId]);
 
@@ -451,10 +454,29 @@ export default function ExerciceDetail() {
     setTimerStartTimestamp(now);
     setIsTimerRunning(true);
 
+    // Signaux sonores comme les autres minuteurs (bips sur les 3 dernières sec + fin de récup).
+    // Instancié ici (dans un geste utilisateur) pour que l'AudioContext puisse démarrer.
+    if (!soundRef.current) {
+      try { soundRef.current = new SoundSystem("gym"); } catch { /* audio indispo */ }
+    }
+    soundRef.current?.primeClips?.();
+    let lastWhole = recuperationTime;
+
     const interval = setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - now) / 1000);
       const remaining = Math.max(0, recuperationTime - elapsedSeconds);
       setTimeRemaining(remaining);
+
+      // Bip décompte (3, 2, 1) puis signal de fin — une seule fois par seconde franchie
+      if (remaining !== lastWhole) {
+        if (remaining === 3 || remaining === 2 || remaining === 1) {
+          try { soundRef.current?.beep(880, 0.09); } catch { /* ignore */ }
+        } else if (remaining === 0) {
+          try { soundRef.current?.go(); } catch { /* ignore */ }
+        }
+        lastWhole = remaining;
+      }
+
       if (remaining === 0) {
         setIsTimerRunning(false);
         setTimerStartTimestamp(null);

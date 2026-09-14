@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { SoundSystem } from '@/lib/soundSystem';
 
 interface TimerState {
   [key: string]: {
@@ -14,6 +15,9 @@ export function useRecoveryTimer() {
   const [isRunning, setIsRunning] = useState<{ [key: string]: boolean }>({});
   const stateRef = useRef<TimerState>({});
   const intervalsRef = useRef<{ [key: string]: ReturnType<typeof setInterval> }>({});
+  // Signaux sonores (bips décompte + fin de récup), comme les autres minuteurs.
+  const soundRef = useRef<SoundSystem | null>(null);
+  const lastWholeRef = useRef<{ [key: string]: number }>({});
 
   // Gérer la visibilité de la page
   useEffect(() => {
@@ -31,6 +35,7 @@ export function useRecoveryTimer() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       Object.values(intervalsRef.current).forEach(clearInterval);
+      try { soundRef.current?.close(); soundRef.current = null; } catch { /* ignore */ }
     };
   }, []);
 
@@ -54,6 +59,16 @@ export function useRecoveryTimer() {
 
     setTimers((prev) => ({ ...prev, [id]: remaining }));
 
+    // Bips sur les 3 dernières secondes + signal de fin (une fois par seconde franchie)
+    if (lastWholeRef.current[id] !== remaining) {
+      if (remaining === 3 || remaining === 2 || remaining === 1) {
+        try { soundRef.current?.beep(880, 0.09); } catch { /* ignore */ }
+      } else if (remaining === 0) {
+        try { soundRef.current?.go(); } catch { /* ignore */ }
+      }
+      lastWholeRef.current[id] = remaining;
+    }
+
     if (remaining === 0) {
       pauseTimer(id);
     }
@@ -66,6 +81,13 @@ export function useRecoveryTimer() {
 
     const targetSeconds = parseRecuperationTime(recuperation);
     const now = Date.now();
+
+    // Prépare l'audio dans le geste utilisateur (démarrage de récup) pour autoriser le son.
+    if (!soundRef.current) {
+      try { soundRef.current = new SoundSystem('gym'); } catch { /* audio indispo */ }
+    }
+    soundRef.current?.primeClips?.();
+    lastWholeRef.current[id] = targetSeconds;
 
     if (!stateRef.current[id] || stateRef.current[id].pausedTime === 0) {
       // Nouveau démarrage
