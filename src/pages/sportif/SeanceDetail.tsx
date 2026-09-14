@@ -374,6 +374,13 @@ export default function SeanceDetail() {
 
   // Ouverture d'un exercice : si la séance n'est pas encore démarrée, on demande d'abord
   const openExercise = (go: () => void) => {
+    // Séances cardio : pas de chrono → on ouvre directement sans demander de démarrer
+    const cardio = session?.session_type === 'course' || session?.session_type === 'velo' || session?.session_type === 'natation'
+      || exercises.some((ex: any) => ex.cardio_sport === 'course' || ex.cardio_sport === 'velo' || ex.cardio_sport === 'natation');
+    if (cardio) {
+      go();
+      return;
+    }
     if (!isSessionActive && !allCompleted) {
       setStartPrompt(() => go);
     } else {
@@ -807,7 +814,7 @@ export default function SeanceDetail() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <FloatingSessionTimer sessionId={sessionId!} onClick={() => setFinishPrompt(true)} />
+      {!isCardioSession && <FloatingSessionTimer sessionId={sessionId!} onClick={() => setFinishPrompt(true)} />}
 
       {/* Clic sur le chrono : demander si la séance est terminée */}
       <AlertDialog open={finishPrompt} onOpenChange={setFinishPrompt}>
