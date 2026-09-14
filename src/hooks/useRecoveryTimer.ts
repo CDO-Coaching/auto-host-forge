@@ -59,10 +59,10 @@ export function useRecoveryTimer() {
 
     setTimers((prev) => ({ ...prev, [id]: remaining }));
 
-    // Bips sur les 3 dernières secondes + signal de fin (une fois par seconde franchie)
+    // Signal à 10 s de la fin (préavis) + signal de fin (une fois par seconde franchie)
     if (lastWholeRef.current[id] !== remaining) {
-      if (remaining === 3 || remaining === 2 || remaining === 1) {
-        try { soundRef.current?.beep(880, 0.09); } catch { /* ignore */ }
+      if (remaining === 10) {
+        try { soundRef.current?.beep(880, 0.12); } catch { /* ignore */ }
       } else if (remaining === 0) {
         try { soundRef.current?.go(); } catch { /* ignore */ }
       }

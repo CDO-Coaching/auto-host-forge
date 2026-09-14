@@ -467,10 +467,10 @@ export default function ExerciceDetail() {
       const remaining = Math.max(0, recuperationTime - elapsedSeconds);
       setTimeRemaining(remaining);
 
-      // Bip décompte (3, 2, 1) puis signal de fin — une seule fois par seconde franchie
+      // Signal à 10 s de la fin (préavis) puis signal de fin — une seule fois par seconde franchie
       if (remaining !== lastWhole) {
-        if (remaining === 3 || remaining === 2 || remaining === 1) {
-          try { soundRef.current?.beep(880, 0.09); } catch { /* ignore */ }
+        if (remaining === 10) {
+          try { soundRef.current?.beep(880, 0.12); } catch { /* ignore */ }
         } else if (remaining === 0) {
           try { soundRef.current?.go(); } catch { /* ignore */ }
         }
