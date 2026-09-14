@@ -235,8 +235,16 @@ export default function Seances() {
       const sorted = (sessionsData || []).sort((a: any, b: any) => {
         const aCompleted = isSessionCompleted(a);
         const bCompleted = isSessionCompleted(b);
-        if (aCompleted === bCompleted) return a.session_number - b.session_number;
-        return aCompleted ? 1 : -1;
+        // Terminées en bas
+        if (aCompleted !== bCompleted) return aCompleted ? 1 : -1;
+        // Ranger dans l'ordre de la semaine : les séances datées d'abord (par date),
+        // puis les non programmées (par numéro)
+        const ad = a.scheduled_date ? new Date(a.scheduled_date).getTime() : null;
+        const bd = b.scheduled_date ? new Date(b.scheduled_date).getTime() : null;
+        if (ad !== null && bd !== null && ad !== bd) return ad - bd;
+        if (ad !== null && bd === null) return -1;
+        if (ad === null && bd !== null) return 1;
+        return a.session_number - b.session_number;
       });
       setSessions(sorted);
     }
