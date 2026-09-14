@@ -114,6 +114,7 @@ export default function ExerciceDetail() {
   const [rpeActualReps, setRpeActualReps] = useState("");
   const [rpeActualCharge, setRpeActualCharge] = useState("");
   const [modificationType, setModificationType] = useState<"none" | "failure" | "too_easy">("none");
+  const [reportActual, setReportActual] = useState(false); // l'athlète précise ce qu'il a réellement fait
   // "??" / range charge management
   const [isChargeRequired, setIsChargeRequired] = useState(false);
   const [chargeRangeOptions, setChargeRangeOptions] = useState<[string, string] | null>(null);
@@ -513,6 +514,7 @@ export default function ExerciceDetail() {
     setRpeActualCharge(chargeIsUnknown && suggestedCharge ? suggestedCharge : "");
     setRpeActualReps("");
     setModificationType("none");
+    setReportActual(false);
     setRpeDialogOpen(true);
   };
 
@@ -536,7 +538,7 @@ export default function ExerciceDetail() {
       return;
     }
 
-    const hasModif = modificationType !== "none";
+    const hasModif = reportActual || modificationType !== "none";
     // actual_charge: always saved when required, otherwise only on modification
     const actualCharge = isChargeRequired && rpeActualCharge.trim()
       ? rpeActualCharge.trim()
@@ -546,13 +548,23 @@ export default function ExerciceDetail() {
       ? rpeActualReps.trim()
       : (hasModif && rpeActualReps.trim() ? rpeActualReps.trim() : null);
 
+    // Déduire automatiquement moins/plus en comparant le réel au prévu
+    const cs = seriesData[rpeDialogSerieIndex];
+    const presReps = parseFloat((cs?.reps || exercise?.reps || "").toString());
+    const presCharge = parseFloat((cs?.charge || exercise?.charge || "").toString());
+    const aReps = parseFloat(actualReps ?? "");
+    const aCharge = parseFloat(actualCharge ?? "");
+    const less = (!isNaN(aReps) && !isNaN(presReps) && aReps < presReps) || (!isNaN(aCharge) && !isNaN(presCharge) && aCharge < presCharge);
+    const more = (!isNaN(aReps) && !isNaN(presReps) && aReps > presReps) || (!isNaN(aCharge) && !isNaN(presCharge) && aCharge > presCharge);
+    const derivedModif: "failure" | "too_easy" | null = less ? "failure" : more ? "too_easy" : null;
+
     const newValidations = [...serieValidations];
     const entry = {
       validated: true,
       rpe: rpeNumber,
       actual_reps: actualReps,
       actual_charge: actualCharge,
-      modification_type: hasModif ? modificationType : null,
+      modification_type: derivedModif,
     };
     if (isEmomRecovery) {
       // EMOM : une seule note de fatigue → valide toutes les séries d'un coup
@@ -574,6 +586,7 @@ export default function ExerciceDetail() {
     setRpeActualReps("");
     setRpeActualCharge("");
     setModificationType("none");
+    setReportActual(false);
     setIsChargeRequired(false);
     setChargeRangeOptions(null);
     setIsRepsRequired(false);
@@ -966,7 +979,11 @@ export default function ExerciceDetail() {
               if ((!prescribedReps || isRepsRequired) && (!prescribedCharge || isChargeRequired)) return null;
               const repsLabel = exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance" : "Reps";
               const repsUnit = (exercise as any)?.is_distance ? " m" : "";
-              const isAsPlanned = modificationType === "none";
+              // moins / plus déduit en direct de ce qui est saisi (pour la couleur du rappel)
+              const aR = parseFloat(rpeActualReps), pR = parseFloat(String(prescribedReps));
+              const aC = parseFloat(rpeActualCharge), pC = parseFloat(String(prescribedCharge));
+              const isLess = (!isNaN(aR) && !isNaN(pR) && aR < pR) || (!isNaN(aC) && !isNaN(pC) && aC < pC);
+              const isMore = (!isNaN(aR) && !isNaN(pR) && aR > pR) || (!isNaN(aC) && !isNaN(pC) && aC > pC);
               return (
                 <div className="border-t pt-3 space-y-2.5">
                   {/* Rappel du prévu */}
@@ -976,34 +993,22 @@ export default function ExerciceDetail() {
                     {prescribedCharge && !isChargeRequired && <span className="font-semibold text-foreground">· {prescribedCharge}{/^\d+(\.\d+)?$/.test(String(prescribedCharge)) ? " kg" : ""}</span>}
                   </div>
 
-                  {/* 3 choix explicites */}
-                  <div className="grid grid-cols-3 gap-1.5">
+                  {/* Un seul bouton : par défaut « comme prévu », un tap pour préciser le réel */}
+                  {!reportActual ? (
                     <button type="button"
-                      onClick={() => { setModificationType("none"); setRpeActualReps(""); setRpeActualCharge(""); }}
-                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${isAsPlanned ? "border-green-500 bg-green-500/12 text-green-500" : "border-border text-muted-foreground"}`}>
-                      <span className="text-lg leading-none">✅</span>
-                      <span className="text-[11px] font-semibold leading-none">Comme prévu</span>
+                      onClick={() => { setReportActual(true); if (!rpeActualReps && prescribedReps && !isRepsRequired) setRpeActualReps(String(prescribedReps)); if (!rpeActualCharge && prescribedCharge && !isChargeRequired && /^\d+(\.\d+)?$/.test(String(prescribedCharge))) setRpeActualCharge(String(prescribedCharge)); }}
+                      className="w-full h-11 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
+                      Je n'ai pas fait exactement ça ?
                     </button>
-                    <button type="button"
-                      onClick={() => { setModificationType(p => p==="failure"?"none":"failure"); setRpeActualReps(""); setRpeActualCharge(""); }}
-                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${modificationType==="failure" ? "border-orange-400 bg-orange-500/14 text-orange-400" : "border-border text-muted-foreground"}`}>
-                      <span className="text-lg leading-none">⬇️</span>
-                      <span className="text-[11px] font-semibold leading-none">J'ai fait moins</span>
-                    </button>
-                    <button type="button"
-                      onClick={() => { setModificationType(p => p==="too_easy"?"none":"too_easy"); setRpeActualReps(""); setRpeActualCharge(""); }}
-                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${modificationType==="too_easy" ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>
-                      <span className="text-lg leading-none">💪</span>
-                      <span className="text-[11px] font-semibold leading-none">J'ai fait plus</span>
-                    </button>
-                  </div>
-
-                  {/* Saisie du réel quand ce n'est pas "comme prévu" */}
-                  {modificationType !== "none" && (
+                  ) : (
                     <div className="space-y-2 rounded-xl bg-muted/40 p-2.5">
-                      <p className="text-[11px] font-semibold text-center text-muted-foreground">
-                        {modificationType === "failure" ? "Qu'as-tu réellement fait ?" : "Super ! Note ce que tu as fait :"}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold" style={{ color: isLess ? "#f97316" : isMore ? "#e8c466" : undefined }}>
+                          {isLess ? "⬇️ Tu as fait moins" : isMore ? "💪 Tu as fait plus !" : "Ce que tu as réellement fait"}
+                        </p>
+                        <button type="button" onClick={() => { setReportActual(false); setRpeActualReps(""); setRpeActualCharge(""); }}
+                          className="text-[11px] text-muted-foreground underline underline-offset-2">Annuler</button>
+                      </div>
                       {prescribedReps && !isRepsRequired && (
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-medium shrink-0">{repsLabel} réalisé{repsUnit ? "e" : "es"}</span>
