@@ -12,14 +12,14 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { QuickRatingInput } from "./QuickRatingInput";
+import { QuickRatingInput, scaleColor } from "./QuickRatingInput";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles, CalendarIcon } from "lucide-react";
+import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles, CalendarIcon, Heart } from "lucide-react";
 import { InjuryLocationPicker } from "./InjuryLocationPicker";
 import { cn } from "@/lib/utils";
 import { ConfettiEffect } from "./ConfettiEffect";
@@ -316,9 +316,13 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
     }
   };
 
+  const [touched, setTouched] = useState<Set<string>>(new Set());
   const handleSliderChange = (id: string, value: number[]) => {
     setAnswers({ ...answers, [id]: value[0] });
+    setTouched((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
   };
+  const touchedCount = questions.filter((q) => touched.has(q.id)).length;
+  const progressPct = Math.round((touchedCount / questions.length) * 100);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -417,21 +421,38 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
 
   // Contenu du formulaire partagé entre Dialog et Drawer
   const formContent = (
-    <div className="space-y-3 sm:space-y-5">
-      {questions.map((question) => (
-        <div key={question.id} className="space-y-1 sm:space-y-2">
-          <Label className="text-xs sm:text-base font-medium block">{question.label}</Label>
-          
+    <div className="space-y-2">
+      {questions.map((question) => {
+        const val = answers[question.id];
+        const qScale = question.id === "sommeil" ? "badToGood" : "goodToBad";
+        const selColor = scaleColor(val - 1, 7, qScale);
+        const selWord = question.labels?.[val - 1];
+        return (
+        <div key={question.id} className="rounded-xl border border-border/60 bg-card/40 px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[13px] font-bold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+              {question.label}
+            </span>
+            {selWord && (
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0" style={{ backgroundColor: selColor, color: "#121212" }}>
+                {selWord}
+              </span>
+            )}
+          </div>
+
           <QuickRatingInput
-            value={answers[question.id]}
+            value={val}
             onChange={(v) => handleSliderChange(question.id, [v])}
             min={1}
             max={7}
             labels={question.labels}
             emojis={question.emojis}
+            colorScale={qScale}
+            compact
           />
         </div>
-      ))}
+        );
+      })}
 
       {includeInjuryQuestions && (
         <div className="pt-2 sm:pt-3 border-t space-y-2 sm:space-y-3">
@@ -505,6 +526,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                       labels={injuryLevelLabels}
                       emojis={injuryLevelEmojis}
                       variant="destructive"
+                      compact
                     />
                   </div>
                 )}
@@ -529,28 +551,46 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
             </>
           ) : (
             <>
-              {/* Formulaire classique pour nouvelle blessure */}
-              <div className="flex items-center justify-between">
-                <Label htmlFor="has-injury" className="text-xs sm:text-base font-medium">
-                  Blessure ou douleur ?
-                </Label>
-                <Switch
-                  id="has-injury"
-                  checked={hasInjury}
-                  onCheckedChange={(checked) => {
-                    setHasInjury(checked);
-                    if (!checked && isNewInjury) {
-                      setIsNewInjury(false);
-                    }
-                  }}
-                />
+              {/* Invitation à signaler une douleur — valorisée, pas une case froide */}
+              <div
+                className="rounded-2xl p-3 sm:p-4"
+                style={{
+                  background: "linear-gradient(135deg, rgba(239,90,60,0.14), rgba(22,21,20,0.35) 60%)",
+                  border: "1px solid rgba(239,90,60,0.32)",
+                }}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(239,90,60,0.18)" }}>
+                    <Heart className="h-5 w-5" style={{ color: "#ff7a5c" }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+                      {hasInjury ? "Merci de me le dire 🙏" : "Une douleur à signaler ?"}
+                    </p>
+                    <p className="text-[12.5px] text-muted-foreground leading-snug mt-1">
+                      {hasInjury
+                        ? "J'adapte ta prochaine séance en conséquence."
+                        : <>Même une petite gêne. Ton coach <b className="text-foreground">adapte ta séance automatiquement</b> pour ne pas l'aggraver.</>}
+                    </p>
+                  </div>
+                  <Switch
+                    id="has-injury"
+                    checked={hasInjury}
+                    onCheckedChange={(checked) => {
+                      setHasInjury(checked);
+                      if (!checked && isNewInjury) {
+                        setIsNewInjury(false);
+                      }
+                    }}
+                  />
+                </div>
               </div>
 
               {hasInjury && (
                 <>
                   <div className="space-y-1 sm:space-y-2">
-                    <Label className="text-xs sm:text-base font-medium">Niveau de douleur</Label>
-                    
+                    <Label className="text-xs sm:text-base font-medium">À quel point&nbsp;?</Label>
+
                     <QuickRatingInput
                       value={injuryLevel}
                       onChange={setInjuryLevel}
@@ -559,6 +599,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                       labels={injuryLevelLabels}
                       emojis={injuryLevelEmojis}
                       variant="destructive"
+                      compact
                     />
                   </div>
 
@@ -722,7 +763,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
       <>
         <Drawer open={open} onOpenChange={(isOpen) => !isOpen && handleSkip()}>
           <DrawerContent className="max-h-[90vh]">
-            <DrawerHeader className="pb-2">
+            <DrawerHeader className="pb-1 pt-3">
               <div className="flex items-center gap-2 justify-center">
                 <Sparkles className="h-5 w-5 text-primary" />
                 <DrawerTitle className="text-base">
@@ -730,13 +771,20 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                 </DrawerTitle>
               </div>
               <DrawerDescription className="text-xs text-center">
-                Une journée de plus pour prendre soin de toi ✨
+                Un check-in de <span className="font-semibold text-primary">30 secondes</span> pour adapter ta séance.
               </DrawerDescription>
+              {/* Progression : se remplit au fur et à mesure des réponses (rassure sur la brièveté) */}
+              <div className="mt-2 flex items-center gap-2 px-1">
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${progressPct}%` }} />
+                </div>
+                <span className="text-[10px] font-semibold text-muted-foreground shrink-0">{touchedCount}/{questions.length}</span>
+              </div>
             </DrawerHeader>
             
-            <div className="px-4 pb-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div className="px-4 pb-4 overflow-y-auto max-h-[calc(90vh-160px)]">
               {/* Sélecteur de date */}
-              <div className="pb-3 border-b mb-3">
+              <div className="pb-2 border-b mb-2">
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground">Date :</Label>
                   <Popover>

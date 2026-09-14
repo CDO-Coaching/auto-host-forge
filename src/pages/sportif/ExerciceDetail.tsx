@@ -1235,6 +1235,41 @@ export default function ExerciceDetail() {
                 );
               })()}
 
+              {/* EMOM : consigne du round (reps / charge / tempo / intensité) — visible avant validation */}
+              {!seriesCollapsed && isEmomRecovery && (() => {
+                const r = seriesData[0] || {};
+                const eReps = (r.reps || exercise.reps || "").toString().trim();
+                const eCharge = (r.charge || exercise.charge || "").toString().trim();
+                const eTempo = (r.tempo || exercise.tempo || "").toString().trim();
+                const eRpe = (r.rpe || exercise.rpe) ? Number(r.rpe || exercise.rpe) : null;
+                const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
+                const repsDisplay = exercise.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any).is_distance ? " m" : ""}`;
+                const chargeNumeric = /^\d+(\.\d+)?$/.test(eCharge);
+                const eRpeCol = eRpe == null ? null : rpeColorFor(eRpe);
+                const eReserve = eRpe == null ? null : rpeReserve(eRpe);
+                if (!eReps && !eCharge && !eTempo && eRpe == null) return null;
+                return (
+                  <div className="mb-2 rounded-xl border border-border bg-muted/30 p-3 space-y-2">
+                    {eRpe != null && (
+                      <div className="flex items-baseline gap-2 flex-wrap rounded-lg px-2.5 py-1.5" style={{ backgroundColor: `${eRpeCol}1f`, boxShadow: `inset 3px 0 0 ${eRpeCol}` }}>
+                        <span className="text-base font-extrabold leading-none" style={{ color: eRpeCol!, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeWord(eRpe)}</span>
+                        <span className="text-[11px] font-bold" style={{ color: eRpeCol! }}>RPE {eRpe}</span>
+                        {(eReserve != null || eRpe === 6) && (
+                          <span className="text-[11px] text-foreground/70">
+                            {eReserve != null ? (eReserve === 0 ? "· jusqu'à l'échec" : `· ${eReserve} rep${eReserve > 1 ? "s" : ""} en réserve`) : "· encore 4–5 reps possibles"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-3 gap-1 [&>div]:px-2 [&>div]:py-1 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40 [&>div]:text-center">
+                      {eReps && <StatBlock label={repsLabel} value={repsDisplay} />}
+                      {eCharge && <StatBlock label="Charge" value={`${eCharge}${chargeNumeric ? " kg" : ""}`} />}
+                      {eTempo && <StatBlock label="Tempo" value={eTempo} className="text-purple-500" />}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* EMOM : une seule validation globale (fatigue totale) au lieu de N séries */}
               {!seriesCollapsed && isEmomRecovery && (
                 <button
