@@ -161,18 +161,27 @@ export function CardioFeedbackDialog({
               <RPEExplanationDialog isCardio />
               <RPEHistoryChartDialog />
             </div>
-            <Input
-              id="rpe"
-              type="number"
-              min="1"
-              max="10"
-              step="1"
-              value={rpe}
-              onChange={(e) => setRpe(e.target.value)}
-              placeholder={lastWeekRpe ? `Dernier RPE: ${lastWeekRpe}` : "Ex: 8"}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">Obligatoire - Ressenti de l'effort (1 = très facile, 10 = maximum)</p>
+            {/* Tous les chiffres 1-10, comme sur les exercices */}
+            <div className="flex items-center gap-2">
+              <span className={`text-3xl font-black w-9 text-center tabular-nums shrink-0 ${
+                Number(rpe) <= 3 ? "text-green-500" :
+                Number(rpe) <= 6 ? "text-yellow-500" :
+                Number(rpe) <= 8 ? "text-orange-500" : rpe ? "text-red-500" : "text-muted-foreground"
+              }`}>{rpe || "–"}</span>
+              <div className="grid grid-cols-5 gap-1 flex-1">
+                {[1,2,3,4,5,6,7,8,9,10].map((v) => (
+                  <button key={v} type="button" onClick={() => setRpe(String(v))}
+                    className={`h-9 rounded-lg text-sm font-bold border transition-colors ${
+                      Number(rpe) === v
+                        ? (v<=3?"border-green-400 bg-green-400/20 text-green-600":v<=6?"border-yellow-400 bg-yellow-400/20 text-yellow-600":v<=8?"border-orange-400 bg-orange-400/20 text-orange-600":"border-red-400 bg-red-400/20 text-red-600")
+                        : "border-border bg-secondary text-foreground"
+                    }`}>{v}</button>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Obligatoire - Ressenti de l'effort (1 = très facile, 10 = maximum){lastWeekRpe ? ` · Dernier : ${lastWeekRpe}` : ""}
+            </p>
           </div>
 
           {/* Lien Strava — bloc guidé en 2 étapes, mis en avant */}
