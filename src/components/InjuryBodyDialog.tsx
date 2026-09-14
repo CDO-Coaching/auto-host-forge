@@ -61,7 +61,7 @@ function BodyPlate({ vb, markers, selected, onClickPoint }: {
   const sel = markers.find((m) => m.zone === selected);
   return (
     <svg viewBox={vb.join(" ")} onClick={handle}
-      className="h-[58vh] max-h-[560px] w-auto select-none cursor-crosshair" preserveAspectRatio="xMidYMid meet">
+      className="w-full h-auto select-none cursor-crosshair" preserveAspectRatio="xMidYMid meet">
       <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
       {/* Seul repère affiché : la zone actuellement choisie */}
       {sel && (
@@ -135,7 +135,7 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel?.(); onOpenChange(o); }}>
-      <DialogContent className="max-w-[96vw] sm:max-w-lg max-h-[94vh] overflow-y-auto">
+      <DialogContent className="max-w-[94vw] sm:max-w-md max-h-[94vh] overflow-y-auto p-4">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Où as-tu mal&nbsp;?</DialogTitle>
         </DialogHeader>
@@ -149,7 +149,7 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
           ))}
         </div>
 
-        <div className="flex justify-center">
+        <div className="w-full rounded-2xl overflow-hidden bg-black/20">
           {view === "front"
             ? <BodyPlate vb={[-360, 120, 1360, 1360]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
             : <BodyPlate vb={[780, 120, 1580, 1360]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
@@ -189,9 +189,9 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
         )}
 
         {zone && (
-          <div className="space-y-1.5">
-            <p className="text-sm font-semibold">À quel point&nbsp;?</p>
-            <QuickRatingInput value={level} onChange={setLevel} min={1} max={7} labels={injuryLevelLabels} emojis={injuryLevelEmojis} variant="destructive" />
+          <div className="space-y-1">
+            <p className="text-[13px] font-semibold">À quel point&nbsp;?</p>
+            <QuickRatingInput value={level} onChange={setLevel} min={1} max={7} labels={injuryLevelLabels} emojis={injuryLevelEmojis} variant="destructive" compact />
           </div>
         )}
 
