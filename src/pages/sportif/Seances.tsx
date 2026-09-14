@@ -717,13 +717,20 @@ export default function Seances() {
         open={!!schedulingSession}
         onOpenChange={(open) => !open && setSchedulingSession(null)}
         session={schedulingSession}
-        estimatedMinutes={schedulingSession ? (
-          isCardioSession(schedulingSession)
-            ? null
-            : (schedulingSession.session_exercises?.length
-                ? Math.round(calculateSessionDuration(schedulingSession.session_exercises) / 60)
-                : null)
-        ) : null}
+        estimatedMinutes={schedulingSession ? (() => {
+          // Durée prévue de la séance : cardio (allure), renfo (calculateur), recup (durée saisie)
+          if (isCardioSession(schedulingSession)) {
+            const label = getCardioEstimatedDuration(schedulingSession.session_exercises || [], (profile as any)?.vma || null);
+            if (!label) return null;
+            const h = /(\d+)\s*h/.exec(label); const m = /(\d+)\s*min/.exec(label);
+            const mins = (h ? parseInt(h[1]) * 60 : 0) + (m ? parseInt(m[1]) : (h ? 0 : parseInt(label) || 0));
+            return mins || null;
+          }
+          if (schedulingSession.session_type === "recup") return schedulingSession.duration_minutes || null;
+          return schedulingSession.session_exercises?.length
+            ? Math.round(calculateSessionDuration(schedulingSession.session_exercises) / 60)
+            : null;
+        })() : null}
         onUpdate={() => {
           if (selectedWeek) loadWeekSessions(selectedWeek.id);
         }}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -53,6 +53,17 @@ export function ScheduleSessionDialog({
   const [time, setTime] = useState("18:00");
   const [duration, setDuration] = useState(String(estimatedMinutes || 60));
   const [saving, setSaving] = useState(false);
+
+  // Synchronise les champs à l'ouverture (l'ouverture externe ne passe pas par onOpenChange)
+  useEffect(() => {
+    if (open && session) {
+      setCustomName(session.athlete_custom_name || "");
+      setSelectedDate(session.scheduled_date ? new Date(session.scheduled_date) : undefined);
+      setTime("18:00");
+      setDuration(String(estimatedMinutes || 60));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, session?.id, estimatedMinutes]);
 
   // Reset state when dialog opens with new session
   const handleOpenChange = (isOpen: boolean) => {
