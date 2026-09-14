@@ -2,20 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QuickRatingInput } from "./QuickRatingInput";
-import { INJURY_ZONES } from "./InjuryLocationPicker";
-
 const injuryLevelLabels = ["Gêne", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑"];
 
-// Emoji par grande région (correspond aux catégories de INJURY_ZONES)
-const REGION_EMOJI: Record<string, string> = {
-  "Pied & Cheville": "🦶",
-  "Jambe": "🦵",
-  "Genou": "🦿",
-  "Cuisse & Hanche": "🍗",
-  "Bassin & Dos": "🔙",
-  "Haut du corps": "💪",
-};
+// Grandes régions du corps → zones précises
+const REGIONS: { category: string; emoji: string; zones: string[] }[] = [
+  { category: "Pied & cheville", emoji: "🦶", zones: ["Cheville", "Tendon d'Achille", "Pied (plantaire)", "Orteils"] },
+  { category: "Jambe", emoji: "🦵", zones: ["Quadriceps", "Ischio-jambiers", "Adducteurs", "Genou (avant / rotule)", "Genou (interne)", "Genou (externe / bandelette IT)", "Mollet", "Tibia (périostite)", "Péroné"] },
+  { category: "Bras", emoji: "💪", zones: ["Épaule", "Biceps", "Triceps", "Coude", "Avant-bras / poignet"] },
+  { category: "Buste", emoji: "👕", zones: ["Pectoral", "Abdominaux"] },
+  { category: "Dos", emoji: "🔙", zones: ["Nuque / cervicales", "Trapèzes", "Dos (milieu / thoracique)", "Bas du dos (lombaires)"] },
+  { category: "Hanches", emoji: "🦴", zones: ["Hanche (flexeur)", "Hanche (abducteur)", "Fessier", "Pubis / aine"] },
+];
 
 // Zones non latéralisables (pas de gauche/droite)
 const NON_SIDED = new Set([
@@ -40,7 +38,7 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
 
   const zoneToRegion = useMemo(() => {
     const map: Record<string, string> = {};
-    INJURY_ZONES.forEach((g) => g.zones.forEach((z) => { map[z] = g.category; }));
+    REGIONS.forEach((g) => g.zones.forEach((z) => { map[z] = g.category; }));
     return map;
   }, []);
 
@@ -58,7 +56,7 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
   }, [open, initialLocation, initialLevel, zoneToRegion]);
 
   const canSide = !!zone && !NON_SIDED.has(zone);
-  const currentZones = INJURY_ZONES.find((g) => g.category === region)?.zones || [];
+  const currentZones = REGIONS.find((g) => g.category === region)?.zones || [];
 
   const validate = () => {
     if (!zone) return;
@@ -77,13 +75,13 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
         <div className="space-y-2">
           <p className="text-[13px] font-semibold text-muted-foreground">1. Quelle partie du corps&nbsp;?</p>
           <div className="grid grid-cols-3 gap-2">
-            {INJURY_ZONES.map((g) => {
+            {REGIONS.map((g) => {
               const active = region === g.category;
               return (
                 <button key={g.category} type="button"
                   onClick={() => { setRegion(g.category); setZone(""); setSide(""); }}
                   className={`flex flex-col items-center justify-center gap-1 rounded-2xl border-2 py-3 transition-all ${active ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.14)]" : "border-border bg-card/40 active:scale-[0.98]"}`}>
-                  <span className="text-2xl leading-none">{REGION_EMOJI[g.category] || "•"}</span>
+                  <span className="text-2xl leading-none">{g.emoji}</span>
                   <span className={`text-[11px] font-semibold leading-tight text-center ${active ? "text-[#ff9a80]" : "text-foreground"}`}>{g.category}</span>
                 </button>
               );
