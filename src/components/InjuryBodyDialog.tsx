@@ -2,42 +2,70 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QuickRatingInput } from "./QuickRatingInput";
+import bodyImg from "@/assets/muscles-body.png";
 
 const injuryLevelLabels = ["Gêne", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑"];
 
-// Arbre de sélection : Haut / Milieu / Bas → sous-région → zone précise (2-3 clics)
-const TREE: { key: string; emoji: string; subs: { key: string; zones: string[] }[] }[] = [
-  {
-    key: "Haut", emoji: "🙆",
-    subs: [
-      { key: "Nuque / épaules", zones: ["Nuque / cervicales", "Trapèzes", "Épaule"] },
-      { key: "Bras", zones: ["Biceps", "Triceps", "Coude", "Avant-bras / poignet"] },
-      { key: "Poitrine / haut du dos", zones: ["Pectoral", "Dos (milieu / thoracique)"] },
-    ],
-  },
-  {
-    key: "Milieu", emoji: "🧍",
-    subs: [
-      { key: "Ventre / lombaires", zones: ["Abdominaux", "Bas du dos (lombaires)"] },
-      { key: "Hanche / bassin", zones: ["Hanche (flexeur)", "Hanche (abducteur)", "Pubis / aine", "Fessier"] },
-    ],
-  },
-  {
-    key: "Bas", emoji: "🦵",
-    subs: [
-      { key: "Cuisse", zones: ["Quadriceps", "Ischio-jambiers", "Adducteurs"] },
-      { key: "Genou", zones: ["Genou (avant / rotule)", "Genou (interne)", "Genou (externe / bandelette IT)"] },
-      { key: "Jambe", zones: ["Mollet", "Tibia (périostite)", "Péroné"] },
-      { key: "Pied & cheville", zones: ["Cheville", "Tendon d'Achille", "Pied (plantaire)", "Orteils"] },
-    ],
-  },
+// Marqueurs de zones dans l'espace de la planche anatomique (image 2000 x 1657).
+// bx < 1000 = corps de FACE (gauche) ; bx >= 1000 = corps de DOS (droite).
+type Marker = { zone: string; bx: number; by: number; sideable?: boolean };
+
+const MARKERS: Marker[] = [
+  // ── FACE ──
+  { zone: "Nuque / cervicales", bx: 366, by: 335 },
+  { zone: "Trapèzes", bx: 322, by: 398 },
+  { zone: "Épaule", bx: 268, by: 448, sideable: true },
+  { zone: "Pectoral", bx: 366, by: 505 },
+  { zone: "Biceps", bx: 236, by: 548, sideable: true },
+  { zone: "Coude", bx: 214, by: 640, sideable: true },
+  { zone: "Avant-bras / poignet", bx: 202, by: 720, sideable: true },
+  { zone: "Abdominaux", bx: 366, by: 625 },
+  { zone: "Hanche (flexeur)", bx: 322, by: 755, sideable: true },
+  { zone: "Pubis / aine", bx: 366, by: 820 },
+  { zone: "Adducteurs", bx: 360, by: 885, sideable: true },
+  { zone: "Quadriceps", bx: 322, by: 945, sideable: true },
+  { zone: "Genou (avant / rotule)", bx: 330, by: 1055, sideable: true },
+  { zone: "Tibia (périostite)", bx: 335, by: 1185, sideable: true },
+  { zone: "Cheville", bx: 335, by: 1320, sideable: true },
+  { zone: "Pied (plantaire)", bx: 338, by: 1420, sideable: true },
+  { zone: "Orteils", bx: 348, by: 1470, sideable: true },
+  // ── DOS ──
+  { zone: "Nuque / cervicales", bx: 1336, by: 335 },
+  { zone: "Trapèzes", bx: 1292, by: 410 },
+  { zone: "Épaule", bx: 1414, by: 455, sideable: true },
+  { zone: "Triceps", bx: 1152, by: 560, sideable: true },
+  { zone: "Dos (milieu / thoracique)", bx: 1336, by: 565 },
+  { zone: "Bas du dos (lombaires)", bx: 1300, by: 690 },
+  { zone: "Fessier", bx: 1316, by: 800, sideable: true },
+  { zone: "Ischio-jambiers", bx: 1256, by: 955, sideable: true },
+  { zone: "Mollet", bx: 1336, by: 1155, sideable: true },
+  { zone: "Péroné", bx: 1298, by: 1160, sideable: true },
+  { zone: "Tendon d'Achille", bx: 1336, by: 1325, sideable: true },
 ];
 
-const NON_SIDED = new Set([
-  "Abdominaux", "Pubis / aine", "Bas du dos (lombaires)", "Dos (milieu / thoracique)",
-  "Nuque / cervicales", "Trapèzes", "Pectoral",
-]);
+const RED = "#ef5a3c";
+
+function BodyPlate({ viewBox, markers, selected, onPick }: {
+  viewBox: string; markers: Marker[]; selected: string; onPick: (zone: string) => void;
+}) {
+  return (
+    <svg viewBox={viewBox} className="w-full h-auto select-none" preserveAspectRatio="xMidYMid meet">
+      <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
+      {markers.map((mk) => {
+        const active = mk.zone === selected;
+        return (
+          <g key={mk.zone + mk.bx} onClick={() => onPick(mk.zone)} className="cursor-pointer">
+            {active && <circle cx={mk.bx} cy={mk.by} r={70} fill={RED} opacity={0.28} />}
+            <circle cx={mk.bx} cy={mk.by} r={active ? 30 : 22}
+              fill={active ? RED : "rgba(239,90,60,0.4)"}
+              stroke={active ? "#fff" : "rgba(239,90,60,0.75)"} strokeWidth={active ? 6 : 4} />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 interface Props {
   open: boolean;
@@ -49,18 +77,15 @@ interface Props {
 }
 
 export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialLevel, onValidate, onCancel }: Props) {
-  const [big, setBig] = useState<string>("");
-  const [sub, setSub] = useState<string>("");
+  const [view, setView] = useState<"front" | "back">("front");
   const [zone, setZone] = useState<string>("");
   const [side, setSide] = useState<"" | "gauche" | "droite" | "les deux">("");
   const [level, setLevel] = useState<number>(3);
 
-  // Retrouver big/sub depuis une zone (édition)
-  const locate = useMemo(() => {
-    const map: Record<string, { big: string; sub: string }> = {};
-    TREE.forEach((b) => b.subs.forEach((s) => s.zones.forEach((z) => { map[z] = { big: b.key, sub: s.key }; })));
-    return map;
-  }, []);
+  const frontMarkers = useMemo(() => MARKERS.filter((m) => m.bx < 1000), []);
+  const backMarkers = useMemo(() => MARKERS.filter((m) => m.bx >= 1000), []);
+  const backZones = useMemo(() => new Set(backMarkers.map((m) => m.zone)), [backMarkers]);
+  const frontZones = useMemo(() => new Set(frontMarkers.map((m) => m.zone)), [frontMarkers]);
 
   useEffect(() => {
     if (!open) return;
@@ -70,22 +95,13 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
       if (val.toLowerCase().endsWith(" " + suf)) { z = val.slice(0, -(suf.length + 1)); s = suf; break; }
     }
     setZone(z);
-    setBig(locate[z]?.big || "");
-    setSub(locate[z]?.sub || "");
     setSide(s);
     setLevel(initialLevel && initialLevel >= 1 ? initialLevel : 3);
-  }, [open, initialLocation, initialLevel, locate]);
+    setView(backZones.has(z) && !frontZones.has(z) ? "back" : "front");
+  }, [open, initialLocation, initialLevel, backZones, frontZones]);
 
-  const bigNode = TREE.find((b) => b.key === big);
-  const subNode = bigNode?.subs.find((s) => s.key === sub);
-  const canSide = !!zone && !NON_SIDED.has(zone);
-
-  const pickSub = (s: { key: string; zones: string[] }) => {
-    setSub(s.key);
-    // Sous-région à une seule zone → on la choisit direct
-    setZone(s.zones.length === 1 ? s.zones[0] : "");
-    setSide("");
-  };
+  const current = useMemo(() => MARKERS.find((m) => m.zone === zone), [zone]);
+  const canSide = !!current?.sideable;
 
   const validate = () => {
     if (!zone) return;
@@ -93,74 +109,55 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
     onOpenChange(false);
   };
 
-  const Chip = ({ label, active, onClick, big: isBig }: { label: string; active: boolean; onClick: () => void; big?: boolean }) => (
-    <button type="button" onClick={onClick}
-      className={`rounded-xl border font-semibold transition-all ${isBig ? "flex-1 flex flex-col items-center gap-1 py-3 border-2" : "px-3 h-9 text-[13px]"} ${active ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.16)] text-[#ff9a80]" : `border-border ${isBig ? "bg-card/40 text-foreground active:scale-[0.98]" : "text-muted-foreground"}`}`}>
-      {label}
-    </button>
-  );
-
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onCancel?.(); onOpenChange(o); }}>
-      <DialogContent className="max-w-[94vw] sm:max-w-md max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] sm:max-w-md max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Où as-tu mal&nbsp;?</DialogTitle>
         </DialogHeader>
 
-        {/* 1. Haut / Milieu / Bas */}
-        <div className="flex gap-2">
-          {TREE.map((b) => (
-            <button key={b.key} type="button"
-              onClick={() => { setBig(b.key); setSub(""); setZone(""); setSide(""); }}
-              className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border-2 font-semibold transition-all ${big === b.key ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.14)] text-[#ff9a80]" : "border-border bg-card/40 text-foreground active:scale-[0.98]"}`}>
-              <span className="text-2xl leading-none">{b.emoji}</span>
-              <span className="text-[13px]">{b.key}</span>
+        <div className="flex gap-2 justify-center">
+          {(["front", "back"] as const).map((v) => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              className={`px-4 h-8 rounded-full text-xs font-semibold border transition-colors ${view === v ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>
+              {v === "front" ? "Face" : "Dos"}
             </button>
           ))}
         </div>
 
-        {/* 2. Sous-région */}
-        {bigNode && (
-          <div className="flex flex-wrap gap-1.5">
-            {bigNode.subs.map((s) => (
-              <Chip key={s.key} label={s.key} active={sub === s.key} onClick={() => pickSub(s)} />
-            ))}
+        <div className="flex justify-center max-h-[38vh]">
+          {view === "front"
+            ? <BodyPlate viewBox="-360 120 1360 1360" markers={frontMarkers} selected={zone} onPick={setZone} />
+            : <BodyPlate viewBox="780 120 1580 1360" markers={backMarkers} selected={zone} onPick={setZone} />}
+        </div>
+
+        {zone ? (
+          <div className="space-y-2">
+            <p className="text-center text-sm font-semibold">{zone}</p>
+            {canSide && (
+              <div className="flex gap-2">
+                {(["gauche", "droite", "les deux"] as const).map((s) => (
+                  <button key={s} type="button" onClick={() => setSide((p) => (p === s ? "" : s))}
+                    className={`flex-1 h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${side === s ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.16)] text-[#ff9a80]" : "border-border text-muted-foreground"}`}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        ) : (
+          <p className="text-center text-xs text-muted-foreground">Touche la zone concernée sur le schéma.</p>
         )}
 
-        {/* 3. Zone précise (si plusieurs) */}
-        {subNode && subNode.zones.length > 1 && (
-          <div className="flex flex-wrap gap-1.5">
-            {subNode.zones.map((z) => (
-              <Chip key={z} label={z} active={zone === z} onClick={() => { setZone(z); if (NON_SIDED.has(z)) setSide(""); }} />
-            ))}
-          </div>
-        )}
-
-        {/* Côté */}
-        {canSide && (
-          <div className="flex gap-2">
-            {(["gauche", "droite", "les deux"] as const).map((s) => (
-              <button key={s} type="button" onClick={() => setSide((p) => (p === s ? "" : s))}
-                className={`flex-1 h-10 rounded-xl border text-sm font-medium capitalize transition-colors ${side === s ? "border-[#ff7a5c] bg-[rgba(239,90,60,0.16)] text-[#ff9a80]" : "border-border text-muted-foreground"}`}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Intensité */}
         {zone && (
           <div className="space-y-1.5">
-            <p className="text-[13px] font-semibold text-muted-foreground">À quel point&nbsp;?</p>
+            <p className="text-sm font-semibold">À quel point&nbsp;?</p>
             <QuickRatingInput value={level} onChange={setLevel} min={1} max={7} labels={injuryLevelLabels} emojis={injuryLevelEmojis} variant="destructive" />
           </div>
         )}
 
         <DialogFooter className="flex-col gap-2">
-          <Button onClick={validate} disabled={!zone} className="w-full">
-            {zone ? "Valider ma douleur" : "Choisis la zone"}
-          </Button>
+          <Button onClick={validate} disabled={!zone} className="w-full">Valider ma douleur</Button>
           <Button variant="ghost" onClick={() => { onCancel?.(); onOpenChange(false); }} className="w-full text-muted-foreground">
             Finalement, pas de douleur
           </Button>
