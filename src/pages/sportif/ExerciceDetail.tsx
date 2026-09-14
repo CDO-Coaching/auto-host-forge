@@ -997,8 +997,9 @@ export default function ExerciceDetail() {
                   {!reportActual ? (
                     <button type="button"
                       onClick={() => { setReportActual(true); if (!rpeActualReps && prescribedReps && !isRepsRequired) setRpeActualReps(String(prescribedReps)); if (!rpeActualCharge && prescribedCharge && !isChargeRequired && /^\d+(\.\d+)?$/.test(String(prescribedCharge))) setRpeActualCharge(String(prescribedCharge)); }}
-                      className="w-full h-11 rounded-xl border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors">
-                      Je n'ai pas fait exactement ça ?
+                      className="w-full h-12 rounded-xl border-2 border-primary/60 bg-primary/10 text-primary text-[15px] font-bold flex items-center justify-center gap-2 active:scale-[0.99] transition-all">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+                      Je n'ai pas fait exactement ça
                     </button>
                   ) : (
                     <div className="space-y-2 rounded-xl bg-muted/40 p-2.5">
