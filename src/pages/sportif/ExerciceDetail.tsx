@@ -958,41 +958,78 @@ export default function ExerciceDetail() {
               </div>
             </div>
 
-            {/* ── Modifications optionnelles — 2 chips compacts ── */}
+            {/* ── As-tu fait ce qui était prévu ? — clair et explicite ── */}
             {(() => {
               const currentSerie = rpeDialogSerieIndex !== null ? seriesData[rpeDialogSerieIndex] : null;
               const prescribedReps = currentSerie?.reps || exercise?.reps;
               const prescribedCharge = currentSerie?.charge || exercise?.charge;
               if ((!prescribedReps || isRepsRequired) && (!prescribedCharge || isChargeRequired)) return null;
+              const repsLabel = exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance" : "Reps";
+              const repsUnit = (exercise as any)?.is_distance ? " m" : "";
+              const isAsPlanned = modificationType === "none";
               return (
-                <div className="border-t pt-2 space-y-2">
-                  <div className="flex gap-2">
+                <div className="border-t pt-3 space-y-2.5">
+                  {/* Rappel du prévu */}
+                  <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
+                    <span>Prévu :</span>
+                    {prescribedReps && !isRepsRequired && <span className="font-semibold text-foreground">{prescribedReps}{repsUnit || " reps"}</span>}
+                    {prescribedCharge && !isChargeRequired && <span className="font-semibold text-foreground">· {prescribedCharge}{/^\d+(\.\d+)?$/.test(String(prescribedCharge)) ? " kg" : ""}</span>}
+                  </div>
+
+                  {/* 3 choix explicites */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <button type="button"
+                      onClick={() => { setModificationType("none"); setRpeActualReps(""); setRpeActualCharge(""); }}
+                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${isAsPlanned ? "border-green-500 bg-green-500/12 text-green-500" : "border-border text-muted-foreground"}`}>
+                      <span className="text-lg leading-none">✅</span>
+                      <span className="text-[11px] font-semibold leading-none">Comme prévu</span>
+                    </button>
                     <button type="button"
                       onClick={() => { setModificationType(p => p==="failure"?"none":"failure"); setRpeActualReps(""); setRpeActualCharge(""); }}
-                      className={`flex-1 h-8 rounded-lg border text-xs font-medium transition-colors ${modificationType==="failure"?"border-red-400 bg-red-500/10 text-red-700":"border-border text-muted-foreground"}`}>
-                      😓 Fait moins
+                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${modificationType==="failure" ? "border-orange-400 bg-orange-500/14 text-orange-400" : "border-border text-muted-foreground"}`}>
+                      <span className="text-lg leading-none">⬇️</span>
+                      <span className="text-[11px] font-semibold leading-none">J'ai fait moins</span>
                     </button>
                     <button type="button"
                       onClick={() => { setModificationType(p => p==="too_easy"?"none":"too_easy"); setRpeActualReps(""); setRpeActualCharge(""); }}
-                      className={`flex-1 h-8 rounded-lg border text-xs font-medium transition-colors ${modificationType==="too_easy"?"border-blue-400 bg-blue-500/10 text-blue-700":"border-border text-muted-foreground"}`}>
-                      💪 Ajusté
+                      className={`h-14 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-colors ${modificationType==="too_easy" ? "border-primary bg-primary/15 text-primary" : "border-border text-muted-foreground"}`}>
+                      <span className="text-lg leading-none">💪</span>
+                      <span className="text-[11px] font-semibold leading-none">J'ai fait plus</span>
                     </button>
                   </div>
+
+                  {/* Saisie du réel quand ce n'est pas "comme prévu" */}
                   {modificationType !== "none" && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-2 rounded-xl bg-muted/40 p-2.5">
+                      <p className="text-[11px] font-semibold text-center text-muted-foreground">
+                        {modificationType === "failure" ? "Qu'as-tu réellement fait ?" : "Super ! Note ce que tu as fait :"}
+                      </p>
                       {prescribedReps && !isRepsRequired && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">{exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance (m)" : "Reps"} (prévu: {prescribedReps}{(exercise as any)?.is_distance ? " m" : ""})</span>
-                          <Input type="number" inputMode="numeric" value={rpeActualReps}
-                            onChange={(e) => setRpeActualReps(e.target.value)}
-                            placeholder={prescribedReps} className="h-7 text-sm flex-1 min-w-0" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium shrink-0">{repsLabel} réalisé{repsUnit ? "e" : "es"}</span>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClick={() => { const c=parseFloat(rpeActualReps)||parseFloat(prescribedReps)||0; if(c>0) setRpeActualReps(String(c-1)); }}
+                              className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">−</button>
+                            <Input type="number" inputMode="numeric" value={rpeActualReps}
+                              onChange={(e) => setRpeActualReps(e.target.value)}
+                              placeholder={prescribedReps} className="h-9 w-16 text-center font-bold text-sm" />
+                            <button type="button" onClick={() => { const c=parseFloat(rpeActualReps)||parseFloat(prescribedReps)||0; setRpeActualReps(String(c+1)); }}
+                              className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">+</button>
+                          </div>
                         </div>
                       )}
                       {prescribedCharge && !isChargeRequired && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Charge (prévu: {prescribedCharge})</span>
-                          <Input type="number" inputMode="decimal" value={rpeActualCharge} onChange={(e) => setRpeActualCharge(e.target.value)}
-                            placeholder={prescribedCharge} className="h-7 text-sm flex-1 min-w-0" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium shrink-0">Charge (kg)</span>
+                          <div className="flex items-center gap-1.5">
+                            <button type="button" onClick={() => { const c=parseFloat(rpeActualCharge)||parseFloat(prescribedCharge)||0; const s=c>=40?5:2.5; if(c>0) setRpeActualCharge(String(Math.max(0,Math.round((c-s)*4)/4))); }}
+                              className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">−</button>
+                            <Input type="number" inputMode="decimal" value={rpeActualCharge}
+                              onChange={(e) => setRpeActualCharge(e.target.value)}
+                              placeholder={prescribedCharge} className="h-9 w-16 text-center font-bold text-sm" />
+                            <button type="button" onClick={() => { const c=parseFloat(rpeActualCharge)||parseFloat(prescribedCharge)||0; const s=c>=40?5:2.5; setRpeActualCharge(String(Math.round((c+s)*4)/4)); }}
+                              className="h-9 w-9 rounded-lg border bg-secondary text-lg font-bold shrink-0">+</button>
+                          </div>
                         </div>
                       )}
                     </div>
