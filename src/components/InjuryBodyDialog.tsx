@@ -2,52 +2,68 @@ import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { QuickRatingInput } from "./QuickRatingInput";
+import bodyImg from "@/assets/muscles-body.png";
 
 const injuryLevelLabels = ["Gêne", "Très légère", "Légère", "Modérée", "Gênante", "Importante", "Très forte"];
 const injuryLevelEmojis = ["🩹", "😕", "😣", "😖", "😫", "🤕", "🚑"];
 
-// Marqueurs de zones sur la silhouette (x,y sur un viewBox 0 0 200 440)
-type Marker = { zone: string; x: number; y: number; sideable?: boolean };
+// Marqueurs de zones dans l'espace de la planche anatomique (image 2000 x 1657).
+// bx < 1000 = corps de FACE (gauche) ; bx >= 1000 = corps de DOS (droite).
+type Marker = { zone: string; bx: number; by: number; sideable?: boolean };
 
-const FRONT: Marker[] = [
-  { zone: "Nuque / cervicales", x: 100, y: 40 },
-  { zone: "Épaule", x: 70, y: 86, sideable: true },
-  { zone: "Trapèzes", x: 118, y: 74 },
-  { zone: "Pectoral", x: 100, y: 108 },
-  { zone: "Biceps", x: 60, y: 122, sideable: true },
-  { zone: "Coude", x: 55, y: 156, sideable: true },
-  { zone: "Avant-bras / poignet", x: 49, y: 190, sideable: true },
-  { zone: "Abdominaux", x: 100, y: 150 },
-  { zone: "Hanche (flexeur)", x: 78, y: 188, sideable: true },
-  { zone: "Pubis / aine", x: 100, y: 196 },
-  { zone: "Adducteurs", x: 92, y: 220, sideable: true },
-  { zone: "Quadriceps", x: 84, y: 250, sideable: true },
-  { zone: "Genou (avant / rotule)", x: 84, y: 300, sideable: true },
-  { zone: "Tibia (périostite)", x: 84, y: 336, sideable: true },
-  { zone: "Cheville", x: 84, y: 384, sideable: true },
-  { zone: "Pied (plantaire)", x: 84, y: 410, sideable: true },
+const MARKERS: Marker[] = [
+  // ── FACE ──
+  { zone: "Nuque / cervicales", bx: 366, by: 335 },
+  { zone: "Trapèzes", bx: 322, by: 398 },
+  { zone: "Épaule", bx: 268, by: 448, sideable: true },
+  { zone: "Pectoral", bx: 366, by: 505 },
+  { zone: "Biceps", bx: 236, by: 548, sideable: true },
+  { zone: "Coude", bx: 214, by: 640, sideable: true },
+  { zone: "Avant-bras / poignet", bx: 202, by: 720, sideable: true },
+  { zone: "Abdominaux", bx: 366, by: 625 },
+  { zone: "Hanche (flexeur)", bx: 322, by: 755, sideable: true },
+  { zone: "Pubis / aine", bx: 366, by: 820 },
+  { zone: "Adducteurs", bx: 360, by: 885, sideable: true },
+  { zone: "Quadriceps", bx: 322, by: 945, sideable: true },
+  { zone: "Genou (avant / rotule)", bx: 330, by: 1055, sideable: true },
+  { zone: "Tibia (périostite)", bx: 335, by: 1185, sideable: true },
+  { zone: "Cheville", bx: 335, by: 1320, sideable: true },
+  { zone: "Pied (plantaire)", bx: 338, by: 1420, sideable: true },
+  { zone: "Orteils", bx: 348, by: 1470, sideable: true },
+  // ── DOS ──
+  { zone: "Nuque / cervicales", bx: 1336, by: 335 },
+  { zone: "Trapèzes", bx: 1292, by: 410 },
+  { zone: "Épaule", bx: 1414, by: 455, sideable: true },
+  { zone: "Triceps", bx: 1152, by: 560, sideable: true },
+  { zone: "Dos (milieu / thoracique)", bx: 1336, by: 565 },
+  { zone: "Bas du dos (lombaires)", bx: 1300, by: 690 },
+  { zone: "Fessier", bx: 1316, by: 800, sideable: true },
+  { zone: "Ischio-jambiers", bx: 1256, by: 955, sideable: true },
+  { zone: "Mollet", bx: 1336, by: 1155, sideable: true },
+  { zone: "Péroné", bx: 1298, by: 1160, sideable: true },
+  { zone: "Tendon d'Achille", bx: 1336, by: 1325, sideable: true },
 ];
 
-const BACK: Marker[] = [
-  { zone: "Nuque / cervicales", x: 100, y: 40 },
-  { zone: "Dos (milieu / thoracique)", x: 100, y: 118 },
-  { zone: "Bas du dos (lombaires)", x: 100, y: 158 },
-  { zone: "Fessier", x: 88, y: 192, sideable: true },
-  { zone: "Ischio-jambiers", x: 84, y: 250, sideable: true },
-  { zone: "Mollet", x: 84, y: 322, sideable: true },
-  { zone: "Péroné", x: 72, y: 322, sideable: true },
-  { zone: "Tendon d'Achille", x: 84, y: 378, sideable: true },
-];
+const RED = "#ef5a3c";
 
-// Silhouette simple (tronc + tête + membres), la même de face/dos
-function Silhouette() {
+function BodyPlate({ viewBox, markers, selected, onPick }: {
+  viewBox: string; markers: Marker[]; selected: string; onPick: (zone: string) => void;
+}) {
   return (
-    <path
-      d="M100 12c11 0 19 9 19 21 0 9-4 15-10 18 8 2 15 6 20 12 6 8 8 20 8 34v26c0 8-1 14-4 20l-6 40c-1 8-2 14-2 22l3 46c1 10 2 22 2 34 0 8-1 15-3 22-5 2-11 2-15 0-2-9-3-19-3-28l-3-40-2-26h-6l-2 26-3 40c0 9-1 19-3 28-4 2-10 2-15 0-2-7-3-14-3-22 0-12 1-24 2-34l3-46c0-8-1-14-2-22l-6-40c-3-6-4-12-4-20V97c0-14 2-26 8-34 5-6 12-10 20-12-6-3-10-9-10-18 0-12 8-21 19-21Z"
-      fill="hsl(var(--muted))"
-      stroke="hsl(var(--border))"
-      strokeWidth={1.5}
-    />
+    <svg viewBox={viewBox} className="w-full h-auto select-none" preserveAspectRatio="xMidYMid meet">
+      <image href={bodyImg} x="0" y="0" width="2000" height="1657" />
+      {markers.map((mk) => {
+        const active = mk.zone === selected;
+        return (
+          <g key={mk.zone + mk.bx} onClick={() => onPick(mk.zone)} className="cursor-pointer">
+            {active && <circle cx={mk.bx} cy={mk.by} r={70} fill={RED} opacity={0.28} />}
+            <circle cx={mk.bx} cy={mk.by} r={active ? 30 : 22}
+              fill={active ? RED : "rgba(239,90,60,0.4)"}
+              stroke={active ? "#fff" : "rgba(239,90,60,0.75)"} strokeWidth={active ? 6 : 4} />
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
@@ -57,7 +73,7 @@ interface Props {
   initialLocation?: string;
   initialLevel?: number;
   onValidate: (location: string, level: number) => void;
-  onCancel?: () => void; // douleur non signalée finalement (remet le toggle à off)
+  onCancel?: () => void;
 }
 
 export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialLevel, onValidate, onCancel }: Props) {
@@ -66,7 +82,11 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
   const [side, setSide] = useState<"" | "gauche" | "droite" | "les deux">("");
   const [level, setLevel] = useState<number>(3);
 
-  // Retrouver zone + côté depuis une valeur existante à l'ouverture
+  const frontMarkers = useMemo(() => MARKERS.filter((m) => m.bx < 1000), []);
+  const backMarkers = useMemo(() => MARKERS.filter((m) => m.bx >= 1000), []);
+  const backZones = useMemo(() => new Set(backMarkers.map((m) => m.zone)), [backMarkers]);
+  const frontZones = useMemo(() => new Set(frontMarkers.map((m) => m.zone)), [frontMarkers]);
+
   useEffect(() => {
     if (!open) return;
     const val = (initialLocation || "").trim();
@@ -77,17 +97,15 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
     setZone(z);
     setSide(s);
     setLevel(initialLevel && initialLevel >= 1 ? initialLevel : 3);
-    setView(BACK.some((m) => m.zone === z) && !FRONT.some((m) => m.zone === z) ? "back" : "front");
-  }, [open, initialLocation, initialLevel]);
+    setView(backZones.has(z) && !frontZones.has(z) ? "back" : "front");
+  }, [open, initialLocation, initialLevel, backZones, frontZones]);
 
-  const markers = view === "front" ? FRONT : BACK;
-  const current = useMemo(() => [...FRONT, ...BACK].find((m) => m.zone === zone), [zone]);
+  const current = useMemo(() => MARKERS.find((m) => m.zone === zone), [zone]);
   const canSide = !!current?.sideable;
 
   const validate = () => {
     if (!zone) return;
-    const loc = canSide && side ? `${zone} ${side}` : zone;
-    onValidate(loc, level);
+    onValidate(canSide && side ? `${zone} ${side}` : zone, level);
     onOpenChange(false);
   };
 
@@ -98,7 +116,6 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
           <DialogTitle style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Où as-tu mal&nbsp;?</DialogTitle>
         </DialogHeader>
 
-        {/* Bascule face / dos */}
         <div className="flex gap-2 justify-center">
           {(["front", "back"] as const).map((v) => (
             <button key={v} type="button" onClick={() => setView(v)}
@@ -108,25 +125,12 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
           ))}
         </div>
 
-        {/* Silhouette + marqueurs tappables */}
-        <div className="flex justify-center">
-          <svg viewBox="0 0 200 440" className="h-[300px] w-auto select-none">
-            <Silhouette />
-            {markers.map((m) => {
-              const active = m.zone === zone;
-              return (
-                <g key={m.zone} onClick={() => setZone(m.zone)} className="cursor-pointer">
-                  <circle cx={m.x} cy={m.y} r={active ? 13 : 9}
-                    fill={active ? "#ef5a3c" : "rgba(239,90,60,0.35)"}
-                    stroke={active ? "#fff" : "rgba(239,90,60,0.6)"} strokeWidth={active ? 2 : 1} />
-                  {active && <circle cx={m.x} cy={m.y} r={20} fill="none" stroke="#ef5a3c" strokeWidth={1.5} opacity={0.5} />}
-                </g>
-              );
-            })}
-          </svg>
+        <div className="flex justify-center max-h-[38vh]">
+          {view === "front"
+            ? <BodyPlate viewBox="-360 120 1360 1360" markers={frontMarkers} selected={zone} onPick={setZone} />
+            : <BodyPlate viewBox="780 120 1580 1360" markers={backMarkers} selected={zone} onPick={setZone} />}
         </div>
 
-        {/* Zone choisie + côté */}
         {zone ? (
           <div className="space-y-2">
             <p className="text-center text-sm font-semibold">{zone}</p>
@@ -145,7 +149,6 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
           <p className="text-center text-xs text-muted-foreground">Touche la zone concernée sur le schéma.</p>
         )}
 
-        {/* Gravité */}
         {zone && (
           <div className="space-y-1.5">
             <p className="text-sm font-semibold">À quel point&nbsp;?</p>
