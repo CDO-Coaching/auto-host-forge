@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { getCardioEstimatedDuration, isCardioSession as checkCardio } from "@/lib/cardioEstimatedDuration";
+import { calculateSessionDuration, formatSessionDuration, formatSessionDurationRange } from "@/lib/sessionDurationCalculator";
 import { getWeekNumber, getWeekYear, getMondayOfWeek } from "@/lib/weekUtils";
 import { format, addDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -51,7 +52,8 @@ interface SessionToSchedule {
   session_number: number;
   scheduled_date: string | null;
   exerciseCount: number;
-  estimatedDuration: string | null;
+  estimatedDuration: string | null; // valeur simple pour préremplir l'agenda (ex: "45min")
+  estimatedLabel: string | null;    // libellé affiché (renfo = fourchette large marquée "estimé")
 }
 
 // Assignments: day -> ordered list of session ids
@@ -108,7 +110,7 @@ export default function ProgrammerSeances() {
     const { data: sessionsData } = await supabase
       .from("training_sessions")
       .select(
-        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, session_exercises(sportif_rpe, skipped, cardio_content, cardio_sport)"
+        "id, name, athlete_custom_name, session_type, session_number, scheduled_date, duration_minutes, manual_duration_minutes, session_exercises(sportif_rpe, skipped, cardio_content, cardio_sport, exercice, reps, series, tempo, recuperation, charge, super_set_group, per_side, is_duration, is_distance)"
       )
       .eq("week_id", week.id)
       .order("session_number");
@@ -144,16 +146,35 @@ export default function ProgrammerSeances() {
       );
     });
 
-    const mapped: SessionToSchedule[] = uncompleted.map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      athlete_custom_name: s.athlete_custom_name,
-      session_type: s.session_type,
-      session_number: s.session_number,
-      scheduled_date: s.scheduled_date,
-      exerciseCount: s.session_exercises?.length || 0,
-      estimatedDuration: checkCardio(s) ? getCardioEstimatedDuration(s.session_exercises || [], athleteVma) : null,
-    }));
+    const mapped: SessionToSchedule[] = uncompleted.map((s: any) => {
+      let estimatedDuration: string | null = null;
+      let estimatedLabel: string | null = null;
+      if (checkCardio(s)) {
+        estimatedDuration = getCardioEstimatedDuration(s.session_exercises || [], athleteVma);
+        estimatedLabel = estimatedDuration;
+      } else if (s.session_type !== "recup" && (s.session_exercises?.length || 0) > 0) {
+        // Renfo : durée forcée par le coach sinon estimation ; affichée comme fourchette large
+        if (s.manual_duration_minutes != null) {
+          estimatedDuration = `${s.manual_duration_minutes}min`;
+          estimatedLabel = `~${s.manual_duration_minutes} min`;
+        } else {
+          const sec = calculateSessionDuration(s.session_exercises || []);
+          estimatedDuration = formatSessionDuration(sec);
+          estimatedLabel = `~${formatSessionDurationRange(sec)} estimé`;
+        }
+      }
+      return {
+        id: s.id,
+        name: s.name,
+        athlete_custom_name: s.athlete_custom_name,
+        session_type: s.session_type,
+        session_number: s.session_number,
+        scheduled_date: s.scheduled_date,
+        exerciseCount: s.session_exercises?.length || 0,
+        estimatedDuration,
+        estimatedLabel,
+      };
+    });
 
     setSessions(mapped);
 
@@ -370,7 +391,7 @@ export default function ProgrammerSeances() {
             <SessionRow
               key={s.id}
               title={title}
-              subtitle={`${getTypeLabel(s.session_type)}${s.estimatedDuration ? ` · ⏱ ${s.estimatedDuration}` : ""}`}
+              subtitle={`${getTypeLabel(s.session_type)}${s.estimatedLabel ? ` · ⏱ ${s.estimatedLabel}` : ""}`}
               accent={m.accent}
               emoji={m.emoji}
               onAgenda={() => setAgendaTarget({ title, estimatedDuration: s.estimatedDuration, defaultDate: s.scheduled_date })}
