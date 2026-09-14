@@ -208,6 +208,7 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null;
   garmin_link?: string | null;
+  manual_duration_minutes?: number | null;
 }
 
 function getSerieDetailsArray(value: any): SerieDetail[] {
@@ -220,6 +221,73 @@ function getSerieDetailsArray(value: any): SerieDetail[] {
     } catch { return []; }
   }
   return [];
+}
+
+/**
+ * Badge de durée cliquable : affiche l'estimation (ou la valeur forcée) et permet
+ * au coach de la modifier manuellement. Une valeur forcée est signalée par un ✎.
+ */
+function DurationBadge({
+  label, isManual, currentMinutes, onSet, disabled,
+}: {
+  label: string | null;
+  isManual: boolean;
+  currentMinutes: number | null;
+  onSet: (minutes: number | null) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = React.useState(false);
+  const [val, setVal] = React.useState(currentMinutes != null ? String(currentMinutes) : "");
+  React.useEffect(() => { setVal(currentMinutes != null ? String(currentMinutes) : ""); }, [currentMinutes, open]);
+
+  if (!label) return null;
+  if (disabled) {
+    return <span className={isManual ? "font-medium text-primary" : ""}>{label}</span>;
+  }
+
+  const save = () => {
+    const n = parseInt(val, 10);
+    onSet(!isNaN(n) && n > 0 ? n : null);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          title="Cliquer pour fixer la durée manuellement"
+          className={`underline decoration-dotted underline-offset-2 hover:text-primary ${isManual ? "font-medium text-primary" : ""}`}
+        >
+          {label}{isManual ? " ✎" : ""}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+        <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Durée de la séance (min)</p>
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number" inputMode="numeric" autoFocus
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }}
+            placeholder="ex: 60"
+            className="h-8 text-sm"
+          />
+          <Button size="sm" className="h-8 px-2 text-xs" onClick={save}>OK</Button>
+        </div>
+        {isManual && (
+          <button
+            type="button"
+            onClick={() => { onSet(null); setOpen(false); }}
+            className="mt-1.5 text-[11px] text-muted-foreground underline underline-offset-2 hover:text-primary"
+          >
+            ↺ Revenir à l'estimation auto
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -249,6 +317,7 @@ export interface DesktopProgViewProps {
   // Session CRUD
   onCreateSession: (type: "renfo" | "cardio" | "recup", cardioSport?: "course" | "velo" | "natation") => void;
   onDeleteSession: (id: number, e: React.MouseEvent) => void;
+  onSessionDurationChange?: (sessionId: number, minutes: number | null) => void;
 
   // Exercise CRUD
   onAddExercise: (sessionId: number) => void;
@@ -375,7 +444,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
     expandedSessionId, setExpandedSessionId,
     undoStack, onWeekChange, onSave, onUndo, onUnvalidate,
     allowAddExercises, onToggleAllowAddExercises,
-    onCreateSession, onDeleteSession,
+    onCreateSession, onDeleteSession, onSessionDurationChange,
     onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onKeyDown,
     onSessionDragStart, onSessionDragOver, onSessionDrop,
     onExerciseDragStart, onExerciseDragOver, onExerciseDrop,
@@ -738,7 +807,9 @@ export function DesktopProgView(props: DesktopProgViewProps) {
           ) : (
             <div className="flex flex-col gap-1.5 overflow-y-auto max-h-[calc(100vh-360px)] pr-0.5 smooth-scroll">
               {sessions.map((session) => {
-                const dur = sessionDuration(session);
+                const autoDur = sessionDuration(session);
+                const isManualDur = session.manual_duration_minutes != null;
+                const dur = isManualDur ? formatSessionDuration(session.manual_duration_minutes! * 60) : autoDur;
                 const dist = sessionDistance(session);
                 const exs = sessionExercises[session.id] ?? [];
                 const exCount = exs.length;
@@ -820,8 +891,21 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                           >
                             {sessionTypeLabel(session.session_type)}
                           </Badge>
-                          <span className="text-[9px] text-muted-foreground">
-                            {exCount} ex{dur ? ` · ${dur}` : ""}{dist ? ` · ${dist}` : ""}
+                          <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                            <span>{exCount} ex</span>
+                            {(dur || exCount > 0) && (
+                              <>
+                                <span>·</span>
+                                <DurationBadge
+                                  label={dur || "durée"}
+                                  isManual={isManualDur}
+                                  currentMinutes={session.manual_duration_minutes ?? null}
+                                  onSet={(m) => onSessionDurationChange?.(session.id, m)}
+                                  disabled={isValidated || !onSessionDurationChange}
+                                />
+                              </>
+                            )}
+                            {dist ? <span>· {dist}</span> : null}
                           </span>
                         </div>
                       </div>

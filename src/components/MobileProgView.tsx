@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
 import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardioCalculations";
+import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
@@ -29,6 +30,7 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null;
   garmin_link?: string | null;
+  manual_duration_minutes?: number | null;
 }
 
 interface SerieDetail {
@@ -107,6 +109,7 @@ interface MobileProgViewProps {
   onOpenCopyDialog?: () => void;
   onCopySession?: (sessionId: number) => void;
   onPasteSession?: () => void;
+  onSessionDurationChange?: (sessionId: number, minutes: number | null) => void;
   clipboardSessionName?: string | null;
   athleteVma?: number | null;
   athleteFcMax?: number | null;
@@ -521,7 +524,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -539,6 +542,7 @@ function SessionCard({
   onToggleSuperSet?: (exerciseId: number) => void;
   onNoteChange?: (note: string) => void;
   onCopySession?: () => void;
+  onDurationChange?: (minutes: number | null) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -573,6 +577,20 @@ function SessionCard({
       dur: totalSec > 0 ? formatCardioSessionDuration(Math.round(totalSec)) : null,
     };
   })();
+
+  // Durée : valeur forcée par le coach, sinon estimation (cardio via allure, renfo via calculateur)
+  const isManualDur = session.manual_duration_minutes != null;
+  const autoDurLabel =
+    session.session_type === "cardio"
+      ? cardioStats?.dur ?? null
+      : exercises.length > 0
+        ? formatSessionDuration(calculateSessionDuration(exercises as any))
+        : null;
+  const durLabel = isManualDur ? `${session.manual_duration_minutes} min` : autoDurLabel;
+  const [durOpen, setDurOpen] = useState(false);
+  const [durVal, setDurVal] = useState(session.manual_duration_minutes != null ? String(session.manual_duration_minutes) : "");
+  useEffect(() => { setDurVal(session.manual_duration_minutes != null ? String(session.manual_duration_minutes) : ""); }, [session.manual_duration_minutes, durOpen]);
+  const saveDur = () => { const n = parseInt(durVal, 10); onDurationChange?.(!isNaN(n) && n > 0 ? n : null); setDurOpen(false); };
 
   // Completion status from athlete data (direct exercise fields)
   const completionStatus: "none" | "partial" | "full" = (() => {
@@ -623,15 +641,50 @@ function SessionCard({
                 {cfg.emoji} {cfg.label}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {exercises.length > 0
-                ? [
-                    `${exercises.length} exercice${exercises.length > 1 ? "s" : ""}`,
-                    cardioStats?.dist,
-                    cardioStats?.dur,
-                  ].filter(Boolean).join(" · ")
-                : "Vide — tap pour ajouter"}
-            </p>
+            {exercises.length > 0 ? (
+              <p className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
+                <span>{exercises.length} exercice{exercises.length > 1 ? "s" : ""}</span>
+                {cardioStats?.dist && <span>· {cardioStats.dist}</span>}
+                {durLabel && (
+                  <>
+                    <span>·</span>
+                    {isValidated || !onDurationChange ? (
+                      <span className={isManualDur ? "font-medium text-primary" : ""}>{durLabel}</span>
+                    ) : (
+                      <Popover open={durOpen} onOpenChange={setDurOpen}>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setDurOpen(true); }}
+                            className={`underline decoration-dotted underline-offset-2 active:text-primary ${isManualDur ? "font-medium text-primary" : ""}`}
+                          >
+                            {durLabel}{isManualDur ? " ✎" : ""}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">Durée de la séance (min)</p>
+                          <div className="flex items-center gap-1.5">
+                            <Input type="number" inputMode="numeric" autoFocus value={durVal}
+                              onChange={(e) => setDurVal(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveDur(); } }}
+                              placeholder="ex: 60" className="h-8 text-sm" />
+                            <Button size="sm" className="h-8 px-2 text-xs" onClick={saveDur}>OK</Button>
+                          </div>
+                          {isManualDur && (
+                            <button type="button" onClick={() => { onDurationChange?.(null); setDurOpen(false); }}
+                              className="mt-1.5 text-[11px] text-muted-foreground underline underline-offset-2 active:text-primary">
+                              ↺ Revenir à l'estimation auto
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </>
+                )}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Vide — tap pour ajouter</p>
+            )}
           </div>
           {/* Note privée coach */}
           <Popover>
@@ -1084,7 +1137,7 @@ export function MobileProgView({
   onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onSessionNoteChange,
   onSave, onUnvalidate, isSaving, allowAddExercises, onToggleAllowAddExercises,
   hasPreviousWeeks, onCopyPreviousWeek, onOpenCopyDialog,
-  onCopySession, onPasteSession, clipboardSessionName,
+  onCopySession, onPasteSession, onSessionDurationChange, clipboardSessionName,
   athleteVma,
   athleteFcMax = null, athleteFcRepos = null,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
@@ -1229,6 +1282,7 @@ export function MobileProgView({
               onToggleSuperSet={onToggleSuperSet ? (exId) => onToggleSuperSet(session.id, exId) : undefined}
               onNoteChange={onSessionNoteChange ? (note) => onSessionNoteChange(session.id, note) : undefined}
               onCopySession={onCopySession ? () => onCopySession(session.id) : undefined}
+              onDurationChange={onSessionDurationChange ? (m) => onSessionDurationChange(session.id, m) : undefined}
             />
           ))
         )}

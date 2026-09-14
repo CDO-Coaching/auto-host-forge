@@ -120,6 +120,7 @@ interface Session {
   session_type: "renfo" | "cardio" | "recup";
   coach_note?: string | null; // note privée coach (invisible au sportif)
   garmin_link?: string | null; // lien Garmin déposé par l'athlète à la validation
+  manual_duration_minutes?: number | null; // durée forcée manuellement par le coach (sinon estimée)
 }
 
 interface SerieDetail {
@@ -916,6 +917,7 @@ export default function ClientDetail() {
           session_type: sessionType || "renfo",
           coach_note: (s as any).coach_note ?? null,
           garmin_link: (s as any).garmin_link ?? null,
+          manual_duration_minutes: (s as any).manual_duration_minutes ?? null,
         };
       });
 
@@ -2685,6 +2687,7 @@ export default function ClientDetail() {
           name: session.name,
           session_type: session.session_type, // Ajouter le type de session
           coach_note: session.coach_note ?? null, // note privée coach
+          manual_duration_minutes: session.manual_duration_minutes ?? null, // durée forcée par le coach
         };
 
         // Si c'est une séance cardio, calculer et ajouter les métriques
@@ -3397,7 +3400,19 @@ export default function ClientDetail() {
     toast.success("Séance collée — pense à valider la semaine pour l'enregistrer");
   };
 
+  // Toute modification du contenu d'une séance annule la durée forcée : on
+  // repasse en estimation automatique recalculée.
+  const clearManualDuration = (sessionId: number) => {
+    setSessions((prev) => prev.map((s) => (s.id === sessionId && s.manual_duration_minutes != null ? { ...s, manual_duration_minutes: null } : s)));
+  };
+
+  // Le coach fixe (ou efface) manuellement la durée d'une séance.
+  const handleSessionDurationChange = (sessionId: number, minutes: number | null) => {
+    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, manual_duration_minutes: minutes } : s)));
+  };
+
   const handleAddExercise = (sessionId: number) => {
+    clearManualDuration(sessionId);
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
 
@@ -3512,6 +3527,7 @@ export default function ClientDetail() {
   };
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
+    clearManualDuration(sessionId);
     // Normaliser les champs booléens passés comme string depuis le mobile
     if ((field === "is_duration" || field === "is_distance" || field === "per_side") && typeof value === "string") {
       value = value === "true";
@@ -3687,6 +3703,7 @@ export default function ClientDetail() {
   };
 
   const handleSerieDetailChange = (sessionId: number, exerciseId: number, serieIndex: number, field: keyof SerieDetail, value: string) => {
+    clearManualDuration(sessionId);
     setSessionExercises(prev => {
       const exercises = prev[sessionId] || [];
       const updated = exercises.map(ex => {
@@ -3808,6 +3825,7 @@ export default function ClientDetail() {
   };
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
+    clearManualDuration(sessionId);
     // Sauvegarder l'état avant suppression pour undo
     setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
 
@@ -5005,6 +5023,7 @@ export default function ClientDetail() {
               onOpenCopyDialog={() => setShowCopyDialog(true)}
               onCopySession={handleCopySession}
               onPasteSession={handlePasteSession}
+              onSessionDurationChange={handleSessionDurationChange}
               clipboardSessionName={clipboardSession?.name ?? null}
               athleteVma={athleteVma}
               athleteFcMax={athleteFcMax}
@@ -5040,6 +5059,7 @@ export default function ClientDetail() {
               onDeleteSession={handleDeleteSession}
               onAddExercise={handleAddExercise}
               onDeleteExercise={handleDeleteExercise}
+              onSessionDurationChange={handleSessionDurationChange}
               onExerciseChange={(sessionId, exerciseId, field, value) => handleExerciseChange(sessionId, exerciseId, field as any, value)}
               onSerieDetailChange={(sessionId, exerciseId, si, field, value) => handleSerieDetailChange(sessionId, exerciseId, si, field as any, value)}
               onKeyDown={(e, sessionId, exerciseId, field) => handleKeyDown(e, sessionId, exerciseId, field as any)}

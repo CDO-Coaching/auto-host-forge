@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getCardioEstimatedDuration, isCardioSession } from "@/lib/cardioEstimatedDuration";
+import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -512,7 +513,16 @@ export default function Seances() {
                           </span>
                         )}
                         {(() => {
-                          const durLabel = completed && session.duration_minutes ? `${session.duration_minutes} min` : cardioDur;
+                          // Durée prévue : override manuel du coach en priorité, sinon estimation
+                          // (cardio via allure, renfo via le calculateur reps/séries/récup/…)
+                          const plannedDur =
+                            session.manual_duration_minutes != null
+                              ? `${session.manual_duration_minutes} min`
+                              : cardioDur
+                                || (!isCardioSession(session) && (session.session_exercises?.length || 0) > 0
+                                  ? formatSessionDuration(calculateSessionDuration(session.session_exercises))
+                                  : null);
+                          const durLabel = completed && session.duration_minutes ? `${session.duration_minutes} min` : plannedDur;
                           if (!durLabel) return null;
                           return (
                             <span className="inline-flex items-baseline gap-1 font-bold text-foreground">
