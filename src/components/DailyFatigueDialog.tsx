@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Activity, X, ArrowDown, ArrowUp, Equal, Ban, Sparkles, CalendarIcon, Heart } from "lucide-react";
 import { InjuryLocationPicker } from "./InjuryLocationPicker";
+import { InjuryBodyDialog } from "./InjuryBodyDialog";
 import { cn } from "@/lib/utils";
 import { ConfettiEffect } from "./ConfettiEffect";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -81,6 +82,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
   const [hasInjury, setHasInjury] = useState(false);
   const [injuryLevel, setInjuryLevel] = useState(4);
   const [injuryLocation, setInjuryLocation] = useState("");
+  const [injuryDialogOpen, setInjuryDialogOpen] = useState(false);
   const [adaptationLevel, setAdaptationLevel] = useState<AdaptationLevel>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [userName, setUserName] = useState<string>("");
@@ -541,8 +543,7 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                   setHasInjury(true);
                   setInjuryLevel(4);
                   setInjuryLocation("");
-                  setSelectedZone("");
-                  setSelectedSide("");
+                  setInjuryDialogOpen(true);
                 }}
                 className="w-full text-xs"
               >
@@ -578,37 +579,46 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                     checked={hasInjury}
                     onCheckedChange={(checked) => {
                       setHasInjury(checked);
-                      if (!checked && isNewInjury) {
+                      if (checked) {
+                        // Ouvre le schéma corporel pour choisir la zone + la gravité
+                        setInjuryDialogOpen(true);
+                      } else if (isNewInjury) {
                         setIsNewInjury(false);
                       }
                     }}
                   />
                 </div>
+
+                {/* Récap de la douleur signalée (via le schéma) */}
+                {hasInjury && injuryLocation && (
+                  <button
+                    type="button"
+                    onClick={() => setInjuryDialogOpen(true)}
+                    className="mt-3 w-full flex items-center justify-between gap-2 rounded-xl border border-[rgba(239,90,60,0.35)] bg-[rgba(239,90,60,0.08)] px-3 py-2 text-left"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold truncate">{injuryLocation}</p>
+                      <p className="text-[11px] text-muted-foreground">Douleur {injuryLevelLabels[injuryLevel - 1]?.toLowerCase()} {injuryLevelEmojis[injuryLevel - 1]}</p>
+                    </div>
+                    <span className="text-[11px] font-semibold text-[#ff9a80] shrink-0">Modifier</span>
+                  </button>
+                )}
+                {hasInjury && !injuryLocation && (
+                  <button type="button" onClick={() => setInjuryDialogOpen(true)}
+                    className="mt-3 w-full h-10 rounded-xl border border-[rgba(239,90,60,0.4)] text-[13px] font-semibold text-[#ff9a80]">
+                    Indiquer où tu as mal →
+                  </button>
+                )}
               </div>
 
-              {hasInjury && (
-                <>
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label className="text-xs sm:text-base font-medium">À quel point&nbsp;?</Label>
-
-                    <QuickRatingInput
-                      value={injuryLevel}
-                      onChange={setInjuryLevel}
-                      min={1}
-                      max={7}
-                      labels={injuryLevelLabels}
-                      emojis={injuryLevelEmojis}
-                      variant="destructive"
-                      compact
-                    />
-                  </div>
-
-                  <InjuryLocationPicker
-                    value={injuryLocation}
-                    onChange={setInjuryLocation}
-                  />
-                </>
-              )}
+              <InjuryBodyDialog
+                open={injuryDialogOpen}
+                onOpenChange={setInjuryDialogOpen}
+                initialLocation={injuryLocation}
+                initialLevel={injuryLevel}
+                onValidate={(loc, lvl) => { setInjuryLocation(loc); setInjuryLevel(lvl); setHasInjury(true); }}
+                onCancel={() => { if (!injuryLocation) setHasInjury(false); }}
+              />
 
               {/* Bouton retour si on était sur nouvelle blessure */}
               {isNewInjury && previousInjury && (
@@ -620,8 +630,6 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
                     setHasInjury(false);
                     setInjuryLevel(previousInjury.injury_level);
                     setInjuryLocation(previousInjury.injury_location || "");
-                    setSelectedZone(previousInjury.injury_location || "");
-                    setSelectedSide("");
                   }}
                   className="w-full text-xs"
                 >
