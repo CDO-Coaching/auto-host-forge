@@ -717,6 +717,13 @@ export default function Seances() {
         open={!!schedulingSession}
         onOpenChange={(open) => !open && setSchedulingSession(null)}
         session={schedulingSession}
+        estimatedMinutes={schedulingSession ? (
+          isCardioSession(schedulingSession)
+            ? null
+            : (schedulingSession.session_exercises?.length
+                ? Math.round(calculateSessionDuration(schedulingSession.session_exercises) / 60)
+                : null)
+        ) : null}
         onUpdate={() => {
           if (selectedWeek) loadWeekSessions(selectedWeek.id);
         }}
