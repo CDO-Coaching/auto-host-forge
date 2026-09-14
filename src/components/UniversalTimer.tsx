@@ -1,4 +1,4 @@
-import { Timer, Play, Pause, RotateCcw, X } from "lucide-react";
+import { Timer, Play, Pause, RotateCcw, X, Maximize2, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -50,8 +50,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     updateSettings,
   } = useUniversalTimer();
 
-  // Keep screen on when timer dialog is open and running
-  useWakeLock(open && (isRunning || isCountingDown));
+  // Garder l'écran allumé tant que le minuteur tourne (plein écran OU bandeau compact)
+  useWakeLock(isRunning || isCountingDown);
 
   useImperativeHandle(ref, () => ({
     openWithSettings: (newSettings: Partial<TimerSettings>) => {
@@ -90,7 +90,73 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     return 0;
   };
 
+  // Bandeau compact affiché quand le minuteur tourne mais que le plein écran est fermé :
+  // laisse voir les séries et remplir la difficulté, tout en gardant chrono/phase/récup + sons.
+  const showMiniBar = (isRunning || isCountingDown) && !open;
+  const isTabata = settings.type === 'tabata';
+  const phaseColor = isCountingDown ? '#f59e0b' : (settings.type === 'tabata' ? (isWorkPhase ? '#22c55e' : '#3b82f6') : '#e8c466');
+
   return (
+    <>
+    {showMiniBar && (
+      <div
+        className="fixed left-2 right-2 top-[calc(0.5rem+env(safe-area-inset-top))] z-[60] rounded-2xl border shadow-lg overflow-hidden"
+        style={{ background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(8px)', borderColor: `${phaseColor}66` }}
+      >
+        {/* barre de progression de la phase en cours */}
+        <div className="h-1 w-full bg-white/10">
+          <div className="h-full transition-all" style={{ width: `${getProgress()}%`, background: phaseColor }} />
+        </div>
+        <div className="flex items-center gap-3 px-3 py-2">
+          {/* Phase + tour */}
+          <button type="button" onClick={() => setOpen(true)} className="flex flex-col items-start min-w-0 flex-1 text-left">
+            <span className="text-[11px] font-bold uppercase tracking-wide leading-none" style={{ color: phaseColor }}>
+              {isCountingDown ? 'Prépare-toi' : isTabata ? (isWorkPhase ? '🔥 Travail' : '💤 Repos') : 'Minuteur'}
+            </span>
+            {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
+              <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Tour {currentRound} / {getTotalRounds()}</span>
+            )}
+          </button>
+
+          {/* Chrono */}
+          <span className="font-mono font-black tabular-nums text-2xl leading-none" style={{ color: isCountingDown ? phaseColor : '#fff' }}>
+            {isCountingDown ? (countdownValue > 0 ? countdownValue : 'GO!') : formatTime(timeRemaining)}
+          </span>
+
+          {/* Contrôles */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {!isCountingDown && (
+              <button
+                type="button"
+                onClick={isRunning ? pauseTimer : startTimer}
+                className="h-9 w-9 rounded-full flex items-center justify-center text-primary-foreground"
+                style={{ background: phaseColor }}
+                aria-label={isRunning ? 'Pause' : 'Reprendre'}
+              >
+                {isRunning ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="h-9 w-9 rounded-full flex items-center justify-center bg-white/10 text-foreground"
+              aria-label="Agrandir"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={resetTimer}
+              className="h-9 w-9 rounded-full flex items-center justify-center bg-white/10 text-red-400"
+              aria-label="Arrêter"
+            >
+              <Square className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
         <DialogTrigger asChild>
@@ -197,7 +263,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
             ) : !isRunning ? (
               <Button
                 size="lg"
-                onClick={startTimer}
+                onClick={() => { startTimer(); setOpen(false); }}
                 className="px-12 h-16 text-lg bg-green-600 hover:bg-green-700"
               >
                 <Play className="h-6 w-6 mr-2" />
@@ -416,6 +482,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
         </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 });
 
