@@ -25,11 +25,11 @@ const MARKERS: Marker[] = [
   { zone: "Pubis / aine", bx: 366, by: 820 },
   { zone: "Adducteurs", bx: 360, by: 885, sideable: true },
   { zone: "Quadriceps", bx: 322, by: 945, sideable: true },
-  { zone: "Genou (avant / rotule)", bx: 330, by: 1055, sideable: true },
-  { zone: "Tibia (périostite)", bx: 335, by: 1185, sideable: true },
-  { zone: "Cheville", bx: 335, by: 1320, sideable: true },
-  { zone: "Pied (plantaire)", bx: 338, by: 1420, sideable: true },
-  { zone: "Orteils", bx: 348, by: 1470, sideable: true },
+  { zone: "Genou (avant / rotule)", bx: 328, by: 1080, sideable: true },
+  { zone: "Tibia (périostite)", bx: 334, by: 1230, sideable: true },
+  { zone: "Cheville", bx: 336, by: 1380, sideable: true },
+  { zone: "Pied (plantaire)", bx: 340, by: 1470, sideable: true },
+  { zone: "Orteils", bx: 352, by: 1510, sideable: true },
   // ── DOS ──
   { zone: "Nuque / cervicales", bx: 1336, by: 335 },
   { zone: "Trapèzes", bx: 1292, by: 410 },
@@ -151,8 +151,8 @@ export function InjuryBodyDialog({ open, onOpenChange, initialLocation, initialL
 
         <div className="w-full rounded-2xl overflow-hidden bg-black/20">
           {view === "front"
-            ? <BodyPlate vb={[-360, 120, 1360, 1360]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
-            : <BodyPlate vb={[780, 120, 1580, 1360]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
+            ? <BodyPlate vb={[-260, 130, 1240, 1400]} markers={frontMarkers} selected={zone} onClickPoint={handleClickPoint} />
+            : <BodyPlate vb={[840, 130, 1420, 1400]} markers={backMarkers} selected={zone} onClickPoint={handleClickPoint} />}
         </div>
 
         {zone ? (
