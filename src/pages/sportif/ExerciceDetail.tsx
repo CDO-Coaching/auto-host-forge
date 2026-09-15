@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
+import { motion } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1406,7 +1407,11 @@ export default function ExerciceDetail() {
 
               {!seriesCollapsed && !useSimplified && !isEmomRecovery && (!allSeriesValidated || editMode) && (
                 <div className="space-y-2">
-                  {seriesData.map((serie, idx) => {
+                  {seriesData
+                    .map((serie, idx) => ({ serie, idx }))
+                    // Les séries validées descendent sous les séries encore à faire
+                    .sort((a, b) => Number(!!serieValidations[a.idx]?.validated) - Number(!!serieValidations[b.idx]?.validated))
+                    .map(({ serie, idx }) => {
                     const validation = serieValidations[idx];
                     const isValidated = validation?.validated;
 
@@ -1435,18 +1440,28 @@ export default function ExerciceDetail() {
                     const demandedReserve = demanded == null ? null : rpeReserve(demanded);
 
                     return (
-                      <div key={idx} className="space-y-1.5">
+                      <motion.div
+                        key={idx}
+                        layout
+                        transition={{ type: "spring", stiffness: 500, damping: 40, mass: 0.8 }}
+                        className="space-y-1.5"
+                      >
                       <div
                         style={rpeGlow}
                         onClick={() => handleValidateSerie(idx)}
-                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer active:scale-[0.99] ${isValidated ? "bg-green-500/5 border-green-500/30" : "bg-muted/40 border-border"}`}
+                        className={`relative flex items-center gap-2 px-2.5 py-1.5 rounded-xl border-2 transition-all cursor-pointer active:scale-[0.99] ${isValidated ? "bg-green-500/12 border-green-500/50" : "bg-muted/40 border-border"}`}
                       >
-                        {/* Numéro de série */}
+                        {/* Numéro de série (conservé même validé) + coche verte */}
                         <div className="flex flex-col items-center shrink-0 w-7">
-                          <div className={`h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
-                            {isValidated ? <Check className="h-4 w-4" /> : idx + 1}
+                          <div className={`relative h-7 w-7 rounded-full flex items-center justify-center font-bold text-xs ${isValidated ? "bg-green-600 text-white" : "bg-primary/20 text-primary"}`}>
+                            {idx + 1}
+                            {isValidated && (
+                              <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-green-500 border border-background flex items-center justify-center">
+                                <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
+                              </span>
+                            )}
                           </div>
-                          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Série</span>
+                          <span className={`text-[9px] font-semibold uppercase tracking-wide ${isValidated ? "text-green-600" : "text-muted-foreground"}`}>{isValidated ? "Faite" : "Série"}</span>
                         </div>
 
                         {/* Métriques — l'intensité/RPE demandé domine la ligne */}
@@ -1532,10 +1547,10 @@ export default function ExerciceDetail() {
                           </div>
                         )}
                       </div>
-                      {(serie.recuperation || exercise.recuperation) && idx < seriesData.length - 1 && (
+                      {!isValidated && (serie.recuperation || exercise.recuperation) && (
                         <p className="text-center text-[11px] text-muted-foreground/80">⏱ récup {serie.recuperation || exercise.recuperation}</p>
                       )}
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
