@@ -225,9 +225,19 @@ export default function ExerciceDetail() {
     return series;
   };
 
-  // Afficher le post-it de la note du coach à l'ouverture de l'exercice
+  // Post-it "note du coach" : n'apparaît à l'ouverture QUE si aucune série n'est déjà validée
   useEffect(() => {
-    setCoachNoteOpen(!!exercise?.commentaire);
+    if (!exercise?.commentaire) { setCoachNoteOpen(false); return; }
+    let anyValidated = false;
+    let db = (exercise as any).serie_rpe_details;
+    if (typeof db === "string") { try { db = JSON.parse(db); } catch { db = null; } }
+    if (Array.isArray(db) && db.some((d: any) => d && d.rpe != null)) anyValidated = true;
+    if ((exercise as any).sportif_rpe != null) anyValidated = true;
+    if (!anyValidated) {
+      const saved = localStorage.getItem(`serie-validations-${exerciceId}`);
+      if (saved) { try { const p = JSON.parse(saved); if (Array.isArray(p) && p.some((s: any) => s.validated)) anyValidated = true; } catch { /* ignore */ } }
+    }
+    setCoachNoteOpen(!anyValidated);
   }, [exercise?.id]);
 
   // Initialize serie validations when exercise loads
@@ -829,6 +839,40 @@ export default function ExerciceDetail() {
     <div className="min-h-screen bg-background">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
       <UniversalTimer ref={timerRef} hideTrigger />
+
+      {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
+      <AnimatePresence>
+        {exercise?.commentaire && coachNoteOpen && (
+          <motion.div
+            key="coach-note-postit"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.6}
+            onDragEnd={(_, info) => { if (Math.abs(info.offset.x) > 90) setCoachNoteOpen(false); }}
+            initial={{ opacity: 0, y: -20, rotate: -2, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0, rotate: -1.2, scale: 1 }}
+            exit={{ opacity: 0, y: -14, scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 420, damping: 26 }}
+            className="fixed left-3 right-3 top-[70px] z-[70] rounded-2xl px-4 py-3 shadow-2xl cursor-grab active:cursor-grabbing"
+            style={{ background: "linear-gradient(135deg, #f7e59a, #ecd06a)", color: "#3a2f10" }}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-base leading-none">📝</span>
+              <span className="text-xs font-extrabold uppercase tracking-wide" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Note du coach</span>
+              <button
+                type="button"
+                onClick={() => setCoachNoteOpen(false)}
+                aria-label="Fermer"
+                className="ml-auto h-6 w-6 rounded-full flex items-center justify-center hover:bg-black/10"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{exercise.commentaire}</p>
+            <p className="text-[10px] text-black/45 text-center mt-1.5">glisse pour fermer →</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <CelebrationOverlay
         show={showCelebration}
         message={exercise?.exercice || ""}
@@ -1112,35 +1156,6 @@ export default function ExerciceDetail() {
             </div>
           </a>
         )}
-
-        {/* Note du coach — post-it qui apparaît à l'ouverture (Option 5), refermable ;
-            la carte complète reste consultable en bas. */}
-        <AnimatePresence>
-          {exercise.commentaire && coachNoteOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -12, rotate: -2, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, rotate: -1.2, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.96 }}
-              transition={{ type: "spring", stiffness: 420, damping: 26 }}
-              className="relative rounded-xl px-3.5 py-3 shadow-lg"
-              style={{ background: "linear-gradient(135deg, #f7e59a, #ecd06a)", color: "#3a2f10" }}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-base leading-none">📝</span>
-                <span className="text-xs font-extrabold uppercase tracking-wide" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Note du coach</span>
-                <button
-                  type="button"
-                  onClick={() => setCoachNoteOpen(false)}
-                  aria-label="Fermer"
-                  className="ml-auto h-6 w-6 rounded-full flex items-center justify-center hover:bg-black/10"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{exercise.commentaire}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Dialog : muscles sollicités sur la silhouette */}
         <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
