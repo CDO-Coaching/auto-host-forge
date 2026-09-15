@@ -126,6 +126,7 @@ export default function ExerciceDetail() {
   const [seriesCollapsed, setSeriesCollapsed] = useState(false);
   const [forceDetail, setForceDetail] = useState(false); // forcer l'affichage détaillé si séries identiques
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [coachNoteOpen, setCoachNoteOpen] = useState(false);
 
   // Vérifier si la récupération est en mode EMOM
   const isEmomRecovery = exercise?.recuperation?.toLowerCase() === 'emom';
@@ -1105,6 +1106,26 @@ export default function ExerciceDetail() {
               <p className="text-[11px] text-muted-foreground leading-tight">Comment bien faire le mouvement</p>
             </div>
           </a>
+        )}
+
+        {/* Note du coach — bandeau compact repliable, toujours visible en tête */}
+        {exercise.commentaire && (
+          <button
+            type="button"
+            onClick={() => setCoachNoteOpen((v) => !v)}
+            className="w-full text-left rounded-xl border border-primary/30 bg-primary/[0.07] px-3 py-2 active:scale-[0.99] transition-transform"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-base leading-none">📝</span>
+              <span className="text-xs font-bold text-primary uppercase tracking-wide">Note du coach</span>
+              <span className={`ml-auto text-muted-foreground transition-transform ${coachNoteOpen ? "rotate-180" : ""}`}>
+                <ChevronDown className="h-4 w-4" />
+              </span>
+            </div>
+            <p className={`text-sm leading-relaxed mt-1 ${coachNoteOpen ? "whitespace-pre-wrap" : "truncate text-muted-foreground"}`}>
+              {exercise.commentaire}
+            </p>
+          </button>
         )}
 
         {/* Dialog : muscles sollicités sur la silhouette */}
