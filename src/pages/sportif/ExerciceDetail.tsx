@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, type ReactNode } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useParams, useNavigate } from "react-router-dom";
 import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp, PersonStanding } from "lucide-react";
+import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp, PersonStanding, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -224,6 +224,11 @@ export default function ExerciceDetail() {
     }
     return series;
   };
+
+  // Afficher le post-it de la note du coach à l'ouverture de l'exercice
+  useEffect(() => {
+    setCoachNoteOpen(!!exercise?.commentaire);
+  }, [exercise?.id]);
 
   // Initialize serie validations when exercise loads
   useEffect(() => {
@@ -1108,25 +1113,34 @@ export default function ExerciceDetail() {
           </a>
         )}
 
-        {/* Note du coach — bandeau compact repliable, toujours visible en tête */}
-        {exercise.commentaire && (
-          <button
-            type="button"
-            onClick={() => setCoachNoteOpen((v) => !v)}
-            className="w-full text-left rounded-xl border border-primary/30 bg-primary/[0.07] px-3 py-2 active:scale-[0.99] transition-transform"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-base leading-none">📝</span>
-              <span className="text-xs font-bold text-primary uppercase tracking-wide">Note du coach</span>
-              <span className={`ml-auto text-muted-foreground transition-transform ${coachNoteOpen ? "rotate-180" : ""}`}>
-                <ChevronDown className="h-4 w-4" />
-              </span>
-            </div>
-            <p className={`text-sm leading-relaxed mt-1 ${coachNoteOpen ? "whitespace-pre-wrap" : "truncate text-muted-foreground"}`}>
-              {exercise.commentaire}
-            </p>
-          </button>
-        )}
+        {/* Note du coach — post-it qui apparaît à l'ouverture (Option 5), refermable ;
+            la carte complète reste consultable en bas. */}
+        <AnimatePresence>
+          {exercise.commentaire && coachNoteOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -12, rotate: -2, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, rotate: -1.2, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 420, damping: 26 }}
+              className="relative rounded-xl px-3.5 py-3 shadow-lg"
+              style={{ background: "linear-gradient(135deg, #f7e59a, #ecd06a)", color: "#3a2f10" }}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-base leading-none">📝</span>
+                <span className="text-xs font-extrabold uppercase tracking-wide" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Note du coach</span>
+                <button
+                  type="button"
+                  onClick={() => setCoachNoteOpen(false)}
+                  aria-label="Fermer"
+                  className="ml-auto h-6 w-6 rounded-full flex items-center justify-center hover:bg-black/10"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium">{exercise.commentaire}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Dialog : muscles sollicités sur la silhouette */}
         <Dialog open={musclesOpen} onOpenChange={setMusclesOpen}>
