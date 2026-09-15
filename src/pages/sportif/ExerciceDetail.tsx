@@ -853,7 +853,7 @@ export default function ExerciceDetail() {
             animate={{ opacity: 1, y: 0, rotate: -1.2, scale: 1 }}
             exit={{ opacity: 0, y: -14, scale: 0.94 }}
             transition={{ type: "spring", stiffness: 420, damping: 26 }}
-            className="fixed left-3 right-3 top-[70px] z-[70] rounded-2xl px-4 py-3 shadow-2xl cursor-grab active:cursor-grabbing"
+            className="fixed left-3 right-3 top-[38%] z-[70] rounded-2xl px-4 py-3 shadow-2xl cursor-grab active:cursor-grabbing"
             style={{ background: "linear-gradient(135deg, #f7e59a, #ecd06a)", color: "#3a2f10" }}
           >
             <div className="flex items-center gap-2 mb-1">
