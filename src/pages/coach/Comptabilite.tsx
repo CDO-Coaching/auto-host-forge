@@ -240,17 +240,24 @@ export default function Comptabilite() {
       // Créer automatiquement des entrées UNIQUEMENT s'il n'y en a aucune pour ce mois
       if (!entriesData || entriesData.length === 0) {
         if (allClients.length > 0) {
-          const newEntries = allClients.map(client => ({
-            coach_id: session.user.id,
-            [client.is_external ? "external_client_id" : "client_id"]: client.id,
-            month: monthStr,
-            sessions_planned: 0,
-            sessions_done: 0,
-            sessions_paid: 0,
-            payment_type: "espèces",
-            amount_cash: 0,
-            amount_transfer: 0
-          }));
+          const newEntries = allClients.map(client => {
+            const contact = athleteContactMap.get(client.id);
+            return {
+              coach_id: session.user.id,
+              [client.is_external ? "external_client_id" : "client_id"]: client.id,
+              month: monthStr,
+              sessions_planned: 0,
+              sessions_done: 0,
+              sessions_paid: 0,
+              payment_type: "espèces",
+              amount_cash: 0,
+              amount_transfer: 0,
+              // Snapshot : conserve le nom/coordonnées même si le compte est supprimé plus tard
+              client_name_snapshot: `${client.first_name || ""} ${client.last_name || ""}`.trim() || null,
+              client_address_snapshot: contact?.client_address || null,
+              client_phone_snapshot: contact?.client_phone || null,
+            };
+          });
 
           await supabase.from("accounting_entries").insert(newEntries);
 
@@ -304,14 +311,17 @@ export default function Comptabilite() {
             id: entry.id,
             client_id: entry.client_id,
             external_client_id: entry.external_client_id,
+            // Nom : profil relié si présent, sinon snapshot enregistré (survit à la suppression du compte)
             client_name: entry.client_id
-              ? `${entry.user_profiles?.first_name} ${entry.user_profiles?.last_name}`
-              : `${entry.external_clients?.first_name} ${entry.external_clients?.last_name}`,
+              ? (entry.user_profiles
+                  ? `${entry.user_profiles.first_name || ""} ${entry.user_profiles.last_name || ""}`.trim()
+                  : (entry.client_name_snapshot || "Ancien client"))
+              : `${entry.external_clients?.first_name || ""} ${entry.external_clients?.last_name || ""}`.trim(),
             client_address: entry.client_id
-              ? (athleteContactMap.get(entry.client_id)?.client_address || undefined)
+              ? (athleteContactMap.get(entry.client_id)?.client_address || entry.client_address_snapshot || undefined)
               : (entry.external_clients?.address || undefined),
             client_phone: entry.client_id
-              ? (athleteContactMap.get(entry.client_id)?.client_phone || undefined)
+              ? (athleteContactMap.get(entry.client_id)?.client_phone || entry.client_phone_snapshot || undefined)
               : (entry.external_clients?.phone || undefined),
             sessions_planned: entry.sessions_planned || 0,
             sessions_done: entry.sessions_done || 0,
