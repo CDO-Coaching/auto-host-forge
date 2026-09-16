@@ -95,9 +95,11 @@ export default function Comptabilite() {
   const [hasBackup, setHasBackup] = useState(false);
   const [pendingChanges, setPendingChanges] = useState<Record<string, Partial<AccountingEntry>>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [hideClientNames, setHideClientNames] = useState(false);
+  // Liste "Clients à ajouter" masquée par défaut, choix persistant par coach
+  const [hideClientNames, setHideClientNames] = useState(true);
   // Clients masqués de la liste "à ajouter" (persisté par coach)
   const hiddenClientsKey = profile?.id ? `compta_hidden_clients_${profile.id}` : "compta_hidden_clients";
+  const hideAddListKey = profile?.id ? `compta_hide_addlist_${profile.id}` : "compta_hide_addlist";
   const [hiddenClients, setHiddenClients] = useState<Set<string>>(new Set());
   const [showHiddenClients, setShowHiddenClients] = useState(false);
 
@@ -106,7 +108,20 @@ export default function Comptabilite() {
       const raw = localStorage.getItem(hiddenClientsKey);
       setHiddenClients(new Set(raw ? JSON.parse(raw) : []));
     } catch { setHiddenClients(new Set()); }
-  }, [hiddenClientsKey]);
+    // Rétablir l'état "masqué / affiché" de la liste (masqué par défaut)
+    try {
+      const saved = localStorage.getItem(hideAddListKey);
+      setHideClientNames(saved === null ? true : saved === "true");
+    } catch { setHideClientNames(true); }
+  }, [hiddenClientsKey, hideAddListKey]);
+
+  const toggleHideAddList = () => {
+    setHideClientNames((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(hideAddListKey, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const toggleHiddenClient = (clientId: string, hide: boolean) => {
     setHiddenClients((prev) => {
@@ -915,7 +930,7 @@ export default function Comptabilite() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setHideClientNames(!hideClientNames)}
+                        onClick={toggleHideAddList}
                         className="h-8"
                       >
                         {hideClientNames ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
