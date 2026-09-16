@@ -88,6 +88,7 @@ export default function Comptabilite() {
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"tous" | "impaye" | "remplir">("tous");
+  const [expandedId, setExpandedId] = useState<string | null>(null); // carte mobile dépliée (édition)
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
   const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
@@ -1195,27 +1196,19 @@ export default function Comptabilite() {
                       return (
                       <Card key={entry.id} id={`entry-${entry.id}`} className="shadow-sm transition-all border" style={{ borderLeft: `4px solid ${st.color}` }}>
                         <CardContent className="p-4 space-y-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-semibold text-base truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{entry.client_name}</h3>
-                                <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${entry.external_client_id ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}>
-                                  {entry.external_client_id ? "Externe" : "Appli"}
-                                </Badge>
+                          <div className="flex items-center justify-between gap-2">
+                            <button type="button" onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                              <ChevronRight className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${expandedId === entry.id ? "rotate-90" : ""}`} />
+                              <div className="min-w-0">
+                                <h3 className="font-semibold text-[15px] truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{entry.client_name}</h3>
+                                <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                                  {(entry.sessions_done || 0)} réalisée{(entry.sessions_done || 0) > 1 ? "s" : ""} · {(entry.sessions_paid || 0)} payée{(entry.sessions_paid || 0) > 1 ? "s" : ""}
+                                  {(entry.amount_cash + entry.amount_transfer) > 0 ? ` · ${(entry.amount_cash + entry.amount_transfer).toFixed(0)} €` : ""}
+                                </p>
                               </div>
-                              <p className="text-[12px] text-muted-foreground mt-0.5">
-                                {(entry.sessions_done || 0)} réalisée{(entry.sessions_done || 0) > 1 ? "s" : ""} · {(entry.sessions_paid || 0)} payée{(entry.sessions_paid || 0) > 1 ? "s" : ""}
-                                {(entry.amount_cash + entry.amount_transfer) > 0 ? ` · ${(entry.amount_cash + entry.amount_transfer).toFixed(0)} €` : ""}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1 shrink-0">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap"
-                                style={{ backgroundColor: `${st.color}22`, color: st.color }}>{st.label}</span>
-                              <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
-                              <Button variant="ghost" size="icon" onClick={() => deleteEntry(entry.id)} className="h-8 w-8">
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
+                            </button>
+                            <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap shrink-0"
+                              style={{ backgroundColor: `${st.color}22`, color: st.color }}>{st.label}</span>
                           </div>
 
                           {/* Action rapide : solder les séances impayées (marque toutes les réalisées comme payées) */}
@@ -1229,6 +1222,7 @@ export default function Comptabilite() {
                             </button>
                           )}
 
+                          {expandedId === entry.id && (<>
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <Label className="text-xs text-muted-foreground">Séances prévues</Label>
@@ -1330,6 +1324,17 @@ export default function Comptabilite() {
                               {(entry.amount_cash + entry.amount_transfer).toFixed(2)} €
                             </span>
                           </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>Jour de facturation :</span>
+                              <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
+                            </div>
+                            <Button variant="ghost" size="sm" onClick={() => deleteEntry(entry.id)} className="text-destructive h-8">
+                              <Trash2 className="h-4 w-4 mr-1" /> Supprimer
+                            </Button>
+                          </div>
+                          </>)}
                         </CardContent>
                       </Card>
                       );
