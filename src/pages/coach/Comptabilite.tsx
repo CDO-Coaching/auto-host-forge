@@ -1527,6 +1527,8 @@ export default function Comptabilite() {
                     onClick={() => {
                       setShowDebtorsDialog(false);
                       setSearchQuery(debtor.client_name);
+                      setStatusFilter("tous");
+                      setExpandedId(debtor.id); // ouvre directement la carte du client
                       setTimeout(() => {
                         const el = document.getElementById(`entry-${debtor.id}`);
                         if (el) {
