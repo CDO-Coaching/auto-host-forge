@@ -87,6 +87,7 @@ export default function Comptabilite() {
   const [applyCashCoefficient, setApplyCashCoefficient] = useState(false);
   const [applyTransferCoefficient, setApplyTransferCoefficient] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"tous" | "impaye" | "remplir">("tous");
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
   const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
@@ -692,6 +693,24 @@ export default function Comptabilite() {
       return 0;
     });
 
+  // Statut clair par client : impayé / à remplir / crédit / à jour (priorité dans cet ordre)
+  const entryStatus = (e: AccountingEntry) => {
+    const uncovered = monthlyUncovered(e);
+    const key = e.client_id || e.external_client_id;
+    const balance = key ? (globalBalances[key]?.balance ?? 0) : 0;
+    const needsFill = (e.sessions_planned || 0) > 0 && (e.sessions_done || 0) === 0;
+    if (uncovered > 0) return { kind: "impaye" as const, label: `${uncovered} impayée${uncovered > 1 ? "s" : ""}`, color: "#ef4444" };
+    if (needsFill) return { kind: "remplir" as const, label: "À remplir", color: "#f0b429" };
+    if (balance > 0) return { kind: "credit" as const, label: `Crédit +${balance}`, color: "#06b6d4" };
+    return { kind: "ajour" as const, label: "À jour", color: "#22c55e" };
+  };
+
+  // Liste affichée = recherche + filtre de statut
+  const visibleEntries = filteredEntries.filter((e) => {
+    if (statusFilter === "tous") return true;
+    return entryStatus(e).kind === statusFilter;
+  });
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && hasUnsavedChanges) {
       e.preventDefault();
@@ -973,6 +992,28 @@ export default function Comptabilite() {
                   )}
                 </div>
 
+                {/* Filtres de statut — aller droit à ce qu'il faut vérifier */}
+                <div className="flex gap-2 mb-3">
+                  {([
+                    { k: "tous" as const, label: "Tous", count: filteredEntries.length },
+                    { k: "impaye" as const, label: "Impayés", count: filteredEntries.filter(e => entryStatus(e).kind === "impaye").length },
+                    { k: "remplir" as const, label: "À remplir", count: filteredEntries.filter(e => entryStatus(e).kind === "remplir").length },
+                  ]).map(f => {
+                    const active = statusFilter === f.k;
+                    const col = f.k === "impaye" ? "#ef4444" : f.k === "remplir" ? "#f0b429" : "hsl(var(--primary))";
+                    return (
+                      <button key={f.k} type="button" onClick={() => setStatusFilter(f.k)}
+                        className="px-3 h-8 rounded-full text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
+                        style={active
+                          ? { backgroundColor: col, color: f.k === "tous" ? "hsl(var(--primary-foreground))" : "#fff", borderColor: col }
+                          : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+                        {f.label}
+                        {f.count > 0 && <span className="text-[10px] opacity-80">{f.count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {/* Vue Desktop - Tableau */}
                 {!isMobile && (
                   <div className="relative border rounded-md">
@@ -981,6 +1022,7 @@ export default function Comptabilite() {
                         <TableHeader>
                           <TableRow className="sticky top-0 bg-background z-20 border-b shadow-sm">
                             <TableHead className="sticky left-0 top-0 bg-background z-30 border-r">Client</TableHead>
+                            <TableHead className="text-center bg-background sticky top-0 z-20">Statut</TableHead>
                             <TableHead className="text-center bg-background sticky top-0 z-20">Séances prévues</TableHead>
                           <TableHead className="text-center bg-background sticky top-0 z-20">Séances réalisées</TableHead>
                           <TableHead className="text-center bg-background sticky top-0 z-20">Séances payées</TableHead>
@@ -993,8 +1035,10 @@ export default function Comptabilite() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredEntries.map(entry => (
-                          <TableRow key={entry.id} id={`entry-${entry.id}`} className="transition-all">
+                        {visibleEntries.map(entry => {
+                          const st = entryStatus(entry);
+                          return (
+                          <TableRow key={entry.id} id={`entry-${entry.id}`} className="transition-all" style={{ boxShadow: `inset 3px 0 0 ${st.color}` }}>
                             <TableCell className="font-medium sticky left-0 bg-background z-10 border-r">
                               <div className="flex items-center gap-2">
                                 <span>{entry.client_name}</span>
@@ -1003,6 +1047,10 @@ export default function Comptabilite() {
                                 </Badge>
                                 <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
                               </div>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
+                                style={{ backgroundColor: `${st.color}22`, color: st.color }}>{st.label}</span>
                             </TableCell>
                             <TableCell>
                               <Input
@@ -1131,7 +1179,8 @@ export default function Comptabilite() {
                               </Button>
                             </TableCell>
                           </TableRow>
-                        ))}
+                          );
+                        })}
                       </TableBody>
                       </Table>
                     </div>
@@ -1141,26 +1190,44 @@ export default function Comptabilite() {
                 {/* Vue Mobile - Cartes */}
                 {isMobile && (
                   <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                    {filteredEntries.map(entry => (
-                      <Card key={entry.id} id={`entry-${entry.id}`} className="border shadow-sm transition-all">
+                    {visibleEntries.map(entry => {
+                      const st = entryStatus(entry);
+                      return (
+                      <Card key={entry.id} id={`entry-${entry.id}`} className="shadow-sm transition-all border" style={{ borderLeft: `4px solid ${st.color}` }}>
                         <CardContent className="p-4 space-y-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-base">{entry.client_name}</h3>
-                              <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${entry.external_client_id ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}>
-                                {entry.external_client_id ? "Externe" : "Appli"}
-                              </Badge>
-                              <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-semibold text-base truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{entry.client_name}</h3>
+                                <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${entry.external_client_id ? "border-amber-500/50 text-amber-500" : "border-primary/50 text-primary"}`}>
+                                  {entry.external_client_id ? "Externe" : "Appli"}
+                                </Badge>
+                              </div>
+                              <p className="text-[12px] text-muted-foreground mt-0.5">
+                                {(entry.sessions_done || 0)} réalisée{(entry.sessions_done || 0) > 1 ? "s" : ""} · {(entry.sessions_paid || 0)} payée{(entry.sessions_paid || 0) > 1 ? "s" : ""}
+                                {(entry.amount_cash + entry.amount_transfer) > 0 ? ` · ${(entry.amount_cash + entry.amount_transfer).toFixed(0)} €` : ""}
+                              </p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => deleteEntry(entry.id)}
-                              className="h-8 w-8 -mt-1 -mr-2"
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap"
+                                style={{ backgroundColor: `${st.color}22`, color: st.color }}>{st.label}</span>
+                              <BillingDayInput value={entry.billing_start_day || 1} onCommit={(d) => updateBillingDay(entry, d)} />
+                              <Button variant="ghost" size="icon" onClick={() => deleteEntry(entry.id)} className="h-8 w-8">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
+
+                          {/* Action rapide : solder les séances impayées (marque toutes les réalisées comme payées) */}
+                          {st.kind === "impaye" && (
+                            <button
+                              type="button"
+                              onClick={() => updateEntry(entry.id, "sessions_paid", entry.sessions_done || 0)}
+                              className="w-full h-10 rounded-xl bg-green-600 text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+                            >
+                              <TrendingUp className="h-4 w-4" /> Marquer payé (puis Enregistrer)
+                            </button>
+                          )}
 
                           <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
@@ -1265,7 +1332,8 @@ export default function Comptabilite() {
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
