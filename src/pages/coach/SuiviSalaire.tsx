@@ -50,10 +50,10 @@ export default function SuiviSalaire() {
         transfers = transfers * 0.76;
         // Pas de coefficient pour les espèces (par défaut désactivé)
 
-        // Loyer : valeur du mois si définie, sinon loyer global (celui saisi en Comptabilité)
+        // Loyer : valeur du mois si définie, sinon loyer global, sinon défaut 300 € (comme la Comptabilité)
         const rentKey = `rent_${format(monthDate, "yyyy-MM")}`;
         const savedRent = localStorage.getItem(rentKey) ?? localStorage.getItem("rent_global");
-        const rent = savedRent ? (parseFloat(savedRent) || 0) : 0;
+        const rent = savedRent !== null ? (parseFloat(savedRent) || 0) : 300;
 
         // Résultat du mois = revenus (virements pondérés + espèces) − loyer
         const total = transfers + cash - rent;
