@@ -89,6 +89,7 @@ export default function Comptabilite() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"tous" | "impaye" | "remplir">("tous");
   const [expandedId, setExpandedId] = useState<string | null>(null); // carte mobile dépliée (édition)
+  const [payChoiceId, setPayChoiceId] = useState<string | null>(null); // carte demandant espèces/virement
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
   const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
@@ -1226,15 +1227,36 @@ export default function Comptabilite() {
                               style={{ backgroundColor: `${st.color}22`, color: st.color }}>{st.label}</span>
                           </div>
 
-                          {/* Action rapide : solder les séances impayées (marque toutes les réalisées comme payées) */}
+                          {/* Action rapide : solder les séances impayées → demande espèces/virement */}
                           {st.kind === "impaye" && (
-                            <button
-                              type="button"
-                              onClick={() => updateEntry(entry.id, "sessions_paid", entry.sessions_done || 0)}
-                              className="w-full h-10 rounded-xl bg-green-600 text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-                            >
-                              <TrendingUp className="h-4 w-4" /> Marquer payé (puis Enregistrer)
-                            </button>
+                            payChoiceId === entry.id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[12px] text-muted-foreground shrink-0">Payé en&nbsp;:</span>
+                                {([
+                                  { v: "espèces", label: "💵 Espèces" },
+                                  { v: "virement", label: "🏦 Virement" },
+                                ]).map((opt) => (
+                                  <button key={opt.v} type="button"
+                                    onClick={() => {
+                                      updateEntry(entry.id, "payment_type", opt.v);
+                                      updateEntry(entry.id, "sessions_paid", entry.sessions_done || 0);
+                                      setPayChoiceId(null);
+                                    }}
+                                    className="flex-1 h-9 rounded-lg border border-primary/50 bg-primary/10 text-primary text-[13px] font-semibold">
+                                    {opt.label}
+                                  </button>
+                                ))}
+                                <button type="button" onClick={() => setPayChoiceId(null)} className="text-[12px] text-muted-foreground underline shrink-0">Annuler</button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => setPayChoiceId(entry.id)}
+                                className="w-full h-10 rounded-xl bg-green-600 text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
+                              >
+                                <TrendingUp className="h-4 w-4" /> Marquer payé
+                              </button>
+                            )
                           )}
 
                           {expandedId === entry.id && (<>
