@@ -1202,7 +1202,7 @@ export default function Comptabilite() {
                               <div className="min-w-0">
                                 <h3 className="font-semibold text-[15px] truncate" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{entry.client_name}</h3>
                                 <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
-                                  {(entry.sessions_done || 0)} réalisée{(entry.sessions_done || 0) > 1 ? "s" : ""} · {(entry.sessions_paid || 0)} payée{(entry.sessions_paid || 0) > 1 ? "s" : ""}
+                                  {(entry.sessions_planned || 0)} prévue{(entry.sessions_planned || 0) > 1 ? "s" : ""} · {(entry.sessions_done || 0)} réalisée{(entry.sessions_done || 0) > 1 ? "s" : ""} · {(entry.sessions_paid || 0)} payée{(entry.sessions_paid || 0) > 1 ? "s" : ""}
                                   {(entry.amount_cash + entry.amount_transfer) > 0 ? ` · ${(entry.amount_cash + entry.amount_transfer).toFixed(0)} €` : ""}
                                 </p>
                               </div>
