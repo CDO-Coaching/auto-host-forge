@@ -11,6 +11,7 @@ interface MonthlyData {
   monthLabel: string;
   transfers: number;
   cash: number;
+  rent: number;
   total: number;
 }
 
@@ -49,12 +50,12 @@ export default function SuiviSalaire() {
         transfers = transfers * 0.76;
         // Pas de coefficient pour les espèces (par défaut désactivé)
 
-        // Charger le loyer depuis localStorage pour ce mois
+        // Loyer : valeur du mois si définie, sinon loyer global (celui saisi en Comptabilité)
         const rentKey = `rent_${format(monthDate, "yyyy-MM")}`;
-        const savedRent = localStorage.getItem(rentKey);
-        const rent = savedRent ? parseFloat(savedRent) : 0;
+        const savedRent = localStorage.getItem(rentKey) ?? localStorage.getItem("rent_global");
+        const rent = savedRent ? (parseFloat(savedRent) || 0) : 0;
 
-        // Calculer le total après déduction du loyer
+        // Résultat du mois = revenus (virements pondérés + espèces) − loyer
         const total = transfers + cash - rent;
 
         months.push({
@@ -62,6 +63,7 @@ export default function SuiviSalaire() {
           monthLabel,
           transfers,
           cash,
+          rent,
           total
         });
       }
@@ -140,8 +142,15 @@ export default function SuiviSalaire() {
               <span className="text-muted-foreground">Virements (×0.76):</span>
               <span className="font-semibold">{data.transfers.toFixed(2)} €</span>
             </div>
+            {data.rent > 0 && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-muted-foreground/40"></div>
+                <span className="text-muted-foreground">Loyer:</span>
+                <span className="font-semibold text-red-500">− {data.rent.toFixed(2)} €</span>
+              </div>
+            )}
             <div className="pt-2 border-t flex justify-between gap-4">
-              <span className="text-muted-foreground">Total:</span>
+              <span className="text-muted-foreground">Résultat net:</span>
               <span className="font-bold">{data.total.toFixed(2)} €</span>
             </div>
           </div>
@@ -265,8 +274,14 @@ export default function SuiviSalaire() {
                         <p className="text-muted-foreground text-xs">Virements (×0.76)</p>
                         <p className="font-semibold" style={{ color: "hsl(var(--warning))" }}>{month.transfers.toFixed(2)} €</p>
                       </div>
+                      {month.rent > 0 && (
+                        <div className="text-right">
+                          <p className="text-muted-foreground text-xs">Loyer</p>
+                          <p className="font-semibold text-red-500">− {month.rent.toFixed(2)} €</p>
+                        </div>
+                      )}
                       <div className="text-right min-w-[100px]">
-                        <p className="text-muted-foreground text-xs">Total</p>
+                        <p className="text-muted-foreground text-xs">Résultat net</p>
                         <p className="font-bold text-lg">{month.total.toFixed(2)} €</p>
                       </div>
                     </div>
