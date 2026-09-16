@@ -89,6 +89,10 @@ export default function Comptabilite() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"tous" | "impaye" | "remplir">("tous");
   const [expandedId, setExpandedId] = useState<string | null>(null); // carte mobile dépliée (édition)
+  // Fenêtre "Marquer payé" : méthode + montant
+  const [payDialogEntry, setPayDialogEntry] = useState<AccountingEntry | null>(null);
+  const [payMethod, setPayMethod] = useState<"espèces" | "virement">("espèces");
+  const [payAmount, setPayAmount] = useState("");
   const [rent, setRent] = useState(0);
   const [showDebtorsDialog, setShowDebtorsDialog] = useState(false);
   const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
@@ -466,6 +470,26 @@ export default function Comptabilite() {
     }));
     
     setHasUnsavedChanges(true);
+  };
+
+  const openPayDialog = (entry: AccountingEntry) => {
+    setPayDialogEntry(entry);
+    setPayMethod((entry.payment_type === "virement" ? "virement" : "espèces"));
+    setPayAmount(""); // montant à saisir
+  };
+
+  const confirmPay = () => {
+    if (!payDialogEntry) return;
+    const id = payDialogEntry.id;
+    const amount = parseFloat(payAmount.replace(",", ".")) || 0;
+    updateEntry(id, "payment_type", payMethod);
+    updateEntry(id, "sessions_paid", payDialogEntry.sessions_done || 0);
+    if (amount > 0) {
+      const field = payMethod === "espèces" ? "amount_cash" : "amount_transfer";
+      const current = payMethod === "espèces" ? (payDialogEntry.amount_cash || 0) : (payDialogEntry.amount_transfer || 0);
+      updateEntry(id, field, current + amount);
+    }
+    setPayDialogEntry(null);
   };
 
   const saveAllChanges = async () => {
@@ -1230,10 +1254,10 @@ export default function Comptabilite() {
                           {st.kind === "impaye" && (
                             <button
                               type="button"
-                              onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
+                              onClick={() => openPayDialog(entry)}
                               className="w-full h-10 rounded-xl bg-green-600 text-white font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
                             >
-                              <TrendingUp className="h-4 w-4" /> Remplir le paiement
+                              <TrendingUp className="h-4 w-4" /> Marquer payé
                             </button>
                           )}
 
@@ -1440,6 +1464,49 @@ export default function Comptabilite() {
         </>
       )}
 
+      {/* Fenêtre "Marquer payé" : méthode + montant */}
+      <Dialog open={!!payDialogEntry} onOpenChange={(o) => { if (!o) setPayDialogEntry(null); }}>
+        <DialogContent className="max-w-[94vw] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+              Marquer payé{payDialogEntry ? ` — ${payDialogEntry.client_name}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {payDialogEntry && (
+            <div className="space-y-4 py-1">
+              <p className="text-sm text-muted-foreground">
+                {Math.max(0, (payDialogEntry.sessions_done || 0) - (payDialogEntry.sessions_paid || 0))} séance(s) à solder.
+              </p>
+              <div>
+                <Label className="text-xs text-muted-foreground">Payé en</Label>
+                <div className="flex gap-2 mt-1.5">
+                  {([{ v: "espèces" as const, label: "💵 Espèces" }, { v: "virement" as const, label: "🏦 Virement" }]).map((opt) => (
+                    <button key={opt.v} type="button" onClick={() => setPayMethod(opt.v)}
+                      className={`flex-1 h-12 rounded-xl border-2 text-sm font-semibold transition-colors ${payMethod === opt.v ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="pay-amount" className="text-xs text-muted-foreground">Montant encaissé (€)</Label>
+                <Input id="pay-amount" type="number" inputMode="decimal" min="0" step="0.01" autoFocus
+                  value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") confirmPay(); }}
+                  placeholder="Ex : 120" className="h-12 text-lg mt-1.5" />
+                <p className="text-[11px] text-muted-foreground mt-1">S'ajoute au montant déjà saisi ce mois. Laisse vide pour ne marquer que les séances.</p>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setPayDialogEntry(null)} className="flex-1">Annuler</Button>
+                <Button onClick={confirmPay} className="flex-1 gap-2">
+                  <TrendingUp className="h-4 w-4" /> Valider
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog pour afficher les clients avec impayés */}
       <Dialog open={showDebtorsDialog} onOpenChange={setShowDebtorsDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh]">
@@ -1458,18 +1525,9 @@ export default function Comptabilite() {
                     key={debtor.id}
                     className="border-orange-200 dark:border-orange-900 cursor-pointer hover:border-orange-400 transition-colors"
                     onClick={() => {
+                      // Sélectionner un impayé → ouvrir directement la fenêtre "Marquer payé"
                       setShowDebtorsDialog(false);
-                      setSearchQuery(debtor.client_name);
-                      setStatusFilter("tous");
-                      setExpandedId(debtor.id); // ouvre directement la carte du client
-                      setTimeout(() => {
-                        const el = document.getElementById(`entry-${debtor.id}`);
-                        if (el) {
-                          el.scrollIntoView({ behavior: "smooth", block: "center" });
-                          el.classList.add("ring-2", "ring-orange-500");
-                          setTimeout(() => el.classList.remove("ring-2", "ring-orange-500"), 2000);
-                        }
-                      }, 300);
+                      openPayDialog(debtor);
                     }}
                   >
                     <CardContent className="pt-6">
