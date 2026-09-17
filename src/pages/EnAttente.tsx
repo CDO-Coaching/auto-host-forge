@@ -37,6 +37,18 @@ export default function EnAttente() {
         return;
       }
 
+      // Athlète dont le suivi a été clôturé/relancé par le coach → page de réactivation
+      const { data: rels } = await supabase
+        .from("coach_athlete_relationships")
+        .select("status")
+        .eq("athlete_id", session.user.id);
+      const hasApproved = (rels || []).some((r: any) => r.status === "approved");
+      const removedOrPending = (rels || []).some((r: any) => r.status === "removed" || r.status === "pending");
+      if (!hasApproved && removedOrPending) {
+        navigate("/reactiver", { replace: true });
+        return;
+      }
+
       if (!profile.first_name || !profile.last_name) {
         navigate("/sportif/profil", { replace: true });
         return;
