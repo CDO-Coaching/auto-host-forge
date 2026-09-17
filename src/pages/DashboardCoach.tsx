@@ -174,7 +174,7 @@ export default function DashboardCoach() {
               </Alert>
             )}
             <Routes>
-              <Route path="/" element={<Navigate to="/coach/dashboard" replace />} />
+              <Route path="/" element={<Navigate to="/coach/mes-clients" replace />} />
               <Route path="/dashboard" element={<CoachDashboard />} />
               <Route path="/mes-clients" element={<MesClients />} />
               <Route path="/agenda" element={<Agenda />} />

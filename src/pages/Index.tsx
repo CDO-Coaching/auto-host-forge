@@ -48,7 +48,7 @@ const Index = () => {
           if (lastRoute && (lastRoute.startsWith('/coach') || lastRoute.startsWith('/sportif'))) {
             navigate(lastRoute);
           } else if (profile.role === 'coach') {
-            navigate("/coach/programmation");
+            navigate("/coach/mes-clients");
           } else {
             navigate("/sportif/dashboard");
           }
