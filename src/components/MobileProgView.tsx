@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
   Trash2, ChevronDown, ChevronUp, Save, X, Copy, ClipboardPaste, MessageSquare, Link2, Unlink, Lock, StickyNote, ExternalLink,
+  Timer, UserPlus, CalendarRange, Bike, Waves,
 } from "lucide-react";
 
 // ─── Types (miroir de ClientDetail) ──────────────────────────────────────────
@@ -125,12 +127,40 @@ function getSerieDetailsArray(value: SerieDetail[] | string | undefined): SerieD
   try { const p = JSON.parse(value as string); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
+/** Durée estimée d'une séance en secondes (override coach prioritaire, sinon cardio via allure, sinon renfo via calculateur). */
+function sessionDurationSeconds(session: Session, exercises: Exercise[], vma?: number | null): number | null {
+  if (session.manual_duration_minutes != null) return session.manual_duration_minutes * 60;
+  if (session.session_type === "cardio") {
+    let sec = 0;
+    for (const ex of exercises) {
+      if (!ex.cardio_content) continue;
+      try {
+        const parsed = JSON.parse(ex.cardio_content);
+        const data = Array.isArray(parsed) ? { steps: parsed, blocks: [] } : parsed;
+        sec += calculateCardioMetrics(data, vma ?? null).totalDurationMinutes * 60;
+      } catch { /* ignore */ }
+    }
+    return sec > 0 ? sec : null;
+  }
+  if (exercises.length > 0) return calculateSessionDuration(exercises as any);
+  return null;
+}
+
+/** Formate une durée en secondes → "1h05" / "45 min". */
+function formatShortDuration(totalSec: number): string {
+  const totalMin = Math.round(totalSec / 60);
+  if (totalMin < 60) return `${totalMin} min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h${m.toString().padStart(2, "0")}`;
+}
+
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 const SESSION_TYPE_CONFIG = {
-  renfo: { label: "Renfo", color: "bg-primary/20 text-primary border-primary/30", icon: Dumbbell, createLabel: "Renforcement", emoji: "🏋️" },
-  cardio: { label: "Cardio", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: Heart, createLabel: "Cardio", emoji: "🏃" },
-  recup: { label: "Récup", color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Zap, createLabel: "Récupération", emoji: "💆" },
+  renfo: { label: "Renfo", color: "bg-primary/20 text-primary border-primary/30", icon: Dumbbell, createLabel: "Renforcement", emoji: "🏋️", accent: "before:bg-primary", dot: "bg-primary" },
+  cardio: { label: "Cardio", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: Heart, createLabel: "Cardio", emoji: "🏃", accent: "before:bg-blue-500", dot: "bg-blue-500" },
+  recup: { label: "Récup", color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Zap, createLabel: "Récupération", emoji: "💆", accent: "before:bg-green-500", dot: "bg-green-500" },
 } as const;
 
 // ─── Stepper +/- réutilisable ─────────────────────────────────────────────────
@@ -295,7 +325,7 @@ function RenfoExerciseRow({
           </div>
 
           {/* Steppers 2 colonnes */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/40 bg-secondary/30 p-3">
             {/* Reps / Durée / Distance avec toggle 3 modes (à gauche) */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
@@ -364,9 +394,9 @@ function RenfoExerciseRow({
           </div>
 
           {/* Par côté (unilatéral) */}
-          <label className="flex items-center gap-2 py-1">
-            <Checkbox checked={!!(exercise as any).per_side} onCheckedChange={(c) => onChange("per_side", c === true)} disabled={isValidated} />
-            <span className="text-sm">Par côté (unilatéral)</span>
+          <label className="flex items-center gap-3 rounded-xl border border-border/50 bg-card/40 px-3.5 py-2.5">
+            <span className="flex-1 text-sm">Par côté <span className="text-muted-foreground text-xs">(unilatéral)</span></span>
+            <Switch checked={!!(exercise as any).per_side} onCheckedChange={(c) => onChange("per_side", c === true)} disabled={isValidated} />
           </label>
 
           {/* Récupération */}
@@ -619,7 +649,11 @@ function SessionCard({
     <>
       {/* Carte tap pour ouvrir */}
       <div
-        className="rounded-2xl border border-border/60 bg-card p-4 active:bg-card/80 transition-colors cursor-pointer"
+        className={cn(
+          "relative rounded-2xl border border-border/60 bg-card p-4 pl-5 active:bg-card/80 transition-colors cursor-pointer overflow-hidden",
+          "before:absolute before:inset-y-0 before:left-0 before:w-1 before:content-['']",
+          cfg.accent,
+        )}
         onClick={() => setOpen(true)}
       >
         <div className="flex items-start justify-between gap-3">
@@ -842,9 +876,11 @@ function SessionCard({
             {session.session_type === "renfo" && (
               <>
                 {exercises.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-40 gap-3 text-muted-foreground px-6">
-                    <Dumbbell className="h-8 w-8 opacity-30" />
-                    <p className="text-sm text-center">Aucun exercice — ajoute le premier ci-dessous.</p>
+                  <div className="flex flex-col items-center justify-center h-48 gap-3 text-muted-foreground px-6">
+                    <div className="h-14 w-14 rounded-2xl bg-secondary/70 flex items-center justify-center">
+                      <Dumbbell className="h-7 w-7 opacity-40" />
+                    </div>
+                    <p className="text-sm text-center">Aucun exercice pour l'instant.<br /><span className="opacity-70">Ajoute le premier ci-dessous.</span></p>
                   </div>
                 ) : (() => {
                   const allGroups = [...new Set(exercises.filter(e => e.super_set_group).map(e => e.super_set_group as string))];
@@ -1116,11 +1152,14 @@ function SessionCard({
 
           {/* Footer : ajouter exercice (renfo uniquement) */}
           {!isValidated && session.session_type === "renfo" && (
-            <div className="px-5 py-4 border-t border-border/40 shrink-0">
-              <Button className="w-full h-12 text-base gap-2" variant="outline" onClick={onAddExercise}>
+            <div className="px-5 py-4 border-t border-border/40 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <button
+                onClick={onAddExercise}
+                className="w-full h-12 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 text-primary font-semibold text-base flex items-center justify-center gap-2 active:bg-primary/10 active:scale-[0.99] transition-all"
+              >
                 <Plus className="h-5 w-5" />
                 Ajouter un exercice
-              </Button>
+              </button>
             </div>
           )}
         </SheetContent>
@@ -1151,42 +1190,94 @@ export function MobileProgView({
   const prevWeek = availableWeeks[currentIndex - 1];
   const nextWeek = availableWeeks[currentIndex + 1];
 
+  // Récapitulatif de la semaine : répartition par type + durée totale estimée
+  const recap = (() => {
+    if (sessions.length === 0) return null;
+    const counts: Record<Session["session_type"], number> = { renfo: 0, cardio: 0, recup: 0 };
+    let totalSec = 0;
+    for (const s of sessions) {
+      counts[s.session_type] = (counts[s.session_type] ?? 0) + 1;
+      const sec = sessionDurationSeconds(s, sessionExercises[s.id] || [], athleteVma);
+      if (sec) totalSec += sec;
+    }
+    return { counts, totalSec };
+  })();
+
   return (
     <div className="flex flex-col min-h-0">
 
-      {/* ── Navigation semaine ──────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 mb-3">
-        <button
-          onClick={() => prevWeek && onWeekChange(prevWeek.week, prevWeek.year)}
-          disabled={!prevWeek}
-          className="h-10 w-10 rounded-xl border border-border flex items-center justify-center disabled:opacity-30 active:bg-muted transition-colors shrink-0"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <div className="flex-1 text-center">
-          <p className="font-bold text-sm">
-            S{selectedWeekToProgram.week} – {selectedWeekToProgram.year}
-          </p>
-          {currentWeek && (
-            <p className="text-xs text-muted-foreground">
-              {formatWeekRange(currentWeek.monday)}
+      {/* ── En-tête semaine + récapitulatif ─────────────────────────────── */}
+      <div className="mb-3 rounded-2xl border border-border/60 bg-card/60 overflow-hidden">
+        <div className="flex items-center gap-2 p-2">
+          <button
+            onClick={() => prevWeek && onWeekChange(prevWeek.week, prevWeek.year)}
+            disabled={!prevWeek}
+            className="h-11 w-11 rounded-xl border border-border/70 bg-secondary/60 flex items-center justify-center disabled:opacity-25 active:bg-muted transition-colors shrink-0"
+            aria-label="Semaine précédente"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+          <div className="flex-1 text-center">
+            <p className="text-lg font-extrabold leading-none tracking-tight">
+              <span className="text-primary">S{selectedWeekToProgram.week}</span>
+              <span className="text-muted-foreground font-semibold text-sm"> · {selectedWeekToProgram.year}</span>
             </p>
-          )}
+            {currentWeek && (
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {formatWeekRange(currentWeek.monday)}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => nextWeek && onWeekChange(nextWeek.week, nextWeek.year)}
+            disabled={!nextWeek}
+            className="h-11 w-11 rounded-xl border border-border/70 bg-secondary/60 flex items-center justify-center disabled:opacity-25 active:bg-muted transition-colors shrink-0"
+            aria-label="Semaine suivante"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
         </div>
-        <button
-          onClick={() => nextWeek && onWeekChange(nextWeek.week, nextWeek.year)}
-          disabled={!nextWeek}
-          className="h-10 w-10 rounded-xl border border-border flex items-center justify-center disabled:opacity-30 active:bg-muted transition-colors shrink-0"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        {recap && (
+          <div className="flex items-center gap-x-3 gap-y-1.5 flex-wrap border-t border-border/40 bg-background/40 px-3.5 py-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/80">
+              <CalendarRange className="h-3.5 w-3.5 text-primary" />
+              {sessions.length} séance{sessions.length > 1 ? "s" : ""}
+            </span>
+            {recap.totalSec > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground/80">
+                <Timer className="h-3.5 w-3.5 text-primary" />
+                ~{formatShortDuration(recap.totalSec)}
+              </span>
+            )}
+            <span className="flex-1" />
+            <div className="flex items-center gap-1.5">
+              {(["renfo", "cardio", "recup"] as const)
+                .filter((t) => recap.counts[t] > 0)
+                .map((t) => {
+                  const cfg = SESSION_TYPE_CONFIG[t];
+                  return (
+                    <span key={t} className={cn("inline-flex items-center gap-1 text-[11px] font-bold rounded-full px-2 py-0.5 border", cfg.color)}>
+                      <span className="leading-none">{cfg.emoji}</span>
+                      {recap.counts[t]}
+                    </span>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Autorisation sportif : ajouter des exercices ────────────── */}
       {onToggleAllowAddExercises && (
-        <label className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl border border-border text-xs text-muted-foreground">
-          <Checkbox checked={!!allowAddExercises} onCheckedChange={(v) => onToggleAllowAddExercises(!!v)} />
-          Autoriser le sportif à ajouter des exercices
+        <label className="flex items-center gap-3 mb-3 px-3.5 py-3 rounded-xl border border-border/60 bg-card/40 cursor-pointer active:bg-card/70 transition-colors">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary shrink-0">
+            <UserPlus className="h-4 w-4" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-medium text-foreground">Ajout d'exercices par le sportif</span>
+            <span className="block text-[11px] text-muted-foreground">L'athlète peut compléter la séance lui-même</span>
+          </span>
+          <Switch checked={!!allowAddExercises} onCheckedChange={(v) => onToggleAllowAddExercises(!!v)} />
         </label>
       )}
 
@@ -1315,34 +1406,44 @@ export function MobileProgView({
       {/* ── Sheet création de séance ─────────────────────────────────────── */}
       <Sheet open={showCreateSheet} onOpenChange={setShowCreateSheet}>
         <SheetContent side="bottom" className="rounded-t-2xl p-0">
-          <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40">
+          <SheetHeader className="px-5 pt-5 pb-3 border-b border-border/40 text-left">
             <SheetTitle className="text-base">Nouvelle séance</SheetTitle>
+            <p className="text-xs text-muted-foreground">Choisis le type de séance à programmer</p>
           </SheetHeader>
-          <div className="px-5 py-5 space-y-3">
-            {(["renfo", "cardio", "recup"] as const).map((type) => {
+          <div className="px-5 py-5 space-y-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
+            {([
+              { type: "renfo" as const, desc: "Musculation, exercices, séries & charges" },
+              { type: "cardio" as const, desc: "Course, vélo ou natation à l'allure" },
+              { type: "recup" as const, desc: "Mobilité, étirements, yoga…" },
+            ]).map(({ type, desc }) => {
               const cfg = SESSION_TYPE_CONFIG[type];
               const Icon = cfg.icon;
               // Pour le cardio : choix du sport (course / vélo / natation)
               if (type === "cardio") {
-                const sports: { key: "course" | "velo" | "natation"; label: string; emoji: string }[] = [
-                  { key: "course", label: "Course", emoji: "🏃" },
-                  { key: "velo", label: "Vélo", emoji: "🚴" },
-                  { key: "natation", label: "Natation", emoji: "🏊" },
+                const sports: { key: "course" | "velo" | "natation"; label: string; Icon: typeof Heart }[] = [
+                  { key: "course", label: "Course", Icon: Heart },
+                  { key: "velo", label: "Vélo", Icon: Bike },
+                  { key: "natation", label: "Natation", Icon: Waves },
                 ];
                 return (
-                  <div key={type} className={cn("w-full rounded-2xl border-2 px-4 py-3 space-y-2", cfg.color)}>
+                  <div key={type} className={cn("w-full rounded-2xl border-2 p-3.5 space-y-3", cfg.color)}>
                     <div className="flex items-center gap-3">
-                      <Icon className="h-6 w-6 shrink-0" />
-                      <p className="font-bold text-sm">{cfg.emoji} {cfg.createLabel}</p>
+                      <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-background/40 shrink-0">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="text-left min-w-0">
+                        <p className="font-bold text-sm">{cfg.emoji} {cfg.createLabel}</p>
+                        <p className="text-[11px] font-normal opacity-70 truncate">{desc}</p>
+                      </div>
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {sports.map((s) => (
                         <button
                           key={s.key}
                           onClick={() => { onCreateSession("cardio", s.key); setShowCreateSheet(false); }}
-                          className="h-11 rounded-xl bg-background/60 border border-border/60 flex flex-col items-center justify-center gap-0.5 active:scale-[0.97] transition-transform"
+                          className="h-14 rounded-xl bg-background/60 border border-border/60 flex flex-col items-center justify-center gap-1 active:scale-[0.97] transition-transform"
                         >
-                          <span className="text-base leading-none">{s.emoji}</span>
+                          <s.Icon className="h-4 w-4" />
                           <span className="text-[11px] font-medium">{s.label}</span>
                         </button>
                       ))}
@@ -1358,13 +1459,16 @@ export function MobileProgView({
                     setShowCreateSheet(false);
                   }}
                   className={cn(
-                    "w-full h-16 rounded-2xl border-2 flex items-center gap-4 px-5 active:scale-[0.98] transition-transform",
+                    "w-full rounded-2xl border-2 flex items-center gap-3.5 p-3.5 active:scale-[0.98] transition-transform",
                     cfg.color,
                   )}
                 >
-                  <Icon className="h-6 w-6 shrink-0" />
-                  <div className="text-left">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-background/40 shrink-0">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <div className="text-left min-w-0">
                     <p className="font-bold text-sm">{cfg.emoji} {cfg.createLabel}</p>
+                    <p className="text-[11px] font-normal opacity-70 truncate">{desc}</p>
                   </div>
                 </button>
               );

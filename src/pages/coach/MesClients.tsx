@@ -481,8 +481,10 @@ export default function MesClients() {
       toast.success("Client externe supprimé");
       await loadRelationships();
     } catch (error: any) {
-      console.error("Erreur:", error);
-      toast.error("Erreur lors de la suppression du client");
+      console.error("Erreur suppression client externe:", error);
+      // Afficher la vraie cause (RLS, contrainte, trigger…) pour diagnostiquer
+      const detail = error?.message || error?.details || error?.hint || error?.code || "cause inconnue";
+      toast.error(`Suppression impossible : ${detail}`);
     }
   };
 
