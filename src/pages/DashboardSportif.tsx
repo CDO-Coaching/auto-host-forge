@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate, Routes, Route, Navigate } from "react-router-dom";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { SportifSidebar } from "@/components/SportifSidebar";
 import { SportifBottomNav } from "@/components/SportifBottomNav";
@@ -69,6 +70,23 @@ export default function DashboardSportif() {
 
     if (profile.role === "coach") {
       navigate("/coach/dashboard");
+      return;
+    }
+
+    // Athlète dont le suivi a été clôturé par le coach → page de réactivation
+    if (profile.role === "sportif") {
+      supabase
+        .from("coach_athlete_relationships")
+        .select("status")
+        .eq("athlete_id", session.user.id)
+        .then(({ data }) => {
+          const rels = data || [];
+          const hasApproved = rels.some((r: any) => r.status === "approved");
+          const removedOrPending = rels.some((r: any) => r.status === "removed" || r.status === "pending");
+          if (!hasApproved && removedOrPending) {
+            navigate("/reactiver", { replace: true });
+          }
+        });
     }
   }, [session, authLoading, profileLoading, profile, navigate]);
 

@@ -20,6 +20,7 @@ const Auth = lazy(() => import("./pages/Auth"));
 const EmailConfirmation = lazy(() => import("./pages/EmailConfirmation"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const EnAttente = lazy(() => import("./pages/EnAttente"));
+const Reactiver = lazy(() => import("./pages/Reactiver"));
 const DashboardCoach = lazy(() => import("./pages/DashboardCoach"));
 const DashboardSportif = lazy(() => import("./pages/DashboardSportif"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/auth/callback" element={<EmailConfirmation />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/en-attente" element={<EnAttente />} />
+              <Route path="/reactiver" element={<Reactiver />} />
               <Route path="/politique-rgpd" element={<PolitiqueRGPD />} />
               <Route path="/mentions-legales" element={<MentionsLegales />} />
               <Route path="/cgv" element={<CGV />} />

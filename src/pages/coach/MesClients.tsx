@@ -488,10 +488,14 @@ export default function MesClients() {
       await supabase.from("daily_fatigue_log").delete().eq("user_id", athleteId);
       await supabase.from("weight_tracking").delete().eq("user_id", athleteId);
       await supabase.from("custom_sessions").delete().eq("user_id", athleteId);
-      // 3) Retirer la relation coach-athlète (il disparaît de la liste). Compte/compta/factures conservés.
-      const { error: relErr } = await supabase.from("coach_athlete_relationships").delete().eq("id", rel.id);
+      // 3) Marquer la relation "supprimée" : l'athlète perd l'accès et tombera sur la
+      //    page de réactivation. On garde la ligne (compte/compta/factures conservés).
+      const { error: relErr } = await supabase
+        .from("coach_athlete_relationships")
+        .update({ status: "removed" } as any)
+        .eq("id", rel.id);
       if (relErr) throw relErr;
-      toast.success("Athlète supprimé — entraînements effacés, compta et factures conservées");
+      toast.success("Athlète supprimé — accès coupé, entraînements effacés, compta et factures conservées");
       await loadRelationships();
     } catch (error: any) {
       console.error("Erreur suppression athlète:", error);
@@ -975,7 +979,7 @@ export default function MesClients() {
                                 <strong>{`${relationship.athlete.first_name || ""} ${relationship.athlete.last_name || ""}`.trim() || relationship.athlete.email}</strong>{" "}
                                 seront <strong>définitivement effacées</strong> (séances, exercices, retours) et l'athlète sera retiré de ta liste.
                                 <br /><br />
-                                Sa <strong>comptabilité et ses factures sont conservées</strong>, et son compte n'est pas supprimé (il garde son accès).
+                                Il <strong>n'aura plus accès à l'application</strong> : à sa prochaine connexion, il verra une page lui proposant de <strong>demander une réactivation</strong> (tu recevras la demande par mail). Sa <strong>comptabilité et ses factures sont conservées</strong>.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
