@@ -4966,8 +4966,12 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* ── Objectif principal + timeline de validation ── */}
-          {athleteId && <ProgObjectiveBanner athleteId={athleteId} />}
+          {/* ── Objectif principal + timeline de validation (masqué sur mobile pour voir les séances) ── */}
+          {athleteId && (
+            <div className="hidden sm:block">
+              <ProgObjectiveBanner athleteId={athleteId} />
+            </div>
+          )}
 
           {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
           <WeekAvailabilityCard athleteId={athleteId!} week={selectedWeekToProgram.week} year={selectedWeekToProgram.year} />
