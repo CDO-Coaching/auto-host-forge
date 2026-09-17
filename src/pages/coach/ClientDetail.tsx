@@ -4190,20 +4190,25 @@ export default function ClientDetail() {
           </Card>
         </div>
       )}
-      {/* Header compact */}
-      <div className="flex items-center justify-between py-1">
-        <Button 
-          variant="ghost" 
-          onClick={() => navigate("/coach/mes-clients")} 
-          className="text-xs sm:text-sm px-1.5 sm:px-2 h-8 sm:h-9"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline ml-1">Retour à mes athlètes</span>
+      {/* Header : nom de l'athlète en évidence */}
+      <div className="flex items-center gap-2 py-1">
+        <Button variant="ghost" size="icon" onClick={() => navigate("/coach/mes-clients")} className="h-9 w-9 shrink-0">
+          <ArrowLeft className="h-5 w-5" />
         </Button>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-2xl font-bold truncate leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+            {athlete.first_name} {athlete.last_name}
+          </h1>
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0" title={athlete.payment_enabled ? "Paiement activé" : "Paiement désactivé"}>
+          <CreditCard className={`h-4 w-4 ${athlete.payment_enabled ? "text-green-500" : "text-muted-foreground"}`} />
+          <Switch checked={athlete.payment_enabled || false} onCheckedChange={handleTogglePaymentEnabled} className="scale-90" />
+        </div>
       </div>
 
-      {/* Infos athlète compact */}
-      <div className="flex items-center justify-between bg-muted/30 p-1.5 sm:p-2 rounded-md gap-2">
+      {/* Ancien bandeau d'infos (monotonie, blessure, objectifs, date…) — masqué pour épurer l'en-tête */}
+      <div className="hidden items-center justify-between bg-muted/30 p-1.5 sm:p-2 rounded-md gap-2">
         <div className="min-w-0 flex-1 flex items-center gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
