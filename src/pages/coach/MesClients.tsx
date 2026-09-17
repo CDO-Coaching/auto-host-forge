@@ -703,6 +703,38 @@ export default function MesClients() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 h-11"
           />
+          {searchQuery.trim() && (() => {
+            const seen = new Set<string>();
+            const results = [...filteredApproved, ...filteredPaused]
+              .filter((r) => { if (seen.has(r.athlete_id)) return false; seen.add(r.athlete_id); return true; });
+            return (
+              <div className="mt-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden max-h-[45vh] overflow-y-auto">
+                {results.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Aucun athlète ne correspond</p>
+                ) : results.map((r) => {
+                  const paused = pausedAthletes.some((p) => p.athlete_id === r.athlete_id);
+                  return (
+                    <button
+                      key={r.athlete_id}
+                      type="button"
+                      onClick={() => navigate(`/coach/client/${r.athlete_id}`)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/50 active:bg-muted transition-colors border-b border-border/50 last:border-0"
+                    >
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{r.athlete.first_name} {r.athlete.last_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{r.athlete.email}</p>
+                      </div>
+                      {paused && <span className="text-[10px] text-muted-foreground shrink-0 px-1.5 py-0.5 rounded bg-muted">Pause</span>}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
 
         <TabsContent value="pending" className="space-y-3 sm:space-y-4">
