@@ -61,6 +61,7 @@ export default function MesClients() {
   const [externalClients, setExternalClients] = useState<ExternalClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [progFilter, setProgFilter] = useState<"tous" | "todo">("tous");
   const [showAddExternalDialog, setShowAddExternalDialog] = useState(false);
   const [newExternalFirstName, setNewExternalFirstName] = useState("");
   const [newExternalLastName, setNewExternalLastName] = useState("");
@@ -610,6 +611,18 @@ export default function MesClients() {
 
   const filteredPending = filterAthletes(pendingRequests);
   const filteredApproved = filterAthletes(sortedApprovedAthletes);
+
+  // Statut de programmation par athlète (pour repérer ce qu'il reste à faire)
+  const progStatus = (r: AthleteRelationship) => {
+    const w = r.weeksAheadCount;
+    if (w === undefined) return { kind: "todo" as const, label: "À programmer", color: "#f0b429" };
+    if (w === 0) return { kind: "ok" as const, label: "À jour", color: "#22c55e" };
+    return { kind: "ahead" as const, label: `+${w} sem.`, color: "#06b6d4" };
+  };
+  const todoCount = filteredApproved.filter((r) => r.weeksAheadCount === undefined).length;
+  const visibleApproved = progFilter === "todo"
+    ? filteredApproved.filter((r) => r.weeksAheadCount === undefined)
+    : filteredApproved;
   const filteredPaused = filterAthletes(pausedAthletes);
   const filteredExternalClients = filterExternalClients(externalClients);
 
@@ -681,14 +694,14 @@ export default function MesClients() {
           </TabsTrigger>
         </TabsList>
 
-        <div className="relative mt-3 sm:mt-4">
+        <div className="relative mt-3 sm:mt-4 sticky top-0 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/70 py-2 -mx-1 px-1 rounded-lg">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             type="text"
             placeholder="Rechercher par prénom ou nom..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-11"
           />
         </div>
 
@@ -765,16 +778,34 @@ export default function MesClients() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              {filteredApproved.length === 0 ? (
+              {/* Filtre rapide : voir ce qu'il reste à programmer */}
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => setProgFilter("tous")}
+                  className={`px-3 h-8 rounded-full text-xs font-semibold border transition-colors ${progFilter === "tous" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>
+                  Tous <span className="opacity-70">{filteredApproved.length}</span>
+                </button>
+                <button type="button" onClick={() => setProgFilter("todo")}
+                  className="px-3 h-8 rounded-full text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
+                  style={progFilter === "todo"
+                    ? { backgroundColor: "#f0b429", color: "#3a2f10", borderColor: "#f0b429" }
+                    : { borderColor: todoCount > 0 ? "#f0b42966" : "hsl(var(--border))", color: todoCount > 0 ? "#f0b429" : "hsl(var(--muted-foreground))" }}>
+                  À programmer {todoCount > 0 && <span>{todoCount}</span>}
+                </button>
+              </div>
+
+              {visibleApproved.length === 0 ? (
                 <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-                  {searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
+                  {progFilter === "todo" ? "Tout est programmé 🎉" : searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
                 </p>
               ) : (
                 <div className="space-y-2 sm:space-y-4">
-                  {filteredApproved.map((relationship) => (
+                  {visibleApproved.map((relationship) => {
+                     const ps = progStatus(relationship);
+                     return (
                      <div
                       key={relationship.id}
                       className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg hover:border-primary transition-colors gap-2 sm:gap-4 cursor-pointer"
+                      style={{ borderLeft: `4px solid ${ps.color}` }}
                       onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
                     >
                       <div className="flex items-center gap-2.5 sm:gap-4 flex-1">
@@ -864,27 +895,15 @@ export default function MesClients() {
                           <Pause className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
                           <span className="hidden sm:inline">Pause</span>
                         </Button>
-                        {relationship.weeksAheadCount !== undefined ? (
-                          <Badge className="bg-green-600 text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
-                            <Check className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                            <span className="hidden sm:inline">
-                              Validé{relationship.weeksAheadCount > 0 ? ` +${relationship.weeksAheadCount}` : ''}
-                            </span>
-                            <span className="sm:hidden">
-                              ✓{relationship.weeksAheadCount > 0 ? `+${relationship.weeksAheadCount}` : ''}
-                            </span>
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-[10px] sm:text-xs h-5 sm:h-auto px-1.5 sm:px-2">
-                            <X className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
-                            <span className="hidden sm:inline">Non validé</span>
-                            <span className="sm:hidden">✗</span>
-                          </Badge>
-                        )}
+                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
+                          style={{ backgroundColor: `${ps.color}22`, color: ps.color }}>
+                          {ps.label}
+                        </span>
                         <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
