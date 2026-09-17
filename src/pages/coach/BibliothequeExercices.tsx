@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import {
   Plus, Search, Dumbbell, ExternalLink, Trash2,
   ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Youtube, VideoOff, ShieldCheck, Loader2, ArrowLeft,
+  SlidersHorizontal, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -172,6 +173,7 @@ export default function BibliothequeExercices() {
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showNoSecondary, setShowNoSecondary] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Add dialog
@@ -395,7 +397,7 @@ export default function BibliothequeExercices() {
           {/* Video audit button */}
           <Button
             variant="outline"
-            className="flex-1 sm:flex-none"
+            className="hidden sm:flex sm:flex-none"
             onClick={() => { setAuditOpen(true); if (!auditResults) runVideoAudit(); }}
           >
             <ShieldCheck className="h-4 w-4 mr-2" />
@@ -497,14 +499,42 @@ export default function BibliothequeExercices() {
       </Dialog>
 
       {/* Filters */}
+      {(() => {
+        const activeCount = (selectedMuscle !== "all" ? 1 : 0) + (showIncomplete ? 1 : 0) + (showNoSecondary ? 1 : 0);
+        return (
       <Card>
-        <CardHeader><CardTitle>Rechercher et filtrer</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Rechercher un exercice..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+        <CardContent className="space-y-3 pt-4">
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Rechercher un exercice..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9" />
+            </div>
+            <Button
+              variant={showFilters || activeCount > 0 ? "default" : "outline"}
+              size="icon"
+              className="shrink-0 relative"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-label="Filtres"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              {activeCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-500 text-[10px] font-bold text-black flex items-center justify-center">
+                  {activeCount}
+                </span>
+              )}
+            </Button>
           </div>
-          <div className="flex flex-wrap gap-2">
+          {activeCount > 0 && !showFilters && (
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); setShowNoSecondary(false); }}
+            >
+              <X className="h-3 w-3" /> Réinitialiser les filtres
+            </button>
+          )}
+          {showFilters && (
+          <div className="flex flex-wrap gap-2 pt-1">
             <Badge variant={selectedMuscle === "all" && !showIncomplete && !showNoSecondary ? "default" : "outline"} className="cursor-pointer" onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); setShowNoSecondary(false); }}>Tous</Badge>
             {incompleteCount > 0 && (
               <Badge
@@ -531,8 +561,11 @@ export default function BibliothequeExercices() {
               </Badge>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
+        );
+      })()}
 
       {/* List */}
       {loading ? (
