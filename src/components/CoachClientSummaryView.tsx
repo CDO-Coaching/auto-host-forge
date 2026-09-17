@@ -116,7 +116,8 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
   const loadFatigue = async () => {
     setFatigueError(null);
 
-    const thirtyDaysAgo = format(subDays(today, 30), "yyyy-MM-dd");
+    // Niveau de forme sur les 7 derniers jours
+    const thirtyDaysAgo = format(subDays(today, 6), "yyyy-MM-dd");
     const todayStr = format(today, "yyyy-MM-dd");
 
     // 1) Try daily_fatigue_log (rich data: sleep + pain)
@@ -367,7 +368,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
             <CardTitle className="text-xs flex items-center justify-between gap-1">
               <span className="flex items-center gap-1.5 min-w-0">
                 <Heart className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
-                <span className="truncate">Évolution du score de fatigue</span>
+                <span className="truncate">Niveau de forme (7 jours)</span>
               </span>
               {recovery !== null && (
                 <span className={`text-sm font-bold flex-shrink-0 ${recovery >= 70 ? "text-green-500" : recovery >= 40 ? "text-orange-500" : "text-destructive"}`}>

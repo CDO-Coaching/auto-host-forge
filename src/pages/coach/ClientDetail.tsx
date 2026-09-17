@@ -4362,46 +4362,21 @@ export default function ClientDetail() {
         </div>
 
         <TabsContent value="resume" className="space-y-2">
-          {/* ── Analyse du jour collapsible ── */}
-          <DailyDebriefCard athleteId={athleteId!} />
-          {/* ── Grille principale 3 colonnes ── */}
-          {athlete ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-              {/* Col 1 : Répartition FC + Douleur */}
-              <div className="space-y-2">
-                <WeeklyHRZonesCard athleteId={athleteId!} />
-                <CoachClientSummaryView
-                  athleteId={athleteId!}
-                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-                  column="injury"
-                />
-              </div>
-              {/* Col 2 : Évolution fatigue */}
-              <div className="space-y-2">
-                <CoachClientSummaryView
-                  athleteId={athleteId!}
-                  athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-                  column="left"
-                />
-              </div>
-              {/* Col 3 : Séances */}
+          {/* Résumé épuré : niveau de forme (7 jours) + séances cette semaine et la précédente
+              (clic sur une séance → son résumé). */}
+          {athlete && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <CoachClientSummaryView
+                athleteId={athleteId!}
+                athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
+                column="left"
+              />
               <CoachClientSummaryView
                 athleteId={athleteId!}
                 athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
                 column="right"
               />
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <WeeklyHRZonesCard athleteId={athleteId!} />
-            </div>
-          )}
-          {/* ── Alerte SFMS pleine largeur ── */}
-          {athlete && (
-            <CoachSfmsAlert
-              athleteId={athleteId!}
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
           )}
         </TabsContent>
 
