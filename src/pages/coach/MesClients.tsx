@@ -469,6 +469,36 @@ export default function MesClients() {
     }
   };
 
+  // Supprime un athlète EN PAUSE : efface ses entraînements + retire la relation.
+  // Garde son compte, sa compta et ses factures (le profil n'est pas supprimé).
+  const handleDeleteAthlete = async (rel: AthleteRelationship) => {
+    const athleteId = rel.athlete_id;
+    try {
+      // 1) Données d'entraînement : semaines → séances → exercices (+ retours)
+      const { data: weeks } = await supabase.from("training_weeks").select("id").eq("athlete_id", athleteId);
+      const weekIds = (weeks || []).map((w: any) => w.id);
+      if (weekIds.length) {
+        const { data: sessions } = await supabase.from("training_sessions").select("id").in("week_id", weekIds);
+        const sessionIds = (sessions || []).map((s: any) => s.id);
+        if (sessionIds.length) await supabase.from("session_exercises").delete().in("session_id", sessionIds);
+        await supabase.from("training_sessions").delete().in("week_id", weekIds);
+        await supabase.from("training_weeks").delete().eq("athlete_id", athleteId);
+      }
+      // 2) Suivi perso (best-effort : peut être restreint par RLS, on n'échoue pas dessus)
+      await supabase.from("daily_fatigue_log").delete().eq("user_id", athleteId);
+      await supabase.from("weight_tracking").delete().eq("user_id", athleteId);
+      await supabase.from("custom_sessions").delete().eq("user_id", athleteId);
+      // 3) Retirer la relation coach-athlète (il disparaît de la liste). Compte/compta/factures conservés.
+      const { error: relErr } = await supabase.from("coach_athlete_relationships").delete().eq("id", rel.id);
+      if (relErr) throw relErr;
+      toast.success("Athlète supprimé — entraînements effacés, compta et factures conservées");
+      await loadRelationships();
+    } catch (error: any) {
+      console.error("Erreur suppression athlète:", error);
+      toast.error(`Suppression impossible : ${error?.message || error?.details || "cause inconnue"}`);
+    }
+  };
+
   const handleDeleteExternalClient = async (clientId: string) => {
     try {
       const { error } = await supabase
@@ -931,6 +961,31 @@ export default function MesClients() {
                           <span className="hidden sm:inline">En pause</span>
                           <span className="sm:hidden">Pause</span>
                         </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive" onClick={(e) => e.stopPropagation()} className="h-7 sm:h-8 w-7 sm:w-8 p-0" title="Supprimer l'athlète">
+                              <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="mx-4 sm:mx-auto max-w-[95vw] sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle className="text-base sm:text-lg">Supprimer cet athlète ?</AlertDialogTitle>
+                              <AlertDialogDescription className="text-xs sm:text-sm">
+                                Toutes les données d'entraînement de{" "}
+                                <strong>{`${relationship.athlete.first_name || ""} ${relationship.athlete.last_name || ""}`.trim() || relationship.athlete.email}</strong>{" "}
+                                seront <strong>définitivement effacées</strong> (séances, exercices, retours) et l'athlète sera retiré de ta liste.
+                                <br /><br />
+                                Sa <strong>comptabilité et ses factures sont conservées</strong>, et son compte n'est pas supprimé (il garde son accès).
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Annuler</AlertDialogCancel>
+                              <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteAthlete(relationship); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                                Supprimer
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                         <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
                       </div>
                     </div>
