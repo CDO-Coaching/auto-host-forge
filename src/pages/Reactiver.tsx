@@ -23,35 +23,51 @@ export default function Reactiver() {
     if (!session) { navigate("/auth", { replace: true }); return; }
 
     (async () => {
-      // Relation "supprimée" par le coach ?
-      const { data: rels } = await supabase
-        .from("coach_athlete_relationships")
-        .select("id, status")
-        .eq("athlete_id", session.user.id);
-      const approved = (rels || []).find((r: any) => r.status === "approved");
-      const removed = (rels || []).find((r: any) => r.status === "removed");
-      const pending = (rels || []).find((r: any) => r.status === "pending");
+      try {
+        // Relation "supprimée" par le coach ?
+        const { data: rels } = await supabase
+          .from("coach_athlete_relationships")
+          .select("id, status")
+          .eq("athlete_id", session.user.id);
+        const approved = (rels || []).find((r: any) => r.status === "approved");
+        const removed = (rels || []).find((r: any) => r.status === "removed");
+        const pending = (rels || []).find((r: any) => r.status === "pending");
 
-      if (approved) { navigate("/sportif/dashboard", { replace: true }); return; }
-      if (pending && !removed) setSent(true); // demande déjà en attente
-      setRel(removed || pending || null);
+        if (approved) { navigate("/sportif/dashboard", { replace: true }); return; }
+        if (pending && !removed) setSent(true); // demande déjà en attente
+        setRel(removed || pending || null);
 
-      const { data: p } = await supabase
-        .from("user_profiles")
-        .select("first_name, last_name")
-        .eq("id", session.user.id)
-        .maybeSingle();
-      setProfile(p);
-      setChecking(false);
+        const { data: p } = await supabase
+          .from("user_profiles")
+          .select("first_name, last_name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        if (p) setProfile(p);
+      } catch (e) {
+        console.error("Reactiver load error:", e);
+      } finally {
+        setChecking(false); // ne jamais rester bloqué sur "Chargement…"
+      }
     })();
   }, [session, authLoading, navigate]);
 
   const handleRequest = async () => {
-    if (!rel || !session) return;
+    if (!session) return;
     setSending(true);
     try {
       // 1) Repasser la relation en "pending" → réapparaît côté coach dans "Demandes en attente"
-      await supabase.from("coach_athlete_relationships").update({ status: "pending" } as any).eq("id", rel.id);
+      let relId = rel?.id;
+      if (!relId) {
+        const { data } = await supabase
+          .from("coach_athlete_relationships")
+          .select("id, status")
+          .eq("athlete_id", session.user.id);
+        relId = (data || []).find((r: any) => r.status === "removed")?.id
+          || (data || []).find((r: any) => r.status === "pending")?.id;
+      }
+      if (relId) {
+        await supabase.from("coach_athlete_relationships").update({ status: "pending" } as any).eq("id", relId);
+      }
       // 2) Prévenir le coach par mail
       await supabase.functions.invoke("notify-contact", {
         body: {
@@ -113,7 +129,7 @@ export default function Reactiver() {
                 <p className="text-center text-sm text-muted-foreground">
                   {profile?.first_name ? `${profile.first_name}, ` : ""}souhaites-tu reprendre ton suivi&nbsp;?
                 </p>
-                <Button onClick={handleRequest} disabled={sending || !rel} className="w-full gap-2">
+                <Button onClick={handleRequest} disabled={sending} className="w-full gap-2">
                   <RotateCcw className="h-4 w-4" />
                   {sending ? "Envoi…" : "Demander la réactivation"}
                 </Button>
