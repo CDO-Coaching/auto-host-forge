@@ -639,15 +639,15 @@ export default function MesClients() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h1 className="text-2xl sm:text-3xl font-bold">Mes athlètes</h1>
+    <div className="space-y-2.5 sm:space-y-6 p-3 sm:p-0">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl sm:text-3xl font-bold">Mes athlètes</h1>
         <AvailabilityRequestButton />
       </div>
 
       <Tabs defaultValue="approved" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
-          <TabsTrigger value="approved" className="text-xs sm:text-sm py-2 sm:py-2.5">
+        <TabsList className="grid w-full grid-cols-4 h-auto gap-0.5 p-0.5">
+          <TabsTrigger value="approved" className="text-[11px] sm:text-sm py-1.5 sm:py-2.5 px-1">
             <span className="hidden sm:inline">Mes athlètes</span>
             <span className="sm:hidden">Athlètes</span>
             {approvedAthletes.length > 0 && (
@@ -661,7 +661,7 @@ export default function MesClients() {
                   // N'afficher que si tous ne sont pas validés
                   if (validatedCount < totalCount) {
                     return (
-                      <Badge variant="outline" className="ml-1 text-xs border-yellow-500 text-yellow-500">
+                      <Badge variant="outline" className="ml-1 text-xs border-yellow-500 text-yellow-500 hidden sm:inline-flex">
                         {validatedCount}/{totalCount}
                       </Badge>
                     );
@@ -671,23 +671,24 @@ export default function MesClients() {
               </>
             )}
           </TabsTrigger>
-          <TabsTrigger value="pending" className="text-xs sm:text-sm py-2 sm:py-2.5">
+          <TabsTrigger value="pending" className="text-[11px] sm:text-sm py-1.5 sm:py-2.5 px-1">
             <span className="hidden sm:inline">Demandes en attente</span>
             <span className="sm:hidden">Demandes</span>
             {pendingRequests.length > 0 && (
-              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
+              <Badge variant="secondary" className="ml-1 text-[10px] sm:text-xs px-1">
                 {pendingRequests.length}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="paused" className="text-xs sm:text-sm py-2 sm:py-2.5 col-span-2 sm:col-span-1">
-            En pause
+          <TabsTrigger value="paused" className="text-[11px] sm:text-sm py-1.5 sm:py-2.5 px-1">
+            <span className="hidden sm:inline">En pause</span>
+            <span className="sm:hidden">Pause</span>
           </TabsTrigger>
-          <TabsTrigger value="external" className="text-xs sm:text-sm py-2 sm:py-2.5 col-span-2 sm:col-span-1">
+          <TabsTrigger value="external" className="text-[11px] sm:text-sm py-1.5 sm:py-2.5 px-1">
             <span className="hidden sm:inline">Clients externes</span>
             <span className="sm:hidden">Externes</span>
             {externalClients.length > 0 && (
-              <Badge className="ml-1 sm:ml-2 bg-blue-600 text-xs">
+              <Badge className="ml-1 bg-blue-600 text-[10px] sm:text-xs px-1">
                 {externalClients.length}
               </Badge>
             )}
