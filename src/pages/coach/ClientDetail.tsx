@@ -311,7 +311,7 @@ export default function ClientDetail() {
   const [draggedSessionForExercise, setDraggedSessionForExercise] = useState<number | null>(null);
   const [headerMonotony, setHeaderMonotony] = useState<number | null>(null);
   const [headerInjury, setHeaderInjury] = useState<{ avgPain: number; location: string } | null>(null);
-  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon" | "physio">("course");
+  const [selectedEffortType, setSelectedEffortType] = useState<"renfo" | "course" | "velo" | "natation" | "triathlon" | "physio">("physio");
   const [sessionTemplates, setSessionTemplates] = useState<Array<{ id: string; name: string; session_type: string; cardio_sport: string | null }>>([]);
   const [selectedCardioSport, setSelectedCardioSport] = useState<"course" | "velo" | "natation">("course");
   const [templateSearchQuery, setTemplateSearchQuery] = useState("");
@@ -5434,8 +5434,16 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="efforts" className="space-y-4">
-          {/* Menu de sélection du type d'effort */}
+          {/* Menu de sélection du type d'effort — Physiologie en premier */}
           <div className="flex flex-wrap gap-2 mb-4">
+            <Button
+              variant={selectedEffortType === "physio" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedEffortType("physio")}
+            >
+              <Gauge className="h-4 w-4 mr-2" />
+              Physiologie
+            </Button>
             <Button
               variant={selectedEffortType === "course" ? "default" : "outline"}
               size="sm"
@@ -5475,14 +5483,6 @@ export default function ClientDetail() {
             >
               <Activity className="h-4 w-4 mr-2" />
               Triathlon
-            </Button>
-            <Button
-              variant={selectedEffortType === "physio" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedEffortType("physio")}
-            >
-              <Gauge className="h-4 w-4 mr-2" />
-              Physiologie
             </Button>
           </div>
 
