@@ -84,7 +84,7 @@ export default function Reactiver() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-start justify-center p-4 pt-24 sm:pt-28 pb-10">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 h-12 w-12 rounded-2xl bg-primary/15 flex items-center justify-center">

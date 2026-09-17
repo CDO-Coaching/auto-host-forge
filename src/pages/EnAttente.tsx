@@ -80,7 +80,7 @@ export default function EnAttente() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navigation />
-      <main className="flex-1 flex items-center justify-center p-4">
+      <main className="flex-1 flex items-start justify-center p-4 pt-24 sm:pt-28 pb-10">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Compte en attente</CardTitle>
