@@ -173,6 +173,7 @@ export default function BibliothequeExercices() {
   const [selectedMuscle, setSelectedMuscle] = useState<string>("all");
   const [showIncomplete, setShowIncomplete] = useState(false);
   const [showNoSecondary, setShowNoSecondary] = useState(false);
+  const [selectedSecondary, setSelectedSecondary] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -201,7 +202,7 @@ export default function BibliothequeExercices() {
   const pendingHandled = useRef(false);
 
   useEffect(() => { loadExercises(); }, []);
-  useEffect(() => { filterExercises(); }, [exercises, searchTerm, selectedMuscle, showIncomplete, showNoSecondary]);
+  useEffect(() => { filterExercises(); }, [exercises, searchTerm, selectedMuscle, selectedSecondary, showIncomplete, showNoSecondary]);
 
   // ── Data loading ─────────────────────────────────────────────────────────────
 
@@ -236,6 +237,7 @@ export default function BibliothequeExercices() {
       (ex.muscle_principal && norm(ex.muscle_principal).includes(norm(searchTerm)))
     );
     if (selectedMuscle !== "all") filtered = filtered.filter((ex) => ex.muscle_principal === selectedMuscle);
+    if (selectedSecondary !== "all") filtered = filtered.filter((ex) => realSecondary(ex.muscles_second).includes(selectedSecondary));
     if (showIncomplete) filtered = filtered.filter((ex) => getMissingFields(ex).length > 0);
     if (showNoSecondary) filtered = filtered.filter((ex) => !hasSecondaryInfo(ex));
     filtered = [...filtered].sort((a, b) => {
@@ -373,6 +375,7 @@ export default function BibliothequeExercices() {
   };
 
   const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort() as string[];
+  const secondaryMuscles = Array.from(new Set(exercises.flatMap((ex) => realSecondary(ex.muscles_second)).filter(Boolean))).sort() as string[];
   const incompleteCount = exercises.filter((ex) => getMissingFields(ex).length > 0).length;
   const noSecondaryCount = exercises.filter((ex) => !hasSecondaryInfo(ex)).length;
 
@@ -500,7 +503,8 @@ export default function BibliothequeExercices() {
 
       {/* Filters */}
       {(() => {
-        const activeCount = (selectedMuscle !== "all" ? 1 : 0) + (showIncomplete ? 1 : 0) + (showNoSecondary ? 1 : 0);
+        const activeCount = (selectedMuscle !== "all" ? 1 : 0) + (selectedSecondary !== "all" ? 1 : 0) + (showIncomplete ? 1 : 0) + (showNoSecondary ? 1 : 0);
+        const resetFilters = () => { setSelectedMuscle("all"); setSelectedSecondary("all"); setShowIncomplete(false); setShowNoSecondary(false); };
         return (
       <Card>
         <CardContent className="space-y-3 pt-4">
@@ -528,38 +532,64 @@ export default function BibliothequeExercices() {
             <button
               type="button"
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-              onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); setShowNoSecondary(false); }}
+              onClick={resetFilters}
             >
               <X className="h-3 w-3" /> Réinitialiser les filtres
             </button>
           )}
           {showFilters && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Badge variant={selectedMuscle === "all" && !showIncomplete && !showNoSecondary ? "default" : "outline"} className="cursor-pointer" onClick={() => { setSelectedMuscle("all"); setShowIncomplete(false); setShowNoSecondary(false); }}>Tous</Badge>
-            {incompleteCount > 0 && (
-              <Badge
-                variant={showIncomplete ? "default" : "outline"}
-                className={cn("cursor-pointer gap-1", showIncomplete ? "bg-amber-500 border-amber-500 hover:bg-amber-600" : "border-amber-500 text-amber-600 hover:bg-amber-50")}
-                onClick={() => { setShowIncomplete((v) => !v); setShowNoSecondary(false); setSelectedMuscle("all"); }}
-              >
-                <AlertTriangle className="h-3 w-3" />
-                Incomplets ({incompleteCount})
-              </Badge>
+          <div className="space-y-3 pt-1">
+            {/* Statut */}
+            <div className="flex flex-wrap gap-2">
+              <Badge variant={activeCount === 0 ? "default" : "outline"} className="cursor-pointer" onClick={resetFilters}>Tous</Badge>
+              {incompleteCount > 0 && (
+                <Badge
+                  variant={showIncomplete ? "default" : "outline"}
+                  className={cn("cursor-pointer gap-1", showIncomplete ? "bg-amber-500 border-amber-500 hover:bg-amber-600" : "border-amber-500 text-amber-600 hover:bg-amber-50")}
+                  onClick={() => setShowIncomplete((v) => !v)}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  Incomplets ({incompleteCount})
+                </Badge>
+              )}
+              {noSecondaryCount > 0 && (
+                <Badge
+                  variant={showNoSecondary ? "default" : "outline"}
+                  className={cn("cursor-pointer gap-1", showNoSecondary ? "bg-primary border-primary" : "border-primary/60 text-primary hover:bg-primary/10")}
+                  onClick={() => setShowNoSecondary((v) => !v)}
+                >
+                  Sans 2ndaire ({noSecondaryCount})
+                </Badge>
+              )}
+            </div>
+
+            {/* Muscle principal */}
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Muscle principal</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant={selectedMuscle === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedMuscle("all")}>Tous</Badge>
+                {muscles.map((muscle) => (
+                  <Badge key={muscle} variant={selectedMuscle === muscle ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedMuscle((v) => v === muscle ? "all" : muscle)}>
+                    {muscle}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Muscle secondaire */}
+            {secondaryMuscles.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Muscle secondaire <span className="normal-case font-normal text-muted-foreground/50">· pour affiner</span></p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant={selectedSecondary === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedSecondary("all")}>Tous</Badge>
+                  {secondaryMuscles.map((muscle) => (
+                    <Badge key={muscle} variant={selectedSecondary === muscle ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedSecondary((v) => v === muscle ? "all" : muscle)}>
+                      {muscle}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
-            {noSecondaryCount > 0 && (
-              <Badge
-                variant={showNoSecondary ? "default" : "outline"}
-                className={cn("cursor-pointer gap-1", showNoSecondary ? "bg-primary border-primary" : "border-primary/60 text-primary hover:bg-primary/10")}
-                onClick={() => { setShowNoSecondary((v) => !v); setShowIncomplete(false); setSelectedMuscle("all"); }}
-              >
-                Sans 2ndaire ({noSecondaryCount})
-              </Badge>
-            )}
-            {muscles.map((muscle) => (
-              <Badge key={muscle} variant={selectedMuscle === muscle ? "default" : "outline"} className="cursor-pointer" onClick={() => { setSelectedMuscle(muscle); setShowIncomplete(false); }}>
-                {muscle}
-              </Badge>
-            ))}
           </div>
           )}
         </CardContent>
