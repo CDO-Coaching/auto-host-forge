@@ -404,9 +404,6 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
 
         {/* injury card is rendered separately via column="injury" */}
 
-        {/* Cardio volume summary */}
-        <CoachCardioSummaryCard athleteId={athleteId} />
-
         {/* Milestones */}
         {milestones.length > 0 && (
           <Card>
