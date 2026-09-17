@@ -4137,7 +4137,7 @@ export default function ClientDetail() {
       <div className="space-y-6">
         <Button variant="ghost" onClick={() => navigate("/coach/mes-clients")}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Retour à mes clients
+          Retour à mes athlètes
         </Button>
         <Card>
           <CardContent className="py-12 text-center">
@@ -4198,7 +4198,7 @@ export default function ClientDetail() {
           className="text-xs sm:text-sm px-1.5 sm:px-2 h-8 sm:h-9"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span className="hidden sm:inline ml-1">Retour à mes clients</span>
+          <span className="hidden sm:inline ml-1">Retour à mes athlètes</span>
         </Button>
       </div>
 

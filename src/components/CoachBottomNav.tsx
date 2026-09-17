@@ -1,11 +1,12 @@
-import { Users, CalendarDays, MessageCircle, Euro, Menu } from "lucide-react";
+import { Users, BookOpen, CalendarDays, MessageCircle, Euro, Menu } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useMessages } from "@/hooks/useMessages";
 import { Badge } from "@/components/ui/badge";
 
 const items = [
-  { to: "/coach/mes-clients", label: "Clients", icon: Users },
+  { to: "/coach/mes-clients", label: "Athlètes", icon: Users },
+  { to: "/coach/bibliotheque-exercices", label: "Exos", icon: BookOpen },
   { to: "/coach/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/coach/messagerie", label: "Messages", icon: MessageCircle, showBadge: true },
   { to: "/coach/comptabilite", label: "Compta", icon: Euro },

@@ -24,7 +24,7 @@ const menuGroups = [
     label: "Coaching",
     items: [
       { title: "Tableau de bord", url: "/coach/dashboard", icon: LayoutDashboard },
-      { title: "Mes clients", url: "/coach/mes-clients", icon: Users },
+      { title: "Mes athlètes", url: "/coach/mes-clients", icon: Users },
       { title: "Agenda", url: "/coach/agenda", icon: CalendarDays },
       { title: "Séances programmées", url: "/coach/seances-programmees", icon: ClipboardList },
       { title: "Notes", url: "/coach/notes", icon: StickyNote },

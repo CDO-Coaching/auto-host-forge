@@ -385,7 +385,7 @@ export default function Messagerie() {
         {/* Liste des clients */}
         <Card className="md:col-span-1">
           <CardHeader>
-            <CardTitle>Mes clients</CardTitle>
+            <CardTitle>Mes athlètes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Barre de recherche */}
