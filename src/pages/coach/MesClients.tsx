@@ -524,26 +524,25 @@ export default function MesClients() {
   };
 
   // Filtrer les athlètes selon la recherche
+  // Normalise pour une recherche insensible à la casse ET aux accents (jerome = jérôme)
+  const norm = (s: string) => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
   const filterAthletes = (athletes: AthleteRelationship[]) => {
     if (!searchQuery.trim()) return athletes;
-    
-    const query = searchQuery.toLowerCase();
+    const query = norm(searchQuery);
     return athletes.filter((rel) => {
-      const firstName = rel.athlete.first_name?.toLowerCase() || "";
-      const lastName = rel.athlete.last_name?.toLowerCase() || "";
-      return firstName.includes(query) || lastName.includes(query);
+      const full = norm(`${rel.athlete.first_name || ""} ${rel.athlete.last_name || ""}`);
+      return full.includes(query);
     });
   };
 
   // Filtrer les clients externes selon la recherche
   const filterExternalClients = (clients: ExternalClient[]) => {
     if (!searchQuery.trim()) return clients;
-    
-    const query = searchQuery.toLowerCase();
+    const query = norm(searchQuery);
     return clients.filter((client) => {
-      const firstName = client.first_name?.toLowerCase() || "";
-      const lastName = client.last_name?.toLowerCase() || "";
-      return firstName.includes(query) || lastName.includes(query);
+      const full = norm(`${client.first_name || ""} ${client.last_name || ""}`);
+      return full.includes(query);
     });
   };
 
