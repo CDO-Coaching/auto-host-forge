@@ -375,7 +375,6 @@ export default function BibliothequeExercices() {
   };
 
   const muscles = Array.from(new Set(exercises.map((ex) => ex.muscle_principal).filter(Boolean))).sort() as string[];
-  const secondaryMuscles = Array.from(new Set(exercises.flatMap((ex) => realSecondary(ex.muscles_second)).filter(Boolean))).sort() as string[];
   const incompleteCount = exercises.filter((ex) => getMissingFields(ex).length > 0).length;
   const noSecondaryCount = exercises.filter((ex) => !hasSecondaryInfo(ex)).length;
 
@@ -563,33 +562,46 @@ export default function BibliothequeExercices() {
               )}
             </div>
 
-            {/* Muscle principal */}
+            {/* Muscles — 1er clic = principal (doré), 2e clic = secondaire (bordure ambre) */}
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Muscle principal</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant={selectedMuscle === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedMuscle("all")}>Tous</Badge>
-                {muscles.map((muscle) => (
-                  <Badge key={muscle} variant={selectedMuscle === muscle ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedMuscle((v) => v === muscle ? "all" : muscle)}>
-                    {muscle}
-                  </Badge>
-                ))}
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Muscles <span className="normal-case font-normal text-muted-foreground/50">· 1er = principal, 2e = pour affiner</span>
+                </p>
+                {(selectedMuscle !== "all" || selectedSecondary !== "all") && (
+                  <button type="button" className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => { setSelectedMuscle("all"); setSelectedSecondary("all"); }}>
+                    <X className="h-3 w-3" /> Réinitialiser
+                  </button>
+                )}
               </div>
-            </div>
-
-            {/* Muscle secondaire */}
-            {secondaryMuscles.length > 0 && (
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Muscle secondaire <span className="normal-case font-normal text-muted-foreground/50">· pour affiner</span></p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant={selectedSecondary === "all" ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedSecondary("all")}>Tous</Badge>
-                  {secondaryMuscles.map((muscle) => (
-                    <Badge key={muscle} variant={selectedSecondary === muscle ? "default" : "outline"} className="cursor-pointer" onClick={() => setSelectedSecondary((v) => v === muscle ? "all" : muscle)}>
+              <div className="flex flex-wrap gap-2">
+                {muscles.map((muscle) => {
+                  const isPrimary = selectedMuscle === muscle;
+                  const isSecondary = selectedSecondary === muscle;
+                  const onClick = () => {
+                    if (isPrimary) { setSelectedMuscle("all"); return; }
+                    if (isSecondary) { setSelectedSecondary("all"); return; }
+                    if (selectedMuscle === "all") { setSelectedMuscle(muscle); return; }
+                    setSelectedSecondary(muscle);
+                  };
+                  return (
+                    <Badge
+                      key={muscle}
+                      variant={isPrimary ? "default" : "outline"}
+                      className={cn(
+                        "cursor-pointer gap-1",
+                        isSecondary && "border-amber-500 text-amber-500 bg-amber-500/10"
+                      )}
+                      onClick={onClick}
+                    >
+                      {isPrimary && <span className="text-[9px] font-bold opacity-80">1</span>}
+                      {isSecondary && <span className="text-[9px] font-bold opacity-80">2</span>}
                       {muscle}
                     </Badge>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
           </div>
           )}
         </CardContent>
