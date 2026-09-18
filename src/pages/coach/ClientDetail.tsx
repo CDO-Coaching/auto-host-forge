@@ -83,6 +83,7 @@ import { CoachClientSummaryView } from "@/components/CoachClientSummaryView";
 import { WeeklyHRZonesCard } from "@/components/WeeklyHRZonesCard";
 import { DailyDebriefCard } from "@/components/DailyDebriefCard";
 import { AthleteProfileTab } from "@/components/AthleteProfileTab";
+import { MentalPrepTab } from "@/components/MentalPrepTab";
 import { WeekAvailabilityCard } from "@/components/WeekAvailabilityCard";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
@@ -4358,6 +4359,7 @@ export default function ClientDetail() {
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
+              <TabsTrigger value="mental" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Mental</TabsTrigger>
               <TabsTrigger value="profil" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Profil</TabsTrigger>
               <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
             </TabsList>
@@ -4382,6 +4384,15 @@ export default function ClientDetail() {
                 column="right"
               />
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="mental" className="space-y-2">
+          {athleteId && (
+            <MentalPrepTab
+              athleteId={athleteId}
+              athleteName={`${athlete?.first_name || ''} ${athlete?.last_name || ''}`.trim() || athlete?.email || "cet athlète"}
+            />
           )}
         </TabsContent>
 
