@@ -22,6 +22,7 @@ create table if not exists public.mental_assessments (
 
   -- synthèse
   axe_prioritaire text,
+  plan_action text,        -- les 2-3 leviers concrets à mettre en place
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

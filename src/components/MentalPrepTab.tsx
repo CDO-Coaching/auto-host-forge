@@ -43,6 +43,7 @@ interface MentalAssessment {
   score_gestion_peur: number | null;
   score_regularite: number | null;
   axe_prioritaire: string | null;
+  plan_action: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -148,6 +149,7 @@ export function MentalPrepTab({ athleteId, athleteName }: { athleteId: string; a
         q_echec: row.q_echec, q_concentration: row.q_concentration, q_influence: row.q_influence,
         score_confiance: row.score_confiance, score_gestion_peur: row.score_gestion_peur,
         score_regularite: row.score_regularite, axe_prioritaire: row.axe_prioritaire,
+        plan_action: row.plan_action,
       })
       .eq("id", row.id);
     if (error) { console.error(error); setSaveState("idle"); toast.error("Enregistrement échoué"); return; }
@@ -342,8 +344,13 @@ function EvolutionView({
                 <span className="text-xs text-muted-foreground tabular-nums shrink-0 w-20 pt-0.5">
                   {format(parseISO(a.assessment_date), "d MMM yy", { locale: fr })}
                 </span>
-                <span className="text-sm flex-1">
+                <span className="text-sm flex-1 min-w-0">
                   {a.axe_prioritaire || <span className="text-muted-foreground/50 italic">—</span>}
+                  {a.plan_action && (
+                    <span className="block text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">
+                      <span className="text-primary/80 font-medium">Plan : </span>{a.plan_action}
+                    </span>
+                  )}
                 </span>
               </button>
             ))}
@@ -456,6 +463,19 @@ function BilanForm({
             onChange={(e) => onPatch("axe_prioritaire", e.target.value)}
             placeholder="Le déséquilibre à travailler en priorité…"
             className="h-10"
+          />
+        </div>
+
+        {/* Plan d'action / leviers */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-sm font-medium flex items-center gap-2" style={SORA}>
+            <Target className="h-4 w-4 text-primary" /> Plan d'action / leviers
+          </label>
+          <Textarea
+            value={draft.plan_action || ""}
+            onChange={(e) => onPatch("plan_action", e.target.value)}
+            placeholder="Les 2-3 leviers concrets à mettre en place…"
+            className="min-h-[70px] resize-y text-sm"
           />
         </div>
       </CardContent>
