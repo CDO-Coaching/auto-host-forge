@@ -38,6 +38,7 @@ interface MentalAssessment {
   q_charge_lourde: string | null;
   q_echec: string | null;
   q_concentration: string | null;
+  q_influence: string | null;
   score_confiance: number | null;
   score_gestion_peur: number | null;
   score_regularite: number | null;
@@ -51,6 +52,7 @@ const QUESTIONS: { key: keyof MentalAssessment; label: string; hint: string }[] 
   { key: "q_charge_lourde", label: "Face à une charge lourde / un exo qui fait peur", hint: "ce qui se passe dans sa tête" },
   { key: "q_echec", label: "Son discours interne quand il rate / régresse", hint: "les mots qu'il se dit" },
   { key: "q_concentration", label: "Sa concentration à l'entraînement", hint: "présent vs tête ailleurs" },
+  { key: "q_influence", label: "Comment le sport influence son moral / son énergie en ce moment", hint: "ce qu'il en retire au quotidien" },
 ];
 
 const SCORES: { key: keyof MentalAssessment; label: string; color: string }[] = [
@@ -143,7 +145,7 @@ export function MentalPrepTab({ athleteId, athleteName }: { athleteId: string; a
       .update({
         assessment_date: row.assessment_date,
         q_quete: row.q_quete, q_charge_lourde: row.q_charge_lourde,
-        q_echec: row.q_echec, q_concentration: row.q_concentration,
+        q_echec: row.q_echec, q_concentration: row.q_concentration, q_influence: row.q_influence,
         score_confiance: row.score_confiance, score_gestion_peur: row.score_gestion_peur,
         score_regularite: row.score_regularite, axe_prioritaire: row.axe_prioritaire,
       })

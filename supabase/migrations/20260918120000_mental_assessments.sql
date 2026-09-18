@@ -13,6 +13,7 @@ create table if not exists public.mental_assessments (
   q_charge_lourde text,    -- sa tête face à une charge lourde / un exo qui fait peur
   q_echec text,            -- son discours interne quand il rate / régresse
   q_concentration text,    -- sa concentration (présent vs tête ailleurs)
+  q_influence text,        -- comment le sport influence son moral / son énergie en ce moment
 
   -- 3 notes 1..10
   score_confiance integer check (score_confiance between 1 and 10),
