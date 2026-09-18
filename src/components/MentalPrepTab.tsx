@@ -346,9 +346,14 @@ function EvolutionView({
                 </span>
                 <span className="text-sm flex-1 min-w-0">
                   {a.axe_prioritaire || <span className="text-muted-foreground/50 italic">—</span>}
-                  {a.plan_action && (
-                    <span className="block text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">
-                      <span className="text-primary/80 font-medium">Plan : </span>{a.plan_action}
+                  {a.plan_action && a.plan_action.trim() && (
+                    <span className="block mt-1 space-y-0.5">
+                      {a.plan_action.split("\n").filter((l) => l.trim()).map((l, k) => (
+                        <span key={k} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                          <span className="text-primary/80 font-medium tabular-nums shrink-0">{k + 1}.</span>
+                          <span className="min-w-0">{l}</span>
+                        </span>
+                      ))}
                     </span>
                   )}
                 </span>
@@ -466,17 +471,36 @@ function BilanForm({
           />
         </div>
 
-        {/* Plan d'action / leviers */}
+        {/* Plan d'action / leviers — 3 lignes séparées */}
         <div className="space-y-1.5 pt-1">
           <label className="text-sm font-medium flex items-center gap-2" style={SORA}>
             <Target className="h-4 w-4 text-primary" /> Plan d'action / leviers
           </label>
-          <Textarea
-            value={draft.plan_action || ""}
-            onChange={(e) => onPatch("plan_action", e.target.value)}
-            placeholder="Les 2-3 leviers concrets à mettre en place…"
-            className="min-h-[70px] resize-y text-sm"
-          />
+          {(() => {
+            const lines = (draft.plan_action || "").split("\n");
+            const setLine = (i: number, val: string) => {
+              const arr = [lines[0] || "", lines[1] || "", lines[2] || ""];
+              arr[i] = val;
+              // on retire les lignes vides en fin pour ne pas stocker de blancs inutiles
+              while (arr.length && arr[arr.length - 1].trim() === "") arr.pop();
+              onPatch("plan_action", arr.join("\n"));
+            };
+            return (
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-primary tabular-nums w-4 shrink-0">{i + 1}.</span>
+                    <Input
+                      value={lines[i] || ""}
+                      onChange={(e) => setLine(i, e.target.value)}
+                      placeholder={i === 0 ? "Les 2-3 leviers concrets à mettre en place…" : "Levier…"}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </CardContent>
     </Card>
