@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { NewRequestDialog } from "@/components/NewRequestDialog";
 import { AthleteRequestsMini } from "@/components/AthleteRequestsMini";
+import { useTreatedRequests } from "@/hooks/useTreatedRequests";
 import { ClipboardList } from "lucide-react";
 
 export function ChatBubble() {
@@ -23,6 +24,8 @@ export function ChatBubble() {
   const [isUploading, setIsUploading] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
+  const { count: treatedCount, markSeen: markTreatedSeen } = useTreatedRequests();
+  const totalBadge = unreadCount + treatedCount;
   const { messages, unreadCount, sendMessage, markAsRead } = useMessages(coachId || undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -135,17 +138,17 @@ export function ChatBubble() {
     <div className={`fixed z-50 ${isOpen ? "inset-0 flex items-end justify-center sm:items-end sm:justify-end sm:inset-auto sm:bottom-4 sm:right-4" : "bottom-4 right-4"}`}>
       {!isOpen ? (
         <Button
-          onClick={() => setIsOpen(true)}
+          onClick={() => { setIsOpen(true); markTreatedSeen(); }}
           size="lg"
           className="rounded-full h-14 w-14 shadow-lg relative"
         >
           <MessageCircle className="h-6 w-6" />
-          {unreadCount > 0 && (
+          {totalBadge > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-6 w-6 flex items-center justify-center p-0 rounded-full"
             >
-              {unreadCount}
+              {totalBadge}
             </Badge>
           )}
         </Button>
