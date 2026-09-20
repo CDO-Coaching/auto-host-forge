@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
 import { NewRequestDialog } from "@/components/NewRequestDialog";
+import { AthleteRequestsMini } from "@/components/AthleteRequestsMini";
 import { ClipboardList } from "lucide-react";
 
 export function ChatBubble() {
@@ -214,6 +215,9 @@ export function ChatBubble() {
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
+
+            {/* Suivi des demandes (état en temps réel) */}
+            <AthleteRequestsMini />
 
             {/* Faire une demande — action distincte du chat, bien visible */}
             <button
