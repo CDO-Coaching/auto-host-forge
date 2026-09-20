@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { CheckCircle2, Clock, Eye, ChevronDown, ChevronUp } from "lucide-react";
 import { catMeta } from "@/components/NewRequestDialog";
+import { useTreatedRequests } from "@/hooks/useTreatedRequests";
 
 interface Row {
   id: string; category: string; content: string; status: "open" | "done";
@@ -16,7 +17,14 @@ interface Row {
 export function AthleteRequestsMini() {
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  const { count: treatedCount, markSeen } = useTreatedRequests();
+
+  const toggle = () => setOpen((v) => {
+    const next = !v;
+    if (next) markSeen(); // on déplie → on marque les traitées comme vues
+    return next;
+  });
 
   const load = async () => {
     if (!user) return;
@@ -50,11 +58,16 @@ export function AthleteRequestsMini() {
 
   return (
     <div className="rounded-xl border border-border bg-muted/20 overflow-hidden shrink-0">
-      <button type="button" onClick={() => setOpen((v) => !v)}
+      <button type="button" onClick={toggle}
         className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm font-medium">
         <span className="flex items-center gap-2">
           Mes demandes
           {openCount > 0 && <span className="text-[10px] font-bold text-primary-foreground bg-primary rounded-full px-1.5 py-0.5">{openCount} en cours</span>}
+          {treatedCount > 0 && (
+            <span className="text-[10px] font-bold text-white bg-green-600 rounded-full h-4 min-w-4 px-1 flex items-center justify-center" title="Demande(s) traitée(s)">
+              {treatedCount}
+            </span>
+          )}
         </span>
         {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
       </button>
