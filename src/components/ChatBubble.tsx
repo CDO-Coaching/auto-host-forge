@@ -25,8 +25,8 @@ export function ChatBubble() {
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const { count: treatedCount, markSeen: markTreatedSeen } = useTreatedRequests();
-  const totalBadge = unreadCount + treatedCount;
   const { messages, unreadCount, sendMessage, markAsRead } = useMessages(coachId || undefined);
+  const totalBadge = unreadCount + treatedCount;
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
