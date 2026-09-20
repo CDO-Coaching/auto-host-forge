@@ -10,6 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
+import { NewRequestDialog } from "@/components/NewRequestDialog";
+import { ClipboardList } from "lucide-react";
 
 export function ChatBubble() {
   const { user } = useAuth();
@@ -19,6 +21,7 @@ export function ChatBubble() {
   const [messageText, setMessageText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{ url: string; type: 'video' | 'image' } | null>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
   const { messages, unreadCount, sendMessage, markAsRead } = useMessages(coachId || undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -212,6 +215,15 @@ export function ChatBubble() {
               </div>
             </ScrollArea>
 
+            {/* Faire une demande — action distincte du chat, bien visible */}
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-primary/40 bg-primary/10 text-primary text-sm font-medium hover:bg-primary/15 transition-colors"
+            >
+              <ClipboardList className="h-4 w-4" /> Faire une demande
+            </button>
+
             {/* Hidden file input */}
             <input
               type="file"
@@ -251,6 +263,9 @@ export function ChatBubble() {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog « Faire une demande » */}
+      <NewRequestDialog open={requestOpen} onOpenChange={setRequestOpen} />
 
       {/* Dialog de prévisualisation média */}
       <MediaPreviewDialog
