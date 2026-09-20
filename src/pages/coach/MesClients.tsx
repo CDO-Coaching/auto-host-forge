@@ -254,12 +254,24 @@ export default function MesClients() {
 
       if (error) throw error;
 
+      // À l'acceptation, marquer aussi le profil comme approuvé (sinon l'athlète
+      // reste bloqué sur la page « en attente / réactiver »). Cas notamment d'une
+      // réactivation après suppression.
+      if (status === "approved") {
+        const athleteId = pendingRequests.find((r) => r.id === relationshipId)?.athlete_id;
+        if (athleteId) {
+          const { error: approveErr } = await supabase
+            .rpc("approve_athlete", { p_athlete_id: athleteId, p_approved: true });
+          if (approveErr) console.error("approve_athlete:", approveErr);
+        }
+      }
+
       toast.success(
-        status === "approved" 
-          ? "Demande acceptée ! Tu peux maintenant suivre cet athlète." 
+        status === "approved"
+          ? "Demande acceptée ! Tu peux maintenant suivre cet athlète."
           : "Demande refusée"
       );
-      
+
       await loadRelationships();
     } catch (error: any) {
       toast.error("Erreur lors du traitement de la demande");
