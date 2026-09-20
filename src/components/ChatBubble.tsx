@@ -131,7 +131,7 @@ export function ChatBubble() {
   if (!coachId) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className={`fixed z-50 ${isOpen ? "inset-0 flex items-end justify-center sm:items-end sm:justify-end sm:inset-auto sm:bottom-4 sm:right-4" : "bottom-4 right-4"}`}>
       {!isOpen ? (
         <Button
           onClick={() => setIsOpen(true)}
@@ -149,20 +149,20 @@ export function ChatBubble() {
           )}
         </Button>
       ) : (
-        <Card className="w-80 sm:w-96 shadow-2xl">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <Card className="flex flex-col w-full h-[92vh] rounded-b-none sm:rounded-lg sm:w-96 sm:h-[600px] sm:max-h-[85vh] shadow-2xl">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 shrink-0">
             <CardTitle className="text-lg">Message à {coachName}</CardTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(false)}
-              className="h-6 w-6"
+              className="h-8 w-8"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <ScrollArea className="h-80 pr-4" ref={scrollRef}>
+          <CardContent className="flex flex-col flex-1 min-h-0 space-y-4">
+            <ScrollArea className="flex-1 min-h-0 pr-4" ref={scrollRef}>
               <div className="space-y-3">
                 {messages.map((msg) => {
                   const isMe = msg.sender_id === user?.id;
