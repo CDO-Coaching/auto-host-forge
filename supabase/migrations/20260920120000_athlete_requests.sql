@@ -10,6 +10,8 @@ create table if not exists public.athlete_requests (
     check (category in ('programmation','planning','question','autre')),
   content text not null,
   status text not null default 'open' check (status in ('open','done')),
+  related_session_id uuid references public.training_sessions(id) on delete set null,
+  seen_at timestamptz,               -- accusé de lecture (coach a vu la demande)
   created_at timestamptz not null default now(),
   resolved_at timestamptz,
   resolved_by uuid
@@ -36,7 +38,7 @@ create policy athlete_requests_athlete_insert on public.athlete_requests
                   and car.status = 'approved')
   );
 
--- Le coach : voit et met à jour (marque traité) les demandes de ses athlètes approuvés.
+-- Le coach : voit et met à jour (marque traité / accusé de lecture) les demandes de ses athlètes.
 drop policy if exists athlete_requests_coach_select on public.athlete_requests;
 create policy athlete_requests_coach_select on public.athlete_requests
   for select using (exists (
@@ -55,3 +57,46 @@ create policy athlete_requests_coach_update on public.athlete_requests
 
 -- Realtime
 alter publication supabase_realtime add table public.athlete_requests;
+
+-- Notification push au coach à chaque nouvelle demande (si notifs globales activées).
+create or replace function public.notify_coach_new_request()
+returns trigger
+language plpgsql
+security definer
+as $$
+declare
+  athlete_name text;
+  cat_label text;
+begin
+  -- coach : notifications globales activées ?
+  if not exists (
+    select 1 from public.notification_preferences np
+    where np.user_id = NEW.coach_id and np.enabled = true
+  ) then return NEW; end if;
+
+  select coalesce(nullif(trim(coalesce(up.first_name,'') || ' ' || coalesce(up.last_name,'')), ''), 'Un athlète')
+    into athlete_name
+  from public.user_profiles up where up.id = NEW.athlete_id;
+
+  cat_label := case NEW.category
+    when 'programmation' then 'Modifier ma prog'
+    when 'planning' then 'Décaler une séance'
+    when 'question' then 'Question'
+    else 'Demande' end;
+
+  insert into public.notification_queue (user_id, title, body, url, type)
+  values (
+    NEW.coach_id,
+    'Nouvelle demande',
+    athlete_name || ' — ' || cat_label || ' : ' || left(coalesce(NEW.content,''), 80),
+    '/coach/mes-clients',
+    'message'
+  );
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_notify_coach_new_request on public.athlete_requests;
+create trigger trg_notify_coach_new_request
+  after insert on public.athlete_requests
+  for each row execute function public.notify_coach_new_request();

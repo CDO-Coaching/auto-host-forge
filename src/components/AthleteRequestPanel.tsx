@@ -6,30 +6,18 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from "@/components/ui/dialog";
-import { ClipboardList, Plus, CheckCircle2, Clock, Loader2 } from "lucide-react";
+import { ClipboardList, Plus, CheckCircle2, Clock, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { NewRequestDialog, catMeta } from "@/components/NewRequestDialog";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 
-export const REQUEST_CATEGORIES: { value: string; label: string; color: string }[] = [
-  { value: "programmation", label: "Modifier ma prog", color: "#FFCF2E" },
-  { value: "planning", label: "Décaler une séance", color: "#38bdf8" },
-  { value: "question", label: "Question", color: "#a78bfa" },
-  { value: "autre", label: "Autre", color: "#94a3b8" },
-];
-export const catMeta = (v: string) => REQUEST_CATEGORIES.find((c) => c.value === v) || REQUEST_CATEGORIES[3];
-
 interface RequestRow {
   id: string; category: string; content: string; status: "open" | "done";
-  created_at: string; resolved_at: string | null;
+  created_at: string; resolved_at: string | null; seen_at: string | null;
 }
 
 export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; coachName: string }) {
@@ -37,15 +25,12 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
   const [rows, setRows] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState("programmation");
-  const [content, setContent] = useState("");
-  const [sending, setSending] = useState(false);
 
   const load = async () => {
     if (!user) return;
     const { data } = await supabase
       .from("athlete_requests")
-      .select("id, category, content, status, created_at, resolved_at")
+      .select("id, category, content, status, created_at, resolved_at, seen_at")
       .eq("athlete_id", user.id)
       .order("created_at", { ascending: false });
     setRows((data as RequestRow[]) || []);
@@ -54,7 +39,6 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
 
-  // Realtime : statut mis à jour par le coach
   useEffect(() => {
     if (!user) return;
     const ch = supabase
@@ -64,19 +48,6 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
     return () => { supabase.removeChannel(ch); };
     /* eslint-disable-next-line */
   }, [user]);
-
-  const submit = async () => {
-    if (!content.trim() || !user) return;
-    setSending(true);
-    const { error } = await supabase.from("athlete_requests").insert({
-      athlete_id: user.id, coach_id: coachId, category, content: content.trim(),
-    });
-    setSending(false);
-    if (error) { console.error(error); toast.error("Envoi impossible"); return; }
-    toast.success("Demande envoyée à " + coachName);
-    setContent(""); setCategory("programmation"); setOpen(false);
-    load();
-  };
 
   const openRows = rows.filter((r) => r.status === "open");
   const doneRows = rows.filter((r) => r.status === "done");
@@ -89,43 +60,12 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
             <ClipboardList className="h-5 w-5 text-primary" />
             <h2 className="text-base font-semibold" style={SORA}>Mes demandes</h2>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 h-9"><Plus className="h-4 w-4" /> Faire une demande</Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader><DialogTitle>Faire une demande à {coachName}</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-1">
-                <div>
-                  <p className="text-sm font-medium mb-2">Type de demande</p>
-                  <div className="flex flex-wrap gap-2">
-                    {REQUEST_CATEGORIES.map((c) => (
-                      <button key={c.value} type="button" onClick={() => setCategory(c.value)}
-                        className={`px-3 h-8 rounded-full text-xs font-medium border transition-colors flex items-center gap-1.5 ${
-                          category === c.value ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"
-                        }`}>
-                        <span className="w-2 h-2 rounded-full" style={{ background: c.color }} /> {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Décris ta demande (ex. « peux-tu décaler ma séance de jeudi à vendredi ? »)…"
-                  className="min-h-[110px] resize-y text-sm"
-                  autoFocus
-                />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
-                <Button onClick={submit} disabled={!content.trim() || sending} className="gap-1.5">
-                  {sending && <Loader2 className="h-4 w-4 animate-spin" />} Envoyer
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" className="gap-1.5 h-9" onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" /> Faire une demande
+          </Button>
         </div>
+
+        <NewRequestDialog open={open} onOpenChange={setOpen} onCreated={load} />
 
         {loading ? (
           <p className="text-sm text-muted-foreground text-center py-4">Chargement…</p>
@@ -152,6 +92,7 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
 function RequestLine({ r }: { r: RequestRow }) {
   const m = catMeta(r.category);
   const done = r.status === "done";
+  const seen = !done && !!r.seen_at;
   return (
     <div className={`rounded-xl border p-3 ${done ? "border-border/50 bg-muted/10 opacity-70" : "border-border bg-muted/20"}`}>
       <div className="flex items-center justify-between gap-2">
@@ -159,8 +100,10 @@ function RequestLine({ r }: { r: RequestRow }) {
           style={{ background: `${m.color}22`, color: m.color }}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: m.color }} /> {m.label}
         </span>
-        <span className={`text-[11px] flex items-center gap-1 ${done ? "text-green-500" : "text-muted-foreground"}`}>
-          {done ? <><CheckCircle2 className="h-3.5 w-3.5" /> Traitée</> : <><Clock className="h-3.5 w-3.5" /> En attente</>}
+        <span className={`text-[11px] flex items-center gap-1 ${done ? "text-green-500" : seen ? "text-sky-400" : "text-muted-foreground"}`}>
+          {done ? <><CheckCircle2 className="h-3.5 w-3.5" /> Traitée</>
+            : seen ? <><Eye className="h-3.5 w-3.5" /> Vue par ton coach</>
+            : <><Clock className="h-3.5 w-3.5" /> En attente</>}
         </span>
       </div>
       <p className="text-sm mt-1.5 whitespace-pre-wrap break-words">{r.content}</p>

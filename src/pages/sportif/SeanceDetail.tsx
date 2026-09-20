@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download, Settings } from "lucide-react";
+import { ArrowLeft, ChevronRight, Play, Square, CheckCircle2, RotateCcw, Pencil, Download, Settings, MessageSquarePlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { validateSessionMetrics } from "@/lib/sessionMetrics";
@@ -13,6 +13,7 @@ import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
+import { NewRequestDialog } from "@/components/NewRequestDialog";
 import {
   formatCardioTime,
   formatCardioDistance,
@@ -50,6 +51,7 @@ export default function SeanceDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [session, setSession] = useState<any>(null);
+  const [requestOpen, setRequestOpen] = useState(false);
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
@@ -890,7 +892,18 @@ export default function SeanceDetail() {
               Séance terminée
             </Badge>
           )}
+          <button type="button" onClick={() => setRequestOpen(true)}
+            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5">
+            <MessageSquarePlus className="h-3.5 w-3.5" /> Demander une modif au coach
+          </button>
         </div>
+        <NewRequestDialog
+          open={requestOpen}
+          onOpenChange={setRequestOpen}
+          defaultCategory="programmation"
+          relatedSessionId={sessionId}
+          contextLabel={`Séance : ${session.name}`}
+        />
 
         {/* Demande du coach : envoyer le lien Garmin/Strava de la sortie */}
         {exercises.some((it: any) => it?.request_activity_link || (Array.isArray(it?.exercises) && it.exercises.some((e: any) => e?.request_activity_link))) && (
