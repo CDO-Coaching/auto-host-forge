@@ -30,7 +30,7 @@ export function CoachRequestsInbox() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [showHistory, setShowHistory] = useState(false);
 
   // Dialog « marquer traité »
@@ -57,12 +57,21 @@ export function CoachRequestsInbox() {
     const list = await namesFor((data as Row[]) || []);
     setRows(list);
     setLoading(false);
-    // Accusé de lecture : marque les demandes ouvertes non encore vues
-    const unseen = list.map((r) => r.id);
-    if (unseen.length) {
-      supabase.from("athlete_requests").update({ seen_at: new Date().toISOString() })
-        .eq("coach_id", user.id).eq("status", "open").is("seen_at", null).then(() => {});
-    }
+  };
+
+  // Accusé de lecture : uniquement quand le coach déplie la liste (clic sur la flèche)
+  const markSeen = async () => {
+    if (!user) return;
+    await supabase.from("athlete_requests").update({ seen_at: new Date().toISOString() })
+      .eq("coach_id", user.id).eq("status", "open").is("seen_at", null);
+  };
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      if (!next) markSeen(); // on vient d'ouvrir → marquer comme vues
+      return next;
+    });
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
@@ -115,7 +124,7 @@ export function CoachRequestsInbox() {
     <Card className="border-primary/40">
       <CardContent className="pt-4 pb-3">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <button type="button" onClick={() => setCollapsed((v) => !v)} className="flex items-center gap-2 text-base font-semibold" style={SORA}>
+          <button type="button" onClick={toggleCollapsed} className="flex items-center gap-2 text-base font-semibold" style={SORA}>
             <Inbox className="h-5 w-5 text-primary" />
             Demandes à traiter
             <span className="text-xs font-bold text-primary-foreground bg-primary rounded-full px-2 py-0.5">{rows.length}</span>
