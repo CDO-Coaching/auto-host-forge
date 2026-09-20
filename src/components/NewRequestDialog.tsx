@@ -56,6 +56,16 @@ export function NewRequestDialog({
   const submit = async () => {
     if (!content.trim() || !user || !coachId) return;
     setSending(true);
+    // Max 3 demandes en cours (non traitées)
+    const { count } = await supabase
+      .from("athlete_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("athlete_id", user.id).eq("status", "open");
+    if ((count ?? 0) >= 3) {
+      setSending(false);
+      toast.error("Tu as déjà 3 demandes en cours. Attends qu'une soit traitée avant d'en envoyer une nouvelle.");
+      return;
+    }
     const { error } = await supabase.from("athlete_requests").insert({
       athlete_id: user.id, coach_id: coachId, category, content: content.trim(),
       related_session_id: relatedSessionId ?? null,

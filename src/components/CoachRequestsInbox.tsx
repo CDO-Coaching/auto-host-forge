@@ -49,6 +49,8 @@ export function CoachRequestsInbox() {
 
   const load = async () => {
     if (!user) return;
+    // Purge best-effort des demandes traitées de plus d'une semaine
+    supabase.rpc("purge_old_done_requests").then(() => {});
     const { data } = await supabase
       .from("athlete_requests")
       .select("id, athlete_id, category, content, status, created_at, resolved_at")
@@ -210,6 +212,7 @@ function HistoryDialog({
     supabase.from("athlete_requests")
       .select("id, athlete_id, category, content, status, created_at, resolved_at")
       .eq("coach_id", coachId).eq("status", "done")
+      .gte("resolved_at", new Date(Date.now() - 7 * 864e5).toISOString())
       .order("resolved_at", { ascending: false }).limit(100)
       .then(async ({ data }) => { setRows(await namesFor((data as Row[]) || [])); setLoading(false); });
   }, [open, coachId, namesFor]);

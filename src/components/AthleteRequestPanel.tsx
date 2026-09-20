@@ -49,8 +49,10 @@ export function AthleteRequestPanel({ coachId, coachName }: { coachId: string; c
     /* eslint-disable-next-line */
   }, [user]);
 
+  const weekAgo = Date.now() - 7 * 864e5;
   const openRows = rows.filter((r) => r.status === "open");
-  const doneRows = rows.filter((r) => r.status === "done");
+  // Les demandes traitées s'effacent au bout d'une semaine
+  const doneRows = rows.filter((r) => r.status === "done" && r.resolved_at && new Date(r.resolved_at).getTime() >= weekAgo);
 
   return (
     <Card>

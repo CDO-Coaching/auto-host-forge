@@ -10,7 +10,7 @@ import { catMeta } from "@/components/NewRequestDialog";
 
 interface Row {
   id: string; category: string; content: string; status: "open" | "done";
-  seen_at: string | null; created_at: string;
+  seen_at: string | null; created_at: string; resolved_at: string | null;
 }
 
 export function AthleteRequestsMini() {
@@ -22,11 +22,16 @@ export function AthleteRequestsMini() {
     if (!user) return;
     const { data } = await supabase
       .from("athlete_requests")
-      .select("id, category, content, status, seen_at, created_at")
+      .select("id, category, content, status, seen_at, created_at, resolved_at")
       .eq("athlete_id", user.id)
       .order("created_at", { ascending: false })
       .limit(20);
-    setRows((data as Row[]) || []);
+    // Les demandes traitées s'effacent au bout d'une semaine
+    const weekAgo = Date.now() - 7 * 864e5;
+    const list = ((data as Row[]) || []).filter(
+      (r) => r.status === "open" || (r.resolved_at && new Date(r.resolved_at).getTime() >= weekAgo),
+    );
+    setRows(list);
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [user]);
