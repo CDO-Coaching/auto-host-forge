@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMessages } from "@/hooks/useMessages";
 import { toast } from "sonner";
 import { MediaPreviewDialog } from "@/components/MediaPreviewDialog";
+import { AthleteRequestPanel } from "@/components/AthleteRequestPanel";
 
 export default function Messagerie() {
   const navigate = useNavigate();
@@ -156,6 +157,8 @@ export default function Messagerie() {
           </p>
         </div>
       </div>
+
+      {coachId && <AthleteRequestPanel coachId={coachId} coachName={coachName} />}
 
       <Card>
         <CardHeader>

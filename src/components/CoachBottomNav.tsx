@@ -2,10 +2,11 @@ import { Users, BookOpen, CalendarDays, MessageCircle, Euro, Menu } from "lucide
 import { NavLink } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useMessages } from "@/hooks/useMessages";
+import { useOpenRequestsCount } from "@/hooks/useOpenRequestsCount";
 import { Badge } from "@/components/ui/badge";
 
 const items = [
-  { to: "/coach/mes-clients", label: "Athlètes", icon: Users },
+  { to: "/coach/mes-clients", label: "Athlètes", icon: Users, showRequests: true },
   { to: "/coach/bibliotheque-exercices", label: "Exos", icon: BookOpen },
   { to: "/coach/agenda", label: "Agenda", icon: CalendarDays },
   { to: "/coach/messagerie", label: "Messages", icon: MessageCircle, showBadge: true },
@@ -20,6 +21,7 @@ const items = [
 export function CoachBottomNav() {
   const { toggleSidebar } = useSidebar();
   const { unreadCount } = useMessages();
+  const openRequests = useOpenRequestsCount();
 
   return (
     <nav
@@ -46,6 +48,13 @@ export function CoachBottomNav() {
                 className="absolute top-2 right-1/2 translate-x-3 h-4 min-w-[16px] px-1 text-[9px] flex items-center justify-center"
               >
                 {unreadCount > 9 ? "9+" : unreadCount}
+              </Badge>
+            )}
+            {(item as any).showRequests && openRequests > 0 && (
+              <Badge
+                className="absolute top-2 right-1/2 translate-x-3 h-4 min-w-[16px] px-1 text-[9px] flex items-center justify-center bg-primary text-primary-foreground border-0"
+              >
+                {openRequests > 9 ? "9+" : openRequests}
               </Badge>
             )}
           </NavLink>

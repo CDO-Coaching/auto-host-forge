@@ -16,6 +16,7 @@ import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
 import { PauseReminderDialog } from "@/components/PauseReminderDialog";
 import { useAthleteSubscriptionStatus } from "@/hooks/useAthleteSubscriptionStatus";
 import { AvailabilityRequestButton } from "@/components/AvailabilityRequestButton";
+import { CoachRequestsInbox } from "@/components/CoachRequestsInbox";
 
 interface Athlete {
   id: string;
@@ -643,6 +644,8 @@ export default function MesClients() {
         <h1 className="text-xl sm:text-3xl font-bold">Mes athlètes</h1>
         <AvailabilityRequestButton />
       </div>
+
+      <CoachRequestsInbox />
 
       <Tabs defaultValue="approved" className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-auto gap-0.5 p-0.5">
