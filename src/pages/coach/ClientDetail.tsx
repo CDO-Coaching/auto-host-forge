@@ -14,6 +14,7 @@ import {
   Mail,
   Plus,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   Trash2,
   Check,
@@ -303,6 +304,7 @@ export default function ClientDetail() {
   const [recentCardioHistory, setRecentCardioHistory] = useState<import("@/components/CoachCardioAIChat").AIChatWeekHistory[]>([]);
   const [athleteNotes, setAthleteNotes] = useState<Array<{ id: string; content: string; created_at: string }>>([]);
   const [dismissedNoteId, setDismissedNoteId] = useState<string | null>(null);
+  const [notesExpanded, setNotesExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState("resume");
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
@@ -4160,36 +4162,44 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-2 sm:space-y-3 overflow-x-hidden max-w-full px-1 sm:px-0">
-      {/* ── Dernières notes de coaching (flottant, fermable) ── */}
+      {/* ── Dernières notes de coaching (inline, repliable, fermable) ── */}
       {showNotesFloating && (
-        <div className="fixed top-16 right-3 sm:right-6 z-50 w-[calc(100vw-1.5rem)] sm:w-96 max-w-96">
-          <Card className="border-primary/40 bg-background shadow-xl">
-            <CardContent className="pt-4 space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <StickyNote className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold">Dernières notes</span>
-                </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7 -mr-1" onClick={dismissNotesFloating} aria-label="Fermer">
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="max-h-[50vh] overflow-y-auto space-y-3">
-                {athleteNotes.slice(0, 3).map((note) => (
-                  <div key={note.id} className="border-l-2 border-primary/40 pl-3">
-                    <p className="text-[11px] text-muted-foreground mb-0.5">
-                      {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                    <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                  </div>
-                ))}
-              </div>
-              <Button variant="ghost" size="sm" className="h-7 text-xs w-full" onClick={() => setShowNotesSheet(true)}>
-                Voir toutes les notes ({athleteNotes.length})
+        <Card className="border-primary/40 bg-card">
+          <CardContent className="py-2.5">
+            {/* En-tête toujours visible : replier / fermer */}
+            <div className="flex items-center justify-between gap-2">
+              <button type="button" onClick={() => setNotesExpanded((v) => !v)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
+                <StickyNote className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-sm font-semibold shrink-0">Dernières notes</span>
+                <span className="text-xs text-muted-foreground">({athleteNotes.length})</span>
+                {!notesExpanded && athleteNotes[0] && (
+                  <span className="text-xs text-muted-foreground truncate">— {athleteNotes[0].content}</span>
+                )}
+                {notesExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0 ml-auto" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-auto" />}
+              </button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={dismissNotesFloating} aria-label="Masquer">
+                <X className="h-4 w-4" />
               </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            {notesExpanded && (
+              <>
+                <div className="max-h-[40vh] overflow-y-auto space-y-3 mt-3">
+                  {athleteNotes.slice(0, 3).map((note) => (
+                    <div key={note.id} className="border-l-2 border-primary/40 pl-3">
+                      <p className="text-[11px] text-muted-foreground mb-0.5">
+                        {new Date(note.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
+                    </div>
+                  ))}
+                </div>
+                <Button variant="ghost" size="sm" className="h-7 text-xs w-full mt-1" onClick={() => setShowNotesSheet(true)}>
+                  Voir toutes les notes ({athleteNotes.length})
+                </Button>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
       {/* Header : nom de l'athlète en évidence */}
       <div className="flex items-center gap-2 py-1">
