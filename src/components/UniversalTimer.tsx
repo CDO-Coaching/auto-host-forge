@@ -31,10 +31,12 @@ export interface UniversalTimerRef {
 interface UniversalTimerProps {
   ref?: React.Ref<UniversalTimerRef>;
   hideTrigger?: boolean;
+  /** Consigne de l'exercice affichée pendant le chrono (EMOM/Tabata) : reps/charge/tempo/RPE */
+  consigne?: React.ReactNode;
 }
 
 export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>((props, ref) => {
-  const { hideTrigger } = props;
+  const { hideTrigger, consigne } = props;
   const [open, setOpen] = useState(false);
   const {
     settings,
@@ -154,6 +156,12 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
             </button>
           </div>
         </div>
+        {/* Consigne de l'exercice (reps/charge/tempo/RPE) pendant le chrono */}
+        {consigne && (
+          <button type="button" onClick={() => setOpen(true)} className="w-full block px-3 pb-2 -mt-0.5 text-left">
+            {consigne}
+          </button>
+        )}
       </div>
     )}
 
@@ -244,6 +252,11 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
 
                 {settings.type === 'countdown' && (
                   <Progress value={getProgress()} className="h-4" />
+                )}
+
+                {/* Consigne de l'exercice à réaliser à chaque tour */}
+                {consigne && (
+                  <div className="text-left max-w-md mx-auto">{consigne}</div>
                 )}
               </>
             )}

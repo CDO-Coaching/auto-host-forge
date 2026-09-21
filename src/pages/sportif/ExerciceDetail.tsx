@@ -838,7 +838,30 @@ export default function ExerciceDetail() {
   return (
     <div className="min-h-screen bg-background">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
-      <UniversalTimer ref={timerRef} hideTrigger />
+      <UniversalTimer ref={timerRef} hideTrigger consigne={(() => {
+        if (!isEmomRecovery) return null;
+        const r: any = seriesData[0] || {};
+        const eReps = (r.reps || exercise?.reps || "").toString().trim();
+        const eCharge = (r.charge || exercise?.charge || "").toString().trim();
+        const eTempo = (r.tempo || exercise?.tempo || "").toString().trim();
+        const eRpe = (r.rpe || exercise?.rpe) ? Number(r.rpe || exercise?.rpe) : null;
+        const repsLabel = exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance" : "Reps";
+        const repsDisplay = exercise?.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any)?.is_distance ? " m" : ""}`;
+        const chargeNumeric = /^\d+(\.\d+)?$/.test(eCharge);
+        const eRpeCol = eRpe == null ? null : rpeColorFor(eRpe);
+        if (!eReps && !eCharge && !eTempo && eRpe == null) return null;
+        return (
+          <div className="rounded-xl border border-white/15 bg-white/5 p-2 space-y-1.5">
+            <p className="text-[10px] uppercase tracking-wide text-white/50 font-semibold">À faire à chaque tour</p>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {eReps && <span className="text-sm font-bold text-white px-2 py-0.5 rounded-md bg-white/10">{repsLabel} : {repsDisplay}</span>}
+              {eCharge && <span className="text-sm font-bold text-white px-2 py-0.5 rounded-md bg-white/10">{eCharge}{chargeNumeric ? " kg" : ""}</span>}
+              {eTempo && <span className="text-sm font-bold text-purple-300 px-2 py-0.5 rounded-md bg-white/10">Tempo {eTempo}</span>}
+              {eRpe != null && <span className="text-sm font-extrabold px-2 py-0.5 rounded-md" style={{ color: eRpeCol!, background: `${eRpeCol}22` }}>{rpeWord(eRpe)} · RPE {eRpe}</span>}
+            </div>
+          </div>
+        );
+      })()} />
 
       {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
       <AnimatePresence>
