@@ -2,6 +2,7 @@ import { Users, User, BookOpen, MessageCircle, HelpCircle, Euro, TrendingUp, Sti
 import { NavLink } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useMessages } from "@/hooks/useMessages";
+import { useOpenRequestsCount } from "@/hooks/useOpenRequestsCount";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +25,7 @@ const menuGroups = [
     label: "Coaching",
     items: [
       { title: "Tableau de bord", url: "/coach/dashboard", icon: LayoutDashboard },
-      { title: "Mes athlètes", url: "/coach/mes-clients", icon: Users },
+      { title: "Mes athlètes", url: "/coach/mes-clients", icon: Users, showRequests: true },
       { title: "Agenda", url: "/coach/agenda", icon: CalendarDays },
       { title: "Séances programmées", url: "/coach/seances-programmees", icon: ClipboardList },
       { title: "Notes", url: "/coach/notes", icon: StickyNote },
@@ -52,6 +53,7 @@ const menuGroups = [
 export function CoachSidebar() {
   const { setOpenMobile, isMobile } = useSidebar();
   const { unreadCount } = useMessages();
+  const openRequests = useOpenRequestsCount();
   const { user } = useAuth();
   const isAdmin = (user?.email || "").toLowerCase() === ADMIN_EMAIL;
   const [adminCount, setAdminCount] = useState(0);
@@ -109,6 +111,11 @@ export function CoachSidebar() {
                         {item.showBadge && unreadCount > 0 && (
                           <Badge variant="destructive" className="ml-auto text-xs">
                             {unreadCount}
+                          </Badge>
+                        )}
+                        {(item as any).showRequests && openRequests > 0 && (
+                          <Badge className="ml-auto text-xs bg-primary text-primary-foreground border-0">
+                            {openRequests}
                           </Badge>
                         )}
                         {(item as any).adminBadge && adminCount > 0 && (
