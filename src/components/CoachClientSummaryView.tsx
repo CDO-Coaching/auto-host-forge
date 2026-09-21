@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format, subDays, startOfWeek, endOfWeek, getISOWeek, differenceInDays } from "date-fns";
 import { fr } from "date-fns/locale";
 import { getWeekYear } from "@/lib/weekUtils";
-import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag } from "lucide-react";
+import { Heart, CheckCircle2, Clock, Calendar, AlertTriangle, Target, Flag, PlayCircle, Circle } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ReferenceArea, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CoachSessionDetailDialog } from "@/components/CoachSessionDetailDialog";
 import { CoachCardioSummaryCard } from "@/components/CoachCardioSummaryCard";
@@ -200,13 +200,18 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
 
       if (sessions) {
         const sessionIds = sessions.map((s) => s.id);
-        const { data: exercisesWithFeedback } = await supabase
+        // Détection robuste « commencée » : on récupère les retours d'exercices et on
+        // filtre en JS (évite le combo .or()/.in() fragile qui peut échouer en silence).
+        const { data: exRows } = await supabase
           .from("session_exercises")
-          .select("session_id")
-          .in("session_id", sessionIds)
-          .or("sportif_rpe.not.is.null,skipped.eq.true,sportif_feedback.not.is.null");
+          .select("session_id, sportif_rpe, skipped, sportif_feedback")
+          .in("session_id", sessionIds);
 
-        const sessionIdsWithProgress = new Set((exercisesWithFeedback || []).map((e: any) => e.session_id));
+        const sessionIdsWithProgress = new Set(
+          (exRows || [])
+            .filter((e: any) => e.sportif_rpe != null || e.skipped === true || (e.sportif_feedback != null && e.sportif_feedback !== ""))
+            .map((e: any) => e.session_id),
+        );
 
         coachSessions = sessions.map((s) => ({
           ...s,
@@ -340,16 +345,18 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
                   {s.completed_at ? (
                     <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
                   ) : s.inProgress ? (
-                    <Clock className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                    <PlayCircle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
                   ) : (
-                    <Clock className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <Circle className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
                   )}
-                  <span className={`truncate text-[11px] ${s.inProgress ? "text-orange-400" : ""}`}>{s.name}</span>
+                  <span className={`truncate text-[11px] ${s.completed_at ? "text-green-400" : s.inProgress ? "text-orange-400 font-medium" : "text-muted-foreground"}`}>{s.name}</span>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                  {s.inProgress && (
-                    <Badge className="bg-orange-500/20 text-orange-500 border-orange-500/30 text-[9px] px-1.5 py-0">En cours</Badge>
-                  )}
+                  {s.inProgress ? (
+                    <Badge className="bg-orange-500 text-white border-0 text-[9px] px-1.5 py-0 font-semibold">⏸ En cours</Badge>
+                  ) : !s.completed_at ? (
+                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground border-border">À faire</Badge>
+                  ) : null}
                   {getTypeBadge(s)}
                 </div>
               </div>
