@@ -942,6 +942,18 @@ export default function SeanceDetail() {
               Touche le chrono en bas à droite pour terminer la séance
             </p>
           )
+        ) : allCompleted && !session?.completed_at && !isCardioSession ? (
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            <Button
+              onClick={() => { setCompletionAutoOpened(true); setCompletionDialogOpen(true); }}
+              className="h-11 px-6 gap-2 font-semibold"
+            >
+              <CheckCircle2 className="h-5 w-5" /> Valider ma séance
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Tu as tout rempli — valide pour marquer ta séance comme faite ✅
+            </p>
+          </div>
         ) : allCompleted ? (
           <p className="text-xs text-muted-foreground text-center py-1">
             Touche un exercice pour voir ou modifier ce que tu as rempli
