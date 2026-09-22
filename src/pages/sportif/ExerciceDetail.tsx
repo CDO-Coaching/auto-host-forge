@@ -194,22 +194,32 @@ export default function ExerciceDetail() {
     });
   };
 
+  // Détails par série (parse robuste)
+  const parseSerieDetails = (): any[] => {
+    if (!exercise?.serie_details) return [];
+    try {
+      return typeof exercise.serie_details === 'string'
+        ? JSON.parse(exercise.serie_details)
+        : exercise.serie_details;
+    } catch { return []; }
+  };
+
+  // Nombre de séries : max entre le compteur "series" et le nombre de détails
+  // (évite de perdre des séries si les deux sont désynchronisés).
+  const getTotalSets = (): number => {
+    const bySeries = exercise?.series ? parseInt(exercise.series) : 0;
+    const byDetails = parseSerieDetails().length;
+    return Math.max(bySeries || 0, byDetails || 0);
+  };
+
   // Build series data from exercise
   const getSeriesData = () => {
     if (!exercise) return [];
-    
-    let details: any[] = [];
-    if (exercise.serie_details) {
-      try {
-        details = typeof exercise.serie_details === 'string' 
-          ? JSON.parse(exercise.serie_details) 
-          : exercise.serie_details;
-      } catch (e) { details = []; }
-    }
-    
-    const totalSets = exercise.series ? parseInt(exercise.series) : 0;
+
+    const details = parseSerieDetails();
+    const totalSets = getTotalSets();
     if (totalSets === 0) return [];
-    
+
     const series = [];
     for (let i = 0; i < totalSets; i++) {
       const detail = details[i] || {};
@@ -243,7 +253,7 @@ export default function ExerciceDetail() {
   // Initialize serie validations when exercise loads
   useEffect(() => {
     if (exercise) {
-      const totalSets = exercise.series ? parseInt(exercise.series) : 0;
+      const totalSets = getTotalSets();
       // 1) Priorité : RPE déjà rempli par l'athlète (séance validée) depuis la BDD
       let dbDetails = (exercise as any).serie_rpe_details;
       if (typeof dbDetails === "string") { try { dbDetails = JSON.parse(dbDetails); } catch { dbDetails = null; } }
