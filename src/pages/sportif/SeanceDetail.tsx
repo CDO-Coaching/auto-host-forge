@@ -293,9 +293,30 @@ export default function SeanceDetail() {
     if (item.isSuperset) {
       const subs = Array.isArray(item.exercises) ? item.exercises : [];
       if (subs.length === 0) return false;
-      return subs.every((ex: any) => ex && ex.sportif_rpe !== null && ex.sportif_rpe !== undefined);
+      // fait OU passé (skipped) volontairement
+      return subs.every((ex: any) => ex && ((ex.sportif_rpe !== null && ex.sportif_rpe !== undefined) || ex.skipped === true));
     }
-    return item.sportif_rpe !== null && item.sportif_rpe !== undefined;
+    return (item.sportif_rpe !== null && item.sportif_rpe !== undefined) || item.skipped === true;
+  };
+
+  // L'exercice a-t-il été explicitement passé (non fait) ?
+  const isExerciseSkipped = (item: any) => {
+    if (!item) return false;
+    if (item.isSuperset) {
+      const subs = Array.isArray(item.exercises) ? item.exercises : [];
+      return subs.length > 0 && subs.every((ex: any) => ex?.skipped === true) && subs.every((ex: any) => ex?.sportif_rpe == null);
+    }
+    return item.skipped === true && item.sportif_rpe == null;
+  };
+
+  // Marquer / annuler « je ne fais pas cet exercice »
+  const toggleSkipExercise = async (item: any, skip: boolean) => {
+    const ids: string[] = item.isSuperset
+      ? (item.exercises || []).map((ex: any) => ex.id)
+      : [item.id];
+    const { error } = await supabase.from("session_exercises").update({ skipped: skip }).in("id", ids);
+    if (error) { console.error("skip:", error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
+    await loadSessionDetail();
   };
 
   // Récupère l'ordre d'un item de manière défensive (évite les crashs sur supersets vides)
@@ -576,13 +597,26 @@ export default function SeanceDetail() {
       }
     }
 
+    // RPE global = moyenne des RPE des exercices réellement faits (hors passés)
+    const rpeVals: number[] = [];
+    exercises.forEach((item: any) => {
+      if (item.isSuperset) {
+        (item.exercises || []).forEach((ex: any) => { if (ex.sportif_rpe != null && !ex.skipped) rpeVals.push(Number(ex.sportif_rpe)); });
+      } else if (item.sportif_rpe != null && !item.skipped) {
+        rpeVals.push(Number(item.sportif_rpe));
+      }
+    });
+    const avgRpe = rpeVals.length > 0
+      ? Math.round(rpeVals.reduce((a, b) => a + b, 0) / rpeVals.length)
+      : (data.rpe || null);
+
     // Sauvegarder la séance avec la date choisie, la durée et le RPE global
     const { error } = await supabase
       .from("training_sessions")
       .update({
         duration_minutes: data.durationMinutes,
         completed_at: data.date.toISOString(),
-        session_rpe: data.rpe || null,
+        session_rpe: avgRpe,
         session_comment: data.comment || null,
         garmin_link: data.garminLink?.trim() || null,
       })
@@ -1107,14 +1141,15 @@ export default function SeanceDetail() {
                   </Card>
                 );
               } else {
-                const isCompleted = isExerciseCompleted(item);
+                const skipped = isExerciseSkipped(item);
+                const isCompleted = isExerciseCompleted(item) && !skipped;
                 const isCardio = item.cardio_sport || item.cardio_content || item.cardio_pace;
 
                 return (
                   <Card
                     key={item.id}
                     className={`h-full ${isCardio ? "col-span-2" : ""} cursor-pointer hover:border-primary transition-colors border-2 ${
-                      isCompleted ? "border-green-500/50 bg-green-500/5" : ""
+                      isCompleted ? "border-green-500/50 bg-green-500/5" : skipped ? "border-border bg-muted/20 opacity-70" : ""
                     }`}
                     onClick={() => {
                       const go = isCardio ? () => handleCardioClick(item) : () => navigate(`/sportif/exercice/${item.id}`);
@@ -1127,11 +1162,21 @@ export default function SeanceDetail() {
                           <div className="w-full">
                             <p className="text-2xl font-extrabold leading-none flex items-center justify-center gap-1.5" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                               {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
-                              <span className={isCompleted ? "text-green-600" : "text-foreground"}>
+                              <span className={isCompleted ? "text-green-600" : skipped ? "text-muted-foreground line-through" : "text-foreground"}>
                                 {isCardio ? ((item.cardio_sport ? item.cardio_sport.charAt(0).toUpperCase() + item.cardio_sport.slice(1) : "Cardio")) : `Exercice ${exercises.indexOf(item) + 1}`}
                               </span>
                             </p>
-                            {!isCardio && <p className="text-[13px] font-medium text-muted-foreground/90 mt-2 leading-snug break-words capitalize" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{(item.exercice || "").toLowerCase()}</p>}
+                            {!isCardio && <p className={`text-[13px] font-medium mt-2 leading-snug break-words capitalize ${skipped ? "text-muted-foreground/60 line-through" : "text-muted-foreground/90"}`} style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{(item.exercice || "").toLowerCase()}</p>}
+                            {!isCardio && skipped && <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Non fait (passé)</span>}
+                            {!isCardio && !isCompleted && !session?.completed_at && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); toggleSkipExercise(item, !skipped); }}
+                                className="block mx-auto mt-2 text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                              >
+                                {skipped ? "Finalement je le fais" : "Je ne fais pas cet exercice"}
+                              </button>
+                            )}
                             {isCardio && (
                               <div className="space-y-3">
                                 {item.cardio_content &&
