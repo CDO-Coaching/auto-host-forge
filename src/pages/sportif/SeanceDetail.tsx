@@ -64,6 +64,8 @@ export default function SeanceDetail() {
   const [cardioFeedbackDialogOpen, setCardioFeedbackDialogOpen] = useState(false);
   const [selectedCardioExercise, setSelectedCardioExercise] = useState<any>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState<string>("");
+  const [cardioIntentOpen, setCardioIntentOpen] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
@@ -268,6 +270,7 @@ export default function SeanceDetail() {
       return;
     }
 
+    onSessionValidated();
     setShowCelebration(true);
   };
 
@@ -390,7 +393,89 @@ export default function SeanceDetail() {
     }
   };
 
+  // Estimation de la durée de la séance (minutes) pour caler le rappel de validation
+  const estimateSessionMinutes = (): number => {
+    const manual = (session as any)?.manual_duration_minutes;
+    if (manual && manual > 0) return manual;
+    const cardio = session?.session_type === 'course' || session?.session_type === 'velo' || session?.session_type === 'natation'
+      || exercises.some((ex: any) => ex.cardio_sport);
+    if (cardio) {
+      let total = 0;
+      for (const ex of exercises) {
+        const cData = (ex as any).cardio_content;
+        if (cData) { try { total += calculateCardioSessionDuration(cData, athleteVma) || 0; } catch { /* ignore */ } }
+      }
+      const mins = Math.round(total / 60);
+      return mins >= 5 ? mins : 45; // fallback cardio
+    }
+    // Renfo : ~ nb exercices × 8 min, borné
+    const n = exercises.length || 4;
+    return Math.min(90, Math.max(30, n * 8));
+  };
+
+  // Programme un rappel push de validation (durée estimée + marge)
+  const scheduleValidationReminder = async () => {
+    if (!sessionId || !session) return;
+    const isCardio = session.session_type === 'course' || session.session_type === 'velo' || session.session_type === 'natation'
+      || exercises.some((ex: any) => ex.cardio_sport);
+    const margin = isCardio ? 10 : 30;
+    const delay = estimateSessionMinutes() + margin;
+    try {
+      await supabase.rpc("schedule_validation_reminder", {
+        p_session_id: sessionId,
+        p_session_name: session.name ?? "",
+        p_delay_minutes: delay,
+        p_url: `/sportif/seance/${weekId}/${sessionId}`,
+      } as any);
+    } catch (e) { console.error("schedule_validation_reminder:", e); }
+  };
+
+  const cancelValidationReminder = async () => {
+    if (!sessionId) return;
+    try { await supabase.rpc("cancel_validation_reminder", { p_session_id: sessionId } as any); }
+    catch (e) { console.error("cancel_validation_reminder:", e); }
+  };
+
+  // Nombre de séances validées cette semaine (pour le streak de célébration)
+  const computeWeeklyStreak = async (): Promise<number> => {
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // lundi = 0
+    const monday = new Date(now); monday.setDate(now.getDate() - day); monday.setHours(0, 0, 0, 0);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return 0;
+      const { count } = await supabase
+        .from("training_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("athlete_id", user.id)
+        .not("completed_at", "is", null)
+        .gte("completed_at", monday.toISOString());
+      return count ?? 0;
+    } catch { return 0; }
+  };
+
+  // À appeler quand la séance vient d'être validée : annule le rappel + prépare le streak
+  const onSessionValidated = async () => {
+    cancelValidationReminder();
+    const streak = await computeWeeklyStreak();
+    setCelebrationMessage(streak > 0 ? `${streak} séance${streak > 1 ? "s" : ""} validée${streak > 1 ? "s" : ""} cette semaine 🔥` : (session?.name || ""));
+  };
+
+  // Séance cardio : pas de chrono → on demande à l'arrivée si l'athlète la commence,
+  // pour programmer le rappel de validation.
+  useEffect(() => {
+    if (!session || !sessionId) return;
+    if ((session as any).completed_at) return;
+    const isCardio = session.session_type === 'course' || session.session_type === 'velo' || session.session_type === 'natation'
+      || exercises.some((ex: any) => ex.cardio_sport);
+    if (!isCardio) return;
+    let asked = false;
+    try { asked = !!localStorage.getItem(`cardio_intent_${sessionId}`); } catch { /* ignore */ }
+    if (!asked) setCardioIntentOpen(true);
+  }, [session, sessionId, exercises]);
+
   const startSession = () => {
+    scheduleValidationReminder();
     const startTime = Date.now();
     setSessionStartTime(startTime);
     setIsSessionActive(true);
@@ -516,6 +601,7 @@ export default function SeanceDetail() {
     setCompletionDialogOpen(false);
 
     if (allExercisesCompleted) {
+      onSessionValidated();
       setShowCelebration(true);
     } else {
       toast({
@@ -840,6 +926,26 @@ export default function SeanceDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Intention de départ (cardio) → programme le rappel de validation */}
+      <AlertDialog open={cardioIntentOpen} onOpenChange={setCardioIntentOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tu commences cette séance maintenant ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Si oui, je te programme un petit rappel pour penser à la <strong>valider</strong> une fois terminée — pour qu'elle soit bien enregistrée 💪
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { try { localStorage.setItem(`cardio_intent_${sessionId}`, "later"); } catch {} setCardioIntentOpen(false); }}>
+              Plus tard
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => { try { localStorage.setItem(`cardio_intent_${sessionId}`, "yes"); } catch {} scheduleValidationReminder(); setCardioIntentOpen(false); }}>
+              Oui, je commence
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Démarrage de séance au 1er clic sur un exercice */}
       <AlertDialog open={!!startPrompt} onOpenChange={(o) => !o && setStartPrompt(null)}>
         <AlertDialogContent>
@@ -861,7 +967,7 @@ export default function SeanceDetail() {
       </AlertDialog>
       <CelebrationOverlay
         show={showCelebration}
-        message={session?.name || ""}
+        message={celebrationMessage || session?.name || ""}
         onComplete={handleCelebrationComplete}
         type="session"
       />
