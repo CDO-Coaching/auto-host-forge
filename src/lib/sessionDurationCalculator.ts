@@ -237,7 +237,10 @@ function parseRepsDuration(
  */
 function parseRecuperationSeconds(recuperation: string): number {
   if (!recuperation) return 75; // ~1 min + latence
-  if (recuperation.toLowerCase().includes("emom")) return 0;
+  const low = recuperation.toLowerCase();
+  if (low.includes("emom")) return 0;
+  // Récup explicitement nulle
+  if (/aucun|pas de|sans|^0$|^non$/.test(low.trim())) return 0;
 
   let total = 0;
   const minMatch = recuperation.match(/(\d+)\s*min/i);
@@ -292,9 +295,11 @@ function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
   // Séries de travail : (reps × séries) + récup × (séries - 1)
   const workDur = repsDur * numSeries + recup * Math.max(0, numSeries - 1);
 
-  // Montées en gamme (premier exo du bloc)
+  // Montées en gamme (premier exo du bloc) — uniquement pour la muscu à charge,
+  // pas pour les exercices à durée fixe (tapis, vélo, gainage chronométré…).
+  const isDurationLike = ex.is_duration || isRunningExercise(ex.exercice);
   let warmup = 0;
-  if (isFirst) {
+  if (isFirst && !isDurationLike) {
     const warmupSets = estimateWarmupSets(numSeries, ex.exercice);
     if (warmupSets > 0) {
       const warmupRepsDur = Math.round(repsDur * 0.6);
@@ -303,8 +308,7 @@ function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
   }
 
   // Temps d'installation / passage à l'exercice (déplacement + réglage charges).
-  // Couvre à lui seul la transition entre exercices (pas de double comptage ailleurs).
-  const install = isFirst ? 60 : 45;
+  const install = isDurationLike ? (isFirst ? 40 : 25) : (isFirst ? 60 : 45);
 
   return workDur + warmup + install;
 }
@@ -331,15 +335,16 @@ function calcSupersetDuration(exos: Exercise[], isFirst: boolean): number {
 
   const workDur = roundDur * numSeries + recup * Math.max(0, numSeries - 1);
 
-  // Légère chauffe pour le superset si premier bloc
+  // Légère chauffe pour le superset si premier bloc — pas pour un bloc 100 % durée.
+  const allDurationLike = exos.every((e) => e.is_duration || isRunningExercise(e.exercice));
   let warmup = 0;
-  if (isFirst) {
+  if (isFirst && !allDurationLike) {
     const warmupRounds = Math.min(2, Math.floor(numSeries / 3) + 1);
     warmup = (roundDur * 0.5 + 30) * warmupRounds;
   }
 
   // Installation : chaque poste du superset
-  const install = 45 * exos.length;
+  const install = exos.reduce((s, e) => s + ((e.is_duration || isRunningExercise(e.exercice)) ? 25 : 45), 0);
 
   return workDur + warmup + install;
 }
@@ -381,13 +386,19 @@ export function calculateSessionDuration(exercises: Exercise[]): number {
   // Le passage entre exercices est déjà compté dans "install" (pas de transition
   // supplémentaire ici, sinon on double le temps de déplacement).
 
+  // Séance 100 % durée fixe (tapis/vélo/rameur/gainage chronométré) : la durée est
+  // déjà exacte → chauffe générale réduite et marge de réalité moindre.
+  const allDurationLike = exercises.every((e) => e.is_duration || isRunningExercise(e.exercice));
+
   // Échauffement général proportionnel à la taille de la séance : ~3 min + 0,5 min/bloc,
   // borné entre 4 et 8 min (une petite séance n'a pas 10 min de chauffe).
-  const generalWarmup = Math.round(Math.min(8, Math.max(4, 3 + blockCount * 0.5))) * 60;
+  const generalWarmup = allDurationLike
+    ? 120 // 2 min
+    : Math.round(Math.min(8, Math.max(4, 3 + blockCount * 0.5))) * 60;
   totalSeconds += generalWarmup;
 
-  // Marge de réalité : +7%
-  return Math.round(totalSeconds * 1.07);
+  // Marge de réalité : +7% (muscu) / +3% (durée fixe)
+  return Math.round(totalSeconds * (allDurationLike ? 1.03 : 1.07));
 }
 
 // ─── Formatage ────────────────────────────────────────────────────────────────
