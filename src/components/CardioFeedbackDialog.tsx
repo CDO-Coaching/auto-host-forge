@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2, CalendarIcon } from "lucide-react";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
@@ -44,6 +45,7 @@ export function CardioFeedbackDialog({
   const [rpe, setRpe] = useState("");
   const [date, setDate] = useState<Date>(new Date());
   const [garminLink, setGarminLink] = useState("");
+  const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastWeekRpe, setLastWeekRpe] = useState<number | null>(null);
 
@@ -90,6 +92,7 @@ export function CardioFeedbackDialog({
     if (open) {
       setDate(new Date());
       setGarminLink("");
+      setComment("");
     }
   }, [open]);
 
@@ -98,7 +101,7 @@ export function CardioFeedbackDialog({
 
     const data: any = {
       rpe: rpe.trim(),
-      comment: "",
+      comment: comment.trim(),
       date,
       garminLink: garminLink.trim(),
     };
@@ -111,6 +114,7 @@ export function CardioFeedbackDialog({
     setRpe("");
     setDate(new Date());
     setGarminLink("");
+    setComment("");
     setIsSubmitting(false);
     onCancel();
   };
@@ -230,6 +234,18 @@ export function CardioFeedbackDialog({
 
               <p className="text-[11px] text-muted-foreground text-center">Ton coach pourra voir ta séance en détail. <span className="opacity-70">(optionnel mais recommandé)</span></p>
             </div>
+          </div>
+
+          {/* Commentaire libre pour le coach */}
+          <div className="space-y-2">
+            <Label htmlFor="cardio-comment" className="text-sm font-medium">Ton ressenti / commentaire <span className="text-muted-foreground font-normal">(optionnel)</span></Label>
+            <Textarea
+              id="cardio-comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Sensations, difficultés, météo, douleurs… un mot pour ton coach"
+              className="min-h-[80px] resize-y text-sm"
+            />
           </div>
         </div>
 
