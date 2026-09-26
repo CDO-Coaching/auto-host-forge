@@ -487,7 +487,9 @@ export default function ExerciceDetail() {
     if (!soundRef.current) {
       try { soundRef.current = new SoundSystem("gym"); } catch { /* audio indispo */ }
     }
-    soundRef.current?.primeClips?.();
+    // Débloque uniquement l'audio synthétisé (bips + BIIIP de fin). On ne "prime"
+    // PLUS les clips : cela jouait le son de fin au lancement de la récup.
+    soundRef.current?.prime?.();
     let lastWhole = recuperationTime;
 
     const interval = setInterval(() => {

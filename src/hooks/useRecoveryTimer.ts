@@ -86,7 +86,8 @@ export function useRecoveryTimer() {
     if (!soundRef.current) {
       try { soundRef.current = new SoundSystem('gym'); } catch { /* audio indispo */ }
     }
-    soundRef.current?.primeClips?.();
+    // Débloque l'audio synthétisé sans jouer de clip (évite le son de fin au lancement).
+    soundRef.current?.prime?.();
     lastWholeRef.current[id] = targetSeconds;
 
     if (!stateRef.current[id] || stateRef.current[id].pausedTime === 0) {

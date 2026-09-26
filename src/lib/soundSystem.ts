@@ -53,6 +53,11 @@ export class SoundSystem {
     this.preset = preset;
   }
 
+  /** Débloque l'audio synthétisé (bips/go) dans un geste utilisateur, SANS jouer de clip. */
+  prime() {
+    this.resume();
+  }
+
   private resume() {
     if (this.ctx && this.ctx.state === "suspended") {
       this.ctx.resume().catch(() => {});
