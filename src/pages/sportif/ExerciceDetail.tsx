@@ -915,6 +915,23 @@ export default function ExerciceDetail() {
         type="exercise"
       />
 
+      {/* Mini-pastille de récup : visible quand le chrono tourne mais l'overlay est réduit.
+          Permet de revoir/rouvrir le chrono de récupération. */}
+      {isTimerRunning && !showTimerOverlay && (
+        <button
+          type="button"
+          onClick={() => setShowTimerOverlay(true)}
+          className="fixed left-3 right-3 sm:left-auto sm:right-4 sm:w-64 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[70] rounded-2xl border shadow-lg flex items-center gap-3 px-4 py-3"
+          style={{ background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(8px)', borderColor: 'rgba(232,196,102,0.5)' }}
+          aria-label="Rouvrir le chrono de récupération"
+        >
+          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#e8c466' }}>⏱ Récup</span>
+          <span className="font-mono font-black tabular-nums text-2xl leading-none text-white ml-auto">
+            {`${Math.floor(timeRemaining / 60)}:${String(timeRemaining % 60).padStart(2, "0")}`}
+          </span>
+        </button>
+      )}
+
       {/* Timer Overlay */}
       <TimerOverlay
         show={showTimerOverlay}
