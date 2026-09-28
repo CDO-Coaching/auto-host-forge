@@ -252,11 +252,20 @@ function parseRecuperationSeconds(recuperation: string): number {
   return total + 8; // petite latence humaine (installation série suivante)
 }
 
+/** AMRAP : le champ "series" vaut "amrap:<secondes>" → durée fixe du bloc. */
+function parseAmrapSeconds(series?: string | null): number | null {
+  if (!series) return null;
+  const m = String(series).match(/^amrap:(\d+)$/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 /**
  * Retourne le nombre de séries réel : preferring serie_details.length,
  * fallback sur le champ "series".
  */
 function getSeriesCount(ex: Exercise): number {
+  // AMRAP : durée fixe, pas un nombre de séries → 1 « round » conceptuel
+  if (parseAmrapSeconds(ex.series) !== null) return 1;
   // serie_details peut être un tableau ou une chaîne JSON
   let details: unknown[] | null = null;
   if (Array.isArray(ex.serie_details)) {
@@ -286,6 +295,13 @@ function estimateWarmupSets(numSeries: number, exerciseName: string): number {
 // ─── Durée d'un exercice isolé ─────────────────────────────────────────────────
 
 function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
+  // AMRAP : durée fixe imposée (l'athlète enchaîne des tours pendant ce temps)
+  const amrap = parseAmrapSeconds(ex.series);
+  if (amrap !== null) {
+    const install = isFirst ? 40 : 25;
+    return amrap + install;
+  }
+
   const numSeries = getSeriesCount(ex);
   if (numSeries === 0) return 0;
 
@@ -317,6 +333,13 @@ function calcExerciseDuration(ex: Exercise, isFirst: boolean): number {
 
 function calcSupersetDuration(exos: Exercise[], isFirst: boolean): number {
   if (exos.length === 0) return 0;
+
+  // AMRAP en circuit : durée fixe totale (autant de tours que possible sur le temps)
+  const amrap = parseAmrapSeconds(exos[0].series);
+  if (amrap !== null) {
+    const install = exos.reduce((s, e) => s + ((e.is_duration || isRunningExercise(e.exercice)) ? 25 : 45), 0);
+    return amrap + install;
+  }
 
   // Nombre de séries : celui du premier exo (série commune)
   const numSeries = getSeriesCount(exos[0]);
