@@ -14,9 +14,6 @@ import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import { NewRequestDialog } from "@/components/NewRequestDialog";
-import { downloadWorkoutTcx } from "@/lib/garminWorkout";
-import type { CardioData } from "@/components/CardioStepBuilder";
-import { Watch } from "lucide-react";
 import {
   formatCardioTime,
   formatCardioDistance,
@@ -321,32 +318,6 @@ export default function SeanceDetail() {
     const { error } = await supabase.from("session_exercises").update({ skipped: skip }).in("id", ids);
     if (error) { console.error("skip:", error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
     await loadSessionDetail();
-  };
-
-  // Export Garmin (workout TCX) : fusionne les steps/blocks cardio de la séance en un fichier
-  const handleExportGarmin = () => {
-    const merged: CardioData = { steps: [], blocks: [] };
-    let blockOffset = 0;
-    for (const ex of exercises as any[]) {
-      if (!ex?.cardio_content) continue;
-      try {
-        const cd: CardioData = typeof ex.cardio_content === "string" ? JSON.parse(ex.cardio_content) : ex.cardio_content;
-        const idShift = blockOffset;
-        (cd.blocks || []).forEach((b) => merged.blocks.push({ ...b, id: b.id + idShift }));
-        (cd.steps || []).forEach((s) => merged.steps.push({ ...s, block_id: s.block_id != null ? s.block_id + idShift : undefined }));
-        blockOffset += 1000; // évite les collisions d'id entre exercices
-      } catch { /* ignore */ }
-    }
-    if (merged.steps.length === 0) {
-      toast({ title: "Rien à exporter", description: "Cette séance n'a pas d'étapes cardio.", variant: "destructive" });
-      return;
-    }
-    downloadWorkoutTcx(merged, {
-      sport: session?.session_type || "course",
-      sessionName: session?.name || "Séance",
-      athleteVma, fcMax: athleteFcMax, fcRepos: athleteFcRepos,
-    });
-    toast({ title: "Fichier Garmin téléchargé", description: "Importe-le dans Garmin Connect → Entraînements." });
   };
 
   // Finir la séance : arrête le chrono, marque les exos non validés « non fait », ouvre la validation
@@ -1104,18 +1075,10 @@ export default function SeanceDetail() {
               Séance terminée
             </Badge>
           )}
-          <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
-            <button type="button" onClick={() => setRequestOpen(true)}
-              className="inline-flex items-center gap-2 h-9 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary text-sm font-semibold active:scale-[0.98] transition-transform">
-              <MessageSquarePlus className="h-4 w-4" /> Demander une modif au coach
-            </button>
-            {isCardioSession && (
-              <button type="button" onClick={handleExportGarmin}
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-full border border-border bg-card text-foreground text-sm font-semibold active:scale-[0.98] transition-transform">
-                <Watch className="h-4 w-4" /> Envoyer sur ma montre Garmin
-              </button>
-            )}
-          </div>
+          <button type="button" onClick={() => setRequestOpen(true)}
+            className="mt-1.5 inline-flex items-center gap-2 h-9 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary text-sm font-semibold active:scale-[0.98] transition-transform">
+            <MessageSquarePlus className="h-4 w-4" /> Demander une modif au coach
+          </button>
         </div>
         <NewRequestDialog
           open={requestOpen}
