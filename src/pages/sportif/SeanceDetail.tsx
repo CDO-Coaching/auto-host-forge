@@ -66,7 +66,7 @@ export default function SeanceDetail() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string>("");
   const [cardioIntentOpen, setCardioIntentOpen] = useState(false);
-  const [skipConfirm, setSkipConfirm] = useState<any>(null);
+  const [finishConfirm, setFinishConfirm] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
@@ -310,7 +310,7 @@ export default function SeanceDetail() {
     return item.skipped === true && item.sportif_rpe == null;
   };
 
-  // Marquer / annuler « je ne fais pas cet exercice »
+  // Annuler « je ne fais pas cet exercice » (repasser un exo en à-faire)
   const toggleSkipExercise = async (item: any, skip: boolean) => {
     const ids: string[] = item.isSuperset
       ? (item.exercises || []).map((ex: any) => ex.id)
@@ -318,6 +318,30 @@ export default function SeanceDetail() {
     const { error } = await supabase.from("session_exercises").update({ skipped: skip }).in("id", ids);
     if (error) { console.error("skip:", error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
     await loadSessionDetail();
+  };
+
+  // Finir la séance : arrête le chrono, marque les exos non validés « non fait », ouvre la validation
+  const finishSessionNow = async () => {
+    setFinishConfirm(false);
+    // Arrêter le chrono de séance (fige la durée écoulée)
+    if (timerInterval) { clearInterval(timerInterval); setTimerInterval(null); }
+    setIsSessionActive(false);
+    const incompleteIds: string[] = [];
+    exercises.forEach((item: any) => {
+      if (item.isSuperset) {
+        (item.exercises || []).forEach((ex: any) => { if (ex.sportif_rpe == null && !ex.skipped) incompleteIds.push(ex.id); });
+      } else if (item.sportif_rpe == null && !item.skipped) {
+        incompleteIds.push(item.id);
+      }
+    });
+    if (incompleteIds.length > 0) {
+      const { error } = await supabase.from("session_exercises").update({ skipped: true }).in("id", incompleteIds);
+      if (error) { console.error("finish skip:", error); toast({ title: "Erreur", description: "Impossible de finir la séance", variant: "destructive" }); return; }
+      await loadSessionDetail();
+    }
+    // Ouvre la validation finale (RPE global + durée)
+    setCompletionAutoOpened(true);
+    setCompletionDialogOpen(true);
   };
 
   // Récupère l'ordre d'un item de manière défensive (évite les crashs sur supersets vides)
@@ -961,19 +985,19 @@ export default function SeanceDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Confirmation « je ne fais pas cet exercice » (évite les clics accidentels) */}
-      <AlertDialog open={!!skipConfirm} onOpenChange={(o) => !o && setSkipConfirm(null)}>
+      {/* Confirmation « Finir la séance » */}
+      <AlertDialog open={finishConfirm} onOpenChange={setFinishConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Tu ne fais pas cet exercice ?</AlertDialogTitle>
+            <AlertDialogTitle>Finir la séance ?</AlertDialogTitle>
             <AlertDialogDescription>
-              {skipConfirm ? `« ${(skipConfirm.exercice || "cet exercice")} » ` : ""}sera marqué comme non fait (passé). Tu pourras revenir en arrière.
+              Le chrono s'arrête et les exercices non faits seront marqués comme « non fait ». Tu passeras ensuite au ressenti de la séance.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSkipConfirm(null)}>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const it = skipConfirm; setSkipConfirm(null); if (it) toggleSkipExercise(it, true); }}>
-              Oui, je le passe
+            <AlertDialogCancel>Continuer la séance</AlertDialogCancel>
+            <AlertDialogAction onClick={finishSessionNow}>
+              Finir la séance
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1097,9 +1121,18 @@ export default function SeanceDetail() {
               Touche un exercice pour démarrer la séance
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-1">
-              Touche le chrono en bas à droite pour terminer la séance
-            </p>
+            <div className="flex flex-col items-center gap-1.5 py-1">
+              <Button
+                variant="outline"
+                onClick={() => setFinishConfirm(true)}
+                className="h-11 px-6 gap-2 font-semibold"
+              >
+                <CheckCircle2 className="h-5 w-5" /> Finir la séance
+              </Button>
+              <p className="text-[11px] text-muted-foreground text-center">
+                Les exercices non faits seront marqués comme « non fait ».
+              </p>
+            </div>
           )
         ) : allCompleted && !session?.completed_at && !isCardioSession ? (
           <div className="flex flex-col items-center gap-1.5 py-1">
@@ -1175,18 +1208,6 @@ export default function SeanceDetail() {
                       if (allCompleted) go(); else openExercise(go);
                     }}
                   >
-                    {/* Passer l'exercice : petite icône en coin (hors zone de tap centrale) + confirmation */}
-                    {!isCardio && !isCompleted && !skipped && !session?.completed_at && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setSkipConfirm(item); }}
-                        className="absolute top-1.5 right-1.5 z-10 h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 active:bg-muted"
-                        aria-label="Je ne fais pas cet exercice"
-                        title="Je ne fais pas cet exercice"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="space-y-2 sm:space-y-3 w-full">
                         <div className="flex flex-col items-center gap-1">
