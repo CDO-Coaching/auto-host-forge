@@ -1076,8 +1076,8 @@ export default function SeanceDetail() {
             </Badge>
           )}
           <button type="button" onClick={() => setRequestOpen(true)}
-            className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mt-0.5">
-            <MessageSquarePlus className="h-3.5 w-3.5" /> Demander une modif au coach
+            className="mt-1.5 inline-flex items-center gap-2 h-9 px-4 rounded-full border border-primary/40 bg-primary/10 text-primary text-sm font-semibold active:scale-[0.98] transition-transform">
+            <MessageSquarePlus className="h-4 w-4" /> Demander une modif au coach
           </button>
         </div>
         <NewRequestDialog
@@ -1117,13 +1117,19 @@ export default function SeanceDetail() {
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
           !isSessionActive ? (
-            <p className="text-xs text-muted-foreground text-center py-1">
-              Touche un exercice pour démarrer la séance
-            </p>
+            <div className="rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 flex items-center gap-3">
+              <Play className="h-5 w-5 text-primary shrink-0" />
+              <p className="text-sm font-medium leading-snug">
+                Touche un exercice pour <span className="text-primary font-semibold">démarrer la séance</span>.
+              </p>
+            </div>
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-1">
-              Fais tes exercices, puis termine la séance en bas de la page.
-            </p>
+            <div className="rounded-xl border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-3">
+              <ArrowLeft className="h-4 w-4 text-muted-foreground shrink-0 rotate-[-90deg]" />
+              <p className="text-sm leading-snug">
+                Enchaîne tes exercices, puis <span className="font-semibold">« Finir la séance »</span> tout en bas.
+              </p>
+            </div>
           )
         ) : allCompleted && !session?.completed_at && !isCardioSession ? (
           <div className="flex flex-col items-center gap-1.5 py-1">
@@ -1476,17 +1482,19 @@ export default function SeanceDetail() {
 
         {/* Fin de séance — bloc bas, point de sortie clair même si tous les exos ne sont pas faits */}
         {!isCardioSession && !session?.completed_at && isSessionActive && !allCompleted && (
-          <div className="pt-3 mt-2 border-t border-border/60">
+          <div className="mt-4 rounded-2xl border-2 border-primary/40 bg-primary/[0.06] p-4">
+            <p className="text-sm font-semibold text-center mb-1" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+              Tu as terminé (même sans tout faire) ?
+            </p>
+            <p className="text-[13px] text-muted-foreground text-center mb-3 leading-snug">
+              Les exercices non faits seront marqués « non fait ».
+            </p>
             <Button
               onClick={() => setFinishConfirm(true)}
-              className="w-full h-12 gap-2 text-base font-semibold"
+              className="w-full h-13 py-3 gap-2 text-base font-bold"
             >
               <CheckCircle2 className="h-5 w-5" /> Finir la séance
             </Button>
-            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
-              Tu n'as pas tout fait ? Pas grave — appuie ici pour terminer.
-              Les exercices non faits seront marqués « non fait ».
-            </p>
           </div>
         )}
       </div>
