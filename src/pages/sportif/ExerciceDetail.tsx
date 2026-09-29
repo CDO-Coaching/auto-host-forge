@@ -621,6 +621,9 @@ export default function ExerciceDetail() {
     setIsRepsRequired(false);
     setRepsRangeOptions(null);
 
+    // S'agit-il d'une simple MODIFICATION d'une série déjà validée ? (pas de récup dans ce cas)
+    const wasAlreadyValidated = serieValidations[rpeDialogSerieIndex]?.validated === true;
+
     // Check if this was the last serie
     const allNowValidated = newValidations.every(s => s.validated);
     if (allNowValidated && newValidations.length > 0) {
@@ -628,8 +631,8 @@ export default function ExerciceDetail() {
       const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
       setComputedAvgRpe(avgRpe.toString());
       setDialogOpen(true);
-    } else {
-      // Start recovery timer with per-series recuperation if available
+    } else if (!wasAlreadyValidated && !editMode) {
+      // Nouvelle validation de série → on lance la récup (pas lors d'une modif)
       const serieData = seriesData[rpeDialogSerieIndex];
       const serieRecup = serieData?.recuperation || undefined;
       startRecoveryTimer(serieRecup);
