@@ -31,10 +31,17 @@ function sportToTCX(sport: string): "Running" | "Biking" | "Other" {
   return "Other";
 }
 
-/** Bornes bpm d'une cible FC : zone "Z2"/"Zone 2" → Karvonen ; valeur "150" → ±5. */
+/** Bornes bpm d'une cible FC : plage "136-150", zone "Z2"/"Zone 2" → Karvonen, ou valeur "150" → ±5. */
 function hrBounds(target: string | undefined, fcMax?: number | null, fcRepos?: number | null): { low: number; high: number } | null {
   if (!target) return null;
   const t = String(target).trim();
+  // Plage explicite "136-150" (bpm)
+  const range = t.match(/(\d{2,3})\s*[-–]\s*(\d{2,3})/);
+  if (range) {
+    const a = parseInt(range[1], 10), b = parseInt(range[2], 10);
+    if (a > 60 && b <= 230 && a < b) return { low: a, high: b };
+  }
+  // Zone Karvonen "Z2" / "Zone 2"
   const zMatch = t.match(/z(?:one)?\s*(\d)/i);
   if (zMatch && fcMax && fcRepos && fcMax > fcRepos) {
     const z = FCR_ZONES.find((x) => x.zone === parseInt(zMatch[1], 10));
@@ -44,9 +51,20 @@ function hrBounds(target: string | undefined, fcMax?: number | null, fcRepos?: n
       return { low, high };
     }
   }
+  // Valeur unique "150"
   const num = parseInt(t.replace(/[^\d]/g, ""), 10);
   if (!isNaN(num) && num > 60 && num < 230) return { low: num - 5, high: num + 5 };
   return null;
+}
+
+/** Cible d'allure → bornes de vitesse (m/s) avec ±4 % de marge. Course uniquement. */
+function speedBounds(step: CardioStep, vma?: number | null): { low: number; high: number } | null {
+  if (step.movement_type !== "course") return null;
+  if (!step.vma_percentage || !vma || vma <= 0) return null;
+  const kmh = vma * (step.vma_percentage / 100);
+  const mps = (kmh * 1000) / 3600;
+  if (mps <= 0) return null;
+  return { low: +(mps * 0.96).toFixed(2), high: +(mps * 1.04).toFixed(2) };
 }
 
 function stepSeconds(step: CardioStep): number {
@@ -73,10 +91,17 @@ function durationXml(step: CardioStep): string {
 }
 
 function targetXml(step: CardioStep, opts: WorkoutExportOptions): string {
+  // 1) Cible FC prescrite (plage bpm ou zone)
   const hr = hrBounds(step.target_heart_rate, opts.fcMax, opts.fcRepos);
   if (hr) {
-    return `<Target xsi:type="HeartRate_t"><HeartRateZone xsi:type="CustomHeartRateZone_t"><Low xsi:type="HeartRateValue_t"><Value>${hr.low}</Value></Low><High xsi:type="HeartRateValue_t"><Value>${hr.high}</Value></High></HeartRateZone></Target>`;
+    return `<Target xsi:type="HeartRate_t"><HeartRateZone xsi:type="CustomHeartRateZone_t"><Low xsi:type="HeartRateInBeatsPerMinute_t"><Value>${hr.low}</Value></Low><High xsi:type="HeartRateInBeatsPerMinute_t"><Value>${hr.high}</Value></High></HeartRateZone></Target>`;
   }
+  // 2) Sinon cible d'allure (vitesse)
+  const sp = speedBounds(step, opts.athleteVma);
+  if (sp) {
+    return `<Target xsi:type="Speed_t"><SpeedZone xsi:type="CustomSpeedZone_t"><LowInMetersPerSecond>${sp.low}</LowInMetersPerSecond><HighInMetersPerSecond>${sp.high}</HighInMetersPerSecond></SpeedZone></Target>`;
+  }
+  // 3) Sinon pas de cible (chrono/distance simple)
   return `<Target xsi:type="None_t"/>`;
 }
 
