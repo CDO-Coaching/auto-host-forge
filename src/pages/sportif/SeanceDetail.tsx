@@ -1121,18 +1121,9 @@ export default function SeanceDetail() {
               Touche un exercice pour démarrer la séance
             </p>
           ) : (
-            <div className="flex flex-col items-center gap-1.5 py-1">
-              <Button
-                variant="outline"
-                onClick={() => setFinishConfirm(true)}
-                className="h-11 px-6 gap-2 font-semibold"
-              >
-                <CheckCircle2 className="h-5 w-5" /> Finir la séance
-              </Button>
-              <p className="text-[11px] text-muted-foreground text-center">
-                Les exercices non faits seront marqués comme « non fait ».
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground text-center py-1">
+              Fais tes exercices, puis termine la séance en bas de la page.
+            </p>
           )
         ) : allCompleted && !session?.completed_at && !isCardioSession ? (
           <div className="flex flex-col items-center gap-1.5 py-1">
@@ -1480,6 +1471,22 @@ export default function SeanceDetail() {
         {canAddExercises && !isCardioSession && sessionId && (
           <div className="pt-1">
             <AthleteAddExerciseButton sessionId={sessionId} onAdded={loadSessionDetail} />
+          </div>
+        )}
+
+        {/* Fin de séance — bloc bas, point de sortie clair même si tous les exos ne sont pas faits */}
+        {!isCardioSession && !session?.completed_at && isSessionActive && !allCompleted && (
+          <div className="pt-3 mt-2 border-t border-border/60">
+            <Button
+              onClick={() => setFinishConfirm(true)}
+              className="w-full h-12 gap-2 text-base font-semibold"
+            >
+              <CheckCircle2 className="h-5 w-5" /> Finir la séance
+            </Button>
+            <p className="text-[11px] text-muted-foreground text-center mt-1.5">
+              Tu n'as pas tout fait ? Pas grave — appuie ici pour terminer.
+              Les exercices non faits seront marqués « non fait ».
+            </p>
           </div>
         )}
       </div>
