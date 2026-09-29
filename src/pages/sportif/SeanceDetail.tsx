@@ -66,6 +66,7 @@ export default function SeanceDetail() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string>("");
   const [cardioIntentOpen, setCardioIntentOpen] = useState(false);
+  const [skipConfirm, setSkipConfirm] = useState<any>(null);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
@@ -960,6 +961,24 @@ export default function SeanceDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirmation « je ne fais pas cet exercice » (évite les clics accidentels) */}
+      <AlertDialog open={!!skipConfirm} onOpenChange={(o) => !o && setSkipConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tu ne fais pas cet exercice ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {skipConfirm ? `« ${(skipConfirm.exercice || "cet exercice")} » ` : ""}sera marqué comme non fait (passé). Tu pourras revenir en arrière.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSkipConfirm(null)}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const it = skipConfirm; setSkipConfirm(null); if (it) toggleSkipExercise(it, true); }}>
+              Oui, je le passe
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Intention de départ (cardio) → programme le rappel de validation */}
       <AlertDialog open={cardioIntentOpen} onOpenChange={setCardioIntentOpen}>
         <AlertDialogContent>
@@ -1148,7 +1167,7 @@ export default function SeanceDetail() {
                 return (
                   <Card
                     key={item.id}
-                    className={`h-full ${isCardio ? "col-span-2" : ""} cursor-pointer hover:border-primary transition-colors border-2 ${
+                    className={`relative h-full ${isCardio ? "col-span-2" : ""} cursor-pointer hover:border-primary transition-colors border-2 ${
                       isCompleted ? "border-green-500/50 bg-green-500/5" : skipped ? "border-border bg-muted/20 opacity-70" : ""
                     }`}
                     onClick={() => {
@@ -1156,6 +1175,18 @@ export default function SeanceDetail() {
                       if (allCompleted) go(); else openExercise(go);
                     }}
                   >
+                    {/* Passer l'exercice : petite icône en coin (hors zone de tap centrale) + confirmation */}
+                    {!isCardio && !isCompleted && !skipped && !session?.completed_at && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSkipConfirm(item); }}
+                        className="absolute top-1.5 right-1.5 z-10 h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted/60 active:bg-muted"
+                        aria-label="Je ne fais pas cet exercice"
+                        title="Je ne fais pas cet exercice"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="space-y-2 sm:space-y-3 w-full">
                         <div className="flex flex-col items-center gap-1">
@@ -1168,13 +1199,13 @@ export default function SeanceDetail() {
                             </p>
                             {!isCardio && <p className={`text-[13px] font-medium mt-2 leading-snug break-words capitalize ${skipped ? "text-muted-foreground/60 line-through" : "text-muted-foreground/90"}`} style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{(item.exercice || "").toLowerCase()}</p>}
                             {!isCardio && skipped && <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Non fait (passé)</span>}
-                            {!isCardio && !isCompleted && !session?.completed_at && (
+                            {!isCardio && skipped && !session?.completed_at && (
                               <button
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); toggleSkipExercise(item, !skipped); }}
-                                className="block mx-auto mt-2 text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                                onClick={(e) => { e.stopPropagation(); toggleSkipExercise(item, false); }}
+                                className="block mx-auto mt-2 text-[11px] text-primary hover:underline underline-offset-2"
                               >
-                                {skipped ? "Finalement je le fais" : "Je ne fais pas cet exercice"}
+                                Finalement je le fais
                               </button>
                             )}
                             {isCardio && (
