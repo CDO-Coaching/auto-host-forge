@@ -217,8 +217,8 @@ export function ExerciseCombobox({
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="p-0 gap-0 max-w-[95vw] sm:max-w-[1100px] top-[6%] translate-y-0">
-          <Command shouldFilter={false}>
+        <DialogContent className="p-0 gap-0 w-[96vw] max-w-[96vw] sm:max-w-[1100px] top-[4%] sm:top-[6%] translate-y-0 max-h-[90vh] overflow-hidden flex flex-col">
+          <Command shouldFilter={false} className="flex-1 min-h-0 flex flex-col">
           {/* Search */}
           <CommandInput
             placeholder="Rechercher un exercice..."
@@ -226,9 +226,9 @@ export function ExerciseCombobox({
             onValueChange={setSearch}
           />
 
-          <div className="sm:flex sm:items-stretch">
+          <div className="flex flex-col min-h-0 flex-1 sm:flex-row sm:items-stretch">
           {/* Filtres — tout visible, sans repli */}
-          <div className={cn("border-b sm:border-b-0 sm:border-r sm:shrink-0 sm:max-h-[72vh] sm:overflow-y-auto px-2 py-1.5 space-y-1.5", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
+          <div className={cn("border-b sm:border-b-0 sm:border-r shrink-0 max-h-[32vh] overflow-y-auto sm:max-h-[72vh] px-2 py-1.5 space-y-1.5", muscleView === "body" ? "sm:w-[620px]" : "sm:w-[360px]")}>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => setFiltersOpen((v) => !v)} className="flex items-center gap-1 sm:pointer-events-none">
                 <SlidersHorizontal className="h-3 w-3 text-muted-foreground" />
@@ -316,7 +316,7 @@ export function ExerciseCombobox({
             </div>
           </div>
 
-          <CommandList className="max-h-[280px] sm:max-h-[72vh] sm:flex-1">
+          <CommandList className="flex-1 min-h-0 max-h-[60vh] sm:max-h-[72vh] overflow-y-auto">
             {/* Recent */}
             {showRecents && (
               <CommandGroup
