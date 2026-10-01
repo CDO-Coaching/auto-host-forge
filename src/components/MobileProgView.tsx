@@ -308,7 +308,7 @@ function RenfoExerciseRow({
 
       {/* Fenêtre d'édition de l'exercice */}
       <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent className="max-w-md w-[96vw] max-h-[90vh] overflow-y-auto rounded-2xl p-4 gap-0">
+        <DialogContent className="max-w-md w-[96vw] max-h-[90vh] overflow-y-auto rounded-2xl p-4 gap-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
           <DialogHeader className="text-left mb-3">
             <DialogTitle className="text-base pr-8 truncate">{exercise.exercice || "Exercice"}</DialogTitle>
           </DialogHeader>
