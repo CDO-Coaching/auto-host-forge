@@ -691,6 +691,25 @@ export default function ExerciceDetail() {
   const handleValidateFeedback = async (rpe: string, comment: string) => {
     const rpeValue = rpe ? parseInt(rpe) : null;
 
+    // Garde-fou final : si le coach a mis une charge "??" ou une fourchette "X-X",
+    // la charge réelle est OBLIGATOIRE pour chaque série. On bloque sinon.
+    const chargeNeedsValue = (c: string) => {
+      const t = (c || "").trim();
+      return t === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(t);
+    };
+    const missing = serieValidations.findIndex((sv, i) => {
+      const prescribed = (seriesData[i]?.charge || exercise?.charge || "").toString();
+      return chargeNeedsValue(prescribed) && !(sv.actual_charge && String(sv.actual_charge).trim());
+    });
+    if (missing !== -1) {
+      toast({
+        title: "Charge manquante",
+        description: `Indique la charge utilisée pour la série ${missing + 1} avant de valider.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     // If we have per-serie RPEs, compute the average
     const serieRpes = serieValidations.filter(s => s.rpe !== null).map(s => s.rpe!);
     const finalRpe = serieRpes.length > 0 
