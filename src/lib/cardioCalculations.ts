@@ -231,7 +231,7 @@ export const getStepSpeed = (step: CardioStep, athleteVma: number | null): numbe
  * (distance_unit "km" ou "m"). Sans cette conversion, "12 km" était traité
  * comme 12 m.
  */
-const stepDistanceMeters = (step: CardioStep): number => {
+export const stepDistanceMeters = (step: CardioStep): number => {
   const d = step.distance || 0;
   return step.distance_unit === 'km' ? d * 1000 : d;
 };

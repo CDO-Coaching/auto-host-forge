@@ -17,6 +17,7 @@ import { NewRequestDialog } from "@/components/NewRequestDialog";
 import {
   formatCardioTime,
   formatCardioDistance,
+  stepDistanceMeters,
   calculatePace,
   calculateCardioSessionDuration,
   formatCardioSessionDuration,
@@ -1284,7 +1285,7 @@ export default function SeanceDetail() {
                                                               {blockStep.effort_type === "duration" ? (
                                                                 <span className="font-bold text-[15px]">{formatCardioTime(blockStep.duration)}</span>
                                                               ) : (
-                                                                <span className="font-bold text-[15px]">{formatCardioDistance(blockStep.distance)}</span>
+                                                                <span className="font-bold text-[15px]">{formatCardioDistance(stepDistanceMeters(blockStep))}</span>
                                                               )}
                                                               {(() => { const p = calculatePace(blockStep.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground/50">•</span><span className="text-blue-400 font-bold text-[15px]">{p}</span></> : null; })()}
                                                               {blockStep.target_heart_rate && (() => {
@@ -1329,7 +1330,7 @@ export default function SeanceDetail() {
                                                     {step.effort_type === "duration" ? (
                                                       <span className="font-bold text-[15px]">{formatCardioTime(step.duration)}</span>
                                                     ) : (
-                                                      <span className="font-bold text-[15px]">{formatCardioDistance(step.distance)}</span>
+                                                      <span className="font-bold text-[15px]">{formatCardioDistance(stepDistanceMeters(step))}</span>
                                                     )}
                                                     {(() => { const p = calculatePace(step.vma_percentage, athleteVma); return p ? <><span className="text-muted-foreground/50">•</span><span className="text-blue-400 font-bold text-[15px]">{p}</span></> : null; })()}
                                                     {step.ftp_percentage ? (
