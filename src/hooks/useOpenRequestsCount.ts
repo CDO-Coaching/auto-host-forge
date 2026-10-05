@@ -23,7 +23,18 @@ export function useOpenRequestsCount() {
       .channel(`coach_requests_count_${user.id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "athlete_requests", filter: `coach_id=eq.${user.id}` }, load)
       .subscribe();
-    return () => { active = false; supabase.removeChannel(ch); };
+    // Fallbacks si le realtime ne délivre pas : événement local + focus + polling
+    const onChanged = () => load();
+    window.addEventListener("athlete-requests-changed", onChanged);
+    window.addEventListener("focus", onChanged);
+    const interval = setInterval(load, 30000);
+    return () => {
+      active = false;
+      supabase.removeChannel(ch);
+      window.removeEventListener("athlete-requests-changed", onChanged);
+      window.removeEventListener("focus", onChanged);
+      clearInterval(interval);
+    };
   }, [user]);
 
   return count;

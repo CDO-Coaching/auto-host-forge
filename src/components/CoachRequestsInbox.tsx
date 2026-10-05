@@ -105,6 +105,7 @@ export function CoachRequestsInbox() {
     if (error) { console.error(error); toast.error("Action impossible"); return; }
     setRows((prev) => prev.filter((x) => x.id !== doneTarget.id));
     setDoneTarget(null); setReply("");
+    try { window.dispatchEvent(new Event("athlete-requests-changed")); } catch { /* ignore */ }
     toast.success("Demande traitée");
   };
 
