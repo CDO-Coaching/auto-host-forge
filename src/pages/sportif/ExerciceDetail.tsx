@@ -731,6 +731,7 @@ export default function ExerciceDetail() {
         sportif_rpe: finalRpe,
         sportif_feedback_at: new Date().toISOString(),
         serie_rpe_details: serieRpeDetails,
+        skipped: false, // valider un exercice annule un éventuel « non fait »
       } as any)
       .eq("id", exerciceId);
 
