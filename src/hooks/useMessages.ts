@@ -124,8 +124,17 @@ export const useMessages = (otherUserId?: string) => {
       )
       .subscribe();
 
+    // Fallbacks si le realtime ne délivre pas : événement local + focus + polling
+    const onChanged = () => loadUnreadCount();
+    window.addEventListener("messages-read-changed", onChanged);
+    window.addEventListener("focus", onChanged);
+    const interval = setInterval(loadUnreadCount, 30000);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener("messages-read-changed", onChanged);
+      window.removeEventListener("focus", onChanged);
+      clearInterval(interval);
     };
   }, [user]);
 
@@ -239,7 +248,10 @@ export const useMessages = (otherUserId?: string) => {
 
     if (error) {
       console.error("Error marking messages as read:", error);
+      return;
     }
+    // MAJ immédiate du badge (sidebar + barre) sans attendre le realtime
+    try { window.dispatchEvent(new Event("messages-read-changed")); } catch { /* ignore */ }
   };
 
   return { messages, loading, unreadCount, sendMessage, sendBroadcastMessage, markAsRead };
