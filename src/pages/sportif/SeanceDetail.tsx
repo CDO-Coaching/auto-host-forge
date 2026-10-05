@@ -68,6 +68,7 @@ export default function SeanceDetail() {
   const [celebrationMessage, setCelebrationMessage] = useState<string>("");
   const [cardioIntentOpen, setCardioIntentOpen] = useState(false);
   const [finishConfirm, setFinishConfirm] = useState(false);
+  const [notDoneConfirm, setNotDoneConfirm] = useState(false);
   const [athleteVma, setAthleteVma] = useState<number | null>(null);
   const [athleteFcMax, setAthleteFcMax] = useState<number | null>(null);
   const [athleteFcRepos, setAthleteFcRepos] = useState<number | null>(null);
@@ -318,6 +319,31 @@ export default function SeanceDetail() {
       : [item.id];
     const { error } = await supabase.from("session_exercises").update({ skipped: skip }).in("id", ids);
     if (error) { console.error("skip:", error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
+    await loadSessionDetail();
+  };
+
+  // L'athlète déclare ne pas avoir fait la séance
+  const markSessionNotDone = async () => {
+    setNotDoneConfirm(false);
+    if (timerInterval) { clearInterval(timerInterval); setTimerInterval(null); }
+    setIsSessionActive(false);
+    try { localStorage.removeItem(`session_timer_${sessionId}`); } catch { /* ignore */ }
+    const { error } = await supabase
+      .from("training_sessions")
+      .update({ skipped: true, skipped_at: new Date().toISOString(), completed_at: null })
+      .eq("id", sessionId);
+    if (error) { console.error(error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
+    cancelValidationReminder();
+    toast({ title: "Noté", description: "Séance marquée comme non faite. Ton coach le verra." });
+    navigate("/sportif/seances");
+  };
+
+  const unmarkSessionNotDone = async () => {
+    const { error } = await supabase
+      .from("training_sessions")
+      .update({ skipped: false, skipped_at: null })
+      .eq("id", sessionId);
+    if (error) { console.error(error); toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
     await loadSessionDetail();
   };
 
@@ -986,6 +1012,24 @@ export default function SeanceDetail() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Confirmation « Je n'ai pas fait cette séance » */}
+      <AlertDialog open={notDoneConfirm} onOpenChange={setNotDoneConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tu n'as pas fait cette séance ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Elle sera marquée comme <strong>non faite</strong> et ton coach le verra. Tu pourras revenir en arrière si besoin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={markSessionNotDone} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Oui, je ne l'ai pas faite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Confirmation « Finir la séance » */}
       <AlertDialog open={finishConfirm} onOpenChange={setFinishConfirm}>
         <AlertDialogContent>
@@ -1088,6 +1132,16 @@ export default function SeanceDetail() {
           relatedSessionId={sessionId}
           contextLabel={`Séance : ${session.name}`}
         />
+
+        {/* Séance marquée non faite par l'athlète */}
+        {(session as any)?.skipped && (
+          <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 flex items-center justify-between gap-2">
+            <p className="text-sm">Tu as indiqué <span className="font-semibold">ne pas avoir fait</span> cette séance.</p>
+            <Button variant="outline" size="sm" className="h-8 shrink-0" onClick={unmarkSessionNotDone}>
+              Finalement je l'ai faite
+            </Button>
+          </div>
+        )}
 
         {/* Demande du coach : envoyer le lien Garmin/Strava de la sortie */}
         {exercises.some((it: any) => it?.request_activity_link || (Array.isArray(it?.exercises) && it.exercises.some((e: any) => e?.request_activity_link))) && (
@@ -1497,6 +1551,17 @@ export default function SeanceDetail() {
               <CheckCircle2 className="h-5 w-5" /> Finir la séance
             </Button>
           </div>
+        )}
+
+        {/* Option : je n'ai pas fait cette séance (si pas déjà faite/non faite) */}
+        {!session?.completed_at && !(session as any)?.skipped && !allCompleted && (
+          <button
+            type="button"
+            onClick={() => setNotDoneConfirm(true)}
+            className="mt-3 mx-auto block text-xs text-muted-foreground hover:text-destructive underline underline-offset-2"
+          >
+            Je n'ai pas fait cette séance
+          </button>
         )}
       </div>
 

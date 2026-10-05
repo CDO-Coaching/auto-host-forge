@@ -503,6 +503,9 @@ export default function Seances() {
                         {completed && (
                           <Badge variant="outline" className="text-[10px] border-green-500 text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0 h-4">Validée</Badge>
                         )}
+                        {!completed && (session as any).skipped && (
+                          <Badge variant="outline" className="text-[10px] border-red-500 text-red-500 bg-red-500/10 px-1.5 py-0 h-4">Non faite</Badge>
+                        )}
                         {session.linked_strava_activity_id && (
                           <Badge className="text-[10px] bg-[#FC4C02]/15 text-[#FC4C02] border border-[#FC4C02]/30 px-1.5 py-0 h-4">
                             <svg viewBox="0 0 24 24" className="w-2 h-2 fill-[#FC4C02] mr-0.5">

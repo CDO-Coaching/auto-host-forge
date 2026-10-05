@@ -42,6 +42,7 @@ interface SessionInfo {
   scheduled_date: string | null;
   isCustom?: boolean;
   inProgress?: boolean;
+  skipped?: boolean;
   // Extra fields for custom sessions
   cardio_type?: string | null;
   distance_km?: number | null;
@@ -191,7 +192,7 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
     if (weeks && weeks.length > 0) {
       const { data: sessions } = await supabase
         .from("training_sessions")
-        .select("id, name, session_type, completed_at, session_rpe, duration_minutes, scheduled_date")
+        .select("id, name, session_type, completed_at, session_rpe, duration_minutes, scheduled_date, skipped")
         .in(
           "week_id",
           weeks.map((w) => w.id)
@@ -324,11 +325,15 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
             const isClickable = true;
             const bgClass = s.completed_at
               ? "bg-green-500/5 border-green-500/20"
+              : s.skipped
+              ? "bg-red-500/5 border-red-500/25"
               : s.inProgress
               ? "bg-orange-500/5 border-orange-500/30"
               : "bg-muted/20 border-border";
             const hoverClass = s.completed_at
               ? "hover:bg-green-500/10 hover:border-green-500/40"
+              : s.skipped
+              ? "hover:bg-red-500/10 hover:border-red-500/40"
               : s.inProgress
               ? "hover:bg-orange-500/10 hover:border-orange-500/50"
               : "hover:bg-muted/40";
@@ -344,15 +349,19 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
                 <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                   {s.completed_at ? (
                     <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                  ) : s.skipped ? (
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
                   ) : s.inProgress ? (
                     <PlayCircle className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
                   ) : (
                     <Circle className="h-3 w-3 text-muted-foreground/50 flex-shrink-0" />
                   )}
-                  <span className={`truncate text-[11px] ${s.completed_at ? "text-green-400" : s.inProgress ? "text-orange-400 font-medium" : "text-muted-foreground"}`}>{s.name}</span>
+                  <span className={`truncate text-[11px] ${s.completed_at ? "text-green-400" : s.skipped ? "text-red-400 line-through" : s.inProgress ? "text-orange-400 font-medium" : "text-muted-foreground"}`}>{s.name}</span>
                 </div>
                 <div className="flex items-center gap-1 flex-shrink-0 ml-1">
-                  {s.inProgress ? (
+                  {s.skipped ? (
+                    <Badge className="bg-red-500/15 text-red-400 border-0 text-[9px] px-1.5 py-0 font-semibold">⚠️ Non faite</Badge>
+                  ) : s.inProgress ? (
                     <Badge className="bg-orange-500 text-white border-0 text-[9px] px-1.5 py-0 font-semibold">⏸ En cours</Badge>
                   ) : !s.completed_at ? (
                     <Badge variant="outline" className="text-[9px] px-1.5 py-0 text-muted-foreground border-border">À faire</Badge>
