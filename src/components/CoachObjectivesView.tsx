@@ -1162,6 +1162,9 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
                   <p className="text-[11px] text-muted-foreground">
                     Validé{m.completed_at ? ` le ${format(new Date(m.completed_at), "d MMMM yyyy", { locale: fr })}` : ""}
                   </p>
+                  {m.notes && (
+                    <p className="text-[13px] mt-1 italic text-foreground/80 border-l-2 border-primary/40 pl-2">“{m.notes}”</p>
+                  )}
                 </div>
                 {!m.is_objective && (
                   <button type="button" onClick={() => handleToggleMilestone(m)} title="Remettre à venir" className="text-[11px] text-muted-foreground hover:text-foreground shrink-0">Annuler</button>
