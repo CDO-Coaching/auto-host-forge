@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addWeeks, addDays, differenceInCalendarDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Target, Flag, AlertTriangle, CheckCircle2, CalendarClock, Layers } from "lucide-react";
+import { Target, Flag, AlertTriangle, CheckCircle2, CalendarClock, Layers, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Phase {
   id: string;
@@ -36,6 +37,32 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   const [objName, setObjName] = useState<string | null>(null);
   const [objCompleted, setObjCompleted] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [dismissedMs, setDismissedMs] = useState<string[]>([]);
+  const [validatingMs, setValidatingMs] = useState<string | null>(null);
+
+  useEffect(() => {
+    try { setDismissedMs(JSON.parse(localStorage.getItem(`ms_prompt_dismissed_${athleteId}`) || "[]")); } catch { /* ignore */ }
+  }, [athleteId]);
+
+  const dismissMsPrompt = (id: string) => {
+    setDismissedMs((prev) => {
+      const next = [...new Set([...prev, id])];
+      try { localStorage.setItem(`ms_prompt_dismissed_${athleteId}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
+
+  const validateMilestone = async (id: string) => {
+    setValidatingMs(id);
+    const { error } = await supabase
+      .from("objective_milestones")
+      .update({ completed: true, completed_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    setValidatingMs(null);
+    if (error) { console.error(error); toast.error("Validation impossible"); return; }
+    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, completed: true, completed_at: new Date().toISOString() } : m)));
+    toast.success("Étape validée ✓");
+  };
 
   useEffect(() => {
     (async () => {
@@ -101,7 +128,16 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   const pos = (ms: number) => Math.max(0, Math.min(100, ((ms - start0.getTime()) / totalMs) * 100));
   const todayPct = pos(today.getTime());
 
+  // Jalons dont la date est aujourd'hui/passée, non validés, non masqués → à confirmer
+  const duePrompts = variant === "phases"
+    ? datedMs
+        .filter((x) => !x.m.completed && x.m.approval_status !== "pending" && weeksUntil(x.d) <= 0 && !dismissedMs.includes(x.m.id))
+        .sort((a, b) => D(b.d).getTime() - D(a.d).getTime())
+    : [];
+  const duePrompt = duePrompts[0] || null;
+
   return (
+    <>
     <div className="rounded-xl border border-border/40 bg-card px-4 py-3 space-y-2.5">
       {heading && (
         <div className="flex items-center gap-2">
@@ -328,5 +364,34 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
       </>
       )}
     </div>
+
+    {/* Rappel flottant : jalon passé à confirmer */}
+    {duePrompt && (
+      <div className="fixed bottom-4 right-4 z-[80] w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-primary/40 bg-card shadow-2xl p-4 animate-in slide-in-from-bottom-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Flag className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Étape à confirmer</span>
+          </div>
+          <button type="button" onClick={() => dismissMsPrompt(duePrompt.m.id)} className="h-7 w-7 -mr-1 -mt-1 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted" aria-label="Plus tard">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="text-sm mt-2 leading-snug">
+          <span className="font-semibold">{duePrompt.m.label}</span> était prévu le {format(D(duePrompt.d), "d MMMM", { locale: fr })}. C'est fait ?
+        </p>
+        <div className="flex gap-2 mt-3">
+          <button type="button" onClick={() => dismissMsPrompt(duePrompt.m.id)}
+            className="flex-1 h-9 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
+            Pas encore
+          </button>
+          <button type="button" onClick={() => validateMilestone(duePrompt.m.id)} disabled={validatingMs === duePrompt.m.id}
+            className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-[0.98]">
+            {validatingMs === duePrompt.m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Validé
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
