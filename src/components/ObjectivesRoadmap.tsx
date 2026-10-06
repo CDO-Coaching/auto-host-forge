@@ -27,7 +27,7 @@ import {
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
-interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note: string | null; }
+interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note: string | null; linked_milestone_id: string | null; }
 interface Milestone { id: string; label: string; target_date: string | null; completed: boolean; completed_at: string | null; notes: string | null; approval_status: string | null; is_objective?: boolean | null; }
 interface MainObj { id?: string; main_objective?: string | null; main_objective_deadline?: string | null; main_completed?: boolean; main_completed_at?: string | null; }
 
@@ -46,9 +46,10 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
   const [phases, setPhases] = useState<Phase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPalmares, setShowPalmares] = useState(false);
+  const [showPast, setShowPast] = useState(false);
 
   // Dialogs
-  const [phaseDlg, setPhaseDlg] = useState<null | { id?: string; name: string; start: Date; weeks: number | null }>(null);
+  const [phaseDlg, setPhaseDlg] = useState<null | { id?: string; name: string; start: Date; weeks: number | null; linkedMsId: string | null }>(null);
   const [msDlg, setMsDlg] = useState<null | { id?: string; label: string; date: Date | null }>(null);
   const [objDlg, setObjDlg] = useState<null | { name: string; deadline: Date | null }>(null);
   const [validateDlg, setValidateDlg] = useState<null | { m: Milestone; comment: string }>(null);
@@ -59,12 +60,12 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const [{ data: objRows }, { data: ms }, { data: mes }] = await Promise.all([
       supabase.from("athlete_objectives").select("id, main_objective, main_objective_deadline, main_completed, main_completed_at").eq("athlete_id", athleteId).order("updated_at", { ascending: false }).limit(1),
       supabase.from("objective_milestones").select("id, label, target_date, completed, completed_at, notes, approval_status, is_objective").eq("athlete_id", athleteId),
-      supabase.from("mesocycles").select("id, name, start_date, end_date, color, coach_note, macrocycle_id").eq("athlete_id", athleteId).is("macrocycle_id", null),
+      supabase.from("mesocycles").select("id, name, start_date, end_date, color, coach_note, macrocycle_id, linked_milestone_id").eq("athlete_id", athleteId).is("macrocycle_id", null),
     ]);
     const o = objRows?.[0] || {};
     setObj(o);
     setMilestones((ms || []).filter((m: any) => m.approval_status !== "pending") as Milestone[]);
-    setPhases(((mes || []) as any[]).filter((m) => m.start_date).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note })));
+    setPhases(((mes || []) as any[]).filter((m) => m.start_date).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note, linked_milestone_id: m.linked_milestone_id ?? null })));
     setLoading(false);
     onObjectiveChange?.(!!o.main_objective, o.main_objective || null, o.main_objective_deadline || null);
   };
@@ -83,16 +84,31 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
   const today = todayStart();
   const dl = obj.main_objective_deadline ? D(obj.main_objective_deadline) : null;
 
-  // Items de la frise (hors objectifs archivés) triés par date croissante
-  const items = useMemo(() => {
-    const phaseItems = phases.map((p) => ({ kind: "phase" as const, id: p.id, date: D(p.start_date), p }));
-    const msItems = milestones
-      .filter((m) => !m.is_objective)
-      .map((m) => ({ kind: "ms" as const, id: m.id, date: m.target_date ? D(m.target_date) : (m.completed_at ? D(m.completed_at) : null), m }));
-    return [...phaseItems, ...msItems].sort((a, b) => {
-      if (!a.date) return 1; if (!b.date) return -1;
-      return a.date.getTime() - b.date.getTime();
+  const phaseStatusOf = (p: Phase): "past" | "current" | "future" => {
+    const s = D(p.start_date); const e = p.end_date ? D(p.end_date) : null;
+    if (e && e < today) return "past";
+    if (s <= today && (!e || e >= today)) return "current";
+    return "future";
+  };
+
+  // Regroupe en Maintenant / À venir / Déjà fait (passé relégué)
+  const { nowItems, futureItems, pastItems } = useMemo(() => {
+    type Item = { kind: "phase"; id: string; date: Date | null; p: Phase } | { kind: "ms"; id: string; date: Date | null; m: Milestone };
+    const now: Item[] = []; const future: Item[] = []; const past: Item[] = [];
+    phases.forEach((p) => {
+      const it: Item = { kind: "phase", id: p.id, date: D(p.start_date), p };
+      const st = phaseStatusOf(p);
+      (st === "current" ? now : st === "future" ? future : past).push(it);
     });
+    milestones.filter((m) => !m.is_objective).forEach((m) => {
+      const date = m.target_date ? D(m.target_date) : (m.completed_at ? D(m.completed_at) : null);
+      const it: Item = { kind: "ms", id: m.id, date, m };
+      if (m.completed) past.push(it);
+      else if (date && weeksUntil(date) <= 1) now.push(it); // imminent ou dépassé → à traiter
+      else future.push(it);
+    });
+    const asc = (a: Item, b: Item) => (!a.date ? 1 : !b.date ? -1 : a.date.getTime() - b.date.getTime());
+    return { nowItems: now.sort(asc), futureItems: future.sort(asc), pastItems: past.sort((a, b) => -asc(a, b)) };
   }, [phases, milestones]);
 
   const palmares = useMemo(
@@ -100,21 +116,14 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     [milestones],
   );
 
-  const phaseStatus = (p: Phase): "past" | "current" | "future" => {
-    const s = D(p.start_date); const e = p.end_date ? D(p.end_date) : null;
-    if (e && e < today) return "past";
-    if (s <= today && (!e || e >= today)) return "current";
-    return "future";
-  };
-
   // ── CRUD phases ────────────────────────────────────────────────────────────
   const openNewPhase = () => {
     const ordered = [...phases].sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
     const last = ordered[ordered.length - 1];
     const start = last?.end_date ? addDays(D(last.end_date), 1) : today;
-    setPhaseDlg({ name: "", start, weeks: 4 });
+    setPhaseDlg({ name: "", start, weeks: 4, linkedMsId: null });
   };
-  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null });
+  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null, linkedMsId: p.linked_milestone_id });
 
   const savePhase = async () => {
     if (!phaseDlg || !phaseDlg.name.trim()) return;
@@ -128,6 +137,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
         name: phaseDlg.name.trim(),
         start_date: format(start, "yyyy-MM-dd"),
         end_date: end ? format(end, "yyyy-MM-dd") : null,
+        linked_milestone_id: phaseDlg.linkedMsId || null,
         updated_at: new Date().toISOString(),
       };
       if (phaseDlg.id) {
@@ -271,37 +281,61 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
         <Button variant="outline" className="flex-1 gap-1.5" onClick={openNewMs}><Flag className="h-4 w-4 text-primary" /> Ajouter un sous-objectif</Button>
       </div>
 
-      {/* ── Frise verticale ────────────────────────────────────────────────── */}
-      <div className="relative pl-6">
-        <span className="absolute left-[9px] top-1 bottom-1 w-px bg-border" />
-        {/* Aujourd'hui */}
-        <div className="relative mb-3">
-          <span className="absolute -left-[22px] top-1 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20" />
-          <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wide">Aujourd'hui · {format(today, "d MMM", { locale: fr })}</p>
+      {(() => {
+        const msName = (id: string | null) => id ? (milestones.find((m) => m.id === id)?.label ?? null) : null;
+        const renderItem = (it: any) => it.kind === "phase" ? (
+          <PhaseRow key={it.id} p={it.p} status={phaseStatusOf(it.p)} linkedLabel={msName(it.p.linked_milestone_id)} onEdit={() => openEditPhase(it.p)} onDelete={() => setConfirmDelete({ kind: "phase", id: it.id, label: it.p.name })} />
+        ) : (
+          <MsRow key={it.id} m={it.m} onEdit={() => openEditMs(it.m)} onDelete={() => setConfirmDelete({ kind: "ms", id: it.id, label: it.m.label })}
+            onValidate={() => setValidateDlg({ m: it.m, comment: "" })} onUnvalidate={() => unvalidateMs(it.m)} />
+        );
+        return (
+        <div className="space-y-5">
+          {/* MAINTENANT */}
+          <section>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="text-sm font-bold uppercase tracking-wide text-emerald-500" style={SORA}>Où on en est · {format(today, "d MMM", { locale: fr })}</h3>
+            </div>
+            {nowItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 p-3">Rien en cours. Ajoute une phase pour démarrer la suite.</p>
+            ) : (
+              <div className="space-y-2.5">{nowItems.map(renderItem)}</div>
+            )}
+          </section>
+
+          {/* À VENIR */}
+          {(futureItems.length > 0 || obj.main_objective) && (
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground/70 mb-2">À venir</h3>
+              <div className="space-y-2.5">
+                {futureItems.map(renderItem)}
+                {obj.main_objective && (
+                  <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 flex items-center gap-2">
+                    <span className="h-7 w-7 rounded-full bg-primary grid place-items-center text-[13px] shrink-0">🎯</span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-primary truncate" style={SORA}>{obj.main_objective}</p>
+                      {dl && <p className="text-[11px] text-muted-foreground">{format(dl, "d MMMM yyyy", { locale: fr })}{objWeeks != null ? ` · dans ${Math.max(0, objWeeks)} sem.` : ""}</p>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* DÉJÀ FAIT */}
+          {pastItems.length > 0 && (
+            <section>
+              <button type="button" onClick={() => setShowPast((v) => !v)} className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-muted-foreground/70 mb-2">
+                Déjà fait ({pastItems.length})
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showPast && "rotate-180")} />
+              </button>
+              {showPast && <div className="space-y-2.5 opacity-80">{pastItems.map(renderItem)}</div>}
+            </section>
+          )}
         </div>
-
-        {items.length === 0 && (
-          <p className="text-sm text-muted-foreground py-3">Rien de programmé. Ajoute une phase ou un sous-objectif ci-dessus.</p>
-        )}
-
-        <div className="space-y-2.5">
-          {items.map((it) => it.kind === "phase" ? (
-            <PhaseRow key={it.id} p={it.p} status={phaseStatus(it.p)} onEdit={() => openEditPhase(it.p)} onDelete={() => setConfirmDelete({ kind: "phase", id: it.id, label: it.p.name })} />
-          ) : (
-            <MsRow key={it.id} m={it.m} onEdit={() => openEditMs(it.m)} onDelete={() => setConfirmDelete({ kind: "ms", id: it.id, label: it.m.label })}
-              onValidate={() => setValidateDlg({ m: it.m, comment: "" })} onUnvalidate={() => unvalidateMs(it.m)} />
-          ))}
-        </div>
-
-        {/* Nœud objectif final */}
-        {obj.main_objective && (
-          <div className="relative mt-3">
-            <span className="absolute -left-[24px] top-0.5 h-4 w-4 rounded-full bg-primary ring-4 ring-primary/20 grid place-items-center text-[9px]">🎯</span>
-            <p className="text-sm font-bold text-primary" style={SORA}>{obj.main_objective}</p>
-            {dl && <p className="text-[11px] text-muted-foreground">{format(dl, "d MMMM yyyy", { locale: fr })}</p>}
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ── Palmarès ───────────────────────────────────────────────────────── */}
       {palmares.length > 0 && (
@@ -330,7 +364,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
       )}
 
       {/* ── Dialogs ────────────────────────────────────────────────────────── */}
-      <PhaseDialog state={phaseDlg} setState={setPhaseDlg} onSave={savePhase} busy={busy} />
+      <PhaseDialog state={phaseDlg} setState={setPhaseDlg} onSave={savePhase} busy={busy} milestones={milestones.filter((m) => !m.is_objective)} />
       <MsDialog state={msDlg} setState={setMsDlg} onSave={saveMs} busy={busy} />
       <ObjectiveDialog state={objDlg} setState={setObjDlg} onSave={saveObjective} busy={busy} />
 
@@ -370,13 +404,11 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
 }
 
 // ── Lignes de frise ───────────────────────────────────────────────────────────
-function PhaseRow({ p, status, onEdit, onDelete }: { p: Phase; status: "past" | "current" | "future"; onEdit: () => void; onDelete: () => void }) {
+function PhaseRow({ p, status, linkedLabel, onEdit, onDelete }: { p: Phase; status: "past" | "current" | "future"; linkedLabel?: string | null; onEdit: () => void; onDelete: () => void }) {
   const col = p.color || "#e8c466";
   const range = `${format(D(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(D(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}`;
   return (
-    <div className="relative">
-      <span className="absolute -left-[21px] top-3 h-3 w-3 rounded-full border-2 border-background" style={{ background: col }} />
-      <div className={cn("rounded-xl border-l-4 border p-3", status === "current" ? "border-primary/40 bg-primary/[0.05]" : status === "past" ? "border-border/50 bg-muted/10 opacity-70" : "border-border/60 bg-card/40")} style={{ borderLeftColor: col }}>
+    <div className={cn("rounded-xl border-l-4 border p-3", status === "current" ? "border-primary/40 bg-primary/[0.05]" : status === "past" ? "border-border/50 bg-muted/10 opacity-70" : "border-border/60 bg-card/40")} style={{ borderLeftColor: col }}>
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-bold uppercase text-muted-foreground/60">Phase</span>
           {status === "current" && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">EN COURS</span>}
@@ -389,8 +421,8 @@ function PhaseRow({ p, status, onEdit, onDelete }: { p: Phase; status: "past" | 
         </div>
         <p className={cn("font-semibold text-sm mt-0.5", status === "past" && "line-through text-muted-foreground")}>{p.name || "Phase"}</p>
         <p className="text-[11px] text-muted-foreground tabular-nums">{range}</p>
+        {linkedLabel && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Flag className="h-3 w-3" /> prépare : <span className="font-semibold">{linkedLabel}</span></p>}
         {p.coach_note && <p className="text-xs text-muted-foreground italic mt-1">{p.coach_note}</p>}
-      </div>
     </div>
   );
 }
@@ -400,9 +432,7 @@ function MsRow({ m, onEdit, onDelete, onValidate, onUnvalidate }: { m: Milestone
   const w = d && !m.completed ? weeksUntil(d) : null;
   const overdue = w != null && w < 0;
   return (
-    <div className="relative">
-      <span className={cn("absolute -left-[22px] top-3 h-3.5 w-3.5 rounded-full border-2 border-background", m.completed ? "bg-emerald-500" : overdue ? "bg-red-500" : "bg-primary")} />
-      <div className={cn("rounded-xl border p-3", m.completed ? "border-emerald-500/30 bg-emerald-500/[0.05]" : overdue ? "border-red-500/30 bg-red-500/[0.05]" : "border-border/60 bg-card/40")}>
+    <div className={cn("rounded-xl border p-3", m.completed ? "border-emerald-500/30 bg-emerald-500/[0.05]" : overdue ? "border-red-500/30 bg-red-500/[0.05]" : "border-border/60 bg-card/40")}>
         <div className="flex items-center gap-2">
           <Flag className={cn("h-3.5 w-3.5", m.completed ? "text-emerald-500" : "text-primary")} />
           <span className="text-[9px] font-bold uppercase text-muted-foreground/60">Sous-objectif</span>
@@ -424,7 +454,6 @@ function MsRow({ m, onEdit, onDelete, onValidate, onUnvalidate }: { m: Milestone
             <Button size="sm" className="h-8 gap-1.5" onClick={onValidate}><CheckCircle2 className="h-3.5 w-3.5" /> Valider</Button>
           )}
         </div>
-      </div>
     </div>
   );
 }
@@ -446,7 +475,7 @@ function DatePicker({ value, onChange, placeholder }: { value: Date | null; onCh
   );
 }
 
-function PhaseDialog({ state, setState, onSave, busy }: { state: any; setState: (s: any) => void; onSave: () => void; busy: boolean }) {
+function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any; setState: (s: any) => void; onSave: () => void; busy: boolean; milestones: Milestone[] }) {
   if (!state) return null;
   return (
     <Dialog open onOpenChange={(o) => !o && setState(null)}>
@@ -473,6 +502,19 @@ function PhaseDialog({ state, setState, onSave, busy }: { state: any; setState: 
             ) : (
               <Button variant="outline" size="sm" onClick={() => setState({ ...state, weeks: 4 })}>Définir une durée</Button>
             )}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Prépare quel sous-objectif ? <span className="font-normal normal-case">(optionnel)</span></label>
+            <select
+              value={state.linkedMsId || ""}
+              onChange={(e) => setState({ ...state, linkedMsId: e.target.value || null })}
+              className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
+            >
+              <option value="">Aucun</option>
+              {milestones.map((m) => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+              ))}
+            </select>
           </div>
         </div>
         <DialogFooter>
