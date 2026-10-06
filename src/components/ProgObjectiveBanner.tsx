@@ -37,18 +37,25 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   const [objName, setObjName] = useState<string | null>(null);
   const [objCompleted, setObjCompleted] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [dismissedMs, setDismissedMs] = useState<string[]>([]);
+  const [snoozeMs, setSnoozeMs] = useState<Record<string, number>>({});
   const [validatingMs, setValidatingMs] = useState<string | null>(null);
   const [promptComment, setPromptComment] = useState("");
+  const SNOOZE_MS = 20 * 3600 * 1000; // ~20 h : « Pas encore » met en veille, puis le rappel revient
 
   useEffect(() => {
-    try { setDismissedMs(JSON.parse(localStorage.getItem(`ms_prompt_dismissed_${athleteId}`) || "[]")); } catch { /* ignore */ }
+    try { setSnoozeMs(JSON.parse(localStorage.getItem(`ms_prompt_snooze_${athleteId}`) || "{}")); } catch { /* ignore */ }
   }, [athleteId]);
 
+  // Masqué seulement si mis en veille il y a moins de SNOOZE_MS
+  const isSnoozed = (id: string) => {
+    const t = snoozeMs[id];
+    return t != null && Date.now() - t < SNOOZE_MS;
+  };
+
   const dismissMsPrompt = (id: string) => {
-    setDismissedMs((prev) => {
-      const next = [...new Set([...prev, id])];
-      try { localStorage.setItem(`ms_prompt_dismissed_${athleteId}`, JSON.stringify(next)); } catch { /* ignore */ }
+    setSnoozeMs((prev) => {
+      const next = { ...prev, [id]: Date.now() };
+      try { localStorage.setItem(`ms_prompt_snooze_${athleteId}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
   };
@@ -147,7 +154,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   // Jalons dont la date est aujourd'hui/passée, non validés, non masqués → à confirmer
   const duePrompts = variant === "phases"
     ? datedMs
-        .filter((x) => !x.m.completed && x.m.approval_status !== "pending" && weeksUntil(x.d) <= 0 && !dismissedMs.includes(x.m.id))
+        .filter((x) => !x.m.completed && x.m.approval_status !== "pending" && weeksUntil(x.d) <= 0 && !isSnoozed(x.m.id))
         .sort((a, b) => D(b.d).getTime() - D(a.d).getTime())
     : [];
   const duePrompt = duePrompts[0] || null;
