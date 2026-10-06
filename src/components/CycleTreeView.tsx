@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Layers, Pencil, Trash2, CalendarDays, Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -20,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
-interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; }
+interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note?: string | null; }
 interface Week { id: string; week_number: number; year: number; monday: Date; }
 interface Sess { week_id: string; session_type: string | null; completed_at: string | null; skipped: boolean | null; }
 
@@ -61,10 +62,10 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
       // Le tree ne montre que les mésocycles RATTACHÉS au macro courant → un nouveau macro = vierge
       let mes: any[] = [];
       if (mac) {
-        const { data } = await supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id").eq("athlete_id", athleteId).eq("macrocycle_id", mac.id);
+        const { data } = await supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id, coach_note").eq("athlete_id", athleteId).eq("macrocycle_id", mac.id);
         mes = data || [];
       }
-      setPhases(((mes as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color })));
+      setPhases(((mes as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note ?? null })));
       let wkList: Week[] = ((wk || []) as any[]).map((w) => ({ id: w.id, week_number: w.week_number, year: w.year, monday: weekMonday(w.year, w.week_number) }));
       // On ne garde que les semaines DANS la période du macro (sinon vierge)
       if (mac) {
@@ -128,9 +129,9 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
   };
 
   // ── Mésocycles sous le macro (étape 2) ─────────────────────────────────────
-  const [mesoDlg, setMesoDlg] = useState<null | { id?: string; name: string; weeks: number }>(null);
-  const openNewMeso = () => setMesoDlg({ name: "", weeks: 4 });
-  const openEditMeso = (p: Phase) => setMesoDlg({ id: p.id, name: p.name, weeks: p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(p.end_date), D(p.start_date)) + 1) / 7)) : 4 });
+  const [mesoDlg, setMesoDlg] = useState<null | { id?: string; name: string; weeks: number; note: string }>(null);
+  const openNewMeso = () => setMesoDlg({ name: "", weeks: 4, note: "" });
+  const openEditMeso = (p: Phase) => setMesoDlg({ id: p.id, name: p.name, note: p.coach_note || "", weeks: p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(p.end_date), D(p.start_date)) + 1) / 7)) : 4 });
 
   const saveMeso = async () => {
     if (!mesoDlg || !mesoDlg.name.trim() || !macro) return;
@@ -142,14 +143,14 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         const p = phases.find((x) => x.id === mesoDlg.id)!;
         const start = D(p.start_date);
         const end = addDaysLocal(addWeeks(start, mesoDlg.weeks), -1);
-        await supabase.from("mesocycles").update({ name: mesoDlg.name.trim(), end_date: format(end, "yyyy-MM-dd"), updated_at: new Date().toISOString() }).eq("id", p.id);
+        await supabase.from("mesocycles").update({ name: mesoDlg.name.trim(), coach_note: mesoDlg.note.trim() || null, end_date: format(end, "yyyy-MM-dd"), updated_at: new Date().toISOString() }).eq("id", p.id);
       } else {
         const last = ordered[ordered.length - 1];
         const start = last?.end_date ? addDaysLocal(D(last.end_date), 1) : D(macro.start_date);
         const end = addDaysLocal(addWeeks(start, mesoDlg.weeks), -1);
         await supabase.from("mesocycles").insert({
           athlete_id: athleteId, coach_id: user?.id, macrocycle_id: macro.id,
-          name: mesoDlg.name.trim(), phase_type: "custom", color: PHASE_COLORS[phases.length % PHASE_COLORS.length],
+          name: mesoDlg.name.trim(), coach_note: mesoDlg.note.trim() || null, phase_type: "custom", color: PHASE_COLORS[phases.length % PHASE_COLORS.length],
           start_date: format(start, "yyyy-MM-dd"), end_date: format(end, "yyyy-MM-dd"),
           volume_target: 3, intensity_target: 3, updated_at: new Date().toISOString(),
         });
@@ -274,10 +275,11 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
           return (
             <div key={phase.id} className="rounded-xl border border-border/50 overflow-hidden flex flex-col" style={{ flex: `${Math.max(1, ws.length)} 1 0`, minWidth: 0 }}>
               {/* Bande mésocycle (clic = éditer) */}
-              <div role="button" onClick={() => openEditMeso(phase)} className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center cursor-pointer hover:brightness-105" style={{ background: col }}>
+              <div role="button" onClick={() => openEditMeso(phase)} title={phase.coach_note ? `${phase.name}\n\n${phase.coach_note}` : phase.name} className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center cursor-pointer hover:brightness-105" style={{ background: col }}>
                 <div className="flex items-center gap-1">
                   <span className="font-black text-[11px] shrink-0" style={SORA}>P{idx + 1}</span>
-                  <span className="font-bold text-[11px] uppercase tracking-tight truncate" style={SORA} title={phase.name}>{phase.name || "Phase"}</span>
+                  <span className="font-bold text-[11px] uppercase tracking-tight truncate" style={SORA}>{phase.name || "Phase"}</span>
+                  {phase.coach_note && <span className="text-[10px] shrink-0" title="Commentaire">📝</span>}
                   <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-black/15 shrink-0 whitespace-nowrap ml-auto">
                     {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
                   </span>
@@ -304,14 +306,17 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
             const col = p.color || PHASE_COLORS[i % PHASE_COLORS.length];
             const st = phaseStatus(p);
             return (
-              <div key={p.id} className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/40 px-2.5 py-1.5">
-                <span className="h-5 w-5 shrink-0 rounded-md grid place-items-center text-[10px] font-black text-black" style={{ background: col }}>P{i + 1}</span>
-                <span className="text-sm font-semibold truncate flex-1 min-w-0">{p.name || "Phase"}</span>
-                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{format(D(p.start_date), "d MMM", { locale: fr })}{p.end_date ? `→${format(D(p.end_date), "d MMM", { locale: fr })}` : ""}</span>
-                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0", st === "current" ? "bg-primary/20 text-primary" : st === "past" ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground/70")}>
-                  {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
-                </span>
-              </div>
+              <button key={p.id} type="button" onClick={() => openEditMeso(p)} className="text-left flex flex-col gap-0.5 rounded-lg border border-border/50 bg-card/40 px-2.5 py-1.5 hover:border-primary/40">
+                <div className="flex items-center gap-2">
+                  <span className="h-5 w-5 shrink-0 rounded-md grid place-items-center text-[10px] font-black text-black" style={{ background: col }}>P{i + 1}</span>
+                  <span className="text-sm font-semibold truncate flex-1 min-w-0">{p.name || "Phase"}</span>
+                  <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{format(D(p.start_date), "d MMM", { locale: fr })}{p.end_date ? `→${format(D(p.end_date), "d MMM", { locale: fr })}` : ""}</span>
+                  <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0", st === "current" ? "bg-primary/20 text-primary" : st === "past" ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground/70")}>
+                    {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
+                  </span>
+                </div>
+                {p.coach_note && <p className="text-[11px] text-muted-foreground italic pl-7 line-clamp-2 whitespace-pre-wrap">{p.coach_note}</p>}
+              </button>
             );
           })}
         </div>
@@ -387,6 +392,11 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                   </div>
                 );
               })()}
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Commentaire <span className="font-normal normal-case">(objectifs, consignes…)</span></label>
+                <Textarea value={mesoDlg.note} onChange={(e) => setMesoDlg({ ...mesoDlg, note: e.target.value })} placeholder={"Ce qu'on travaille, comment, points d'attention…"} className="min-h-[70px] resize-y text-sm" />
+              </div>
             </div>
             <DialogFooter className="sm:justify-between">
               {mesoDlg.id ? <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteMeso(mesoDlg.id!)}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button> : <span />}
