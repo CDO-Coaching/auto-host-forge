@@ -56,14 +56,27 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   const validateMilestone = async (id: string, comment?: string) => {
     setValidatingMs(id);
     const now = new Date().toISOString();
-    const payload: any = { completed: true, completed_at: now };
-    if (comment && comment.trim()) payload.notes = comment.trim();
-    const { error } = await supabase.from("objective_milestones").update(payload).eq("id", id);
-    setValidatingMs(null);
-    if (error) { console.error(error); toast.error("Validation impossible"); return; }
-    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, completed: true, completed_at: now } : m)));
-    setPromptComment("");
-    toast.success("Objectif validé 🎉");
+    try {
+      const payload: any = { completed: true, completed_at: now };
+      if (comment && comment.trim()) payload.notes = comment.trim();
+      let { error } = await supabase.from("objective_milestones").update(payload).eq("id", id);
+      // Repli si la colonne notes n'existe pas encore : on valide au moins le jalon
+      if (error && comment && comment.trim()) {
+        const retry = await supabase.from("objective_milestones").update({ completed: true, completed_at: now }).eq("id", id);
+        error = retry.error;
+        if (!error) toast.message("Objectif validé ✓ (commentaire non enregistré : mets à jour la base)");
+      }
+      if (error) throw error;
+      setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, completed: true, completed_at: now } : m)));
+      toast.success("Objectif validé 🎉");
+    } catch (e) {
+      console.error("validateMilestone:", e);
+      toast.error("Validation impossible");
+      dismissMsPrompt(id); // libère l'écran, jamais de blocage
+    } finally {
+      setValidatingMs(null);
+      setPromptComment("");
+    }
   };
 
   useEffect(() => {
