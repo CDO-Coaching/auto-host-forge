@@ -365,9 +365,10 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
       )}
     </div>
 
-    {/* Rappel flottant : jalon passé à confirmer */}
+    {/* Rappel flottant : jalon passé à confirmer (centré) */}
     {duePrompt && (
-      <div className="fixed bottom-4 right-4 z-[80] w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border border-primary/40 bg-card shadow-2xl p-4 animate-in slide-in-from-bottom-4">
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => dismissMsPrompt(duePrompt.m.id)}>
+      <div onClick={(e) => e.stopPropagation()} className="w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-primary/40 bg-card shadow-2xl p-5 animate-in zoom-in-95 fade-in">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Flag className="h-4 w-4 text-primary shrink-0" />
@@ -390,6 +391,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
             {validatingMs === duePrompt.m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Validé
           </button>
         </div>
+      </div>
       </div>
     )}
     </>
