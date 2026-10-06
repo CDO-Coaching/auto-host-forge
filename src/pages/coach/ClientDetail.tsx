@@ -4990,7 +4990,7 @@ export default function ClientDetail() {
           {/* ── Objectif principal + timeline de validation (masqué sur mobile pour voir les séances) ── */}
           {athleteId && (
             <div className="hidden sm:block">
-              <ProgObjectiveBanner athleteId={athleteId} />
+              <ProgObjectiveBanner athleteId={athleteId} onGoToObjectives={() => setActiveTab("objectifs")} />
             </div>
           )}
 

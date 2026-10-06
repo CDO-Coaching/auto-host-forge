@@ -30,7 +30,7 @@ const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"
  * de validation (phases, jalons, échéance). Remplace l'ancienne bannière de
  * progression (phase / volume / intensité).
  */
-export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: { athleteId: string; heading?: string; variant?: "phases" | "clean" }) {
+export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", onGoToObjectives }: { athleteId: string; heading?: string; variant?: "phases" | "clean"; onGoToObjectives?: () => void }) {
   const [phases, setPhases] = useState<Phase[]>([]);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [deadline, setDeadline] = useState<string | null>(null);
@@ -58,6 +58,17 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
       try { localStorage.setItem(`ms_prompt_snooze_${athleteId}`, JSON.stringify(next)); } catch { /* ignore */ }
       return next;
     });
+  };
+
+  // Rappel « programmer la prochaine phase » : veille 24 h sur croix
+  const [phaseSnooze, setPhaseSnooze] = useState<number | null>(null);
+  useEffect(() => {
+    try { const v = localStorage.getItem(`phase_prompt_snooze_${athleteId}`); setPhaseSnooze(v ? parseInt(v, 10) : null); } catch { /* ignore */ }
+  }, [athleteId]);
+  const snoozePhasePrompt = () => {
+    const t = Date.now();
+    setPhaseSnooze(t);
+    try { localStorage.setItem(`phase_prompt_snooze_${athleteId}`, String(t)); } catch { /* ignore */ }
   };
 
   const validateMilestone = async (id: string, comment?: string) => {
@@ -158,6 +169,14 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
         .sort((a, b) => D(b.d).getTime() - D(a.d).getTime())
     : [];
   const duePrompt = duePrompts[0] || null;
+
+  // Fin des phases programmées : reste ≤ 1 semaine avant la dernière → inviter à programmer la suite
+  const lastPhaseEnd = phases.length > 0 ? Math.max(...phases.map((p) => endOf(p).getTime())) : null;
+  const phasesRunningOut = variant === "phases" && lastPhaseEnd != null
+    && Math.ceil((lastPhaseEnd - today.getTime()) / (7 * 86400000)) <= 1;
+  const phasePromptSnoozed = phaseSnooze != null && Date.now() - phaseSnooze < 24 * 3600 * 1000;
+  // On n'affiche pas les deux overlays en même temps : le jalon est prioritaire.
+  const showPhasePrompt = phasesRunningOut && !phasePromptSnoozed && !duePrompt;
 
   return (
     <>
@@ -427,6 +446,36 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
           <button type="button" onClick={() => validateMilestone(duePrompt.m.id, promptComment)} disabled={validatingMs === duePrompt.m.id}
             className="flex-[1.4] h-11 rounded-xl bg-gradient-to-r from-amber-400 to-primary text-black text-sm font-extrabold flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-lg shadow-primary/20">
             {validatingMs === duePrompt.m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <>🎉</>} C'est validé !
+          </button>
+        </div>
+      </div>
+      </div>
+    )}
+
+    {/* Rappel : programmer la prochaine phase d'entraînement */}
+    {showPhasePrompt && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={snoozePhasePrompt}>
+      <div onClick={(e) => e.stopPropagation()} className="relative w-[380px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6 animate-in zoom-in-95 fade-in">
+        <button type="button" onClick={snoozePhasePrompt} className="absolute top-3 right-3 h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted" aria-label="Plus tard">
+          <X className="h-4 w-4" />
+        </button>
+        <div className="text-center">
+          <div className="text-3xl mb-1">🧭</div>
+          <h3 className="text-lg font-black leading-tight text-foreground" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+            La suite du plan ?
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1.5 leading-snug">
+            Il reste moins d'une semaine de phases programmées pour {objName ? <span className="font-medium text-foreground">cet objectif</span> : "cet athlète"}. C'est le moment d'anticiper la prochaine phase d'entraînement.
+          </p>
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button type="button" onClick={snoozePhasePrompt}
+            className="flex-1 h-11 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
+            Plus tard
+          </button>
+          <button type="button" onClick={() => { onGoToObjectives?.(); }}
+            className="flex-[1.4] h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98]">
+            <Target className="h-4 w-4" /> Y réfléchir
           </button>
         </div>
       </div>
