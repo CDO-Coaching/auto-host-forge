@@ -49,40 +49,23 @@ export function PhaseBuilder({
   const today = startOfDay(new Date());
   const dl = deadline ? new Date(deadline) : null;
 
-  // Fixe la date de début d'une phase et ré-enchaîne les suivantes.
+  // Dates FIXES : modifier le début d'une phase ne change QUE cette phase
+  // (sa fin est recalculée depuis sa propre durée). Les autres phases ne bougent pas.
   const setPhaseStart = async (idx: number, date: Date) => {
     setBusy(true);
     try {
-      let cursor = startOfDay(date);
-      for (let i = idx; i < ordered.length; i++) {
-        const w = phaseWeeks(ordered[i]);
-        const start = new Date(cursor);
-        const end = w ? addDays(addWeeks(start, w), -1) : null;
-        if (end) cursor = addDays(end, 1);
-        await supabase.from("mesocycles").update({
-          start_date: format(start, "yyyy-MM-dd"),
-          end_date: end ? format(end, "yyyy-MM-dd") : null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", ordered[i].id);
-      }
-      onReload();
-    } catch { toast.error("Erreur"); }
-    finally { setBusy(false); }
-  };
-
-  // Recalcule les dates en chaîne depuis aujourd'hui et persiste.
-  const persistChain = async (list: { id: string; weeks: number | null }[]) => {
-    let cursor = new Date(today);
-    for (const item of list) {
-      const start = new Date(cursor);
-      const end = item.weeks ? addDays(addWeeks(start, item.weeks), -1) : null;
-      if (end) cursor = addDays(end, 1);
+      const p = ordered[idx];
+      const w = phaseWeeks(p);
+      const start = startOfDay(date);
+      const end = w ? addDays(addWeeks(start, w), -1) : null;
       await supabase.from("mesocycles").update({
         start_date: format(start, "yyyy-MM-dd"),
         end_date: end ? format(end, "yyyy-MM-dd") : null,
         updated_at: new Date().toISOString(),
-      }).eq("id", item.id);
-    }
+      }).eq("id", p.id);
+      onReload();
+    } catch { toast.error("Erreur"); }
+    finally { setBusy(false); }
   };
 
   const handleAdd = async () => {
@@ -120,12 +103,17 @@ export function PhaseBuilder({
     finally { setBusy(false); }
   };
 
+  // Dates FIXES : changer la durée ne recalcule QUE la fin de cette phase.
   const setWeeksAt = async (idx: number, weeks: number | null) => {
     setBusy(true);
     try {
-      const list = ordered.map((p) => ({ id: p.id, weeks: phaseWeeks(p) }));
-      list[idx].weeks = weeks;
-      await persistChain(list);
+      const p = ordered[idx];
+      const start = new Date(p.start_date);
+      const end = weeks ? addDays(addWeeks(start, weeks), -1) : null;
+      await supabase.from("mesocycles").update({
+        end_date: end ? format(end, "yyyy-MM-dd") : null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", p.id);
       onReload();
     } catch { toast.error("Erreur"); }
     finally { setBusy(false); }
@@ -191,11 +179,22 @@ export function PhaseBuilder({
           if (!expanded && i > 0) return null; // seule la Phase 1 visible par défaut
           const color = p.color || PHASE_COLORS[i % PHASE_COLORS.length];
           const w = phaseWeeks(p);
+          const pStart = new Date(p.start_date + "T00:00:00");
+          const pEnd = p.end_date ? new Date(p.end_date + "T00:00:00") : null;
+          const isPast = pEnd ? pEnd < today : false;
+          const isCurrent = pStart <= today && (!pEnd || pEnd >= today);
           return (
-            <div key={p.id} className="rounded-xl border border-border/60 bg-card/40 p-3">
+            <div key={p.id} className={cn("rounded-xl border p-3", isCurrent ? "border-primary/40 bg-primary/[0.04]" : isPast ? "border-border/50 bg-muted/10 opacity-70" : "border-border/60 bg-card/40")}>
               <div className="flex items-center gap-3">
                 <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 <span className="text-[11px] font-bold text-muted-foreground/60 w-12 shrink-0">Phase {i + 1}</span>
+                {isCurrent ? (
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">EN COURS</span>
+                ) : isPast ? (
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">PASSÉ</span>
+                ) : (
+                  <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-muted/50 text-muted-foreground/70">À VENIR</span>
+                )}
                 <Input
                   defaultValue={p.name}
                   onBlur={(e) => handleFocusBlur(p.id, e.target.value)}
@@ -228,7 +227,7 @@ export function PhaseBuilder({
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <div className="px-3 pt-2 text-[11px] text-muted-foreground">Date de début — les phases suivantes se décalent.</div>
+                    <div className="px-3 pt-2 text-[11px] text-muted-foreground">Date de début — seule cette phase change (dates fixes).</div>
                     <Calendar mode="single" selected={new Date(p.start_date)} onSelect={(d) => d && setPhaseStart(i, d)} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
                   </PopoverContent>
                 </Popover>
