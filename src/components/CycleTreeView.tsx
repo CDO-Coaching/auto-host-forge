@@ -355,6 +355,38 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                 </div>
                 <span className="text-[11px] text-muted-foreground">≈ {fmtDuration(new Date(), addWeeks(new Date(), mesoDlg.weeks))}</span>
               </div>
+
+              {/* Volume par rapport au macro */}
+              {(() => {
+                if (!macro?.end_date) return null;
+                const macroWeeks = Math.max(1, Math.round((differenceInCalendarDays(D(macro.end_date), D(macro.start_date)) + 1) / 7));
+                const used = phases.filter((p) => !(mesoDlg.id && p.id === mesoDlg.id)).reduce((s, p) => s + (p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(p.end_date), D(p.start_date)) + 1) / 7)) : 0), 0);
+                const nw = mesoDlg.weeks;
+                const total = used + nw;
+                const remaining = macroWeeks - total;
+                const pct = Math.round((nw / macroWeeks) * 100);
+                const usedPct = Math.min(100, (used / macroWeeks) * 100);
+                const newPct = Math.min(100 - usedPct, (nw / macroWeeks) * 100);
+                return (
+                  <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-muted-foreground">Ce mésocycle</span>
+                      <span className="font-bold">{nw} sem. · <span className="text-primary">{pct}%</span> du macro</span>
+                    </div>
+                    {/* barre : déjà réparti (gris) + ce méso (doré) + restant (vide) */}
+                    <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+                      <div className="h-full bg-muted-foreground/40" style={{ width: `${usedPct}%` }} />
+                      <div className="h-full bg-primary" style={{ width: `${newPct}%` }} />
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>Réparti : <span className="font-semibold text-foreground">{total}</span> / {macroWeeks} sem.</span>
+                      <span className={cn("font-semibold", remaining < 0 ? "text-red-400" : "text-emerald-500")}>
+                        {remaining < 0 ? `Dépasse de ${Math.abs(remaining)} sem.` : `Restant : ${remaining} sem.`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <DialogFooter className="sm:justify-between">
               {mesoDlg.id ? <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteMeso(mesoDlg.id!)}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button> : <span />}
