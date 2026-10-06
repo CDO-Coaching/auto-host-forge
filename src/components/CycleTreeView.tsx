@@ -200,6 +200,9 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
 
   const totalWeeks = weeks.length;
   const dl = deadline ? D(deadline) : null;
+  const macroWeeks = macro?.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(macro.end_date), D(macro.start_date)) + 1) / 7)) : null;
+  const allocatedWeeks = phases.reduce((s, p) => s + (p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(p.end_date), D(p.start_date)) + 1) / 7)) : 2), 0);
+  const freePct = macroWeeks ? Math.max(0, (1 - allocatedWeeks / macroWeeks) * 100) : 0;
 
   const WeekCard = ({ w }: { w: Week }) => {
     const ss = sessByWeek.get(w.id) || [];
@@ -267,13 +270,15 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground text-center py-3 rounded-xl border border-dashed border-border/60">Macro vierge — ajoute ton premier mésocycle.</p>
       )}
 
-      {/* Mésocycles proportionnels qui REMPLISSENT la largeur de l'écran */}
+      {/* Mésocycles à l'échelle du MACRO : largeur = part réelle de chaque méso */}
       <div className="flex gap-1.5 items-stretch">
         {grouped.byPhase.map(({ phase, idx, weeks: ws }) => {
           const col = phase.color || PHASE_COLORS[idx % PHASE_COLORS.length];
           const st = phaseStatus(phase);
+          const durWeeks = phase.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(phase.end_date), D(phase.start_date)) + 1) / 7)) : 2;
+          const pct = macroWeeks ? Math.min(100, (durWeeks / macroWeeks) * 100) : 100 / Math.max(1, grouped.byPhase.length);
           return (
-            <div key={phase.id} className="rounded-xl border border-border/50 overflow-hidden flex flex-col" style={{ flex: `${Math.max(1, ws.length)} 1 0`, minWidth: 0 }}>
+            <div key={phase.id} className="rounded-xl border border-border/50 overflow-hidden flex flex-col" style={{ width: `${pct}%`, flex: `0 0 ${pct}%`, minWidth: 40 }}>
               {/* Bande mésocycle (clic = éditer) */}
               <div role="button" onClick={() => openEditMeso(phase)} title={phase.coach_note ? `${phase.name}\n\n${phase.coach_note}` : phase.name} className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center cursor-pointer hover:brightness-105" style={{ background: col }}>
                 <div className="flex items-center gap-1">
@@ -291,12 +296,21 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
               {/* Semaines qui remplissent la largeur de la phase */}
               <div className="p-1.5 flex gap-1 bg-card/30 flex-1 items-stretch">
                 {ws.length === 0 ? (
-                  <span className="text-[9px] text-muted-foreground/40 self-center w-full text-center">vide</span>
+                  <span className="text-[9px] text-muted-foreground/40 self-center w-full text-center">—</span>
                 ) : ws.map((w) => <WeekCard key={w.id} w={w} />)}
               </div>
             </div>
           );
         })}
+
+        {/* Temps du macro non encore réparti en mésocycles */}
+        {freePct > 1 && (
+          <div className="rounded-xl border border-dashed border-border/40 flex items-center justify-center text-[10px] text-muted-foreground/60"
+            style={{ flex: `0 0 ${freePct}%`, minWidth: 40 }}
+            title="Temps du macrocycle non encore réparti">
+            libre · {macroWeeks ? Math.max(0, macroWeeks - allocatedWeeks) : 0} sem.
+          </div>
+        )}
       </div>
 
       {/* Liste des phases (noms complets, lisibles même si la bande est étroite) */}
