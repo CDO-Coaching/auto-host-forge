@@ -49,7 +49,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
   const [showPast, setShowPast] = useState(false);
 
   // Dialogs
-  const [phaseDlg, setPhaseDlg] = useState<null | { id?: string; name: string; start: Date; weeks: number | null; linkedMsId: string | null }>(null);
+  const [phaseDlg, setPhaseDlg] = useState<null | { id?: string; name: string; focus: string; start: Date; weeks: number | null; linkedMsId: string | null }>(null);
   const [msDlg, setMsDlg] = useState<null | { id?: string; label: string; date: Date | null }>(null);
   const [objDlg, setObjDlg] = useState<null | { name: string; deadline: Date | null }>(null);
   const [validateDlg, setValidateDlg] = useState<null | { m: Milestone; comment: string }>(null);
@@ -121,9 +121,9 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const ordered = [...phases].sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
     const last = ordered[ordered.length - 1];
     const start = last?.end_date ? addDays(D(last.end_date), 1) : today;
-    setPhaseDlg({ name: "", start, weeks: 4, linkedMsId: null });
+    setPhaseDlg({ name: "", focus: "", start, weeks: 4, linkedMsId: null });
   };
-  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null, linkedMsId: p.linked_milestone_id });
+  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, focus: p.coach_note || "", start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null, linkedMsId: p.linked_milestone_id });
 
   const savePhase = async () => {
     if (!phaseDlg || !phaseDlg.name.trim()) return;
@@ -135,6 +135,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
       const end = phaseDlg.weeks ? addDays(addWeeks(start, phaseDlg.weeks), -1) : null;
       const payload: any = {
         name: phaseDlg.name.trim(),
+        coach_note: phaseDlg.focus.trim() || null,
         start_date: format(start, "yyyy-MM-dd"),
         end_date: end ? format(end, "yyyy-MM-dd") : null,
         linked_milestone_id: phaseDlg.linkedMsId || null,
@@ -421,8 +422,17 @@ function PhaseRow({ p, status, linkedLabel, onEdit, onDelete }: { p: Phase; stat
         </div>
         <p className={cn("font-semibold text-sm mt-0.5", status === "past" && "line-through text-muted-foreground")}>{p.name || "Phase"}</p>
         <p className="text-[11px] text-muted-foreground tabular-nums">{range}</p>
-        {linkedLabel && <p className="text-[11px] text-primary mt-1 flex items-center gap-1"><Flag className="h-3 w-3" /> prépare : <span className="font-semibold">{linkedLabel}</span></p>}
-        {p.coach_note && <p className="text-xs text-muted-foreground italic mt-1">{p.coach_note}</p>}
+        {p.coach_note && p.coach_note.trim() && (
+          <ul className="mt-1.5 space-y-0.5">
+            {p.coach_note.split("\n").filter((l) => l.trim()).map((l, i) => (
+              <li key={i} className="text-[13px] flex items-start gap-1.5">
+                <span className="text-primary mt-1 leading-none">•</span>
+                <span className={cn(status === "past" && "text-muted-foreground")}>{l}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {linkedLabel && <p className="text-[11px] text-primary mt-1.5 flex items-center gap-1"><Flag className="h-3 w-3" /> prépare : <span className="font-semibold">{linkedLabel}</span></p>}
     </div>
   );
 }
@@ -483,8 +493,17 @@ function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any
         <DialogHeader><DialogTitle>{state.id ? "Modifier la phase" : "Nouvelle phase"}</DialogTitle></DialogHeader>
         <div className="space-y-3 py-1">
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Que faut-il travailler ?</label>
-            <Input autoFocus value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} placeholder="Ex : Développement endurance · allure 10 km" className="h-10" />
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Nom de la phase</label>
+            <Input autoFocus value={state.name} onChange={(e) => setState({ ...state, name: e.target.value })} placeholder="Ex : Développement · Reprise · Affûtage…" className="h-10" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Objectifs de la phase <span className="font-normal normal-case">(un par ligne)</span></label>
+            <Textarea
+              value={state.focus}
+              onChange={(e) => setState({ ...state, focus: e.target.value })}
+              placeholder={"développer l'endurance et la résistance musculaire\ntravailler le kipping pour muscle up\ndévelopper le 10rep squat"}
+              className="min-h-[90px] resize-y text-sm"
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Début</label>
