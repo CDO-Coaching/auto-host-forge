@@ -205,12 +205,12 @@ export function CoachClientSummaryView({ athleteId, athleteName, column = "full"
         // filtre en JS (évite le combo .or()/.in() fragile qui peut échouer en silence).
         const { data: exRows } = await supabase
           .from("session_exercises")
-          .select("session_id, sportif_rpe, skipped, sportif_feedback")
+          .select("session_id, sportif_rpe, skipped")
           .in("session_id", sessionIds);
 
         const sessionIdsWithProgress = new Set(
           (exRows || [])
-            .filter((e: any) => e.sportif_rpe != null || e.skipped === true || (e.sportif_feedback != null && e.sportif_feedback !== ""))
+            .filter((e: any) => e.sportif_rpe != null || e.skipped === true)
             .map((e: any) => e.session_id),
         );
 
