@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addWeeks, addDays, differenceInCalendarDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Target } from "lucide-react";
+import { Target, Flag, AlertTriangle, CheckCircle2, CalendarClock, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Phase {
@@ -167,26 +167,96 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
         })()
       ) : (
       <>
-      {/* Objectif principal + prochain jalon */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Target className="h-4 w-4 text-primary shrink-0" />
-        {objName ? (
-          <>
-            <span className={cn("font-semibold text-sm truncate max-w-[60%]", objCompleted && "text-emerald-600")}>{objName}</span>
-            {dl && !objCompleted && <span className="text-[11px] text-primary font-semibold shrink-0">dans {weeksUntil(deadline!)} sem.</span>}
-            {objCompleted && <span className="text-[11px] text-emerald-600 font-semibold shrink-0">Atteint ✓</span>}
-          </>
-        ) : (
-          <span className="text-sm text-muted-foreground italic">Aucun objectif défini</span>
-        )}
-        {nextMs && (
-          <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-            <span className="h-2 w-2 rounded-full bg-primary shrink-0" />
-            <span className="truncate">{nextMs.m.label}</span>
-            <span className="text-primary font-semibold shrink-0">dans {weeksUntil(nextMs.d)} sem.</span>
-          </span>
-        )}
-      </div>
+      {(() => {
+        const objWeeks = deadline && !objCompleted ? weeksUntil(deadline) : null;
+        const currentPhase = idxCurrent >= 0 ? phases[idxCurrent] : null;
+        const currentPhaseColor = currentPhase ? (currentPhase.color || COLORS[idxCurrent % COLORS.length]) : null;
+        const nextMsWeeks = nextMs ? weeksUntil(nextMs.d) : null;
+        const overdueMs = datedMs.filter((x) => !x.m.completed && weeksUntil(x.d) < 0);
+        const nothingPlanned = !currentPhase && !nextMs && (objCompleted || objWeeks == null || objWeeks < 0);
+
+        // Pastille de statut d'une échéance en semaines
+        const statusPill = (weeks: number | null, done: boolean) => {
+          if (done) return { text: "Atteint", cls: "bg-emerald-500/15 text-emerald-500 border-emerald-500/30", Icon: CheckCircle2 };
+          if (weeks == null) return null;
+          if (weeks < 0) return { text: `Dépassé · ${Math.abs(weeks)} sem.`, cls: "bg-red-500/15 text-red-400 border-red-500/40", Icon: AlertTriangle };
+          if (weeks === 0) return { text: "Cette semaine !", cls: "bg-red-500/15 text-red-400 border-red-500/40 animate-pulse", Icon: AlertTriangle };
+          if (weeks === 1) return { text: "Dans 1 semaine !", cls: "bg-orange-500/20 text-orange-400 border-orange-500/40 animate-pulse", Icon: AlertTriangle };
+          if (weeks <= 3) return { text: `Dans ${weeks} sem.`, cls: "bg-amber-500/15 text-amber-500 border-amber-500/30", Icon: CalendarClock };
+          return { text: `Dans ${weeks} sem.`, cls: "bg-primary/10 text-primary border-primary/30", Icon: CalendarClock };
+        };
+        const objPill = statusPill(objWeeks, objCompleted);
+
+        return (
+        <div className="space-y-2">
+          {/* Ligne 1 — Objectif principal + statut bien visible */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Target className="h-4 w-4 text-primary shrink-0" />
+            {objName ? (
+              <span className={cn("font-semibold text-sm truncate max-w-[55%]", objCompleted && "text-emerald-500")}>{objName}</span>
+            ) : (
+              <span className="text-sm text-muted-foreground italic">Aucun objectif défini</span>
+            )}
+            {objPill && (
+              <span className={cn("inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border", objPill.cls)}>
+                <objPill.Icon className="h-3 w-3" /> {objPill.text}
+              </span>
+            )}
+          </div>
+
+          {/* Ligne 2 — Phase en cours + prochaine étape, en chips clairs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {currentPhase ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full border"
+                style={{ color: currentPhaseColor!, borderColor: `${currentPhaseColor}66`, background: `${currentPhaseColor}1f` }}>
+                <span className="h-2 w-2 rounded-full" style={{ background: currentPhaseColor! }} />
+                {currentPhase.name} · en cours
+              </span>
+            ) : phases.length > 0 ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground px-2 py-0.5 rounded-full border border-border">
+                <Layers className="h-3 w-3" /> Aucune phase en cours
+              </span>
+            ) : null}
+
+            {nextMs && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                <Flag className="h-3 w-3 text-primary" />
+                Prochaine étape : <span className="font-semibold text-foreground truncate max-w-[160px]">{nextMs.m.label}</span>
+                <span className={cn("font-bold", (nextMsWeeks ?? 9) <= 1 ? "text-orange-400" : "text-primary")}>
+                  {nextMsWeeks === 0 ? "cette sem." : `dans ${nextMsWeeks} sem.`}
+                </span>
+              </span>
+            )}
+          </div>
+
+          {/* Alertes claires */}
+          {objPill && objWeeks != null && objWeeks >= 0 && objWeeks <= 1 && !objCompleted && (
+            <div className="flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-orange-400 shrink-0" />
+              <p className="text-sm font-medium">Objectif <span className="font-bold">{objWeeks === 0 ? "cette semaine" : "dans 1 semaine"}</span> : {objName}. Prépare la dernière ligne droite.</p>
+            </div>
+          )}
+          {objWeeks != null && objWeeks < 0 && !objCompleted && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-red-400 shrink-0" />
+              <p className="text-sm font-medium">Échéance de l'objectif <span className="font-bold">dépassée</span> ({Math.abs(objWeeks)} sem.). Marque-le atteint ou fixe une nouvelle date.</p>
+            </div>
+          )}
+          {overdueMs.length > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/[0.07] px-3 py-2">
+              <Flag className="h-4 w-4 text-red-400 shrink-0" />
+              <p className="text-sm">{overdueMs.length} étape{overdueMs.length > 1 ? "s" : ""} passée{overdueMs.length > 1 ? "s" : ""} non validée{overdueMs.length > 1 ? "s" : ""} : <span className="font-medium">{overdueMs.map((x) => x.m.label).join(", ")}</span></p>
+            </div>
+          )}
+          {nothingPlanned && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <p className="text-sm font-medium">Plus rien de prévu — pense à programmer la suite (nouvelle phase, étape ou objectif).</p>
+            </div>
+          )}
+        </div>
+        );
+      })()}
 
       {/* Timeline */}
       {(phases.length > 0 || datedMs.length > 0 || dl) && (
@@ -198,7 +268,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
               const col = p.color || COLORS[i % COLORS.length];
               const range = `${format(D(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(new Date(p.end_date), "d MMM", { locale: fr })}` : " → en cours"}`;
               return (
-                <div key={p.id} className={cn("absolute top-0 h-full", i === idxCurrent ? "z-10" : "")}
+                <div key={p.id} className={cn("absolute top-0 h-full", i === idxCurrent ? "z-10 ring-1 ring-white/70 ring-inset" : "opacity-70")}
                   style={{ left: `${pos(s)}%`, width: `${Math.max(2, pos(e) - pos(s))}%`, backgroundColor: col }}
                   title={`${p.name} · ${range}`} />
               );
@@ -207,12 +277,16 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
           </div>
           {/* Points jalons + objectif */}
           <div className="relative h-4 mt-0.5">
-            {datedMs.map(({ m, d }) => (
-              <span key={m.id}
-                className={cn("absolute top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-background", m.completed ? "bg-emerald-500" : "bg-primary")}
-                style={{ left: `${pos(D(d).getTime())}%` }}
-                title={`${m.label} · ${format(D(d), "d MMM yyyy", { locale: fr })}${m.completed ? " (validé)" : ` · dans ${weeksUntil(d)} sem.`}`} />
-            ))}
+            {datedMs.map(({ m, d }) => {
+              const w = weeksUntil(d);
+              const col = m.completed ? "bg-emerald-500" : w < 0 ? "bg-red-500" : w <= 1 ? "bg-orange-400 animate-pulse" : "bg-primary";
+              return (
+                <span key={m.id}
+                  className={cn("absolute top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-background", col)}
+                  style={{ left: `${pos(D(d).getTime())}%` }}
+                  title={`${m.label} · ${format(D(d), "d MMM yyyy", { locale: fr })}${m.completed ? " (validé)" : w < 0 ? ` · dépassé (${Math.abs(w)} sem.)` : ` · dans ${w} sem.`}`} />
+              );
+            })}
             {dl && (
               <span className="absolute -top-0.5 -translate-x-1/2 text-[11px]" style={{ left: `${pos(dl.getTime())}%` }} title={`Objectif · ${format(dl, "d MMM yyyy", { locale: fr })}`}>🎯</span>
             )}
