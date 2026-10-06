@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   Calendar as CalendarIcon, Plus, Pencil, Trash2, Target, CalendarDays,
   Save, X, Layers, Layers2, Layers3, AlertTriangle, Clock,
-  ChevronDown, ChevronRight, Dumbbell, Footprints, NotebookPen, Check,
+  ChevronDown, ChevronRight, Dumbbell, Footprints, NotebookPen, Check, Loader2,
 } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -527,16 +527,54 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
     setShowCycleDialog(true);
   };
 
-  // Ouverture auto de l'assistant de phase quand on arrive via « Y réfléchir » (Prog)
+  // Ouverture auto de l'assistant SIMPLE de phase quand on arrive via « Y réfléchir » (Prog)
+  const [quickPhaseOpen, setQuickPhaseOpen] = useState(false);
+  const [quickPhaseName, setQuickPhaseName] = useState("");
+  const [quickPhaseWeeks, setQuickPhaseWeeks] = useState<number>(4);
+  const [quickPhaseBusy, setQuickPhaseBusy] = useState(false);
   useEffect(() => {
     let flag = false;
     try { flag = sessionStorage.getItem("open_phase_builder") === "1"; } catch { /* ignore */ }
     if (flag) {
       try { sessionStorage.removeItem("open_phase_builder"); } catch { /* ignore */ }
-      handleOpenCycleDialog("meso");
+      setQuickPhaseOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const quickAddPhase = async () => {
+    if (!quickPhaseName.trim()) return;
+    setQuickPhaseBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("no user");
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const ordered = [...mesocycles].filter((m) => (m as any).start_date).sort((a, b) => new Date((a as any).start_date).getTime() - new Date((b as any).start_date).getTime());
+      const last = ordered[ordered.length - 1] as any;
+      let start = new Date(today);
+      if (last) {
+        if (!last.end_date) {
+          await supabase.from("mesocycles").update({ end_date: format(addDays(today, -1), "yyyy-MM-dd") }).eq("id", last.id);
+          start = new Date(today);
+        } else {
+          start = addDays(new Date(last.end_date), 1);
+        }
+      }
+      const end = quickPhaseWeeks ? addDays(addWeeks(start, quickPhaseWeeks), -1) : null;
+      const palette = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+      const { error } = await supabase.from("mesocycles").insert({
+        athlete_id: athleteId, coach_id: user.id, macrocycle_id: null,
+        name: quickPhaseName.trim(), phase_type: "custom", color: palette[ordered.length % palette.length],
+        start_date: format(start, "yyyy-MM-dd"), end_date: end ? format(end, "yyyy-MM-dd") : null,
+        volume_target: 3, intensity_target: 3, updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      toast.success("Phase ajoutée ✓");
+      setQuickPhaseOpen(false); setQuickPhaseName(""); setQuickPhaseWeeks(4);
+      loadAll();
+    } catch (e) { console.error(e); toast.error("Impossible d'ajouter la phase"); }
+    finally { setQuickPhaseBusy(false); }
+  };
 
   const handlePhaseTypeChange = (phaseType: string) => {
     const phase = getPhase(phaseType);
@@ -1629,6 +1667,66 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Assistant SIMPLE : nommer la prochaine phase (rappel contexte) */}
+      {quickPhaseOpen && (() => {
+        const ordered = [...mesocycles].filter((m: any) => m.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+        const lastPhase: any = ordered[ordered.length - 1] || null;
+        const todayD = new Date(); todayD.setHours(0, 0, 0, 0);
+        const nextMs = milestones
+          .filter((m) => !m.completed && m.target_date && new Date(m.target_date) >= todayD)
+          .sort((a, b) => new Date(a.target_date!).getTime() - new Date(b.target_date!).getTime())[0] || null;
+        const weeksBefore = nextMs?.target_date ? Math.max(1, Math.ceil((new Date(nextMs.target_date).getTime() - todayD.getTime()) / (7 * 86400000))) : null;
+        return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setQuickPhaseOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-[400px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6">
+            <h3 className="text-lg font-black" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Prochaine phase d'entraînement</h3>
+
+            {/* Rappel contexte */}
+            <div className="mt-3 space-y-1.5 rounded-xl border border-border bg-muted/20 p-3 text-sm">
+              <p className="text-muted-foreground">Dernière phase : <span className="font-medium text-foreground">{lastPhase?.name || "aucune"}</span></p>
+              {nextMs ? (
+                <p className="text-muted-foreground">Prochain sous-objectif : <span className="font-medium text-foreground">{nextMs.label}</span>{weeksBefore ? <span className="text-primary font-semibold"> · dans {weeksBefore} sem.</span> : null}</p>
+              ) : (
+                <p className="text-muted-foreground/70 italic">Aucun sous-objectif à venir</p>
+              )}
+            </div>
+
+            {/* Saisie simple */}
+            <div className="mt-4 space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Que faut-il travailler ?</label>
+              <Input
+                autoFocus
+                value={quickPhaseName}
+                onChange={(e) => setQuickPhaseName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") quickAddPhase(); }}
+                placeholder="Ex : Développement endurance · allure 10 km"
+                className="h-11"
+              />
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+              <label className="text-sm text-muted-foreground">Durée</label>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQuickPhaseWeeks((w) => Math.max(1, w - 1))}>−</Button>
+                <span className="w-14 text-center font-bold tabular-nums">{quickPhaseWeeks} sem.</span>
+                <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setQuickPhaseWeeks((w) => w + 1)}>+</Button>
+              </div>
+              {weeksBefore && quickPhaseWeeks !== weeksBefore && (
+                <button type="button" onClick={() => setQuickPhaseWeeks(weeksBefore)} className="text-xs text-primary hover:underline">→ {weeksBefore} (avant l'objectif)</button>
+              )}
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setQuickPhaseOpen(false)}>Annuler</Button>
+              <Button className="flex-[1.4] gap-1.5" onClick={quickAddPhase} disabled={quickPhaseBusy || !quickPhaseName.trim()}>
+                {quickPhaseBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Ajouter la phase
+              </Button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
     </>
   );
 }
