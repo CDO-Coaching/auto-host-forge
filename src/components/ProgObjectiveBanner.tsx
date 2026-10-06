@@ -110,7 +110,8 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   }, [athleteId]);
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const D = (s: string) => new Date(s + "T00:00:00");
+  // Accepte une date "YYYY-MM-DD" comme un datetime ISO (ex. completed_at) sans planter.
+  const D = (s: string) => new Date(/[T ]/.test(s) ? s : s + "T00:00:00");
   const dl = deadline ? D(deadline) : null;
   const endOf = (p: Phase) => (p.end_date ? D(p.end_date) : (dl || addDays(D(p.start_date), 14)));
 
