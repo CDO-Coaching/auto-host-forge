@@ -76,6 +76,7 @@ import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
 import { ObjectivesRoadmap } from "@/components/ObjectivesRoadmap";
+import { CycleTreeView } from "@/components/CycleTreeView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
 import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -4370,6 +4371,7 @@ export default function ClientDetail() {
               <TabsTrigger value="suivi" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Fatigue</TabsTrigger>
               <TabsTrigger value="poids" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Poids</TabsTrigger>
               <TabsTrigger value="objectifs" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Objectifs</TabsTrigger>
+              <TabsTrigger value="vue" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Vue d'ensemble</TabsTrigger>
               <TabsTrigger value="mental" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Mental</TabsTrigger>
               <TabsTrigger value="profil" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Profil</TabsTrigger>
               <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
@@ -4396,6 +4398,10 @@ export default function ClientDetail() {
               />
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="vue" className="space-y-2">
+          {athleteId && <CycleTreeView athleteId={athleteId} />}
         </TabsContent>
 
         <TabsContent value="mental" className="space-y-2">
