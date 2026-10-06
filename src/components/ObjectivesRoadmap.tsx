@@ -512,9 +512,30 @@ function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any
             >
               <option value="">Aucun</option>
               {milestones.map((m) => (
-                <option key={m.id} value={m.id}>{m.label}</option>
+                <option key={m.id} value={m.id}>
+                  {m.label}{m.target_date ? ` · ${format(D(m.target_date), "d MMM yyyy", { locale: fr })}` : " · sans date"}
+                </option>
               ))}
             </select>
+            {(() => {
+              const linked = milestones.find((m) => m.id === state.linkedMsId);
+              if (!linked?.target_date) return null;
+              const target = D(linked.target_date);
+              const w = Math.ceil((target.getTime() - state.start.getTime()) / (7 * 86400000));
+              const phaseEnd = state.weeks ? addDays(addWeeks(state.start, state.weeks), -1) : null;
+              const aligned = phaseEnd ? Math.abs(differenceInCalendarDays(phaseEnd, target)) <= 3 : false;
+              return (
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground mt-1">
+                  <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3 text-primary" /> cible : <span className="font-semibold text-foreground">{format(target, "d MMM yyyy", { locale: fr })}</span></span>
+                  {w > 0 && !aligned && (
+                    <button type="button" onClick={() => setState({ ...state, weeks: Math.max(1, w) })} className="text-primary hover:underline">
+                      → caler la fin dessus ({Math.max(1, w)} sem.)
+                    </button>
+                  )}
+                  {aligned && <span className="text-emerald-500">✓ fin alignée</span>}
+                </div>
+              );
+            })()}
           </div>
         </div>
         <DialogFooter>
