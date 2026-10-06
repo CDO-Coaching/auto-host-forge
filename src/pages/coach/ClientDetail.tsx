@@ -75,6 +75,7 @@ import { CoachStrengthView } from "@/components/CoachStrengthView";
 import { CoachTriathlonView } from "@/components/CoachTriathlonView";
 import { CoachExerciseProgressPanel } from "@/components/CoachExerciseProgressPanel";
 import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components/CoachObjectivesView";
+import { ObjectivesRoadmap } from "@/components/ObjectivesRoadmap";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
 import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -5620,7 +5621,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="objectifs" className="space-y-4">
-          <CoachObjectivesView
+          <ObjectivesRoadmap
             athleteId={athleteId!}
             athleteName={athlete.first_name || "l'athlète"}
             onObjectiveChange={(has, name, deadline) => { setHasMainObjective(has); setMainObjectiveName(name || null); setMainObjectiveDeadline(deadline || null); }}
