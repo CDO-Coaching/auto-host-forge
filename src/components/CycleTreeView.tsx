@@ -418,6 +418,54 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                   <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setMicroDlg({ ...microDlg, weeks: microDlg.weeks + 1 })}>+</Button>
                 </div>
               </div>
+
+              {/* Période (du … au …) + volume vs le mésocycle parent */}
+              {(() => {
+                const meso = phases.find((p) => p.id === microDlg.mesoId);
+                if (!meso) return null;
+                let start: Date;
+                if (microDlg.id) {
+                  const cur = micros.find((x) => x.id === microDlg.id);
+                  start = cur ? D(cur.start_date) : D(meso.start_date);
+                } else {
+                  const existing = microsOf(microDlg.mesoId);
+                  const last = existing[existing.length - 1];
+                  start = last?.end_date ? addDaysLocal(D(last.end_date), 1) : D(meso.start_date);
+                }
+                const end = addDaysLocal(addWeeks(start, microDlg.weeks), -1);
+                const mesoWeeks = meso.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(meso.end_date), D(meso.start_date)) + 1) / 7)) : null;
+                const used = microsOf(microDlg.mesoId).filter((m) => m.id !== microDlg.id).reduce((s, m) => s + (m.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(m.end_date), D(m.start_date)) + 1) / 7)) : 1), 0);
+                const nw = microDlg.weeks;
+                const total = used + nw;
+                return (
+                  <>
+                    <p className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                      Du <span className="font-semibold text-foreground">{format(start, "d MMM yyyy", { locale: fr })}</span>
+                      au <span className="font-semibold text-foreground">{format(end, "d MMM yyyy", { locale: fr })}</span>
+                    </p>
+                    {mesoWeeks && (
+                      <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                        <div className="flex items-center justify-between text-[12px]">
+                          <span className="text-muted-foreground">Ce microcycle</span>
+                          <span className="font-bold">{nw} sem. · <span className="text-primary">{Math.round((nw / mesoWeeks) * 100)}%</span> du méso</span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-muted overflow-hidden flex">
+                          <div className="h-full bg-muted-foreground/40" style={{ width: `${Math.min(100, (used / mesoWeeks) * 100)}%` }} />
+                          <div className="h-full bg-primary" style={{ width: `${Math.min(100 - Math.min(100, (used / mesoWeeks) * 100), (nw / mesoWeeks) * 100)}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>Réparti : <span className="font-semibold text-foreground">{total}</span> / {mesoWeeks} sem.</span>
+                          <span className={cn("font-semibold", mesoWeeks - total < 0 ? "text-red-400" : "text-emerald-500")}>
+                            {mesoWeeks - total < 0 ? `Dépasse de ${Math.abs(mesoWeeks - total)} sem.` : `Restant : ${mesoWeeks - total} sem.`}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
               <div className="space-y-1.5">
                 <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Commentaire <span className="font-normal normal-case">(consignes…)</span></label>
                 <Textarea value={microDlg.note} onChange={(e) => setMicroDlg({ ...microDlg, note: e.target.value })} placeholder="Détails de la semaine…" className="min-h-[60px] resize-y text-sm" />
