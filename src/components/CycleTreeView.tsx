@@ -339,7 +339,7 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                   </span>
                 </div>
                 <span className="text-[9px] font-semibold opacity-80 truncate">
-                  {format(D(phase.start_date), "d MMM", { locale: fr })}{phase.end_date ? ` → ${format(D(phase.end_date), "d MMM", { locale: fr })}` : ""} · {ws.length} sem.
+                  {format(D(phase.start_date), "d MMM", { locale: fr })}{phase.end_date ? ` → ${format(D(phase.end_date), "d MMM", { locale: fr })}` : ""} · {durWeeks} sem.
                 </span>
               </div>
               {/* Microcycles (créés comme les méso) */}
