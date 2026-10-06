@@ -39,6 +39,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
   const [loaded, setLoaded] = useState(false);
   const [dismissedMs, setDismissedMs] = useState<string[]>([]);
   const [validatingMs, setValidatingMs] = useState<string | null>(null);
+  const [promptComment, setPromptComment] = useState("");
 
   useEffect(() => {
     try { setDismissedMs(JSON.parse(localStorage.getItem(`ms_prompt_dismissed_${athleteId}`) || "[]")); } catch { /* ignore */ }
@@ -52,16 +53,17 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
     });
   };
 
-  const validateMilestone = async (id: string) => {
+  const validateMilestone = async (id: string, comment?: string) => {
     setValidatingMs(id);
-    const { error } = await supabase
-      .from("objective_milestones")
-      .update({ completed: true, completed_at: new Date().toISOString() } as any)
-      .eq("id", id);
+    const now = new Date().toISOString();
+    const payload: any = { completed: true, completed_at: now };
+    if (comment && comment.trim()) payload.notes = comment.trim();
+    const { error } = await supabase.from("objective_milestones").update(payload).eq("id", id);
     setValidatingMs(null);
     if (error) { console.error(error); toast.error("Validation impossible"); return; }
-    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, completed: true, completed_at: new Date().toISOString() } : m)));
-    toast.success("Étape validée ✓");
+    setMilestones((prev) => prev.map((m) => (m.id === id ? { ...m, completed: true, completed_at: now } : m)));
+    setPromptComment("");
+    toast.success("Objectif validé 🎉");
   };
 
   useEffect(() => {
@@ -365,30 +367,45 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases" }: 
       )}
     </div>
 
-    {/* Rappel flottant : jalon passé à confirmer (centré) */}
+    {/* Moment festif : confirmer une étape / un objectif atteint (centré) */}
     {duePrompt && (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => dismissMsPrompt(duePrompt.m.id)}>
-      <div onClick={(e) => e.stopPropagation()} className="w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl border border-primary/40 bg-card shadow-2xl p-5 animate-in zoom-in-95 fade-in">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <Flag className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>Étape à confirmer</span>
-          </div>
-          <button type="button" onClick={() => dismissMsPrompt(duePrompt.m.id)} className="h-7 w-7 -mr-1 -mt-1 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted" aria-label="Plus tard">
-            <X className="h-4 w-4" />
-          </button>
+      <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => { setPromptComment(""); dismissMsPrompt(duePrompt.m.id); }}>
+      <div onClick={(e) => e.stopPropagation()} className="relative w-[380px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6 animate-in zoom-in-95 fade-in overflow-hidden">
+        {/* halo doré en fond */}
+        <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(232,196,102,0.35), transparent 70%)" }} />
+        <button type="button" onClick={() => { setPromptComment(""); dismissMsPrompt(duePrompt.m.id); }} className="absolute top-3 right-3 h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted z-10" aria-label="Plus tard">
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="relative text-center">
+          <div className="text-4xl mb-1 animate-bounce">🏁</div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary/80">Grande étape</p>
+          <h3 className="text-2xl font-black leading-tight mt-1 text-primary" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+            {duePrompt.m.label}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1.5">
+            Prévue le {format(D(duePrompt.d), "d MMMM yyyy", { locale: fr })}. C'est dans la poche ? 💪
+          </p>
         </div>
-        <p className="text-sm mt-2 leading-snug">
-          <span className="font-semibold">{duePrompt.m.label}</span> était prévu le {format(D(duePrompt.d), "d MMMM", { locale: fr })}. C'est fait ?
-        </p>
-        <div className="flex gap-2 mt-3">
-          <button type="button" onClick={() => dismissMsPrompt(duePrompt.m.id)}
-            className="flex-1 h-9 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
+
+        <div className="relative mt-4">
+          <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Un mot sur cette victoire <span className="font-normal normal-case">(optionnel)</span></label>
+          <textarea
+            value={promptComment}
+            onChange={(e) => setPromptComment(e.target.value)}
+            placeholder="Chrono, ressenti, conditions… ce dont tu veux te souvenir 🎉"
+            className="mt-1 w-full min-h-[70px] resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+        </div>
+
+        <div className="relative flex gap-2 mt-4">
+          <button type="button" onClick={() => { setPromptComment(""); dismissMsPrompt(duePrompt.m.id); }}
+            className="flex-1 h-11 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
             Pas encore
           </button>
-          <button type="button" onClick={() => validateMilestone(duePrompt.m.id)} disabled={validatingMs === duePrompt.m.id}
-            className="flex-1 h-9 rounded-lg bg-primary text-primary-foreground text-sm font-semibold flex items-center justify-center gap-1.5 active:scale-[0.98]">
-            {validatingMs === duePrompt.m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Validé
+          <button type="button" onClick={() => validateMilestone(duePrompt.m.id, promptComment)} disabled={validatingMs === duePrompt.m.id}
+            className="flex-[1.4] h-11 rounded-xl bg-gradient-to-r from-amber-400 to-primary text-black text-sm font-extrabold flex items-center justify-center gap-1.5 active:scale-[0.98] shadow-lg shadow-primary/20">
+            {validatingMs === duePrompt.m.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <>🎉</>} C'est validé !
           </button>
         </div>
       </div>
