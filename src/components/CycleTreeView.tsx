@@ -49,17 +49,31 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
   const [busy, setBusy] = useState(false);
 
   const loadAll = async () => {
-      const [{ data: objRows }, { data: macroRows }, { data: mes }, { data: wk }] = await Promise.all([
+      const [{ data: objRows }, { data: macroRows }, { data: wk }] = await Promise.all([
         supabase.from("athlete_objectives").select("main_objective, main_objective_deadline").eq("athlete_id", athleteId).order("updated_at", { ascending: false }).limit(1),
         supabase.from("macrocycles").select("id, name, start_date, end_date").eq("athlete_id", athleteId).order("start_date", { ascending: false }).limit(1),
-        supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id").eq("athlete_id", athleteId).is("macrocycle_id", null),
         supabase.from("training_weeks").select("id, week_number, year").eq("athlete_id", athleteId),
       ]);
       setObjName(objRows?.[0]?.main_objective || null);
       setDeadline(objRows?.[0]?.main_objective_deadline || null);
-      setMacro((macroRows?.[0] as any) || null);
-      setPhases((((mes || []) as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color })));
-      const wkList: Week[] = ((wk || []) as any[]).map((w) => ({ id: w.id, week_number: w.week_number, year: w.year, monday: weekMonday(w.year, w.week_number) }));
+      const mac = (macroRows?.[0] as any) || null;
+      setMacro(mac);
+      // Le tree ne montre que les mésocycles RATTACHÉS au macro courant → un nouveau macro = vierge
+      let mes: any[] = [];
+      if (mac) {
+        const { data } = await supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id").eq("athlete_id", athleteId).eq("macrocycle_id", mac.id);
+        mes = data || [];
+      }
+      setPhases(((mes as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color })));
+      let wkList: Week[] = ((wk || []) as any[]).map((w) => ({ id: w.id, week_number: w.week_number, year: w.year, monday: weekMonday(w.year, w.week_number) }));
+      // On ne garde que les semaines DANS la période du macro (sinon vierge)
+      if (mac) {
+        const ms = D(mac.start_date).getTime() - 6 * 86400000;
+        const me = (mac.end_date ? D(mac.end_date).getTime() : ms + 365 * 86400000) + 6 * 86400000;
+        wkList = wkList.filter((w) => w.monday.getTime() >= ms && w.monday.getTime() <= me);
+      } else {
+        wkList = [];
+      }
       setWeeks(wkList);
       if (wkList.length) {
         const { data: ss } = await supabase.from("training_sessions").select("week_id, session_type, completed_at, skipped").in("week_id", wkList.map((w) => w.id));
