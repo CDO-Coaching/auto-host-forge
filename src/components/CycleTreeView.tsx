@@ -99,20 +99,18 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
     const isCurrent = (() => { const start = w.monday.getTime(); const end = start + 7 * 86400000; return today.getTime() >= start && today.getTime() < end; })();
     const isPast = w.monday.getTime() + 7 * 86400000 <= today.getTime();
     return (
-      <div className={cn("rounded-lg border p-2 w-[84px] shrink-0 text-center", isCurrent ? "border-primary bg-primary/10" : isPast ? "border-border/50 bg-muted/10 opacity-70" : "border-border/60 bg-card/40")}>
-        <p className="text-[11px] font-bold" style={SORA}>S{w.week_number}</p>
-        <p className="text-[9px] text-muted-foreground -mt-0.5">{format(w.monday, "d MMM", { locale: fr })}</p>
-        {/* Entraînements */}
-        <div className="flex items-end justify-center gap-[3px] h-6 mt-1.5">
+      <div className={cn("flex-1 min-w-0 rounded-md border px-0.5 py-1 text-center", isCurrent ? "border-primary bg-primary/10" : isPast ? "border-border/50 bg-muted/10 opacity-60" : "border-border/50 bg-card/40")}
+        title={`S${w.week_number} · ${format(w.monday, "d MMM yyyy", { locale: fr })} · ${done}/${ss.length} faites`}>
+        <p className="text-[9px] font-bold leading-none truncate" style={SORA}>S{w.week_number}</p>
+        <div className="flex items-end justify-center gap-[2px] h-5 mt-1">
           {ss.length === 0 ? (
-            <span className="text-[9px] text-muted-foreground/50">—</span>
-          ) : ss.slice(0, 8).map((s, i) => {
+            <span className="text-[8px] text-muted-foreground/40">—</span>
+          ) : ss.slice(0, 6).map((s, i) => {
             const c = sessColor(s.session_type);
             const d = !!s.completed_at;
-            return <span key={i} className="w-[5px] rounded-full" style={{ height: "100%", background: d ? c : "transparent", border: `1.5px solid ${c}`, opacity: s.skipped ? 0.4 : 1 }} title={`${s.session_type || "séance"}${d ? " · faite" : s.skipped ? " · non faite" : ""}`} />;
+            return <span key={i} className="w-[3px] rounded-full" style={{ height: "100%", background: d ? c : "transparent", border: `1.5px solid ${c}`, opacity: s.skipped ? 0.4 : 1 }} />;
           })}
         </div>
-        {ss.length > 0 && <p className="text-[9px] text-muted-foreground mt-1">{done}/{ss.length}</p>}
       </div>
     );
   };
@@ -139,27 +137,29 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         <p className="text-sm text-muted-foreground text-center py-4">Aucune phase ni semaine pour l'instant.</p>
       )}
 
-      <div className="space-y-3">
+      {/* Mésocycles proportionnels qui REMPLISSENT la largeur de l'écran */}
+      <div className="flex gap-1.5 items-stretch">
         {grouped.byPhase.map(({ phase, idx, weeks: ws }) => {
           const col = phase.color || PHASE_COLORS[idx % PHASE_COLORS.length];
           const st = phaseStatus(phase);
           return (
-            <div key={phase.id} className="rounded-2xl border border-border/50 overflow-hidden">
+            <div key={phase.id} className="rounded-xl border border-border/50 overflow-hidden flex flex-col" style={{ flex: `${Math.max(1, ws.length)} 1 0`, minWidth: 0 }}>
               {/* Bande mésocycle */}
-              <div className="px-4 py-2.5 flex items-center gap-2 text-black" style={{ background: col }}>
-                <Layers className="h-4 w-4 opacity-80" />
-                <span className="font-black text-sm uppercase tracking-wide" style={SORA}>{phase.name || "Phase"}</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/15">
-                  {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
-                </span>
-                <span className="ml-auto text-[11px] font-semibold opacity-80">
-                  {format(D(phase.start_date), "d MMM", { locale: fr })}{phase.end_date ? ` → ${format(D(phase.end_date), "d MMM", { locale: fr })}` : ""}
+              <div className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center" style={{ background: col }}>
+                <div className="flex items-center gap-1">
+                  <span className="font-black text-[11px] uppercase tracking-tight truncate" style={SORA} title={phase.name}>{phase.name || "Phase"}</span>
+                  <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-black/15 shrink-0 whitespace-nowrap">
+                    {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
+                  </span>
+                </div>
+                <span className="text-[9px] font-semibold opacity-80 truncate">
+                  {format(D(phase.start_date), "d MMM", { locale: fr })}{phase.end_date ? ` → ${format(D(phase.end_date), "d MMM", { locale: fr })}` : ""} · {ws.length} sem.
                 </span>
               </div>
-              {/* Semaines */}
-              <div className="p-3 flex gap-2 overflow-x-auto bg-card/30">
+              {/* Semaines qui remplissent la largeur de la phase */}
+              <div className="p-1.5 flex gap-1 bg-card/30 flex-1 items-stretch">
                 {ws.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground py-2">Aucune semaine programmée dans cette phase.</p>
+                  <span className="text-[9px] text-muted-foreground/40 self-center w-full text-center">vide</span>
                 ) : ws.map((w) => <WeekCard key={w.id} w={w} />)}
               </div>
             </div>
@@ -168,9 +168,9 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
 
         {/* Semaines hors phase */}
         {grouped.orphans.length > 0 && (
-          <div className="rounded-2xl border border-dashed border-border/50 overflow-hidden">
-            <div className="px-4 py-2 text-xs font-semibold text-muted-foreground bg-muted/20">Semaines hors phase</div>
-            <div className="p-3 flex gap-2 overflow-x-auto">
+          <div className="rounded-xl border border-dashed border-border/50 overflow-hidden flex flex-col" style={{ flex: `${grouped.orphans.length} 1 0`, minWidth: 0 }}>
+            <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/20 min-h-[46px] flex items-center">Hors phase</div>
+            <div className="p-1.5 flex gap-1 flex-1">
               {grouped.orphans.map((w) => <WeekCard key={w.id} w={w} />)}
             </div>
           </div>
