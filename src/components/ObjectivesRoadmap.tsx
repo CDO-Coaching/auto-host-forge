@@ -27,7 +27,7 @@ import {
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
-interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note: string | null; linked_milestone_id: string | null; }
+interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note: string | null; linked_milestone_id: string | null; prepares_main_objective?: boolean | null; }
 interface Milestone { id: string; label: string; target_date: string | null; completed: boolean; completed_at: string | null; notes: string | null; approval_status: string | null; is_objective?: boolean | null; }
 interface MainObj { id?: string; main_objective?: string | null; main_objective_deadline?: string | null; main_completed?: boolean; main_completed_at?: string | null; }
 
@@ -60,12 +60,12 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const [{ data: objRows }, { data: ms }, { data: mes }] = await Promise.all([
       supabase.from("athlete_objectives").select("id, main_objective, main_objective_deadline, main_completed, main_completed_at").eq("athlete_id", athleteId).order("updated_at", { ascending: false }).limit(1),
       supabase.from("objective_milestones").select("id, label, target_date, completed, completed_at, notes, approval_status, is_objective").eq("athlete_id", athleteId),
-      supabase.from("mesocycles").select("id, name, start_date, end_date, color, coach_note, macrocycle_id, linked_milestone_id").eq("athlete_id", athleteId).is("macrocycle_id", null),
+      supabase.from("mesocycles").select("id, name, start_date, end_date, color, coach_note, macrocycle_id, linked_milestone_id, prepares_main_objective").eq("athlete_id", athleteId).is("macrocycle_id", null),
     ]);
     const o = objRows?.[0] || {};
     setObj(o);
     setMilestones((ms || []).filter((m: any) => m.approval_status !== "pending") as Milestone[]);
-    setPhases(((mes || []) as any[]).filter((m) => m.start_date).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note, linked_milestone_id: m.linked_milestone_id ?? null })));
+    setPhases(((mes || []) as any[]).filter((m) => m.start_date).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note, linked_milestone_id: m.linked_milestone_id ?? null, prepares_main_objective: m.prepares_main_objective ?? false })));
     setLoading(false);
     onObjectiveChange?.(!!o.main_objective, o.main_objective || null, o.main_objective_deadline || null);
   };
@@ -123,7 +123,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const start = last?.end_date ? addDays(D(last.end_date), 1) : today;
     setPhaseDlg({ name: "", focus: "", start, weeks: 4, linkedMsId: null });
   };
-  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, focus: p.coach_note || "", start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null, linkedMsId: p.linked_milestone_id });
+  const openEditPhase = (p: Phase) => setPhaseDlg({ id: p.id, name: p.name, focus: p.coach_note || "", start: D(p.start_date), weeks: p.end_date ? weeksBetween(D(p.start_date), D(p.end_date)) : null, linkedMsId: p.prepares_main_objective ? "__obj__" : p.linked_milestone_id });
 
   const savePhase = async () => {
     if (!phaseDlg || !phaseDlg.name.trim()) return;
@@ -138,7 +138,8 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
         coach_note: phaseDlg.focus.trim() || null,
         start_date: format(start, "yyyy-MM-dd"),
         end_date: end ? format(end, "yyyy-MM-dd") : null,
-        linked_milestone_id: phaseDlg.linkedMsId || null,
+        linked_milestone_id: phaseDlg.linkedMsId === "__obj__" ? null : (phaseDlg.linkedMsId || null),
+        prepares_main_objective: phaseDlg.linkedMsId === "__obj__",
         updated_at: new Date().toISOString(),
       };
       if (phaseDlg.id) {
@@ -283,9 +284,9 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
       </div>
 
       {(() => {
-        const msName = (id: string | null) => id ? (milestones.find((m) => m.id === id)?.label ?? null) : null;
+        const linkedLabelOf = (p: Phase) => p.prepares_main_objective ? (obj.main_objective ? `🎯 ${obj.main_objective}` : null) : (p.linked_milestone_id ? (milestones.find((m) => m.id === p.linked_milestone_id)?.label ?? null) : null);
         const renderItem = (it: any) => it.kind === "phase" ? (
-          <PhaseRow key={it.id} p={it.p} status={phaseStatusOf(it.p)} linkedLabel={msName(it.p.linked_milestone_id)} onEdit={() => openEditPhase(it.p)} onDelete={() => setConfirmDelete({ kind: "phase", id: it.id, label: it.p.name })} />
+          <PhaseRow key={it.id} p={it.p} status={phaseStatusOf(it.p)} linkedLabel={linkedLabelOf(it.p)} onEdit={() => openEditPhase(it.p)} onDelete={() => setConfirmDelete({ kind: "phase", id: it.id, label: it.p.name })} />
         ) : (
           <MsRow key={it.id} m={it.m} onEdit={() => openEditMs(it.m)} onDelete={() => setConfirmDelete({ kind: "ms", id: it.id, label: it.m.label })}
             onValidate={() => setValidateDlg({ m: it.m, comment: "" })} onUnvalidate={() => unvalidateMs(it.m)} />
@@ -365,7 +366,12 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
       )}
 
       {/* ── Dialogs ────────────────────────────────────────────────────────── */}
-      <PhaseDialog state={phaseDlg} setState={setPhaseDlg} onSave={savePhase} busy={busy} milestones={milestones.filter((m) => !m.is_objective)} />
+      <PhaseDialog
+        state={phaseDlg} setState={setPhaseDlg} onSave={savePhase} busy={busy}
+        milestones={milestones.filter((m) => !m.is_objective && !m.completed && (!m.target_date || D(m.target_date) >= today))}
+        objName={obj.main_objective || null}
+        objDeadline={obj.main_objective_deadline && (!dl || dl >= today) ? obj.main_objective_deadline : null}
+      />
       <MsDialog state={msDlg} setState={setMsDlg} onSave={saveMs} busy={busy} />
       <ObjectiveDialog state={objDlg} setState={setObjDlg} onSave={saveObjective} busy={busy} />
 
@@ -485,7 +491,7 @@ function DatePicker({ value, onChange, placeholder }: { value: Date | null; onCh
   );
 }
 
-function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any; setState: (s: any) => void; onSave: () => void; busy: boolean; milestones: Milestone[] }) {
+function PhaseDialog({ state, setState, onSave, busy, milestones, objName, objDeadline }: { state: any; setState: (s: any) => void; onSave: () => void; busy: boolean; milestones: Milestone[]; objName: string | null; objDeadline: string | null }) {
   if (!state) return null;
   return (
     <Dialog open onOpenChange={(o) => !o && setState(null)}>
@@ -523,13 +529,17 @@ function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any
             )}
           </div>
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Prépare quel sous-objectif ? <span className="font-normal normal-case">(optionnel)</span></label>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Prépare quoi ? <span className="font-normal normal-case">(optionnel)</span></label>
             <select
               value={state.linkedMsId || ""}
               onChange={(e) => setState({ ...state, linkedMsId: e.target.value || null })}
               className="w-full h-10 rounded-md border border-border bg-background px-3 text-sm"
             >
               <option value="">Aucun</option>
+              {objName && (
+                <option value="__obj__">🎯 {objName}{objDeadline ? ` · ${format(D(objDeadline), "d MMM yyyy", { locale: fr })}` : ""}</option>
+              )}
+              {milestones.length > 0 && <option disabled>── Sous-objectifs ──</option>}
               {milestones.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.label}{m.target_date ? ` · ${format(D(m.target_date), "d MMM yyyy", { locale: fr })}` : " · sans date"}
@@ -537,9 +547,9 @@ function PhaseDialog({ state, setState, onSave, busy, milestones }: { state: any
               ))}
             </select>
             {(() => {
-              const linked = milestones.find((m) => m.id === state.linkedMsId);
-              if (!linked?.target_date) return null;
-              const target = D(linked.target_date);
+              const targetStr = state.linkedMsId === "__obj__" ? objDeadline : milestones.find((m) => m.id === state.linkedMsId)?.target_date;
+              if (!targetStr) return null;
+              const target = D(targetStr);
               const w = Math.ceil((target.getTime() - state.start.getTime()) / (7 * 86400000));
               const phaseEnd = state.weeks ? addDays(addWeeks(state.start, state.weeks), -1) : null;
               const aligned = phaseEnd ? Math.abs(differenceInCalendarDays(phaseEnd, target)) <= 3 : false;
