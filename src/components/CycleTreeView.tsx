@@ -37,12 +37,14 @@ const sessColor = (t: string | null): string => {
 };
 
 interface Macro { id: string; name: string; start_date: string; end_date: string | null; }
+interface Micro { id: string; name: string; start_date: string; end_date: string | null; mesocycle_id: string; coach_note: string | null; }
 
 export function CycleTreeView({ athleteId }: { athleteId: string }) {
   const [objName, setObjName] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [macro, setMacro] = useState<Macro | null>(null);
   const [phases, setPhases] = useState<Phase[]>([]);
+  const [micros, setMicros] = useState<Micro[]>([]);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [sessions, setSessions] = useState<Sess[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,13 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         const { data } = await supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id, coach_note").eq("athlete_id", athleteId).eq("macrocycle_id", mac.id);
         mes = data || [];
       }
-      setPhases(((mes as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note ?? null })));
+      const phaseList = ((mes as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note ?? null }));
+      setPhases(phaseList);
+      // Microcycles rattachés aux mésos du macro
+      if (phaseList.length) {
+        const { data: mic } = await supabase.from("microcycles").select("id, name, start_date, end_date, mesocycle_id, coach_note").in("mesocycle_id", phaseList.map((p) => p.id));
+        setMicros((mic || []) as Micro[]);
+      } else setMicros([]);
       let wkList: Week[] = ((wk || []) as any[]).map((w) => ({ id: w.id, week_number: w.week_number, year: w.year, monday: weekMonday(w.year, w.week_number) }));
       // On ne garde que les semaines DANS la période du macro (sinon vierge)
       if (mac) {
@@ -163,6 +171,46 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
   const deleteMeso = async (id: string) => {
     await supabase.from("mesocycles").delete().eq("id", id);
     setMesoDlg(null); loadAll();
+  };
+
+  // ── Microcycles sous un mésocycle (étape 3) ────────────────────────────────
+  const [microDlg, setMicroDlg] = useState<null | { id?: string; mesoId: string; name: string; weeks: number; note: string }>(null);
+  const microsOf = (mesoId: string) => micros.filter((m) => m.mesocycle_id === mesoId).sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
+  const openNewMicro = (mesoId: string) => setMicroDlg({ mesoId, name: "", weeks: 1, note: "" });
+  const openEditMicro = (m: Micro) => setMicroDlg({ id: m.id, mesoId: m.mesocycle_id, name: m.name, note: m.coach_note || "", weeks: m.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(m.end_date), D(m.start_date)) + 1) / 7)) : 1 });
+
+  const saveMicro = async () => {
+    if (!microDlg || !microDlg.name.trim()) return;
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const meso = phases.find((p) => p.id === microDlg.mesoId);
+      if (!meso) throw new Error("meso introuvable");
+      if (microDlg.id) {
+        const cur = micros.find((x) => x.id === microDlg.id)!;
+        const start = D(cur.start_date);
+        const end = addDaysLocal(addWeeks(start, microDlg.weeks), -1);
+        await supabase.from("microcycles").update({ name: microDlg.name.trim(), coach_note: microDlg.note.trim() || null, end_date: format(end, "yyyy-MM-dd"), updated_at: new Date().toISOString() }).eq("id", cur.id);
+      } else {
+        const existing = microsOf(microDlg.mesoId);
+        const last = existing[existing.length - 1];
+        const start = last?.end_date ? addDaysLocal(D(last.end_date), 1) : D(meso.start_date);
+        const end = addDaysLocal(addWeeks(start, microDlg.weeks), -1);
+        await supabase.from("microcycles").insert({
+          athlete_id: athleteId, coach_id: user?.id, mesocycle_id: microDlg.mesoId,
+          name: microDlg.name.trim(), coach_note: microDlg.note.trim() || null, phase_type: "custom",
+          start_date: format(start, "yyyy-MM-dd"), end_date: format(end, "yyyy-MM-dd"),
+          volume_target: 3, intensity_target: 3, updated_at: new Date().toISOString(),
+        });
+      }
+      setMicroDlg(null); toast.success("Microcycle enregistré"); loadAll();
+    } catch (e) { console.error(e); toast.error("Enregistrement impossible"); }
+    finally { setBusy(false); }
+  };
+
+  const deleteMicro = async (id: string) => {
+    await supabase.from("microcycles").delete().eq("id", id);
+    setMicroDlg(null); loadAll();
   };
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
@@ -272,9 +320,10 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
 
       {/* Mésocycles à l'échelle du MACRO : largeur = part réelle de chaque méso */}
       <div className="flex gap-1.5 items-stretch">
-        {grouped.byPhase.map(({ phase, idx, weeks: ws }) => {
-          const col = phase.color || PHASE_COLORS[idx % PHASE_COLORS.length];
+        {grouped.byPhase.map(({ phase, idx }) => {
+          const col = PHASE_COLORS[idx % PHASE_COLORS.length]; // couleur distincte par méso
           const st = phaseStatus(phase);
+          const mlist = microsOf(phase.id);
           const durWeeks = phase.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(phase.end_date), D(phase.start_date)) + 1) / 7)) : 2;
           const pct = macroWeeks ? Math.min(100, (durWeeks / macroWeeks) * 100) : 100 / Math.max(1, grouped.byPhase.length);
           return (
@@ -293,11 +342,25 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                   {format(D(phase.start_date), "d MMM", { locale: fr })}{phase.end_date ? ` → ${format(D(phase.end_date), "d MMM", { locale: fr })}` : ""} · {ws.length} sem.
                 </span>
               </div>
-              {/* Semaines qui remplissent la largeur de la phase */}
+              {/* Microcycles (créés comme les méso) */}
               <div className="p-1.5 flex gap-1 bg-card/30 flex-1 items-stretch">
-                {ws.length === 0 ? (
-                  <span className="text-[9px] text-muted-foreground/40 self-center w-full text-center">—</span>
-                ) : ws.map((w) => <WeekCard key={w.id} w={w} />)}
+                {mlist.map((mc) => {
+                  const mw = mc.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(mc.end_date), D(mc.start_date)) + 1) / 7)) : 1;
+                  return (
+                    <button key={mc.id} type="button" onClick={() => openEditMicro(mc)}
+                      title={`${mc.name}${mc.coach_note ? `\n\n${mc.coach_note}` : ""}`}
+                      className="rounded-md border px-1 py-1.5 text-center hover:border-primary/60 min-w-0 flex flex-col justify-center"
+                      style={{ flex: `${mw} 1 0`, borderColor: `${col}66`, background: `${col}14` }}>
+                      <p className="text-[10px] font-bold leading-tight truncate" style={SORA}>{mc.name}</p>
+                      <p className="text-[8px] text-muted-foreground">{mw} sem.{mc.coach_note ? " 📝" : ""}</p>
+                    </button>
+                  );
+                })}
+                <button type="button" onClick={() => openNewMicro(phase.id)}
+                  className="rounded-md border border-dashed border-border/60 text-muted-foreground hover:text-primary hover:border-primary/60 px-2 flex items-center justify-center shrink-0"
+                  title="Ajouter un microcycle">
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
             </div>
           );
@@ -317,7 +380,7 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
       {orderedPhases.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {orderedPhases.map((p, i) => {
-            const col = p.color || PHASE_COLORS[i % PHASE_COLORS.length];
+            const col = PHASE_COLORS[i % PHASE_COLORS.length];
             const st = phaseStatus(p);
             return (
               <button key={p.id} type="button" onClick={() => openEditMeso(p)} className="text-left flex flex-col gap-0.5 rounded-lg border border-border/50 bg-card/40 px-2.5 py-1.5 hover:border-primary/40">
@@ -336,24 +399,40 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         </div>
       )}
 
-      {/* Semaines hors phase — rangée dédiée pleine largeur */}
-      {grouped.orphans.length > 0 && (
-        <div className="rounded-xl border border-dashed border-border/50 overflow-hidden">
-          <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/20">Semaines hors phase ({grouped.orphans.length})</div>
-          <div className="p-1.5 flex gap-1 flex-wrap">
-            {grouped.orphans.map((w) => <div key={w.id} className="w-[48px]"><WeekCard w={w} /></div>)}
-          </div>
-        </div>
-      )}
 
-      {/* Légende */}
-      <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
-        <Legend color="#e8c466" label="Renfo" />
-        <Legend color="#5aa9e6" label="Cardio" />
-        <Legend color="#5fbf82" label="Récup" />
-        <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full bg-muted-foreground" /> faite</span>
-        <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full border border-muted-foreground" /> à faire</span>
-      </div>
+      {/* Fenêtre microcycle */}
+      {microDlg && (
+        <Dialog open onOpenChange={(o) => !o && setMicroDlg(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>{microDlg.id ? "Modifier le microcycle" : "Nouveau microcycle"}</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Nom / focus de la période</label>
+                <Input autoFocus value={microDlg.name} onChange={(e) => setMicroDlg({ ...microDlg, name: e.target.value })} placeholder="Ex : Semaine d'adaptation · Choc · Récup" className="h-10" />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-muted-foreground">Durée</label>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setMicroDlg({ ...microDlg, weeks: Math.max(1, microDlg.weeks - 1) })}>−</Button>
+                  <span className="w-16 text-center font-bold tabular-nums">{microDlg.weeks} sem.</span>
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setMicroDlg({ ...microDlg, weeks: microDlg.weeks + 1 })}>+</Button>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Commentaire <span className="font-normal normal-case">(consignes…)</span></label>
+                <Textarea value={microDlg.note} onChange={(e) => setMicroDlg({ ...microDlg, note: e.target.value })} placeholder="Détails de la semaine…" className="min-h-[60px] resize-y text-sm" />
+              </div>
+            </div>
+            <DialogFooter className="sm:justify-between">
+              {microDlg.id ? <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteMicro(microDlg.id!)}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button> : <span />}
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setMicroDlg(null)}>Annuler</Button>
+                <Button onClick={saveMicro} disabled={busy || !microDlg.name.trim()} className="gap-1.5">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Enregistrer</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Fenêtre mésocycle */}
       {mesoDlg && (
