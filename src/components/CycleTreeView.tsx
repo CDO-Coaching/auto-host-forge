@@ -148,8 +148,9 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
               {/* Bande mésocycle */}
               <div className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center" style={{ background: col }}>
                 <div className="flex items-center gap-1">
-                  <span className="font-black text-[11px] uppercase tracking-tight truncate" style={SORA} title={phase.name}>{phase.name || "Phase"}</span>
-                  <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-black/15 shrink-0 whitespace-nowrap">
+                  <span className="font-black text-[11px] shrink-0" style={SORA}>P{idx + 1}</span>
+                  <span className="font-bold text-[11px] uppercase tracking-tight truncate" style={SORA} title={phase.name}>{phase.name || "Phase"}</span>
+                  <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-black/15 shrink-0 whitespace-nowrap ml-auto">
                     {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
                   </span>
                 </div>
@@ -167,6 +168,26 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
           );
         })}
       </div>
+
+      {/* Liste des phases (noms complets, lisibles même si la bande est étroite) */}
+      {orderedPhases.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {orderedPhases.map((p, i) => {
+            const col = p.color || PHASE_COLORS[i % PHASE_COLORS.length];
+            const st = phaseStatus(p);
+            return (
+              <div key={p.id} className="flex items-center gap-2 rounded-lg border border-border/50 bg-card/40 px-2.5 py-1.5">
+                <span className="h-5 w-5 shrink-0 rounded-md grid place-items-center text-[10px] font-black text-black" style={{ background: col }}>P{i + 1}</span>
+                <span className="text-sm font-semibold truncate flex-1 min-w-0">{p.name || "Phase"}</span>
+                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{format(D(p.start_date), "d MMM", { locale: fr })}{p.end_date ? `→${format(D(p.end_date), "d MMM", { locale: fr })}` : ""}</span>
+                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0", st === "current" ? "bg-primary/20 text-primary" : st === "past" ? "bg-muted text-muted-foreground" : "bg-muted/50 text-muted-foreground/70")}>
+                  {st === "current" ? "EN COURS" : st === "past" ? "PASSÉ" : "À VENIR"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Semaines hors phase — rangée dédiée pleine largeur */}
       {grouped.orphans.length > 0 && (
