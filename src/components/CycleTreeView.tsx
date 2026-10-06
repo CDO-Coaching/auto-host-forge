@@ -6,10 +6,16 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, startOfISOWeek, setISOWeek, setISOWeekYear } from "date-fns";
+import { format, startOfISOWeek, setISOWeek, setISOWeekYear, differenceInCalendarDays, addWeeks, addMonths, differenceInMonths, differenceInWeeks } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Target, Layers } from "lucide-react";
+import { Layers, Pencil, Trash2, CalendarDays, Loader2, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
@@ -29,23 +35,29 @@ const sessColor = (t: string | null): string => {
   return "#9c7bd6";
 };
 
+interface Macro { id: string; name: string; start_date: string; end_date: string | null; }
+
 export function CycleTreeView({ athleteId }: { athleteId: string }) {
   const [objName, setObjName] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
+  const [macro, setMacro] = useState<Macro | null>(null);
   const [phases, setPhases] = useState<Phase[]>([]);
   const [weeks, setWeeks] = useState<Week[]>([]);
   const [sessions, setSessions] = useState<Sess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [macroDlg, setMacroDlg] = useState<null | { id?: string; name: string; start: Date; end: Date | null }>(null);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      const [{ data: objRows }, { data: mes }, { data: wk }] = await Promise.all([
+  const loadAll = async () => {
+      const [{ data: objRows }, { data: macroRows }, { data: mes }, { data: wk }] = await Promise.all([
         supabase.from("athlete_objectives").select("main_objective, main_objective_deadline").eq("athlete_id", athleteId).order("updated_at", { ascending: false }).limit(1),
+        supabase.from("macrocycles").select("id, name, start_date, end_date").eq("athlete_id", athleteId).order("start_date", { ascending: false }).limit(1),
         supabase.from("mesocycles").select("id, name, start_date, end_date, color, macrocycle_id").eq("athlete_id", athleteId).is("macrocycle_id", null),
         supabase.from("training_weeks").select("id, week_number, year").eq("athlete_id", athleteId),
       ]);
       setObjName(objRows?.[0]?.main_objective || null);
       setDeadline(objRows?.[0]?.main_objective_deadline || null);
+      setMacro((macroRows?.[0] as any) || null);
       setPhases((((mes || []) as any[]).filter((m) => m.start_date)).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color })));
       const wkList: Week[] = ((wk || []) as any[]).map((w) => ({ id: w.id, week_number: w.week_number, year: w.year, monday: weekMonday(w.year, w.week_number) }));
       setWeeks(wkList);
@@ -54,8 +66,47 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         setSessions((ss || []) as Sess[]);
       }
       setLoading(false);
-    })();
-  }, [athleteId]);
+  };
+
+  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [athleteId]);
+
+  // Format « 3 mois et 1 sem. » (ou « X sem. » si ≤ 4 semaines)
+  const fmtDuration = (from: Date, to: Date): string => {
+    const totalWeeks = Math.max(0, Math.round(differenceInCalendarDays(to, from) / 7));
+    if (totalWeeks <= 4) return `${totalWeeks} sem.`;
+    const months = differenceInMonths(to, from);
+    const rest = differenceInWeeks(to, addMonths(from, months));
+    return `${months} mois${rest > 0 ? ` et ${rest} sem.` : ""}`;
+  };
+
+  const openMacro = () => {
+    if (macro) setMacroDlg({ id: macro.id, name: macro.name, start: D(macro.start_date), end: macro.end_date ? D(macro.end_date) : null });
+    else setMacroDlg({ name: "", start: new Date(new Date().setHours(0, 0, 0, 0)), end: null });
+  };
+
+  const saveMacro = async () => {
+    if (!macroDlg || !macroDlg.name.trim()) return;
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const payload: any = {
+        name: macroDlg.name.trim(),
+        start_date: format(macroDlg.start, "yyyy-MM-dd"),
+        end_date: macroDlg.end ? format(macroDlg.end, "yyyy-MM-dd") : null,
+        updated_at: new Date().toISOString(),
+      };
+      if (macroDlg.id) await supabase.from("macrocycles").update(payload).eq("id", macroDlg.id);
+      else await supabase.from("macrocycles").insert({ ...payload, athlete_id: athleteId, coach_id: user?.id, color: "#c79a3a" });
+      setMacroDlg(null); toast.success("Macrocycle enregistré"); loadAll();
+    } catch (e) { console.error(e); toast.error("Enregistrement impossible"); }
+    finally { setBusy(false); }
+  };
+
+  const deleteMacro = async () => {
+    if (!macro) return;
+    await supabase.from("macrocycles").delete().eq("id", macro.id);
+    setMacroDlg(null); loadAll();
+  };
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
   const endOf = (p: Phase) => (p.end_date ? D(p.end_date) : addDaysLocal(D(p.start_date), 14));
@@ -123,15 +174,30 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         <span>Objectif → Phases → Semaines → Séances · lecture seule</span>
       </div>
 
-      {/* ── MACROCYCLE ───────────────────────────────────────────────────── */}
-      <div className="rounded-2xl p-5 text-center text-black shadow-lg" style={{ background: "linear-gradient(90deg,#c79a3a,#e8c466)" }}>
+      {/* ── MACROCYCLE (cliquable : créer / éditer) ──────────────────────── */}
+      <button type="button" onClick={openMacro} className="group w-full rounded-2xl p-5 text-center text-black shadow-lg relative active:scale-[0.998] transition-transform" style={{ background: "linear-gradient(90deg,#c79a3a,#e8c466)" }}>
+        <span className="absolute top-3 right-3 opacity-50 group-hover:opacity-100 transition-opacity">
+          <Pencil className="h-4 w-4" />
+        </span>
         <p className="text-[11px] font-bold uppercase tracking-[0.25em] opacity-70">Macrocycle</p>
-        <h2 className="text-2xl font-black leading-tight" style={SORA}>{objName || "Objectif non défini"}</h2>
-        <p className="text-sm font-semibold mt-0.5">
-          {dl ? `Échéance : ${format(dl, "d MMMM yyyy", { locale: fr })}` : "Sans échéance"}
-          {totalWeeks > 0 ? ` · ${totalWeeks} semaine${totalWeeks > 1 ? "s" : ""}` : ""}
-        </p>
-      </div>
+        {macro ? (
+          <>
+            <h2 className="text-2xl font-black leading-tight" style={SORA}>{macro.name}</h2>
+            <p className="text-sm font-semibold mt-0.5">
+              {format(D(macro.start_date), "d MMM yyyy", { locale: fr })}
+              {macro.end_date ? ` → ${format(D(macro.end_date), "d MMM yyyy", { locale: fr })} · ${fmtDuration(D(macro.start_date), D(macro.end_date))}` : " · sans fin"}
+            </p>
+            {macro.end_date && D(macro.end_date) >= today && (
+              <p className="text-[12px] font-bold mt-0.5 opacity-80">⏳ {fmtDuration(today, D(macro.end_date))} restantes</p>
+            )}
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-black leading-tight" style={SORA}>+ Créer un macrocycle</h2>
+            <p className="text-sm font-medium mt-0.5 opacity-80">Un grand bloc d'entraînement (distinct de l'objectif)</p>
+          </>
+        )}
+      </button>
 
       {/* ── MÉSOCYCLES (phases) + MICROCYCLES (semaines) + ENTRAÎNEMENTS ──── */}
       {orderedPhases.length === 0 && grouped.orphans.length === 0 && (
@@ -207,7 +273,60 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full bg-muted-foreground" /> faite</span>
         <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full border border-muted-foreground" /> à faire</span>
       </div>
+
+      {/* Fenêtre macrocycle */}
+      {macroDlg && (
+        <Dialog open onOpenChange={(o) => !o && setMacroDlg(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>{macroDlg.id ? "Modifier le macrocycle" : "Nouveau macrocycle"}</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Nom du bloc</label>
+                <Input autoFocus value={macroDlg.name} onChange={(e) => setMacroDlg({ ...macroDlg, name: e.target.value })} placeholder="Ex : Prépa trek · Base hivernale…" className="h-10" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Début</label>
+                  <MiniDate value={macroDlg.start} onChange={(d) => setMacroDlg({ ...macroDlg, start: d })} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fin</label>
+                  <MiniDate value={macroDlg.end} onChange={(d) => setMacroDlg({ ...macroDlg, end: d })} placeholder="Choisir" />
+                </div>
+              </div>
+              {macroDlg.end && (
+                <p className="text-[12px] text-muted-foreground">Durée : <span className="font-semibold text-foreground">{fmtDuration(macroDlg.start, macroDlg.end)}</span></p>
+              )}
+            </div>
+            <DialogFooter className="flex items-center justify-between sm:justify-between">
+              {macroDlg.id ? (
+                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={deleteMacro}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button>
+              ) : <span />}
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setMacroDlg(null)}>Annuler</Button>
+                <Button onClick={saveMacro} disabled={busy || !macroDlg.name.trim()} className="gap-1.5">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Enregistrer</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
+  );
+}
+
+function MiniDate({ value, onChange, placeholder }: { value: Date | null; onChange: (d: Date) => void; placeholder?: string }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="w-full justify-start h-10 font-normal px-2.5">
+          <CalendarDays className="h-4 w-4 mr-1.5 text-muted-foreground shrink-0" />
+          <span className="truncate">{value ? format(value, "d MMM yyyy", { locale: fr }) : <span className="text-muted-foreground">{placeholder || "Date"}</span>}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="single" selected={value || undefined} onSelect={(d) => d && onChange(d)} locale={fr} weekStartsOn={1} className="pointer-events-auto" />
+      </PopoverContent>
+    </Popover>
   );
 }
 
