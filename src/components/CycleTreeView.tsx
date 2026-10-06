@@ -84,13 +84,18 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
 
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [athleteId]);
 
-  // Format « 3 mois et 1 sem. » (ou « X sem. » si ≤ 4 semaines)
+  // Format détaillé « 3 mois · 2 sem · 4 j »
   const fmtDuration = (from: Date, to: Date): string => {
-    const totalWeeks = Math.max(0, Math.round(differenceInCalendarDays(to, from) / 7));
-    if (totalWeeks <= 4) return `${totalWeeks} sem.`;
+    const totalDays = Math.max(0, differenceInCalendarDays(to, from));
+    if (totalDays <= 28) {
+      const w = Math.floor(totalDays / 7); const d = totalDays % 7;
+      return [w ? `${w} sem.` : "", d ? `${d} j` : ""].filter(Boolean).join(" · ") || "0 j";
+    }
     const months = differenceInMonths(to, from);
-    const rest = differenceInWeeks(to, addMonths(from, months));
-    return `${months} mois${rest > 0 ? ` et ${rest} sem.` : ""}`;
+    const afterMonths = addMonths(from, months);
+    const remDays = Math.max(0, differenceInCalendarDays(to, afterMonths));
+    const weeks = Math.floor(remDays / 7); const days = remDays % 7;
+    return [months ? `${months} mois` : "", weeks ? `${weeks} sem.` : "", days ? `${days} j` : ""].filter(Boolean).join(" · ") || "0 j";
   };
 
   const openMacro = () => {
@@ -120,6 +125,43 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
     if (!macro) return;
     await supabase.from("macrocycles").delete().eq("id", macro.id);
     setMacroDlg(null); loadAll();
+  };
+
+  // ── Mésocycles sous le macro (étape 2) ─────────────────────────────────────
+  const [mesoDlg, setMesoDlg] = useState<null | { id?: string; name: string; weeks: number }>(null);
+  const openNewMeso = () => setMesoDlg({ name: "", weeks: 4 });
+  const openEditMeso = (p: Phase) => setMesoDlg({ id: p.id, name: p.name, weeks: p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(p.end_date), D(p.start_date)) + 1) / 7)) : 4 });
+
+  const saveMeso = async () => {
+    if (!mesoDlg || !mesoDlg.name.trim() || !macro) return;
+    setBusy(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const ordered = [...phases].sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
+      if (mesoDlg.id) {
+        const p = phases.find((x) => x.id === mesoDlg.id)!;
+        const start = D(p.start_date);
+        const end = addDaysLocal(addWeeks(start, mesoDlg.weeks), -1);
+        await supabase.from("mesocycles").update({ name: mesoDlg.name.trim(), end_date: format(end, "yyyy-MM-dd"), updated_at: new Date().toISOString() }).eq("id", p.id);
+      } else {
+        const last = ordered[ordered.length - 1];
+        const start = last?.end_date ? addDaysLocal(D(last.end_date), 1) : D(macro.start_date);
+        const end = addDaysLocal(addWeeks(start, mesoDlg.weeks), -1);
+        await supabase.from("mesocycles").insert({
+          athlete_id: athleteId, coach_id: user?.id, macrocycle_id: macro.id,
+          name: mesoDlg.name.trim(), phase_type: "custom", color: PHASE_COLORS[phases.length % PHASE_COLORS.length],
+          start_date: format(start, "yyyy-MM-dd"), end_date: format(end, "yyyy-MM-dd"),
+          volume_target: 3, intensity_target: 3, updated_at: new Date().toISOString(),
+        });
+      }
+      setMesoDlg(null); toast.success("Mésocycle enregistré"); loadAll();
+    } catch (e) { console.error(e); toast.error("Enregistrement impossible"); }
+    finally { setBusy(false); }
+  };
+
+  const deleteMeso = async (id: string) => {
+    await supabase.from("mesocycles").delete().eq("id", id);
+    setMesoDlg(null); loadAll();
   };
 
   const today = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }, []);
@@ -213,9 +255,15 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         )}
       </button>
 
-      {/* ── MÉSOCYCLES (phases) + MICROCYCLES (semaines) + ENTRAÎNEMENTS ──── */}
-      {orderedPhases.length === 0 && grouped.orphans.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-4">Aucune phase ni semaine pour l'instant.</p>
+      {/* ── MÉSOCYCLES sous le macro ──────────────────────────────────────── */}
+      {macro && (
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground/70">Mésocycles</h3>
+          <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={openNewMeso}><Plus className="h-4 w-4 text-primary" /> Ajouter un mésocycle</Button>
+        </div>
+      )}
+      {macro && orderedPhases.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-3 rounded-xl border border-dashed border-border/60">Macro vierge — ajoute ton premier mésocycle.</p>
       )}
 
       {/* Mésocycles proportionnels qui REMPLISSENT la largeur de l'écran */}
@@ -225,8 +273,8 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
           const st = phaseStatus(phase);
           return (
             <div key={phase.id} className="rounded-xl border border-border/50 overflow-hidden flex flex-col" style={{ flex: `${Math.max(1, ws.length)} 1 0`, minWidth: 0 }}>
-              {/* Bande mésocycle */}
-              <div className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center" style={{ background: col }}>
+              {/* Bande mésocycle (clic = éditer) */}
+              <div role="button" onClick={() => openEditMeso(phase)} className="px-2 py-1.5 text-black min-h-[46px] flex flex-col justify-center cursor-pointer hover:brightness-105" style={{ background: col }}>
                 <div className="flex items-center gap-1">
                   <span className="font-black text-[11px] shrink-0" style={SORA}>P{idx + 1}</span>
                   <span className="font-bold text-[11px] uppercase tracking-tight truncate" style={SORA} title={phase.name}>{phase.name || "Phase"}</span>
@@ -287,6 +335,37 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full bg-muted-foreground" /> faite</span>
         <span className="flex items-center gap-1"><span className="w-[6px] h-3 rounded-full border border-muted-foreground" /> à faire</span>
       </div>
+
+      {/* Fenêtre mésocycle */}
+      {mesoDlg && (
+        <Dialog open onOpenChange={(o) => !o && setMesoDlg(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>{mesoDlg.id ? "Modifier le mésocycle" : "Nouveau mésocycle"}</DialogTitle></DialogHeader>
+            <div className="space-y-3 py-1">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Nom / focus</label>
+                <Input autoFocus value={mesoDlg.name} onChange={(e) => setMesoDlg({ ...mesoDlg, name: e.target.value })} placeholder="Ex : Développement · Intensification · Affûtage" className="h-10" />
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm text-muted-foreground">Durée</label>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setMesoDlg({ ...mesoDlg, weeks: Math.max(1, mesoDlg.weeks - 1) })}>−</Button>
+                  <span className="w-16 text-center font-bold tabular-nums">{mesoDlg.weeks} sem.</span>
+                  <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setMesoDlg({ ...mesoDlg, weeks: mesoDlg.weeks + 1 })}>+</Button>
+                </div>
+                <span className="text-[11px] text-muted-foreground">≈ {fmtDuration(new Date(), addWeeks(new Date(), mesoDlg.weeks))}</span>
+              </div>
+            </div>
+            <DialogFooter className="sm:justify-between">
+              {mesoDlg.id ? <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => deleteMeso(mesoDlg.id!)}><Trash2 className="h-4 w-4 mr-1" /> Supprimer</Button> : <span />}
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setMesoDlg(null)}>Annuler</Button>
+                <Button onClick={saveMeso} disabled={busy || !mesoDlg.name.trim()} className="gap-1.5">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Enregistrer</Button>
+              </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Fenêtre macrocycle */}
       {macroDlg && (
