@@ -361,6 +361,27 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                 <span className="text-[11px] text-muted-foreground">≈ {fmtDuration(new Date(), addWeeks(new Date(), mesoDlg.weeks))}</span>
               </div>
 
+              {/* Jusqu'à quelle date ce mésocycle mène */}
+              {(() => {
+                let start: Date;
+                if (mesoDlg.id) {
+                  const p = phases.find((x) => x.id === mesoDlg.id);
+                  start = p ? D(p.start_date) : new Date();
+                } else {
+                  const ordered = [...phases].sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
+                  const last = ordered[ordered.length - 1];
+                  start = last?.end_date ? addDaysLocal(D(last.end_date), 1) : (macro ? D(macro.start_date) : new Date());
+                }
+                const end = addDaysLocal(addWeeks(start, mesoDlg.weeks), -1);
+                return (
+                  <p className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                    Du <span className="font-semibold text-foreground">{format(start, "d MMM yyyy", { locale: fr })}</span>
+                    au <span className="font-semibold text-foreground">{format(end, "d MMM yyyy", { locale: fr })}</span>
+                  </p>
+                );
+              })()}
+
               {/* Volume par rapport au macro */}
               {(() => {
                 if (!macro?.end_date) return null;
