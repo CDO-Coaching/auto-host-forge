@@ -99,18 +99,19 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
     const isCurrent = (() => { const start = w.monday.getTime(); const end = start + 7 * 86400000; return today.getTime() >= start && today.getTime() < end; })();
     const isPast = w.monday.getTime() + 7 * 86400000 <= today.getTime();
     return (
-      <div className={cn("flex-1 min-w-0 rounded-md border px-0.5 py-1 text-center", isCurrent ? "border-primary bg-primary/10" : isPast ? "border-border/50 bg-muted/10 opacity-60" : "border-border/50 bg-card/40")}
+      <div className={cn("flex-1 min-w-0 rounded-lg border px-0.5 py-2 text-center flex flex-col", isCurrent ? "border-primary bg-primary/10" : isPast ? "border-border/50 bg-muted/10 opacity-60" : "border-border/50 bg-card/40")}
         title={`S${w.week_number} · ${format(w.monday, "d MMM yyyy", { locale: fr })} · ${done}/${ss.length} faites`}>
-        <p className="text-[9px] font-bold leading-none truncate" style={SORA}>S{w.week_number}</p>
-        <div className="flex items-end justify-center gap-[2px] h-5 mt-1">
+        <p className="text-[10px] font-bold leading-none truncate" style={SORA}>S{w.week_number}</p>
+        <div className="flex items-end justify-center gap-[2px] flex-1 min-h-[64px] my-1.5">
           {ss.length === 0 ? (
-            <span className="text-[8px] text-muted-foreground/40">—</span>
-          ) : ss.slice(0, 6).map((s, i) => {
+            <span className="text-[9px] text-muted-foreground/40 self-center">—</span>
+          ) : ss.slice(0, 7).map((s, i) => {
             const c = sessColor(s.session_type);
             const d = !!s.completed_at;
-            return <span key={i} className="w-[3px] rounded-full" style={{ height: "100%", background: d ? c : "transparent", border: `1.5px solid ${c}`, opacity: s.skipped ? 0.4 : 1 }} />;
+            return <span key={i} className="w-[4px] rounded-full" style={{ height: "100%", background: d ? c : "transparent", border: `1.5px solid ${c}`, opacity: s.skipped ? 0.4 : 1 }} />;
           })}
         </div>
+        {ss.length > 0 && <p className="text-[9px] text-muted-foreground leading-none">{done}/{ss.length}</p>}
       </div>
     );
   };
@@ -165,17 +166,17 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
             </div>
           );
         })}
-
-        {/* Semaines hors phase */}
-        {grouped.orphans.length > 0 && (
-          <div className="rounded-xl border border-dashed border-border/50 overflow-hidden flex flex-col" style={{ flex: `${grouped.orphans.length} 1 0`, minWidth: 0 }}>
-            <div className="px-2 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/20 min-h-[46px] flex items-center">Hors phase</div>
-            <div className="p-1.5 flex gap-1 flex-1">
-              {grouped.orphans.map((w) => <WeekCard key={w.id} w={w} />)}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Semaines hors phase — rangée dédiée pleine largeur */}
+      {grouped.orphans.length > 0 && (
+        <div className="rounded-xl border border-dashed border-border/50 overflow-hidden">
+          <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground bg-muted/20">Semaines hors phase ({grouped.orphans.length})</div>
+          <div className="p-1.5 flex gap-1 flex-wrap">
+            {grouped.orphans.map((w) => <div key={w.id} className="w-[48px]"><WeekCard w={w} /></div>)}
+          </div>
+        </div>
+      )}
 
       {/* Légende */}
       <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
