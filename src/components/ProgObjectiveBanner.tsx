@@ -473,7 +473,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
             className="flex-1 h-11 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
             Plus tard
           </button>
-          <button type="button" onClick={() => { onGoToObjectives?.(); }}
+          <button type="button" onClick={() => { try { sessionStorage.setItem("open_phase_builder", "1"); } catch { /* ignore */ } onGoToObjectives?.(); }}
             className="flex-[1.4] h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98]">
             <Target className="h-4 w-4" /> Y réfléchir
           </button>

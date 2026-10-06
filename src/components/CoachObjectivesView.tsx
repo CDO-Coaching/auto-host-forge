@@ -527,6 +527,17 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
     setShowCycleDialog(true);
   };
 
+  // Ouverture auto de l'assistant de phase quand on arrive via « Y réfléchir » (Prog)
+  useEffect(() => {
+    let flag = false;
+    try { flag = sessionStorage.getItem("open_phase_builder") === "1"; } catch { /* ignore */ }
+    if (flag) {
+      try { sessionStorage.removeItem("open_phase_builder"); } catch { /* ignore */ }
+      handleOpenCycleDialog("meso");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handlePhaseTypeChange = (phaseType: string) => {
     const phase = getPhase(phaseType);
     setCycleForm((prev) => ({
