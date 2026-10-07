@@ -356,11 +356,17 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                     </button>
                   );
                 })}
-                <button type="button" onClick={() => openNewMicro(phase.id)}
-                  className="rounded-md border border-dashed border-border/60 text-muted-foreground hover:text-primary hover:border-primary/60 px-2 flex items-center justify-center shrink-0"
-                  title="Ajouter un microcycle">
-                  <Plus className="h-4 w-4" />
-                </button>
+                {(() => {
+                  const allocated = mlist.reduce((s, mc) => s + (mc.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(mc.end_date), D(mc.start_date)) + 1) / 7)) : 1), 0);
+                  if (allocated >= durWeeks) return null; // méso plein → pas de +
+                  return (
+                    <button type="button" onClick={() => openNewMicro(phase.id)}
+                      className="rounded-md border border-dashed border-border/60 text-muted-foreground hover:text-primary hover:border-primary/60 px-2 flex items-center justify-center shrink-0"
+                      title="Ajouter un microcycle">
+                      <Plus className="h-4 w-4" />
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           );
