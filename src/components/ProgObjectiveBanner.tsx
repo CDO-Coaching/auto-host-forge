@@ -30,8 +30,11 @@ const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"
  * de validation (phases, jalons, échéance). Remplace l'ancienne bannière de
  * progression (phase / volume / intensité).
  */
-export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", onGoToObjectives }: { athleteId: string; heading?: string; variant?: "phases" | "clean"; onGoToObjectives?: () => void }) {
+export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", onGoToObjectives, onGoToOverview }: { athleteId: string; heading?: string; variant?: "phases" | "clean"; onGoToObjectives?: () => void; onGoToOverview?: () => void }) {
   const [phases, setPhases] = useState<Phase[]>([]);
+  const [micros, setMicros] = useState<{ id: string; name: string; start_date: string; end_date: string | null; mesocycle_id: string }[]>([]);
+  const [macroEnd, setMacroEnd] = useState<string | null>(null);
+  const [hasMacro, setHasMacro] = useState(false);
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [deadline, setDeadline] = useState<string | null>(null);
   const [objName, setObjName] = useState<string | null>(null);
@@ -99,12 +102,44 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
 
   useEffect(() => {
     (async () => {
-      const { data: mesos } = await supabase
-        .from("mesocycles")
-        .select("id, name, start_date, end_date, color, macrocycle_id")
+      // Macro actif (non archivé) → ses mésos → ses micros (cohérent avec Vue d'ensemble)
+      const { data: macroRows } = await supabase
+        .from("macrocycles")
+        .select("id, end_date")
         .eq("athlete_id", athleteId)
-        .is("macrocycle_id", null);
-      setPhases((mesos || []).filter((m: any) => m.start_date).sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()));
+        .is("archived_at", null)
+        .order("start_date", { ascending: false })
+        .limit(1);
+      const mac = (macroRows || [])[0] as any;
+      setMacroEnd(mac?.end_date || null);
+      setHasMacro(!!mac);
+      let mesos: any[] = [];
+      let mics: any[] = [];
+      if (mac) {
+        const { data: mz } = await supabase
+          .from("mesocycles")
+          .select("id, name, start_date, end_date, color, macrocycle_id")
+          .eq("athlete_id", athleteId)
+          .eq("macrocycle_id", mac.id);
+        mesos = (mz || []).filter((m: any) => m.start_date);
+      } else {
+        // Pas de macro : on prend les phases « orphelines » (cycle = ?? côté affichage)
+        const { data: mz } = await supabase
+          .from("mesocycles")
+          .select("id, name, start_date, end_date, color, macrocycle_id")
+          .eq("athlete_id", athleteId)
+          .is("macrocycle_id", null);
+        mesos = (mz || []).filter((m: any) => m.start_date);
+      }
+      if (mesos.length) {
+        const { data: mc } = await supabase
+          .from("microcycles")
+          .select("id, name, start_date, end_date, mesocycle_id")
+          .in("mesocycle_id", mesos.map((m: any) => m.id));
+        mics = mc || [];
+      }
+      setPhases(mesos.sort((a: any, b: any) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()));
+      setMicros(mics);
 
       const { data: objRows } = await supabase
         .from("athlete_objectives")
@@ -144,6 +179,29 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
   if (!objName && phases.length === 0 && datedMs.length === 0 && !dl) return null;
 
   const idxCurrent = phases.findIndex((p) => today >= D(p.start_date) && today <= endOf(p));
+  // Microcycle & mésocycle en cours (contenant aujourd'hui)
+  // Microcycle en cours = celui dont la position DANS le méso courant (début méso + durées cumulées) contient aujourd'hui.
+  // Robuste même si les dates stockées du micro sont décalées par rapport au méso.
+  const currentMesoForMicro = idxCurrent >= 0 ? phases[idxCurrent] : null;
+  let currentMicro: { id: string; name: string; start_date: string; end_date: string } | null = null;
+  if (currentMesoForMicro) {
+    const mlist = micros.filter((m) => m.mesocycle_id === currentMesoForMicro.id)
+      .sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime());
+    let acc = 0;
+    for (const mc of mlist) {
+      const mw = mc.end_date ? Math.max(1, Math.round((differenceInCalendarDays(D(mc.end_date), D(mc.start_date)) + 1) / 7)) : 1;
+      const s = addWeeks(D(currentMesoForMicro.start_date), acc);
+      const e = addDays(addWeeks(D(currentMesoForMicro.start_date), acc + mw), -1);
+      if (today >= s && today <= e) { currentMicro = { id: mc.id, name: mc.name, start_date: format(s, "yyyy-MM-dd"), end_date: format(e, "yyyy-MM-dd") }; break; }
+      acc += mw;
+    }
+  }
+  const daysLeftIn = (end: string) => Math.max(0, differenceInCalendarDays(D(end), today));
+  const fmtLeft = (days: number) => {
+    if (days <= 0) return "dernier jour";
+    const w = Math.floor(days / 7), d = days % 7;
+    return [w ? `${w} sem.` : "", d ? `${d} j` : ""].filter(Boolean).join(" · ") || `${days} j`;
+  };
 
   // Échelle timeline
   const endCandidates = [
@@ -174,9 +232,11 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
   const lastPhaseEnd = phases.length > 0 ? Math.max(...phases.map((p) => endOf(p).getTime())) : null;
   const phasesRunningOut = variant === "phases" && lastPhaseEnd != null
     && Math.ceil((lastPhaseEnd - today.getTime()) / (7 * 86400000)) <= 1;
+  // Rien de construit : aucun macro/méso/micro → inviter à bâtir le cycle dans Vue d'ensemble
+  const noCycleAtAll = variant === "phases" && phases.length === 0 && micros.length === 0;
   const phasePromptSnoozed = phaseSnooze != null && Date.now() - phaseSnooze < 24 * 3600 * 1000;
   // On n'affiche pas les deux overlays en même temps : le jalon est prioritaire.
-  const showPhasePrompt = phasesRunningOut && !phasePromptSnoozed && !duePrompt;
+  const showPhasePrompt = (phasesRunningOut || noCycleAtAll) && !phasePromptSnoozed && !duePrompt;
 
   return (
     <>
@@ -265,8 +325,49 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
         };
         const objPill = statusPill(objWeeks, objCompleted);
 
+        const microDaysLeft = currentMicro?.end_date ? daysLeftIn(currentMicro.end_date) : null;
+        const mesoDaysLeft = currentMesoForMicro?.end_date ? daysLeftIn(currentMesoForMicro.end_date) : null;
+        const macroDaysLeft = macroEnd ? daysLeftIn(macroEnd) : null;
+        const mesoCol = currentMesoForMicro ? (currentMesoForMicro.color || COLORS[Math.max(0, phases.findIndex((p) => p.id === currentMesoForMicro.id)) % COLORS.length]) : "#e8c466";
+
         return (
         <div className="space-y-2">
+          {/* ── OÙ J'EN SUIS — microcycle en cours + temps restant (coup d'œil) ── */}
+          {currentMicro ? (
+            <div className="rounded-xl border p-3" style={{ borderColor: `${mesoCol}55`, background: `${mesoCol}12` }}>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: mesoCol }} />
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Où j'en suis</span>
+                  {currentMesoForMicro && (
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ color: mesoCol, background: `${mesoCol}22` }}>{currentMesoForMicro.name}</span>
+                  )}
+                </div>
+                {microDaysLeft != null && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border border-primary/30 bg-primary/10 text-primary">
+                    <CalendarClock className="h-3 w-3" /> encore {fmtLeft(microDaysLeft)}
+                  </span>
+                )}
+              </div>
+              <p className="mt-1.5 text-lg font-black leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{currentMicro.name}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {format(D(currentMicro.start_date), "d MMM", { locale: fr })}{currentMicro.end_date ? ` → ${format(D(currentMicro.end_date), "d MMM yyyy", { locale: fr })}` : ""}
+              </p>
+              {/* Temps restant aux autres niveaux */}
+              <div className="mt-2 flex items-center gap-2 flex-wrap text-[10.5px]">
+                {mesoDaysLeft != null && <span className="text-muted-foreground">Phase : <span className="font-semibold text-foreground">{fmtLeft(mesoDaysLeft)}</span></span>}
+                {hasMacro
+                  ? (macroDaysLeft != null && <span className="text-muted-foreground">· Cycle : <span className="font-semibold text-foreground">{fmtLeft(macroDaysLeft)}</span></span>)
+                  : <span className="text-muted-foreground">· Cycle : <span className="font-bold text-amber-500" title="Aucun macrocycle défini — crée-le dans Vue d'ensemble">??</span></span>}
+              </div>
+            </div>
+          ) : phases.length > 0 ? (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              <p className="text-sm font-medium">Aucun microcycle en cours aujourd'hui — pense à programmer la semaine dans Vue d'ensemble.</p>
+            </div>
+          ) : null}
+
           {/* Ligne 1 — Objectif principal + statut bien visible */}
           <div className="flex items-center gap-2 flex-wrap">
             <Target className="h-4 w-4 text-primary shrink-0" />
@@ -336,73 +437,6 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
         );
       })()}
 
-      {/* Timeline */}
-      {(phases.length > 0 || datedMs.length > 0 || dl) && (
-        <div>
-          <div className="relative h-3 rounded-full bg-muted/40 overflow-hidden">
-            {phases.map((p, i) => {
-              const s = D(p.start_date).getTime();
-              const e = endOf(p).getTime() + 86400000;
-              const col = p.color || COLORS[i % COLORS.length];
-              const range = `${format(D(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(new Date(p.end_date), "d MMM", { locale: fr })}` : " → en cours"}`;
-              return (
-                <div key={p.id} className={cn("absolute top-0 h-full", i === idxCurrent ? "z-10 ring-1 ring-white/70 ring-inset" : "opacity-70")}
-                  style={{ left: `${pos(s)}%`, width: `${Math.max(2, pos(e) - pos(s))}%`, backgroundColor: col }}
-                  title={`${p.name} · ${range}`} />
-              );
-            })}
-            <div className="absolute top-0 h-full w-0.5 bg-white z-20" style={{ left: `${todayPct}%` }} title="Aujourd'hui" />
-          </div>
-          {/* Points jalons + objectif */}
-          <div className="relative h-4 mt-0.5">
-            {datedMs.map(({ m, d }) => {
-              const w = weeksUntil(d);
-              const col = m.completed ? "bg-emerald-500" : w < 0 ? "bg-red-500" : w <= 1 ? "bg-orange-400 animate-pulse" : "bg-primary";
-              return (
-                <span key={m.id}
-                  className={cn("absolute top-1 h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-background", col)}
-                  style={{ left: `${pos(D(d).getTime())}%` }}
-                  title={`${m.label} · ${format(D(d), "d MMM yyyy", { locale: fr })}${m.completed ? " (validé)" : w < 0 ? ` · dépassé (${Math.abs(w)} sem.)` : ` · dans ${w} sem.`}`} />
-              );
-            })}
-            {dl && (
-              <span className="absolute -top-0.5 -translate-x-1/2 text-[11px]" style={{ left: `${pos(dl.getTime())}%` }} title={`Objectif · ${format(dl, "d MMM yyyy", { locale: fr })}`}>🎯</span>
-            )}
-          </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground tabular-nums">
-            <span>Auj.</span>
-            <span>{dl ? format(dl, "d MMM yyyy", { locale: fr }) : "Objectif"}</span>
-          </div>
-
-          {/* Légende : noms des phases et des jalons, sans chevauchement */}
-          {(phases.length > 0 || datedMs.length > 0) && (
-            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
-              {phases.map((p, i) => {
-                const col = p.color || COLORS[i % COLORS.length];
-                return (
-                  <span key={`lg-${p.id}`} className="inline-flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-sm shrink-0" style={{ backgroundColor: col }} />
-                    <span className={cn(i === idxCurrent ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                      {p.name}{i === idxCurrent ? " · en cours" : ""}
-                    </span>
-                  </span>
-                );
-              })}
-              {datedMs.map(({ m, d }) => (
-                <span key={`lgm-${m.id}`} className="inline-flex items-center gap-1.5">
-                  <span className={cn("h-2 w-2 rounded-full shrink-0", m.completed ? "bg-emerald-500" : "bg-primary")} />
-                  <span className={cn(m.completed ? "text-emerald-600 line-through decoration-emerald-600/40" : "text-muted-foreground")}>
-                    {m.label}
-                  </span>
-                  <span className={cn("shrink-0 tabular-nums", m.completed ? "text-emerald-600" : "text-primary")}>
-                    {m.completed ? "✓" : `${weeksUntil(d)} sem.`}
-                  </span>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
       </>
       )}
     </div>
@@ -462,10 +496,12 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
         <div className="text-center">
           <div className="text-3xl mb-1">🧭</div>
           <h3 className="text-lg font-black leading-tight text-foreground" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
-            La suite du plan ?
+            {noCycleAtAll ? "Construis le cycle" : "La suite du plan ?"}
           </h3>
           <p className="text-sm text-muted-foreground mt-1.5 leading-snug">
-            Il reste moins d'une semaine de phases programmées pour {objName ? <span className="font-medium text-foreground">cet objectif</span> : "cet athlète"}. C'est le moment d'anticiper la prochaine phase d'entraînement.
+            {noCycleAtAll
+              ? <>Aucun macro / méso / microcycle n'est encore défini pour {objName ? <span className="font-medium text-foreground">cet objectif</span> : "cet athlète"}. Rends-toi dans <span className="font-medium text-foreground">Vue d'ensemble</span> pour bâtir le cycle.</>
+              : <>Il reste moins d'une semaine de phases programmées pour {objName ? <span className="font-medium text-foreground">cet objectif</span> : "cet athlète"}. C'est le moment d'anticiper la suite dans <span className="font-medium text-foreground">Vue d'ensemble</span>.</>}
           </p>
         </div>
         <div className="flex gap-2 mt-4">
@@ -473,9 +509,9 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
             className="flex-1 h-11 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted">
             Plus tard
           </button>
-          <button type="button" onClick={() => { try { sessionStorage.setItem("open_phase_builder", "1"); } catch { /* ignore */ } onGoToObjectives?.(); }}
+          <button type="button" onClick={() => { snoozePhasePrompt(); onGoToOverview?.(); }}
             className="flex-[1.4] h-11 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 active:scale-[0.98]">
-            <Target className="h-4 w-4" /> Y réfléchir
+            <Layers className="h-4 w-4" /> Vue d'ensemble
           </button>
         </div>
       </div>

@@ -78,7 +78,6 @@ import { CoachObjectivesView, getPhase, CARDIO_SPORT_VALUES } from "@/components
 import { ObjectivesRoadmap } from "@/components/ObjectivesRoadmap";
 import { CycleTreeView } from "@/components/CycleTreeView";
 import { CycleSetupGate } from "@/components/CycleSetupGate";
-import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CoachSubscriptionManager } from "@/components/CoachSubscriptionManager";
 import { CoachAthleteSubscriptionOverview } from "@/components/CoachAthleteSubscriptionOverview";
@@ -4424,7 +4423,8 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="programmation" className={`space-y-4 transition-all duration-300 ${showCardioAIChat ? "sm:pr-[460px]" : ""}`}>
-          {/* Boutons flottants en haut - scrollable sur mobile */}
+          {/* Barre de boutons flottants retirée (Exercices/Objectifs/Course/Notes/Retours/IA Cardio) — à refaire depuis zéro */}
+          {false && (
           <div className="fixed top-16 left-0 right-0 z-50 px-2 sm:px-0 sm:left-1/2 sm:-translate-x-1/2 sm:right-auto sm:w-auto overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-1.5 sm:gap-2 w-max mx-auto sm:w-auto">
             {/* Bouton Exercices */}
@@ -4953,6 +4953,7 @@ export default function ClientDetail() {
 
             </div>
           </div>
+          )}
 
           {/* ── Rappel : pas d'objectif principal défini ──────────────── */}
           {hasMainObjective === false && !cycleGateDismissed && activeTab !== "objectifs" && activeTab !== "programmation" && (
@@ -4994,12 +4995,7 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* ── Objectif principal + timeline de validation (masqué sur mobile pour voir les séances) ── */}
-          {athleteId && (
-            <div className="hidden sm:block">
-              <ProgObjectiveBanner athleteId={athleteId} onGoToObjectives={() => setActiveTab("objectifs")} />
-            </div>
-          )}
+          {/* (Bloc « Où j'en suis » / objectif retiré — à refaire depuis zéro) */}
 
           {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
           <WeekAvailabilityCard athleteId={athleteId!} week={selectedWeekToProgram.week} year={selectedWeekToProgram.year} />

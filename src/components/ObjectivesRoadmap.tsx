@@ -72,13 +72,6 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [athleteId]);
 
-  // Ouverture auto de la fenêtre « nouvelle phase » depuis Prog (« Y réfléchir »)
-  useEffect(() => {
-    let flag = false;
-    try { flag = sessionStorage.getItem("open_phase_builder") === "1"; } catch { /* ignore */ }
-    if (flag) { try { sessionStorage.removeItem("open_phase_builder"); } catch { /* ignore */ } openNewPhase(); }
-    /* eslint-disable-next-line */
-  }, []);
 
   // ── Helpers d'état ─────────────────────────────────────────────────────────
   const today = todayStart();
@@ -95,11 +88,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
   const { nowItems, futureItems, pastItems } = useMemo(() => {
     type Item = { kind: "phase"; id: string; date: Date | null; p: Phase } | { kind: "ms"; id: string; date: Date | null; m: Milestone };
     const now: Item[] = []; const future: Item[] = []; const past: Item[] = [];
-    phases.forEach((p) => {
-      const it: Item = { kind: "phase", id: p.id, date: D(p.start_date), p };
-      const st = phaseStatusOf(p);
-      (st === "current" ? now : st === "future" ? future : past).push(it);
-    });
+    // Les phases d'entraînement vivent désormais dans « Vue d'ensemble » : ici, uniquement les objectifs.
     milestones.filter((m) => !m.is_objective).forEach((m) => {
       const date = m.target_date ? D(m.target_date) : (m.completed_at ? D(m.completed_at) : null);
       const it: Item = { kind: "ms", id: m.id, date, m };
@@ -279,7 +268,6 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
 
       {/* ── Actions ────────────────────────────────────────────────────────── */}
       <div className="flex gap-2">
-        <Button variant="outline" className="flex-1 gap-1.5" onClick={openNewPhase}><Layers className="h-4 w-4 text-primary" /> Ajouter une phase</Button>
         <Button variant="outline" className="flex-1 gap-1.5" onClick={openNewMs}><Flag className="h-4 w-4 text-primary" /> Ajouter un sous-objectif</Button>
       </div>
 
@@ -293,25 +281,12 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
         );
         return (
         <div className="space-y-5">
-          {/* MAINTENANT */}
-          <section>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <h3 className="text-sm font-bold uppercase tracking-wide text-emerald-500" style={SORA}>Où on en est · {format(today, "d MMM", { locale: fr })}</h3>
-            </div>
-            {nowItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground rounded-xl border border-dashed border-border/60 p-3">Rien en cours. Ajoute une phase pour démarrer la suite.</p>
-            ) : (
-              <div className="space-y-2.5">{nowItems.map(renderItem)}</div>
-            )}
-          </section>
-
-          {/* À VENIR */}
-          {(futureItems.length > 0 || obj.main_objective) && (
+          {/* À VENIR (inclut désormais ce qui est imminent) */}
+          {(nowItems.length > 0 || futureItems.length > 0 || obj.main_objective) && (
             <section>
               <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground/70 mb-2">À venir</h3>
               <div className="space-y-2.5">
-                {futureItems.map(renderItem)}
+                {[...nowItems, ...futureItems].map(renderItem)}
                 {obj.main_objective && (
                   <div className="rounded-xl border border-primary/30 bg-primary/[0.04] p-3 flex items-center gap-2">
                     <span className="h-7 w-7 rounded-full bg-primary grid place-items-center text-[13px] shrink-0">🎯</span>
