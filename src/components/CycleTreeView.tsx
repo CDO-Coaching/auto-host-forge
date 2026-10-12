@@ -279,6 +279,12 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
     sessions.forEach((s) => { const a = m.get(s.week_id) || []; a.push(s); m.set(s.week_id, a); });
     return m;
   }, [sessions]);
+  // Retrouver la semaine réelle (training_weeks) à partir du lundi ISO d'une cellule
+  const weekByMonday = useMemo(() => {
+    const m = new Map<number, Week>();
+    weeks.forEach((w) => m.set(w.monday.getTime(), w));
+    return m;
+  }, [weeks]);
 
   const orderedPhases = useMemo(() => [...phases].sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime()), [phases]);
 
@@ -335,12 +341,20 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
 
   // ── Branches « arbre généalogique » : vraies lignes orthogonales en SVG ──────
   const treeRef = useRef<HTMLDivElement>(null);
+  const linksJsonRef = useRef<string>("");
   const [links, setLinks] = useState<{ d: string; cur: boolean; color: string }[]>([]);
+  // Recalcul après CHAQUE rendu (avec garde anti-boucle) → auto-réparation si la mise en page change.
   useLayoutEffect(() => {
     const el = treeRef.current;
     if (!el) return;
+    const commit = (out: { d: string; cur: boolean; color: string }[]) => {
+      const json = JSON.stringify(out);
+      if (json !== linksJsonRef.current) { linksJsonRef.current = json; setLinks(out); }
+    };
     const compute = () => {
       const root = el.getBoundingClientRect();
+      // Pas encore mis en page (onglet en cours de montage, largeur 0) → on réessaiera
+      if (root.width < 10 || !el.querySelector('[data-meso]')) { commit([]); return; }
       const out: { d: string; cur: boolean; color: string }[] = [];
       type P = { x: number; y: number };
       const pt = (r: DOMRect, edge: "top" | "bottom"): P => ({ x: r.left - root.left + r.width / 2, y: (edge === "top" ? r.top : r.bottom) - root.top });
@@ -376,15 +390,19 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
         }));
         group(from, kids, color);
       });
-      setLinks(out);
+      commit(out);
     };
+    // Recalculs multiples : la mise en page / les polices peuvent n'être prêtes qu'après coup
+    let raf = requestAnimationFrame(() => { raf = requestAnimationFrame(compute); });
     compute();
+    const timers = [60, 200, 500, 1000].map((ms) => setTimeout(compute, ms));
     const ro = new ResizeObserver(compute);
     ro.observe(el);
+    el.querySelectorAll("[data-meso],[data-micro],[data-node]").forEach((n) => ro.observe(n));
     window.addEventListener("resize", compute);
-    const t = setTimeout(compute, 60);
-    return () => { ro.disconnect(); window.removeEventListener("resize", compute); clearTimeout(t); };
-  }, [grouped, phases, micros, macro]);
+    try { (document as any).fonts?.ready?.then(compute); } catch { /* ignore */ }
+    return () => { cancelAnimationFrame(raf); timers.forEach(clearTimeout); ro.disconnect(); window.removeEventListener("resize", compute); };
+  }); // pas de tableau de deps → s'exécute après chaque rendu (garde anti-boucle via linksJsonRef)
 
   if (loading) return <p className="text-sm text-muted-foreground text-center py-8">Chargement…</p>;
 
@@ -528,9 +546,25 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                   const cellEnd = addDaysLocal(d, 7);
                   const wCur = getISOWeek(d) === getISOWeek(today) && d.getFullYear() === today.getFullYear();
                   const hits = targets.filter((t) => { const td = D(t.date); return td >= d && td < cellEnd; });
+                  // Séances réelles de cette semaine (training_weeks via le lundi ISO)
+                  const wk = weekByMonday.get(startOfISOWeek(d).getTime());
+                  const wss = wk ? (sessByWeek.get(wk.id) || []) : [];
                   return (
                     <div key={wi} className={cn("relative flex-1 min-w-0 text-center text-[8px] font-semibold tabular-nums rounded py-0.5 border", wCur ? "bg-primary/20 text-primary border-primary/60" : "text-muted-foreground/70 bg-muted/30 border-border/30")}>
                       S{getISOWeek(d)}
+                      {/* Marques de séances (faite = plein, non faite = contour) — couleur du méso */}
+                      {wss.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-[2px] mt-0.5 px-0.5" title={`${wss.filter((s) => s.completed_at).length}/${wss.length} séance(s) faite(s)`}>
+                          {wss.slice(0, 8).map((s, si) => {
+                            const done = !!s.completed_at;
+                            const c = sessColor(s.session_type); // couleur par type de séance (thème)
+                            return (
+                              <span key={si} className="h-1.5 w-1.5 rounded-full"
+                                style={{ background: done ? c : "transparent", border: `1px solid ${c}`, opacity: s.skipped ? 0.35 : 1 }} />
+                            );
+                          })}
+                        </div>
+                      )}
                       {hits.length > 0 && (
                         <Popover>
                           <PopoverTrigger asChild>

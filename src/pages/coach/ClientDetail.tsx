@@ -87,6 +87,7 @@ import { DailyDebriefCard } from "@/components/DailyDebriefCard";
 import { AthleteProfileTab } from "@/components/AthleteProfileTab";
 import { MentalPrepTab } from "@/components/MentalPrepTab";
 import { WeekAvailabilityCard } from "@/components/WeekAvailabilityCard";
+import { ProgContextHeader } from "@/components/ProgContextHeader";
 import { PlannedCardioZonesCard } from "@/components/PlannedCardioZonesCard";
 import { CoachAthleteMethodologies } from "@/components/CoachAthleteMethodologies";
 import { VoiceCommandButton } from "@/components/VoiceCommandButton";
@@ -124,6 +125,12 @@ interface Session {
   coach_note?: string | null; // note privée coach (invisible au sportif)
   garmin_link?: string | null; // lien Garmin déposé par l'athlète à la validation
   manual_duration_minutes?: number | null; // durée forcée manuellement par le coach (sinon estimée)
+  // Référence (affichage seul) : durée réelle rentrée par l'athlète + lien Strava de la séance copiée,
+  // visible tant que le coach n'a pas modifié la séance copiée.
+  ref_actual_duration?: number | null;
+  ref_strava_id?: number | null;
+  ref_strava_url?: string | null;
+  strava_id?: number | null; // activité Strava liée par l'athlète à cette séance
 }
 
 interface SerieDetail {
@@ -922,6 +929,7 @@ export default function ClientDetail() {
           coach_note: (s as any).coach_note ?? null,
           garmin_link: (s as any).garmin_link ?? null,
           manual_duration_minutes: (s as any).manual_duration_minutes ?? null,
+          strava_id: (s as any).linked_strava_activity_id ?? null,
         };
       });
 
@@ -1770,7 +1778,7 @@ export default function ClientDetail() {
   };
   const defaultSessionName = (type: "renfo" | "cardio" | "recup", sport: "course" | "velo" | "natation" = "course") =>
     type === "cardio" ? nextNameFor(cardioPrefix(sport))
-      : type === "recup" ? nextNameFor("Récup/Mobilité")
+      : type === "recup" ? nextNameFor("Mobilité")
       : nextNameFor("Salle/Renfo");
 
   const handleCreateSession = () => {
@@ -1829,6 +1837,7 @@ export default function ClientDetail() {
         rpe: "",
         tempo: "",
         commentaire: "",
+        is_duration: true, // Mobilité : le plus souvent en secondes
       };
 
       setSessionExercises({
@@ -1871,7 +1880,7 @@ export default function ClientDetail() {
     } else if (type === "recup") {
       setSessionExercises((prev) => ({
         ...prev,
-        [nextSessionNumber]: [{ id: 1, exercice: "", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "" }],
+        [nextSessionNumber]: [{ id: 1, exercice: "", recuperation: "", reps: "", series: "", charge: "", rpe: "", tempo: "", commentaire: "", is_duration: true }],
       }));
     }
     toast.success(`Séance créée`);
@@ -2846,12 +2855,17 @@ export default function ClientDetail() {
             sessionType = hasCardioFields ? "cardio" : "renfo";
           }
           
+          const type = sessionType || "renfo";
           return {
             id: index + 1,
             name: session.name,
             isExpanded: false,
-            session_type: sessionType || "renfo",
+            session_type: type,
             coach_note: (session as any).coach_note ?? null,
+            // Référence : durée rentrée par l'athlète + Strava (cardio) de la séance copiée
+            ref_actual_duration: (session as any).duration_minutes ?? null,
+            ref_strava_id: type === "cardio" ? ((session as any).linked_strava_activity_id ?? null) : null,
+            ref_strava_url: type === "cardio" ? ((session as any).garmin_link ?? null) : null,
           };
         });
 
@@ -2916,13 +2930,14 @@ export default function ClientDetail() {
           }
         });
 
+        snapshotBeforeCopy();
         setSessions(newSessions);
         setSessionExercises(newExercises);
         setCollapsedSeriesExercises(buildCollapsedSeriesMap(newExercises));
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
         setShowCopyDialog(false);
-        toast.success("Semaine copiée avec succès ! Vous pouvez maintenant la modifier.");
+        toast.success("Semaine copiée !", { description: "Modifie-la, ou annule pour revenir en arrière.", action: { label: "Annuler", onClick: undoCopy }, duration: 8000 });
 
         // Check if there's an active methodology cycle and ask to adapt
         if (cycleInfo && persistentMethodology) {
@@ -2934,6 +2949,26 @@ export default function ClientDetail() {
       console.error("Erreur lors de la copie:", error);
       toast.error("Erreur lors de la copie de la semaine");
     }
+  };
+
+  // Sauvegarde de l'état avant une copie, pour pouvoir annuler
+  const preCopyRef = useRef<null | { sessions: Session[]; exercises: Record<number, Exercise[]>; collapsed: any; feedback: any; weekData: any }>(null);
+  const snapshotBeforeCopy = () => {
+    preCopyRef.current = {
+      sessions, exercises: sessionExercises, collapsed: collapsedSeriesExercises,
+      feedback: copiedWeekFeedback, weekData: weekToCopyData,
+    };
+  };
+  const undoCopy = () => {
+    const snap = preCopyRef.current;
+    if (!snap) return;
+    setSessions(snap.sessions);
+    setSessionExercises(snap.exercises);
+    setCollapsedSeriesExercises(snap.collapsed);
+    setCopiedWeekFeedback(snap.feedback);
+    setWeekToCopyData(snap.weekData);
+    preCopyRef.current = null;
+    toast.info("Copie annulée — semaine revenue à l'état précédent");
   };
 
   // Copier directement la semaine précédente (sans passer par le dialog)
@@ -3011,12 +3046,17 @@ export default function ClientDetail() {
             sessionType = hasCardioFields ? "cardio" : "renfo";
           }
           
+          const type = sessionType || "renfo";
           return {
             id: index + 1,
             name: session.name,
             isExpanded: false,
-            session_type: sessionType || "renfo",
+            session_type: type,
             coach_note: (session as any).coach_note ?? null,
+            // Référence : durée rentrée par l'athlète + Strava (cardio) de la séance copiée
+            ref_actual_duration: (session as any).duration_minutes ?? null,
+            ref_strava_id: type === "cardio" ? ((session as any).linked_strava_activity_id ?? null) : null,
+            ref_strava_url: type === "cardio" ? ((session as any).garmin_link ?? null) : null,
           };
         });
 
@@ -3075,12 +3115,13 @@ export default function ClientDetail() {
           }
         });
 
+        snapshotBeforeCopy();
         setSessions(newSessions);
         setSessionExercises(newExercises);
         setCollapsedSeriesExercises(buildCollapsedSeriesMap(newExercises));
         setCopiedWeekFeedback(feedbackMapping);
         setWeekToCopyData(sessionsData);
-        toast.success(`Semaine S${previousWeek} copiée ! Vous pouvez maintenant la modifier.`);
+        toast.success(`Semaine S${previousWeek} copiée !`, { description: "Modifie-la, ou annule pour revenir en arrière.", action: { label: "Annuler", onClick: undoCopy }, duration: 8000 });
 
         // Check if there's an active methodology cycle and ask to adapt
         if (cycleInfo && persistentMethodology) {
@@ -3410,15 +3451,22 @@ export default function ClientDetail() {
     setSessions((prev) => prev.map((s) => (s.id === sessionId && s.manual_duration_minutes != null ? { ...s, manual_duration_minutes: null } : s)));
   };
 
+  // Dès que le coach modifie une séance copiée, on retire la référence (durée athlète + Strava).
+  const clearSessionRef = (sessionId: number) => {
+    setSessions((prev) => prev.map((s) => (s.id === sessionId && (s.ref_actual_duration != null || s.ref_strava_id != null || s.ref_strava_url != null) ? { ...s, ref_actual_duration: null, ref_strava_id: null, ref_strava_url: null } : s)));
+  };
+
   // Le coach fixe (ou efface) manuellement la durée d'une séance.
   const handleSessionDurationChange = (sessionId: number, minutes: number | null) => {
-    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, manual_duration_minutes: minutes } : s)));
+    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, manual_duration_minutes: minutes, ref_actual_duration: null, ref_strava_id: null, ref_strava_url: null } : s)));
   };
 
   const handleAddExercise = (sessionId: number) => {
     clearManualDuration(sessionId);
+    clearSessionRef(sessionId);
     const session = sessions.find((s) => s.id === sessionId);
     const isCardio = session?.session_type === "cardio";
+    const isRecup = session?.session_type === "recup";
 
     const currentExercises = sessionExercises[sessionId] || [];
     // Use Date.now() as a unique temporary numeric ID.
@@ -3438,6 +3486,7 @@ export default function ClientDetail() {
       cardio_sport: isCardio ? "course" : undefined,
       cardio_content: isCardio ? "" : undefined,
       cardio_pace: isCardio ? "" : undefined,
+      is_duration: isRecup ? true : undefined, // Mobilité : secondes par défaut
     };
 
     setSessionExercises((prev) => ({
@@ -3532,6 +3581,7 @@ export default function ClientDetail() {
 
   const handleExerciseChange = (sessionId: number, exerciseId: number, field: keyof Exercise, value: string | boolean) => {
     clearManualDuration(sessionId);
+    clearSessionRef(sessionId);
     // Normaliser les champs booléens passés comme string depuis le mobile
     if ((field === "is_duration" || field === "is_distance" || field === "per_side") && typeof value === "string") {
       value = value === "true";
@@ -3830,6 +3880,7 @@ export default function ClientDetail() {
 
   const handleDeleteExercise = (sessionId: number, exerciseId: number) => {
     clearManualDuration(sessionId);
+    clearSessionRef(sessionId);
     // Sauvegarder l'état avant suppression pour undo
     setUndoStack((prev) => [...prev.slice(-9), { sessions: [...sessions], sessionExercises: { ...sessionExercises } }]);
 
@@ -4995,7 +5046,9 @@ export default function ClientDetail() {
             />
           )}
 
-          {/* (Bloc « Où j'en suis » / objectif retiré — à refaire depuis zéro) */}
+          {/* ── Bandeau de contexte : microcycle en cours · objectif · prochain sous-objectif ── */}
+          {athleteId && <ProgContextHeader athleteId={athleteId} onGoToOverview={() => setActiveTab("vue")} />}
+
 
           {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
           <WeekAvailabilityCard athleteId={athleteId!} week={selectedWeekToProgram.week} year={selectedWeekToProgram.year} />

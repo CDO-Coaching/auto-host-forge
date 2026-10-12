@@ -160,7 +160,7 @@ function formatShortDuration(totalSec: number): string {
 const SESSION_TYPE_CONFIG = {
   renfo: { label: "Renfo", color: "bg-primary/20 text-primary border-primary/30", icon: Dumbbell, createLabel: "Renforcement", emoji: "🏋️", accent: "before:bg-primary", dot: "bg-primary" },
   cardio: { label: "Cardio", color: "bg-blue-500/20 text-blue-400 border-blue-500/30", icon: Heart, createLabel: "Cardio", emoji: "🏃", accent: "before:bg-blue-500", dot: "bg-blue-500" },
-  recup: { label: "Récup", color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Zap, createLabel: "Récupération", emoji: "💆", accent: "before:bg-green-500", dot: "bg-green-500" },
+  recup: { label: "Mobilité", color: "bg-green-500/20 text-green-400 border-green-500/30", icon: Zap, createLabel: "Mobilité", emoji: "🧘", accent: "before:bg-green-500", dot: "bg-green-500" },
 } as const;
 
 // ─── Stepper +/- réutilisable ─────────────────────────────────────────────────

@@ -53,7 +53,7 @@ export interface LibraryExercise {
 }
 
 // Options de filtre (alignées sur la bibliothèque)
-const EQUIP_FILTERS = ["Barre", "Haltères", "Kettlebell", "Poids du corps", "Machine", "Barre à traction", "Élastique", "Ergo / Cardio"];
+const EQUIP_FILTERS = ["Barre", "Haltères", "Kettlebell", "Poids du corps", "Machine", "Barre à traction", "Élastique", "Ergo / Cardio", "Mur", "Box", "Rouleau de massage", "Balle", "Pistolet de massage"];
 const CAT_FILTERS: { value: string; label: string }[] = [
   { value: "cardio", label: "🏃 Cardio" },
   { value: "mobilité-souplesse", label: "🧘 Mobilité" },
@@ -296,21 +296,6 @@ export function ExerciseCombobox({
             <FilterRow title="Matériel">
               {EQUIP_FILTERS.map((m) => (
                 <MuscleChip key={m} label={m} active={fEquip.includes(m)} onClick={() => toggleIn(fEquip, m, setFEquip)} />
-              ))}
-            </FilterRow>
-            <FilterRow title="Type">
-              {CAT_FILTERS.map((c) => (
-                <MuscleChip key={c.value} label={c.label} active={fCats.includes(c.value)} onClick={() => toggleIn(fCats, c.value, setFCats)} />
-              ))}
-            </FilterRow>
-            <FilterRow title="Intensité (coef.)">
-              {COEF_FILTERS.map((c) => (
-                <MuscleChip
-                  key={c}
-                  label={`×${c}`}
-                  active={fCoef.includes(c)}
-                  onClick={() => setFCoef(fCoef.includes(c) ? fCoef.filter((x) => x !== c) : [...fCoef, c])}
-                />
               ))}
             </FilterRow>
             </div>

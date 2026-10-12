@@ -68,6 +68,11 @@ const EQUIPMENT_OPTIONS = [
   { value: 'Barre à traction', emoji: '🧗' },
   { value: 'Élastique', emoji: '➰' },
   { value: 'Ergo / Cardio', emoji: '🚴' },
+  { value: 'Mur', emoji: '🧱' },
+  { value: 'Box', emoji: '📦' },
+  { value: 'Rouleau de massage', emoji: '🧻' },
+  { value: 'Balle', emoji: '⚪' },
+  { value: 'Pistolet de massage', emoji: '🔫' },
   { value: 'Autre', emoji: '➕' },
 ] as const;
 

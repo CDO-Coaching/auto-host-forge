@@ -209,6 +209,10 @@ interface Session {
   coach_note?: string | null;
   garmin_link?: string | null;
   manual_duration_minutes?: number | null;
+  ref_actual_duration?: number | null;
+  ref_strava_id?: number | null;
+  ref_strava_url?: string | null;
+  strava_id?: number | null;
 }
 
 function getSerieDetailsArray(value: any): SerieDetail[] {
@@ -521,7 +525,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
   )?.monday;
 
   const sessionTypeLabel = (type: Session["session_type"]) =>
-    type === "cardio" ? "🏃 Cardio" : type === "recup" ? "💆 Récup" : "💪 Renfo";
+    type === "cardio" ? "🏃 Cardio" : type === "recup" ? "🧘 Mobilité" : "💪 Renfo";
 
   const sessionDuration = (s: Session) => {
     const exs = sessionExercises[s.id] ?? [];
@@ -790,7 +794,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                 </PopoverContent>
               </Popover>
               <Button size="sm" variant="outline" className="flex-1 h-8 text-xs px-1" onClick={() => onCreateSession("recup")}>
-                <Plus className="h-3 w-3 mr-0.5" />Récup
+                <Plus className="h-3 w-3 mr-0.5" />Mobilité
               </Button>
             </div>
           )}
@@ -908,7 +912,46 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             {dist ? <span>· {dist}</span> : null}
                           </span>
                         </div>
+                        {/* Référence athlète (séance copiée, tant que non modifiée) : durée réelle + Strava */}
+                        {(session.ref_actual_duration != null || session.ref_strava_id != null) && (
+                          <div className="flex items-center gap-2 mt-0.5 text-[9px]" onClick={(e) => e.stopPropagation()}>
+                            {session.ref_actual_duration != null && (
+                              <span className="text-emerald-500 font-semibold" title="Durée réellement rentrée par l'athlète la dernière fois">
+                                ⏱ {session.ref_actual_duration} min (fait)
+                              </span>
+                            )}
+                            {session.ref_strava_id != null && (
+                              <a href={`https://www.strava.com/activities/${session.ref_strava_id}`} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 text-[#FC4C02] font-semibold hover:underline" title="Activité Strava de la dernière séance">
+                                <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" /></svg>
+                                Strava
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
+                      {/* Bouton Strava (jaune) → ouvre l'activité liée par l'athlète */}
+                      {(() => {
+                        const raw = (session.garmin_link || session.ref_strava_url || "").trim();
+                        // Le champ peut contenir une phrase entière : on extrait l'URL qui s'y trouve.
+                        const urlInText = raw.match(/https?:\/\/[^\s]+/i)?.[0];
+                        const stravaHref = urlInText
+                          || (session.strava_id ? `https://www.strava.com/activities/${session.strava_id}`
+                            : session.ref_strava_id ? `https://www.strava.com/activities/${session.ref_strava_id}` : null);
+                        // On n'affiche que si ça ressemble à une vraie URL externe (évite les routes internes)
+                        if (!stravaHref || !/^https?:\/\/[^/]+\.[^/]+/i.test(stravaHref)) return null;
+                        return (
+                          <a
+                            href={stravaHref}
+                            target="_blank" rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            title="Voir l'activité Strava de la séance"
+                            className="h-5 w-5 flex items-center justify-center flex-shrink-0 mt-0.5 rounded-full bg-primary text-black hover:brightness-110"
+                          >
+                            <svg viewBox="0 0 24 24" className="w-3 h-3 fill-current"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.599h4.172L10.463 0l-7 13.828h4.169" /></svg>
+                          </a>
+                        );
+                      })()}
                       {/* Note privée coach (point jaune si présente) */}
                       <Popover>
                         <PopoverTrigger asChild>
@@ -1518,14 +1561,31 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                   <ExerciseCombobox
                                     value={exercise.exercice}
                                     onChange={(v) => onExerciseChange(selectedSession.id, exercise.id, "exercice", v)}
-                                    exercises={libraryExercises.filter((ex) => ex.category === "mobilité-souplesse" || ex.category === "massage")}
+                                    exercises={libraryExercises.filter((ex) => { const c = (ex.category || "").toLowerCase(); return c.includes("mobilit") || c.includes("souplesse"); })}
                                     disabled={isValidated}
                                     onExerciseCreated={onExerciseCreated}
                                   />
                                 </div>
                               </TableCell>
                               <TableCell>
-                                <Input value={exercise.reps} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)} placeholder="ex: 3x30sec" disabled={isValidated} />
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <Input
+                                    value={exercise.reps}
+                                    onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)}
+                                    onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onExerciseChange(selectedSession.id, exercise.id, "reps", parsed); } }}
+                                    placeholder={exercise.is_duration ? "sec ou 10min" : "ex: 12 reps"}
+                                    className="w-28"
+                                    disabled={isValidated}
+                                  />
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                                    <Checkbox checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} />
+                                    secondes
+                                  </label>
+                                  <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                                    <Checkbox checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
+                                    par côté
+                                  </label>
+                                </div>
                               </TableCell>
                               <TableCell>
                                 <Input value={exercise.commentaire} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "commentaire", e.target.value)} placeholder="Notes..." disabled={isValidated} />
