@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addWeeks, addDays, differenceInCalendarDays } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -101,8 +102,8 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
   return (
     <div className="space-y-2">
       {/* ── Fenêtre flottante : point programmation (micro en cours + obj/sous-obj) ── */}
-      {showModal && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm" onClick={dismissModal}>
+      {showModal && createPortal((
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm" onClick={dismissModal}>
           <div onClick={(e) => e.stopPropagation()} className="relative w-[420px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6 animate-in zoom-in-95 fade-in">
             <div className="text-center">
               <div className="text-3xl mb-1">🧭</div>
@@ -154,7 +155,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {/* Rappel : aucun microcycle ne couvre la période en cours */}
       {!curMicro && (
