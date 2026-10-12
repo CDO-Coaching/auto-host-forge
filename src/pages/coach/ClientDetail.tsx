@@ -64,7 +64,6 @@ import { RaceTimeEstimatesCard } from "@/components/RaceTimeEstimatesCard";
 import { AerobicEfficiencyCard } from "@/components/AerobicEfficiencyCard";
 import { PerformanceTestsCard } from "@/components/PerformanceTestsCard";
 import { CoachFatigueView } from "@/components/CoachFatigueView";
-import { CoachFatigueAlert } from "@/components/CoachFatigueAlert";
 import { CoachSfmsAlert } from "@/components/CoachSfmsAlert";
 import { CoachFcReminderAlert } from "@/components/CoachFcReminderAlert";
 import { CoachWeightView } from "@/components/CoachWeightView";
@@ -5038,13 +5037,7 @@ export default function ClientDetail() {
             </div>
           )}
 
-          {/* Alerte de fatigue */}
-          {athlete && (
-            <CoachFatigueAlert
-              athleteId={athleteId!}
-              athleteName={`${athlete.first_name || ''} ${athlete.last_name || ''}`.trim() || athlete.email}
-            />
-          )}
+          {/* Alerte de fatigue retirée (non consultée) */}
 
           {/* ── Bandeau de contexte : microcycle en cours · objectif · prochain sous-objectif ── */}
           {athleteId && <ProgContextHeader athleteId={athleteId} onGoToOverview={() => setActiveTab("vue")} />}
