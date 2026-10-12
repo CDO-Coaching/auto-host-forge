@@ -25,6 +25,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
   const [deadline, setDeadline] = useState<string | null>(null);
   const [milestones, setMilestones] = useState<{ label: string; target_date: string }[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -74,6 +75,23 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
   const nextMs = milestones.filter((m) => weeksUntil(m.target_date) >= 0).sort((a, b) => D(a.target_date).getTime() - D(b.target_date).getTime())[0] || null;
   const objWeeks = deadline ? weeksUntil(deadline) : null;
 
+  // Rappel flottant : signature de l'état (microcycle en cours + prochaine échéance).
+  // On montre la fenêtre quand cette signature change (nouveau micro, ou obj/sous-obj à flaguer).
+  const microKey = curMicro ? `${curMicro.name}|${format(curMicro.start, "yyyy-MM-dd")}` : "none";
+  const tgtKey = nextMs ? `ms:${nextMs.label}|${nextMs.target_date}` : (objName && deadline ? `obj:${deadline}` : "none");
+  const signature = `${microKey}##${tgtKey}`;
+  const hasReason = curMicro != null || nextMs != null || (!!objName && !!deadline);
+  const ackKey = `prog_ctx_ack_${athleteId}`;
+  useEffect(() => {
+    if (!loaded || !hasReason) return;
+    try { if (localStorage.getItem(ackKey) !== signature) setShowModal(true); } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, signature]);
+  const dismissModal = () => {
+    try { localStorage.setItem(ackKey, signature); } catch { /* ignore */ }
+    setShowModal(false);
+  };
+
   if (!loaded) return null;
 
   const Tile = ({ children, tone }: { children: React.ReactNode; tone?: string }) => (
@@ -81,6 +99,76 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
   );
 
   return (
+    <div className="space-y-2">
+      {/* ── Fenêtre flottante : point programmation (micro en cours + obj/sous-obj) ── */}
+      {showModal && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm" onClick={dismissModal}>
+          <div onClick={(e) => e.stopPropagation()} className="relative w-[420px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6 animate-in zoom-in-95 fade-in">
+            <div className="text-center">
+              <div className="text-3xl mb-1">🧭</div>
+              <h3 className="text-lg font-black leading-tight" style={SORA}>Point programmation</h3>
+            </div>
+            <div className="mt-4 space-y-2.5">
+              {/* Microcycle en cours */}
+              <div className="rounded-xl border p-3" style={{ borderColor: `${mesoColor}55`, background: `${mesoColor}12` }}>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"><Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> Microcycle en cours</div>
+                {curMicro ? (
+                  <>
+                    <p className="text-base font-black mt-0.5" style={SORA}>{curMicro.name}</p>
+                    {curMeso && <p className="text-[11px] text-muted-foreground">{curMeso.name} · jusqu'au {format(curMicro.end, "d MMM", { locale: fr })}</p>}
+                  </>
+                ) : (
+                  <p className="text-sm text-amber-500 font-medium mt-0.5">⚠️ Aucun microcycle sur la période — à programmer dans Vue d'ensemble.</p>
+                )}
+              </div>
+              {/* Objectif */}
+              {objName && (
+                <div className="flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                  <span className="text-xl shrink-0">🎯</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-primary truncate" style={SORA}>{objName}</p>
+                    {objWeeks != null && <p className="text-[11px] text-muted-foreground">{objWeeks < 0 ? `dépassé · ${Math.abs(objWeeks)} sem.` : objWeeks === 0 ? "cette semaine !" : `dans ${objWeeks} sem.`}</p>}
+                  </div>
+                </div>
+              )}
+              {/* Prochain sous-objectif */}
+              {nextMs && (
+                <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/20 p-3">
+                  <span className="text-xl shrink-0">🚩</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold truncate" style={SORA}>{nextMs.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{weeksUntil(nextMs.target_date) === 0 ? "cette semaine !" : `dans ${weeksUntil(nextMs.target_date)} sem.`} · {format(D(nextMs.target_date), "d MMM yyyy", { locale: fr })}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button type="button" onClick={() => { dismissModal(); onGoToOverview?.(); }}
+                className="flex-1 h-11 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted inline-flex items-center justify-center gap-1.5">
+                <Layers className="h-4 w-4" /> Vue d'ensemble
+              </button>
+              <button type="button" onClick={dismissModal}
+                className="flex-[1.3] h-11 rounded-xl bg-primary text-black text-sm font-extrabold active:scale-[0.98]">
+                Compris
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rappel : aucun microcycle ne couvre la période en cours */}
+      {!curMicro && (
+        <button type="button" onClick={onGoToOverview}
+          className="w-full flex items-center gap-2.5 rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 text-left hover:bg-amber-500/15 transition-colors">
+          <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-amber-500">Aucun microcycle programmé sur la période en cours</p>
+            <p className="text-[12px] text-muted-foreground">Pense à créer la semaine de cet athlète dans <span className="font-semibold text-foreground">Vue d'ensemble</span>.</p>
+          </div>
+          <span className="text-[11px] font-semibold text-amber-500 inline-flex items-center gap-1 shrink-0"><Layers className="h-3.5 w-3.5" /> Programmer</span>
+        </button>
+      )}
+
     <div className="flex gap-2 flex-wrap">
       {/* Tuile 1 — Microcycle en cours */}
       <Tile tone={curMicro ? mesoColor : undefined}>
@@ -134,6 +222,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
           </>
         ) : <p className="text-sm text-muted-foreground italic mt-1">Aucun sous-objectif à venir</p>}
       </Tile>
+    </div>
     </div>
   );
 }
