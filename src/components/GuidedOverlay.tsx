@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Play, Pause, ChevronRight, MessageSquarePlus, Pencil } from "lucide-react";
+import { X, Check, Play, Pause, ChevronRight, MessageSquarePlus, Pencil, Video } from "lucide-react";
 
 export interface GuidedStep {
   id: string;
@@ -21,6 +21,7 @@ export interface GuidedStep {
   refCharge?: string;  // charge demandée (consigne) pour affichage
   refRpe?: string;     // RPE demandé
   refTempo?: string;   // tempo demandé
+  videoUrl?: string;   // lien vidéo de démonstration si dispo
   phaseLabel?: string;
   phaseColor?: string;
   autoStart?: boolean;   // l'effort démarre seul (enchaînement) au lieu d'attendre « Je suis prêt »
@@ -195,6 +196,13 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                   {step.refRpe && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md bg-[#f59e0b]/15 text-[#f59e0b]">RPE {step.refRpe} demandé</span>}
                   {step.refTempo && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md bg-[#9c7bd6]/20 text-[#b79ae6] font-mono">Tempo {step.refTempo}</span>}
                 </div>
+              )}
+              {step.videoUrl && (
+                <a href={step.videoUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-[13px] font-bold"
+                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}>
+                  <Video className="h-4 w-4" /> Revoir la démo
+                </a>
               )}
               {step.isDuration ? (
                 <div className="mt-5 bg-[#141414] rounded-3xl p-7" style={{ border: `2px solid ${(mode === "prep" ? "#f59e0b" : phaseColor)}55` }}>

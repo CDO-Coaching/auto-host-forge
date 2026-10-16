@@ -246,6 +246,7 @@ export default function SupersetDetail() {
           refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
           refRpe: (sd.rpe || ex.rpe) ? String(sd.rpe || ex.rpe) : undefined,
           refTempo: (sd.tempo || ex.tempo) ? String(sd.tempo || ex.tempo) : undefined,
+          videoUrl: videoUrls[ex.exercice] || undefined,
           isDistance: ex.is_distance === true, perSide,
           onSkip: () => skipExoGuided(exIdx),
         };

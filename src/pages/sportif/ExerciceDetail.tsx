@@ -742,6 +742,7 @@ export default function ExerciceDetail() {
         refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
         refRpe: (sd.rpe || exercise?.rpe) ? String(sd.rpe || exercise?.rpe) : undefined,
         refTempo: (sd.tempo || exercise?.tempo) ? String(sd.tempo || exercise?.tempo) : undefined,
+        videoUrl: videoUrl || undefined,
         isDistance: exercise?.is_distance === true,
         perSide,
         onSkip: () => skipExerciseGuided(),
