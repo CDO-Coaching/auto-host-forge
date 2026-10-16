@@ -4,6 +4,8 @@ import { SoundSystem, type SoundPreset } from '@/lib/soundSystem';
 export type TimerType = 'chrono' | 'countdown' | 'emom' | 'tabata';
 export type EmomInterval = 30 | 60 | 120 | 180;
 
+export type TimerPhase = 'work' | 'change' | 'rest';
+
 export interface TimerSettings {
   type: TimerType;
   duration: number;
@@ -13,6 +15,10 @@ export interface TimerSettings {
   emomInterval: EmomInterval;
   soundEnabled: boolean;
   soundPreset: SoundPreset;
+  /** Tabata « par côté » : chaque tour = travail côté 1 → pause → travail côté 2 → récup */
+  perSide: boolean;
+  /** Durée (s) de la pause de changement de côté en mode « par côté » */
+  changeTime: number;
 }
 
 interface TimerState {
@@ -31,6 +37,8 @@ const DEFAULT_SETTINGS: TimerSettings = {
   emomInterval: 60,
   soundEnabled: true,
   soundPreset: 'gym',
+  perSide: false,
+  changeTime: 5,
 };
 
 // Délai (ms) après l'appui avant de lancer l'enregistrement de départ.
@@ -69,6 +77,8 @@ export function useUniversalTimer() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [currentRound, setCurrentRound] = useState(1);
   const [isWorkPhase, setIsWorkPhase] = useState(true);
+  const [timerPhase, setTimerPhase] = useState<TimerPhase>('work');
+  const [sideNum, setSideNum] = useState<1 | 2>(1);
 
   // Refs for precision timing with performance.now()
   const startTimeRef = useRef<number | null>(null);
@@ -81,6 +91,7 @@ export function useUniversalTimer() {
   const hasPlayedRestEndRef = useRef(false);
   const lastPhaseRef = useRef<boolean>(true);
   const lastRoundRef = useRef<number>(1);
+  const lastPhaseKeyRef = useRef<string>('');
 
   // Sauvegarder les réglages
   useEffect(() => {
@@ -240,11 +251,14 @@ export function useUniversalTimer() {
       }
     }
     
-    // ============ TABATA ============
+    // ============ TABATA (+ variante « par côté ») ============
     else if (settings.type === 'tabata') {
-      const cycleTime = settings.workTime + settings.restTime;
+      const perSide = !!settings.perSide;
+      const changeTime = perSide ? (settings.changeTime || 5) : 0;
+      // En « par côté » : 2 blocs de travail + 1 pause de changement par tour.
+      const cycleTime = (perSide ? 2 : 1) * settings.workTime + changeTime + settings.restTime;
       const totalDuration = settings.rounds * cycleTime;
-      
+
       // Vérification de fin AVANT tous les calculs
       if (elapsed >= totalDuration) {
         stopTimer();
@@ -252,60 +266,78 @@ export function useUniversalTimer() {
         setTimeRemaining(0);
         setCurrentRound(settings.rounds);
         setIsWorkPhase(false);
+        setTimerPhase('rest');
         return;
       }
 
       const currentCycle = Math.floor(elapsed / cycleTime);
       const timeInCycle = elapsed % cycleTime;
-      const isWork = timeInCycle < settings.workTime;
       const roundNum = currentCycle + 1;
-      
       setCurrentRound(roundNum);
-      
-      // Changement de phase : les sons de fin d'effort et de reprise sont joués
-      // en anticipé (voir ci-dessous). Fallback synthé au début d'effort si pas
-      // d'enregistrement de départ.
-      if (isWork !== lastPhaseRef.current) {
-        setIsWorkPhase(isWork);
+
+      // Déterminer la phase courante, son temps restant et le côté
+      const w = settings.workTime;
+      let phase: TimerPhase;
+      let phaseRemaining: number;
+      let side: 1 | 2 = 1;
+      if (!perSide) {
+        if (timeInCycle < w) { phase = 'work'; phaseRemaining = w - timeInCycle; }
+        else { phase = 'rest'; phaseRemaining = settings.restTime - (timeInCycle - w); }
+      } else if (timeInCycle < w) {
+        phase = 'work'; side = 1; phaseRemaining = w - timeInCycle;
+      } else if (timeInCycle < w + changeTime) {
+        phase = 'change'; phaseRemaining = w + changeTime - timeInCycle;
+      } else if (timeInCycle < 2 * w + changeTime) {
+        phase = 'work'; side = 2; phaseRemaining = 2 * w + changeTime - timeInCycle;
+      } else {
+        phase = 'rest'; phaseRemaining = cycleTime - timeInCycle;
+      }
+      const isWork = phase === 'work';
+
+      setTimeRemaining(phaseRemaining);
+      setIsWorkPhase(isWork);
+      setTimerPhase(phase);
+      setSideNum(side);
+
+      // Changement de phase (tour / phase / côté) : réinitialise les repères sonores.
+      const phaseKey = `${roundNum}:${phase}:${side}`;
+      if (phaseKey !== lastPhaseKeyRef.current) {
+        // Début d'un bloc de travail : son de transition si pas d'enregistrement.
         if (isWork && !soundSystemRef.current?.hasClip('start')) {
+          playSound('transition');
+        }
+        // Début de la pause de changement de côté : court signal.
+        if (phase === 'change') {
           playSound('transition');
         }
         hasPlayed5SecAlertRef.current = false;
         hasPlayedHalfRef.current = false;
         hasPlayedEffortEndRef.current = false;
         hasPlayedRestEndRef.current = false;
+        lastPhaseKeyRef.current = phaseKey;
         lastPhaseRef.current = isWork;
       }
 
       if (isWork) {
-        const workRemaining = settings.workTime - timeInCycle;
-        setTimeRemaining(workRemaining);
-
+        const workElapsed = w - phaseRemaining;
         // Signal "half" à la moitié du travail (avec décalage de compensation)
-        if (settings.workTime >= 6 && timeInCycle >= settings.workTime / 2 + HALF_OFFSET_SEC && !hasPlayedHalfRef.current) {
+        if (w >= 6 && workElapsed >= w / 2 + HALF_OFFSET_SEC && !hasPlayedHalfRef.current) {
           triggerHalf();
           hasPlayedHalfRef.current = true;
         }
-
         // Son de fin d'effort : démarre EFFORT_END_LEAD_SEC avant la fin du travail
-        // (remplace l'ancienne alerte 5 s pendant le travail)
-        if (workRemaining <= EFFORT_END_LEAD_SEC && !hasPlayedEffortEndRef.current) {
+        if (phaseRemaining <= EFFORT_END_LEAD_SEC && !hasPlayedEffortEndRef.current) {
           playSound('victory');
           hasPlayedEffortEndRef.current = true;
         }
       } else {
-        const restElapsed = timeInCycle - settings.workTime;
-        const restRemaining = settings.restTime - restElapsed;
-        setTimeRemaining(restRemaining);
-
-        // Son de reprise : enregistrement de départ joué en fin de récup
+        // Pause de changement OU récup : son de reprise anticipé.
         if (soundSystemRef.current?.hasClip('start')) {
-          if (restRemaining <= REST_END_LEAD_SEC && !hasPlayedRestEndRef.current) {
+          if (phaseRemaining <= REST_END_LEAD_SEC && !hasPlayedRestEndRef.current) {
             playSound('startCue');
             hasPlayedRestEndRef.current = true;
           }
-        } else if (restRemaining <= 5 && restRemaining > 4.9 && !hasPlayed5SecAlertRef.current) {
-          // Fallback : ancienne alerte 5 s si pas d'enregistrement de départ
+        } else if (phaseRemaining <= 5 && phaseRemaining > 4.9 && !hasPlayed5SecAlertRef.current) {
           playSound('alert5');
           hasPlayed5SecAlertRef.current = true;
         }
@@ -366,6 +398,7 @@ export function useUniversalTimer() {
           hasPlayedRestEndRef.current = false;
           lastPhaseRef.current = true;
           lastRoundRef.current = 1;
+          lastPhaseKeyRef.current = '';
 
           localStorage.setItem(STATE_KEY, JSON.stringify({
             startTime: Date.now(),
@@ -401,12 +434,15 @@ export function useUniversalTimer() {
     setTimeRemaining(0);
     setCurrentRound(1);
     setIsWorkPhase(true);
+    setTimerPhase('work');
+    setSideNum(1);
     hasPlayed5SecAlertRef.current = false;
     hasPlayedHalfRef.current = false;
     hasPlayedEffortEndRef.current = false;
     hasPlayedRestEndRef.current = false;
     lastPhaseRef.current = true;
     lastRoundRef.current = 1;
+    lastPhaseKeyRef.current = '';
     localStorage.removeItem(STATE_KEY);
   }, [stopTimer]);
 
@@ -471,6 +507,8 @@ export function useUniversalTimer() {
     timeRemaining,
     currentRound,
     isWorkPhase,
+    timerPhase,
+    sideNum,
     startTimer,
     pauseTimer,
     resetTimer,

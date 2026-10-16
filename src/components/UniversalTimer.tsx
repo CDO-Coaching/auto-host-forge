@@ -46,6 +46,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     timeRemaining,
     currentRound,
     isWorkPhase,
+    timerPhase,
+    sideNum,
     startTimer,
     pauseTimer,
     resetTimer,
@@ -76,7 +78,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     if (settings.type === 'chrono') return 0;
     
     if (settings.type === 'tabata') {
-      const phaseTime = isWorkPhase ? settings.workTime : settings.restTime;
+      const phaseTime = timerPhase === 'work' ? settings.workTime : timerPhase === 'change' ? (settings.changeTime || 5) : settings.restTime;
       return ((phaseTime - timeRemaining) / phaseTime) * 100;
     }
     
@@ -96,7 +98,13 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
   // laisse voir les séries et remplir la difficulté, tout en gardant chrono/phase/récup + sons.
   const showMiniBar = (isRunning || isCountingDown) && !open;
   const isTabata = settings.type === 'tabata';
-  const phaseColor = isCountingDown ? '#f59e0b' : (settings.type === 'tabata' ? (isWorkPhase ? '#22c55e' : '#3b82f6') : '#e8c466');
+  const tabataPhaseColor = timerPhase === 'work' ? '#22c55e' : timerPhase === 'change' ? '#f59e0b' : '#3b82f6';
+  const phaseColor = isCountingDown ? '#f59e0b' : (settings.type === 'tabata' ? tabataPhaseColor : '#e8c466');
+  const tabataLabel = timerPhase === 'change'
+    ? '🔄 Change de côté'
+    : timerPhase === 'work'
+      ? (settings.perSide ? `🔥 Côté ${sideNum}` : '🔥 Travail')
+      : '💤 Repos';
 
   return (
     <>
@@ -113,7 +121,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
           {/* Phase + tour */}
           <button type="button" onClick={() => setOpen(true)} className="flex flex-col items-start min-w-0 flex-1 text-left">
             <span className="text-[11px] font-bold uppercase tracking-wide leading-none" style={{ color: phaseColor }}>
-              {isCountingDown ? 'Prépare-toi' : isTabata ? (isWorkPhase ? '🔥 Travail' : '💤 Repos') : settings.type === 'emom' ? '⏱ EMOM' : 'Minuteur'}
+              {isCountingDown ? 'Prépare-toi' : isTabata ? tabataLabel : settings.type === 'emom' ? '⏱ EMOM' : 'Minuteur'}
             </span>
             {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
               <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Tour {currentRound} / {getTotalRounds()}</span>
@@ -237,8 +245,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
                         `Tour ${currentRound} / ${getTotalRounds()}`
                       ) : (
                         <>
-                          <span className={isWorkPhase ? "text-green-500" : "text-blue-500"}>
-                            {isWorkPhase ? "🔥 TRAVAIL" : "💤 REPOS"}
+                          <span style={{ color: tabataPhaseColor }}>
+                            {timerPhase === 'change' ? '🔄 CHANGE DE CÔTÉ' : timerPhase === 'work' ? (settings.perSide ? `🔥 CÔTÉ ${sideNum}` : '🔥 TRAVAIL') : '💤 REPOS'}
                           </span>
                           <div className="text-lg text-muted-foreground mt-2">
                             Tour {currentRound} / {getTotalRounds()}
@@ -416,6 +424,36 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Mode « par côté »</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Côté 1 → pause → côté 2 → récup, à chaque tour</p>
+                  </div>
+                  <Switch
+                    checked={settings.perSide}
+                    onCheckedChange={(checked) => updateSettings({ perSide: checked })}
+                  />
+                </div>
+                {settings.perSide && (
+                  <div className="space-y-2">
+                    <Label>Pause de changement de côté</Label>
+                    <Select
+                      value={(settings.changeTime || 5).toString()}
+                      onValueChange={(value) => updateSettings({ changeTime: Number(value) })}
+                    >
+                      <SelectTrigger className="h-12 text-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {[3, 5, 8, 10, 15, 20].map((sec) => (
+                          <SelectItem key={sec} value={sec.toString()}>
+                            {sec} secondes
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </>
             )}
 

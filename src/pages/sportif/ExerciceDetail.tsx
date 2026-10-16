@@ -191,6 +191,8 @@ export default function ExerciceDetail() {
       workTime: workTime,
       restTime: restTime,
       rounds: totalSets,
+      // Auto : si l'exo est « par côté », enchaîne côté 1 → pause → côté 2 → récup
+      perSide: exercise?.per_side === true,
     });
   };
 
@@ -1269,14 +1271,16 @@ export default function ExerciceDetail() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Timer className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                  <Label className="text-sm sm:text-base font-semibold">Mode Tabata</Label>
+                  <Label className="text-sm sm:text-base font-semibold">{exercise.per_side ? "Mode Tabata · par côté" : "Mode Tabata"}</Label>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {exercise.series} tour{parseInt(exercise.series) > 1 ? 's' : ''} × {exercise.reps}s travail / {exercise.recuperation} repos
+                  {exercise.per_side
+                    ? `${exercise.series} tour${parseInt(exercise.series) > 1 ? 's' : ''} × ${exercise.reps}s côté 1 → pause → ${exercise.reps}s côté 2 / ${exercise.recuperation} récup`
+                    : `${exercise.series} tour${parseInt(exercise.series) > 1 ? 's' : ''} × ${exercise.reps}s travail / ${exercise.recuperation} repos`}
                 </p>
                 <Button onClick={handleLaunchTabata} className="w-full h-11 bg-green-600 hover:bg-green-700">
                   <Timer className="h-4 w-4 mr-2" />
-                  Lancer le Tabata
+                  {exercise.per_side ? "Lancer le Tabata par côté" : "Lancer le Tabata"}
                 </Button>
               </div>
             </CardContent>
