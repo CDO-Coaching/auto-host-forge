@@ -184,9 +184,11 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
           <div className="flex-1 flex flex-col justify-center gap-5">
             <div className="text-center">
               {step.exName && (
-                <div className="inline-flex items-center gap-2 text-[13px] font-bold px-3 py-1.5 rounded-full" style={{ color: step.exColor || "#e8c466", background: `${step.exColor || "#e8c466"}26` }}>
-                  {step.exNumber != null && <span className="h-[18px] w-[18px] rounded-full flex items-center justify-center text-[11px] font-extrabold" style={{ background: step.exColor || "#e8c466", color: "#1a1a1a" }}>{step.exNumber}</span>}
-                  <span className="uppercase">{step.exName}</span>
+                <div className="flex flex-col items-center gap-2">
+                  {step.exNumber != null && (
+                    <span className="h-6 w-6 rounded-full flex items-center justify-center text-[12px] font-extrabold" style={{ background: step.exColor || "#e8c466", color: "#1a1a1a" }}>{step.exNumber}</span>
+                  )}
+                  <h2 className="text-2xl sm:text-3xl font-extrabold uppercase leading-tight tracking-tight" style={{ color: step.exColor || "#e8c466", ...sora }}>{step.exName}</h2>
                 </div>
               )}
               {/* Consigne demandée par le coach — RPE en priorité */}
