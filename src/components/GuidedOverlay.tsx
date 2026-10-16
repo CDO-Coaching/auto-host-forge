@@ -22,6 +22,7 @@ export interface GuidedStep {
   phaseColor?: string;
   // recup
   nextLabel?: string;
+  nextPreview?: string;   // "Série suivante identique" ou "Change : charge 25 kg · 12 reps"
   rpeTargets?: { id: string; label: string; color?: string }[];
   // callbacks
   onDone?: (data: { reps?: string; charge?: string }) => void;
@@ -183,6 +184,11 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               <div className="font-extrabold tabular-nums leading-none text-[56px]" style={sora}>{fmt(remaining)}</div>
               <div className="text-xl font-extrabold text-[#5aa9e6] mt-2">{remaining === 0 ? "✅ Prêt" : "😮‍💨 Récupère"}</div>
               {step.nextLabel && <div className="text-[13px] text-muted-foreground mt-1">Ensuite : {step.nextLabel}</div>}
+              {step.nextPreview && (
+                <div className="text-[12px] font-semibold mt-1" style={{ color: /identique/i.test(step.nextPreview) ? "#52b788" : "#f59e0b" }}>
+                  {step.nextPreview}
+                </div>
+              )}
             </div>
 
             {/* Recap de la série qui vient d'être validée */}

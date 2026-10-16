@@ -715,6 +715,17 @@ export default function ExerciceDetail() {
     const n = sData.length;
     const exName = exercise?.exercice || "Exercice";
     const isDur = exercise?.is_duration === true;
+    const valOf = (s: any, f: string) => (s?.[f] ?? exercise?.[f] ?? "").toString().trim();
+    const previewNext = (cur: any, nxt: any) => {
+      const ch: string[] = [];
+      const cr = valOf(cur, "reps"), nr = valOf(nxt, "reps");
+      if (nr && cr !== nr) ch.push(`${isDur ? "durée" : exercise?.is_distance ? "distance" : "reps"} ${nr}${isDur ? "s" : exercise?.is_distance ? "m" : ""}`);
+      const cc = valOf(cur, "charge"), nc = valOf(nxt, "charge");
+      if (nc && cc !== nc) ch.push(`charge ${nc}${/^\d+(\.\d+)?$/.test(nc) ? " kg" : ""}`);
+      const ct = valOf(cur, "tempo"), nt = valOf(nxt, "tempo");
+      if (nt && ct !== nt) ch.push(`tempo ${nt}`);
+      return ch.length ? `Change : ${ch.join(" · ")}` : "Série suivante identique";
+    };
     sData.forEach((sd, i) => {
       const chargeRaw = (sd.charge || exercise?.charge || "").toString().trim();
       const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
@@ -743,6 +754,7 @@ export default function ExerciceDetail() {
       steps.push({
         id: `r${i}`, type: "recup", seconds: i < n - 1 ? recupSec : 0,
         nextLabel: i < n - 1 ? `Série ${i + 2}` : "Fin de l'exercice",
+        nextPreview: i < n - 1 ? previewNext(sd, sData[i + 1]) : undefined,
         onRpe: (rpe) => setSerieRpeGuided(i, rpe),
         onComment: (text) => { guidedCommentsRef.current[i] = text; },
       });

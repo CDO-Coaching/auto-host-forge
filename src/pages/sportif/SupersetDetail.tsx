@@ -208,6 +208,24 @@ export default function SupersetDetail() {
     const colors = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"];
     const lastEx: any = exercises[exercises.length - 1];
     const endRecup = parseSecs(getSeriesDataForExercise(lastEx)[0]?.recuperation || lastEx?.recuperation) || 0;
+    const valOf = (ex: any, sd: any, f: string) => (sd?.[f] ?? ex?.[f] ?? "").toString().trim();
+    const previewRound = (r: number) => {
+      const parts: string[] = [];
+      exercises.forEach((ex: any) => {
+        const cur = getSeriesDataForExercise(ex)[r] || {};
+        const nxt = getSeriesDataForExercise(ex)[r + 1] || {};
+        const isDur = ex.is_duration === true;
+        const ch: string[] = [];
+        const cr = valOf(ex, cur, "reps"), nr = valOf(ex, nxt, "reps");
+        if (nr && cr !== nr) ch.push(`${isDur ? "durée" : ex.is_distance ? "distance" : "reps"} ${nr}${isDur ? "s" : ex.is_distance ? "m" : ""}`);
+        const cc = valOf(ex, cur, "charge"), nc = valOf(ex, nxt, "charge");
+        if (nc && cc !== nc) ch.push(`charge ${nc}${/^\d+(\.\d+)?$/.test(nc) ? " kg" : ""}`);
+        const ct = valOf(ex, cur, "tempo"), nt = valOf(ex, nxt, "tempo");
+        if (nt && ct !== nt) ch.push(`tempo ${nt}`);
+        if (ch.length) parts.push(`${ex.exercice} : ${ch.join(" · ")}`);
+      });
+      return parts.length ? `Change : ${parts.join(" ; ")}` : "Série suivante identique";
+    };
     for (let r = 0; r < totalRounds; r++) {
       exercises.forEach((ex: any, exIdx: number) => {
         const sd = getSeriesDataForExercise(ex)[r] || getSeriesDataForExercise(ex)[0] || {};
@@ -237,6 +255,7 @@ export default function SupersetDetail() {
       steps.push({
         id: `r${r}`, type: "recup", seconds: r < totalRounds - 1 ? endRecup : 0,
         nextLabel: r < totalRounds - 1 ? `Série ${r + 2}` : "Fin du superset",
+        nextPreview: r < totalRounds - 1 ? previewRound(r) : undefined,
         rpeTargets,
         onRpe: (rpe, targetId) => validateExoFromTimer(r, Number(targetId), rpe),
         onComment: (text) => { exercises.forEach((_, exIdx) => { guidedCommentsRef.current[`${exIdx}:${r}`] = text; }); },
