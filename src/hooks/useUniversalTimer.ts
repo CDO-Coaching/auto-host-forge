@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SoundSystem, type SoundPreset } from '@/lib/soundSystem';
 
-export type TimerType = 'chrono' | 'countdown' | 'emom' | 'tabata';
+export type TimerType = 'chrono' | 'countdown' | 'emom' | 'tabata' | 'sequence';
 export type EmomInterval = 30 | 60 | 120 | 180;
 
 export type TimerPhase = 'work' | 'change' | 'rest';
+
+/** Une étape d'une séquence (Tabata superset) : un bloc de travail, un changement ou une récup. */
+export interface TimerStep {
+  label: string;
+  duration: number;
+  kind: TimerPhase;
+  color?: string;
+}
 
 export interface TimerSettings {
   type: TimerType;
@@ -19,6 +27,8 @@ export interface TimerSettings {
   perSide: boolean;
   /** Durée (s) de la pause de changement de côté en mode « par côté » */
   changeTime: number;
+  /** Étapes d'un tour en mode séquence (Tabata superset). Répétées `rounds` fois. */
+  steps: TimerStep[];
 }
 
 interface TimerState {
@@ -39,6 +49,7 @@ const DEFAULT_SETTINGS: TimerSettings = {
   soundPreset: 'gym',
   perSide: false,
   changeTime: 5,
+  steps: [],
 };
 
 // Délai (ms) après l'appui avant de lancer l'enregistrement de départ.
@@ -72,6 +83,7 @@ export function useUniversalTimer() {
   });
 
   const [isRunning, setIsRunning] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isCountingDown, setIsCountingDown] = useState(false);
   const [countdownValue, setCountdownValue] = useState(5);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -79,6 +91,8 @@ export function useUniversalTimer() {
   const [isWorkPhase, setIsWorkPhase] = useState(true);
   const [timerPhase, setTimerPhase] = useState<TimerPhase>('work');
   const [sideNum, setSideNum] = useState<1 | 2>(1);
+  const [stepLabel, setStepLabel] = useState<string>('');
+  const [stepColor, setStepColor] = useState<string>('#22c55e');
 
   // Refs for precision timing with performance.now()
   const startTimeRef = useRef<number | null>(null);
@@ -344,12 +358,83 @@ export function useUniversalTimer() {
       }
     }
 
+    // ============ SÉQUENCE (Tabata superset) ============
+    else if (settings.type === 'sequence') {
+      const steps = settings.steps || [];
+      const cycleTime = steps.reduce((s, st) => s + st.duration, 0);
+      if (steps.length === 0 || cycleTime <= 0) {
+        setTimeRemaining(0);
+      } else {
+        const totalDuration = settings.rounds * cycleTime;
+        if (elapsed >= totalDuration) {
+          stopTimer();
+          playSound('victory');
+          setTimeRemaining(0);
+          setCurrentRound(settings.rounds);
+          setTimerPhase('rest');
+          return;
+        }
+        const currentCycle = Math.floor(elapsed / cycleTime);
+        let timeInCycle = elapsed % cycleTime;
+        const roundNum = currentCycle + 1;
+        setCurrentRound(roundNum);
+
+        // Trouver l'étape courante
+        let stepIdx = 0;
+        let acc = 0;
+        for (let i = 0; i < steps.length; i++) {
+          if (timeInCycle < acc + steps[i].duration) { stepIdx = i; break; }
+          acc += steps[i].duration;
+          stepIdx = i;
+        }
+        const step = steps[stepIdx];
+        const stepElapsed = timeInCycle - acc;
+        const stepRemaining = step.duration - stepElapsed;
+        const isWork = step.kind === 'work';
+
+        setTimeRemaining(stepRemaining);
+        setIsWorkPhase(isWork);
+        setTimerPhase(step.kind);
+        setStepLabel(step.label);
+        setStepColor(step.color || (isWork ? '#52b788' : step.kind === 'change' ? '#f59e0b' : '#5aa9e6'));
+
+        const stepKey = `${roundNum}:${stepIdx}`;
+        if (stepKey !== lastPhaseKeyRef.current) {
+          if (isWork && !soundSystemRef.current?.hasClip('start')) playSound('transition');
+          if (step.kind === 'change') playSound('transition');
+          hasPlayed5SecAlertRef.current = false;
+          hasPlayedHalfRef.current = false;
+          hasPlayedEffortEndRef.current = false;
+          hasPlayedRestEndRef.current = false;
+          lastPhaseKeyRef.current = stepKey;
+        }
+
+        if (isWork) {
+          if (step.duration >= 6 && stepElapsed >= step.duration / 2 + HALF_OFFSET_SEC && !hasPlayedHalfRef.current) {
+            triggerHalf(); hasPlayedHalfRef.current = true;
+          }
+          if (stepRemaining <= EFFORT_END_LEAD_SEC && !hasPlayedEffortEndRef.current) {
+            playSound('victory'); hasPlayedEffortEndRef.current = true;
+          }
+        } else {
+          if (soundSystemRef.current?.hasClip('start')) {
+            if (stepRemaining <= REST_END_LEAD_SEC && !hasPlayedRestEndRef.current) {
+              playSound('startCue'); hasPlayedRestEndRef.current = true;
+            }
+          } else if (stepRemaining <= 5 && stepRemaining > 4.9 && !hasPlayed5SecAlertRef.current) {
+            playSound('alert5'); hasPlayed5SecAlertRef.current = true;
+          }
+        }
+      }
+    }
+
     animationFrameRef.current = requestAnimationFrame(updateTimerDisplay) as any;
   }, [isRunning, settings, playSound, triggerHalf]);
 
   // Arrêt complet du timer
   const stopTimer = useCallback(() => {
     setIsRunning(false);
+    setIsPaused(false);
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current as any);
     }
@@ -392,6 +477,7 @@ export function useUniversalTimer() {
           const now = performance.now();
           startTimeRef.current = now;
           setIsRunning(true);
+          setIsPaused(false);
           hasPlayed5SecAlertRef.current = false;
           hasPlayedHalfRef.current = false;
           hasPlayedEffortEndRef.current = false;
@@ -417,6 +503,7 @@ export function useUniversalTimer() {
       const now = performance.now();
       pausedTimeRef.current += now - startTimeRef.current;
       setIsRunning(false);
+      setIsPaused(true);
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current as any);
       }
@@ -502,6 +589,7 @@ export function useUniversalTimer() {
   return {
     settings,
     isRunning,
+    isPaused,
     isCountingDown,
     countdownValue,
     timeRemaining,
@@ -509,6 +597,8 @@ export function useUniversalTimer() {
     isWorkPhase,
     timerPhase,
     sideNum,
+    stepLabel,
+    stepColor,
     startTimer,
     pauseTimer,
     resetTimer,

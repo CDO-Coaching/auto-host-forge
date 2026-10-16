@@ -1,4 +1,4 @@
-import { Timer, Play, Pause, RotateCcw, X, Maximize2, Square } from "lucide-react";
+import { Timer, Play, Pause, RotateCcw, X, Maximize2, Minimize2, Square, ChevronDown, ChevronUp, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -33,14 +33,21 @@ interface UniversalTimerProps {
   hideTrigger?: boolean;
   /** Consigne de l'exercice affichée pendant le chrono (EMOM/Tabata) : reps/charge/tempo/RPE */
   consigne?: React.ReactNode;
+  /** Appelé quand l'athlète renseigne un RPE pendant la récup (facultatif) : valide la série du tour (et la cible si fournie). */
+  onRpe?: (rpe: number, round: number, targetId?: string) => void;
+  /** Cibles RPE à proposer pendant la récup (ex. un RPE par exercice du superset). Si absent, un seul RPE pour la série. */
+  rpeTargets?: { id: string; label: string; color?: string }[];
 }
 
 export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>((props, ref) => {
-  const { hideTrigger, consigne } = props;
+  const { hideTrigger, consigne, onRpe, rpeTargets } = props;
   const [open, setOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [rpeAck, setRpeAck] = useState<Record<string, number>>({});
   const {
     settings,
     isRunning,
+    isPaused,
     isCountingDown,
     countdownValue,
     timeRemaining,
@@ -48,6 +55,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     isWorkPhase,
     timerPhase,
     sideNum,
+    stepLabel,
+    stepColor,
     startTimer,
     pauseTimer,
     resetTimer,
@@ -90,21 +99,45 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
   };
 
   const getTotalRounds = (): number => {
-    if (settings.type === 'tabata' || settings.type === 'emom') return settings.rounds;
+    if (settings.type === 'tabata' || settings.type === 'emom' || settings.type === 'sequence') return settings.rounds;
     return 0;
   };
 
   // Bandeau compact affiché quand le minuteur tourne mais que le plein écran est fermé :
   // laisse voir les séries et remplir la difficulté, tout en gardant chrono/phase/récup + sons.
-  const showMiniBar = (isRunning || isCountingDown) && !open;
-  const isTabata = settings.type === 'tabata';
-  const tabataPhaseColor = timerPhase === 'work' ? '#22c55e' : timerPhase === 'change' ? '#f59e0b' : '#3b82f6';
-  const phaseColor = isCountingDown ? '#f59e0b' : (settings.type === 'tabata' ? tabataPhaseColor : '#e8c466');
-  const tabataLabel = timerPhase === 'change'
-    ? '🔄 Change de côté'
-    : timerPhase === 'work'
-      ? (settings.perSide ? `🔥 Côté ${sideNum}` : '🔥 Travail')
-      : '💤 Repos';
+  const showMiniBar = (isRunning || isPaused || isCountingDown) && !open;
+  const isSequence = settings.type === 'sequence';
+  const isTabata = settings.type === 'tabata' || isSequence;
+  const tabataPhaseColor = isSequence
+    ? stepColor
+    : (timerPhase === 'work' ? '#22c55e' : timerPhase === 'change' ? '#f59e0b' : '#3b82f6');
+  const phaseColor = isCountingDown ? '#f59e0b' : (isTabata ? tabataPhaseColor : '#e8c466');
+  const tabataLabel = isSequence
+    ? (stepLabel || (timerPhase === 'rest' ? '💤 Récup' : '🔥 Travail'))
+    : timerPhase === 'change'
+      ? '🔄 Change de côté'
+      : timerPhase === 'work'
+        ? (settings.perSide ? `🔥 Côté ${sideNum}` : '🔥 Travail')
+        : '💤 Repos';
+
+  // Message de phase dynamique et clair (plein écran)
+  const phaseHeadline = isSequence
+    ? (stepLabel || (timerPhase === 'rest' ? '😮‍💨 Récupère' : '🔥 Au travail'))
+    : timerPhase === 'change'
+      ? '🔄 Change de côté'
+      : timerPhase === 'work'
+        ? (settings.perSide ? (sideNum === 1 ? '🔥 Côté 1 — donne tout' : '🔥 Côté 2 — lâche rien') : '🔥 Au travail')
+        : '😮‍💨 Récupère';
+
+  // RPE pendant la récup (facultatif) : visible si un callback est fourni et qu'on est en repos.
+  const showRpeBlock = !!onRpe && (settings.type === 'tabata' || isSequence) && timerPhase === 'rest' && (isRunning || isPaused);
+  const submitRpe = (v: number, targetId?: string) => {
+    onRpe?.(v, currentRound, targetId);
+    setRpeAck((prev) => ({ ...prev, [`${currentRound}:${targetId ?? '_'}`]: v }));
+  };
+  useEffect(() => { setRpeAck({}); }, [currentRound]);
+  const RPE_COLORS = (v: number) => v <= 3 ? '#52b788' : v <= 6 ? '#e8c466' : v <= 8 ? '#f59e0b' : '#e56464';
+  const rpeRows = (rpeTargets && rpeTargets.length > 0) ? rpeTargets : [{ id: '_', label: '', color: undefined as string | undefined }];
 
   return (
     <>
@@ -123,8 +156,8 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
             <span className="text-[11px] font-bold uppercase tracking-wide leading-none" style={{ color: phaseColor }}>
               {isCountingDown ? 'Prépare-toi' : isTabata ? tabataLabel : settings.type === 'emom' ? '⏱ EMOM' : 'Minuteur'}
             </span>
-            {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
-              <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">Tour {currentRound} / {getTotalRounds()}</span>
+            {(isTabata || settings.type === 'emom') && getTotalRounds() > 0 && (
+              <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">{isSequence ? "Série" : "Tour"} {currentRound} / {getTotalRounds()}</span>
             )}
           </button>
 
@@ -185,86 +218,81 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
         </DialogTrigger>
       )}
 
-      <DialogContent className="max-w-full h-screen max-h-screen p-6 overflow-y-auto bg-background flex flex-col">
+      <DialogContent
+        className="max-w-full h-screen max-h-screen p-6 overflow-y-auto bg-background flex flex-col [&>button]:hidden"
+        style={{ paddingTop: 'calc(2.5rem + env(safe-area-inset-top))' }}
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">Minuteur</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setOpen(false)}
-            className="h-10 w-10"
-          >
-            <X className="h-6 w-6" />
-          </Button>
+          <div className="flex items-center gap-2">
+            {(isRunning || isPaused || isCountingDown) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setOpen(false)}
+                className="h-10 w-10"
+                aria-label="Réduire"
+                title="Réduire"
+              >
+                <Minimize2 className="h-6 w-6" />
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { resetTimer(); setOpen(false); }}
+              className="h-10 w-10"
+              aria-label="Fermer"
+            >
+              <X className="h-6 w-6" />
+            </Button>
+          </div>
         </div>
 
-        <div className="flex-1 flex flex-col justify-center space-y-8 max-w-2xl mx-auto w-full">
-          {/* Sélection du type */}
-          <div className="space-y-2">
-            <Label>Type de minuteur</Label>
-            <Select
-              value={settings.type}
-              onValueChange={(value) => {
-                updateSettings({ type: value as TimerType });
-                resetTimer();
-              }}
-              disabled={isRunning || isCountingDown}
-            >
-              <SelectTrigger className="h-12 text-lg">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TIMER_TYPES.map((type) => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Affichage principal du temps - GRAND */}
-          <div className="bg-card border-2 border-primary/20 rounded-2xl p-12 text-center space-y-6">
+        <div className="flex-1 flex flex-col justify-center space-y-6 max-w-2xl mx-auto w-full">
+          {/* Affichage principal : LE TEMPS en priorité, puis la PHASE, puis le TOUR */}
+          <div
+            className="bg-card rounded-2xl p-8 sm:p-12 text-center space-y-5"
+            style={{ border: `2px solid ${isTabata && (isRunning || isPaused) ? tabataPhaseColor + '55' : 'hsl(var(--primary) / 0.2)'}` }}
+          >
             {isCountingDown ? (
               <div className="space-y-4">
                 <div className="font-mono font-bold text-primary tabular-nums leading-none text-[clamp(5rem,25vw,10rem)] animate-pulse">
                   {countdownValue > 0 ? countdownValue : "GO!"}
                 </div>
-                <p className="text-xl text-muted-foreground">Prépare-toi...</p>
+                <p className="text-xl text-muted-foreground">👊 Prépare-toi…</p>
               </div>
             ) : (
               <>
-                <div className="font-mono font-bold text-foreground tabular-nums leading-none text-[clamp(3rem,18vw,6rem)] sm:text-[clamp(4rem,14vw,7rem)]">
+                {/* 1 — Le temps, le plus gros */}
+                <div className="font-mono font-bold text-foreground tabular-nums leading-none text-[clamp(3.5rem,20vw,7rem)]">
                   {formatTime(timeRemaining)}
                 </div>
 
-                {(settings.type === 'tabata' || settings.type === 'emom') && getTotalRounds() > 0 && (
-                  <div className="space-y-4">
-                    <div className="text-2xl font-semibold">
-                      {settings.type === 'emom' ? (
-                        `Tour ${currentRound} / ${getTotalRounds()}`
-                      ) : (
-                        <>
-                          <span style={{ color: tabataPhaseColor }}>
-                            {timerPhase === 'change' ? '🔄 CHANGE DE CÔTÉ' : timerPhase === 'work' ? (settings.perSide ? `🔥 CÔTÉ ${sideNum}` : '🔥 TRAVAIL') : '💤 REPOS'}
-                          </span>
-                          <div className="text-lg text-muted-foreground mt-2">
-                            Tour {currentRound} / {getTotalRounds()}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <Progress value={getProgress()} className="h-4" />
+                {/* 2 — La phase (message dynamique) */}
+                {isTabata && getTotalRounds() > 0 && (
+                  <div className="text-2xl sm:text-3xl font-extrabold" style={{ color: tabataPhaseColor }}>
+                    {phaseHeadline}
+                  </div>
+                )}
+                {settings.type === 'emom' && getTotalRounds() > 0 && (
+                  <div className="text-2xl font-extrabold text-primary">⏱ EMOM</div>
+                )}
+
+                {/* 3 — Le tour */}
+                {(isTabata || settings.type === 'emom') && getTotalRounds() > 0 && (
+                  <div className="text-base text-muted-foreground font-medium">
+                    {isSequence ? "Série" : "Tour"} {currentRound} / {getTotalRounds()}
                   </div>
                 )}
 
-                {settings.type === 'countdown' && (
-                  <Progress value={getProgress()} className="h-4" />
+                {(settings.type === 'tabata' || settings.type === 'emom' || settings.type === 'countdown') && getProgress() >= 0 && (
+                  <Progress value={getProgress()} className="h-3" />
                 )}
 
                 {/* Consigne de l'exercice à réaliser à chaque tour */}
                 {consigne && (
-                  <div className="text-left max-w-md mx-auto">{consigne}</div>
+                  <div className="text-left max-w-md mx-auto pt-1">{consigne}</div>
                 )}
               </>
             )}
@@ -284,7 +312,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
             ) : !isRunning ? (
               <Button
                 size="lg"
-                onClick={() => { startTimer(); setOpen(false); }}
+                onClick={() => startTimer()}
                 className="px-12 h-16 text-lg bg-green-600 hover:bg-green-700"
               >
                 <Play className="h-6 w-6 mr-2" />
@@ -312,9 +340,91 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
             </Button>
           </div>
 
-          {/* Réglages */}
-          <div className="space-y-4 pt-6 border-t">
-            <h3 className="font-semibold text-xl">Réglages</h3>
+          {/* RPE pendant la récup (facultatif) — un RPE par exercice si rpeTargets, sinon un seul pour la série */}
+          {showRpeBlock && (
+            <div className="space-y-3 pt-4 border-t">
+              <div className="flex items-baseline justify-between">
+                <span className="text-base font-semibold">RPE ressenti</span>
+                <span className="text-xs text-muted-foreground">facultatif</span>
+              </div>
+              {rpeRows.map((row) => {
+                const acked = rpeAck[`${currentRound}:${row.id}`];
+                return (
+                  <div key={row.id} className="space-y-1.5">
+                    {row.label && (
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        {row.color && <span className="h-2.5 w-2.5 rounded-full" style={{ background: row.color }} />}
+                        <span className="truncate">{row.label}</span>
+                        {acked != null && <span className="text-xs text-green-500 font-medium">✓ RPE {acked}</span>}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-5 gap-2">
+                      {[1,2,3,4,5,6,7,8,9,10].map((v) => {
+                        const col = RPE_COLORS(v);
+                        const isPicked = acked === v;
+                        return (
+                          <button
+                            key={v}
+                            onClick={() => submitRpe(v, row.id)}
+                            className="h-11 rounded-lg border text-base font-bold transition-transform active:scale-95"
+                            style={{ borderColor: isPicked ? col : `${col}66`, borderWidth: isPicked ? 2 : 1, background: `${col}${isPicked ? '33' : '1f'}`, color: col }}
+                          >
+                            {v}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              <p className="text-xs text-muted-foreground leading-snug">
+                Tu peux le mettre maintenant ou après. Un RPE <span className="font-medium" style={{ color: '#52b788' }}>valide {rpeTargets && rpeTargets.length > 0 ? "l'exercice" : "la série"}</span>.
+              </p>
+            </div>
+          )}
+
+          {/* Réglages — repliés derrière une encoche */}
+          <div className="pt-4 border-t">
+            <button
+              type="button"
+              onClick={() => setShowSettings((s) => !s)}
+              className="w-full flex items-center justify-between py-1 text-left"
+            >
+              <span className="flex items-center gap-2 text-base font-semibold">
+                <Settings className="h-5 w-5" /> Réglages
+              </span>
+              {showSettings ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+            </button>
+            {!showSettings && (
+              <p className="text-xs text-muted-foreground mt-1">Type, travail, repos, par côté, sons</p>
+            )}
+          </div>
+
+          {showSettings && (
+          <div className="space-y-4">
+            {/* Sélection du type */}
+            <div className="space-y-2">
+              <Label>Type de minuteur</Label>
+              <Select
+                value={settings.type}
+                onValueChange={(value) => {
+                  updateSettings({ type: value as TimerType });
+                  resetTimer();
+                }}
+                disabled={isRunning || isCountingDown}
+              >
+                <SelectTrigger className="h-12 text-lg">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMER_TYPES.map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
             {settings.type === 'countdown' && (
               <div className="space-y-2">
@@ -530,6 +640,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
               </div>
             )}
           </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

@@ -641,6 +641,26 @@ export default function ExerciceDetail() {
     }
   };
 
+  // Validation rapide d'une série depuis le minuteur (RPE saisi pendant la récup).
+  // round = numéro de tour (1-based) ; index = round - 1.
+  const validateSerieFromTimer = (index: number, rpe: number) => {
+    if (index < 0) return;
+    setSerieValidations((prev) => {
+      if (index >= prev.length || !prev[index] || prev[index].validated) return prev;
+      const nv = [...prev];
+      nv[index] = { validated: true, rpe, actual_reps: null, actual_charge: null, modification_type: null };
+      setCompletedSets(nv.filter((s) => s.validated).length);
+      const allNow = nv.every((s) => s.validated);
+      if (allNow && nv.length > 0) {
+        const avgRpe = Math.round(nv.reduce((sum, s) => sum + (s.rpe || 0), 0) / nv.length);
+        setComputedAvgRpe(avgRpe.toString());
+        setDialogOpen(true);
+      }
+      return nv;
+    });
+    toast({ title: `Série ${index + 1} validée`, description: `RPE ressenti : ${rpe}` });
+  };
+
   const startTimer = () => {
     if (!isTimerRunning && timeRemaining > 0) {
       const now = Date.now();
@@ -898,7 +918,7 @@ export default function ExerciceDetail() {
             </div>
           </div>
         );
-      })()} />
+      })()} onRpe={(rpe, round) => validateSerieFromTimer(round - 1, rpe)} />
 
       {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
       <AnimatePresence>

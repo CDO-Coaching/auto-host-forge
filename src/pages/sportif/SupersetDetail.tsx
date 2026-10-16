@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import { CelebrationOverlay } from "@/components/CelebrationOverlay";
 import { TimerOverlay } from "@/components/TimerOverlay";
 import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
-import { UniversalTimer } from "@/components/UniversalTimer";
+import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
+import type { TimerStep } from "@/hooks/useUniversalTimer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
@@ -96,6 +97,88 @@ export default function SupersetDetail() {
     resetTimer,
     formatTime: formatTimerTime,
   } = useRecoveryTimer();
+
+  const timerRef = useRef<UniversalTimerRef>(null);
+
+  // Lance le minuteur pour UN exercice en durée dans le superset (1 série).
+  // En « par côté » : côté 1 → pause → côté 2. Sinon simple compte à rebours.
+  const launchExerciseTimer = (ex: any, durationSec: number) => {
+    if (!durationSec || durationSec <= 0) return;
+    if (ex?.per_side) {
+      timerRef.current?.openWithSettings({
+        type: 'tabata',
+        workTime: durationSec,
+        restTime: 0,
+        rounds: 1,
+        perSide: true,
+      });
+    } else {
+      timerRef.current?.openWithSettings({ type: 'countdown', duration: durationSec });
+    }
+  };
+
+  // Parse une récup texte ("1min30s", "90s", "1min30") en secondes.
+  const parseSecs = (s?: string | null): number => {
+    if (!s) return 0;
+    const str = String(s).toLowerCase();
+    const mn = str.match(/(\d+)\s*min/);
+    const sc = str.match(/(\d+)\s*s/);
+    let total = 0;
+    if (mn) total += parseInt(mn[1]) * 60;
+    if (sc) total += parseInt(sc[1]);
+    if (!mn && !sc) { const n = parseInt(str); if (!isNaN(n)) total = n; }
+    return total;
+  };
+
+  // Tous les exos du superset sont en durée → on peut lancer un Tabata qui enchaîne les deux.
+  const allDuration = () => exercises.length > 0 && exercises.every((e: any) => e?.is_duration);
+
+  // Lance un Tabata « superset » : enchaîne les exos (+ côtés) puis la récup, répété sur les séries.
+  const launchSupersetTabata = () => {
+    const colors = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"];
+    const steps: TimerStep[] = [];
+    exercises.forEach((ex: any, idx: number) => {
+      const sd = getSeriesDataForExercise(ex)[0] || {};
+      const dur = parseInt(String(sd.reps || ex.reps)) || 20;
+      const col = colors[idx % 4];
+      if (ex.per_side) {
+        steps.push({ label: `🔥 ${ex.exercice} — côté 1`, duration: dur, kind: 'work', color: col });
+        steps.push({ label: `🔄 ${ex.exercice} — change de côté`, duration: 5, kind: 'change', color: '#f59e0b' });
+        steps.push({ label: `🔥 ${ex.exercice} — côté 2`, duration: dur, kind: 'work', color: col });
+      } else {
+        steps.push({ label: `🔥 ${ex.exercice}`, duration: dur, kind: 'work', color: col });
+      }
+      // Transition de 10 s entre deux exercices (le temps de se replacer)
+      const next: any = exercises[idx + 1];
+      if (next) {
+        steps.push({ label: `⏱ Transition → ${next.exercice}`, duration: 10, kind: 'change', color: '#f59e0b' });
+      }
+    });
+    const lastEx: any = exercises[exercises.length - 1];
+    const recupSec = parseSecs(getSeriesDataForExercise(lastEx)[0]?.recuperation || lastEx?.recuperation) || 90;
+    steps.push({ label: '😮‍💨 Récupère', duration: recupSec, kind: 'rest', color: '#5aa9e6' });
+    timerRef.current?.openWithSettings({ type: 'sequence', steps, rounds: totalRounds });
+  };
+
+  // RPE saisi pendant la récup du Tabata superset → valide UN exercice de la série.
+  const validateExoFromTimer = (roundIdx: number, exIdx: number, rpe: number) => {
+    if (roundIdx < 0 || roundIdx >= totalRounds || exIdx < 0 || exIdx >= exercises.length) return;
+    setSerieValidations((prev) => {
+      const vIdx = getValidationIndex(roundIdx, exIdx);
+      if (!prev[vIdx]) return prev;
+      const nv = [...prev];
+      nv[vIdx] = { ...nv[vIdx], validated: true, rpe };
+      return nv;
+    });
+    toast({ title: `${(exercises[exIdx] as any)?.exercice || "Exercice"} validé`, description: `RPE ressenti : ${rpe}` });
+  };
+
+  // Cibles RPE (un RPE par exercice) affichées pendant la récup du Tabata superset.
+  const rpeTargets = exercises.map((ex: any, idx: number) => ({
+    id: String(idx),
+    label: ex.exercice,
+    color: ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4],
+  }));
 
   const recoveryTimerId = `superset-recovery-${supersetId}`;
   const recoveryTime = timers[recoveryTimerId] || 0;
@@ -545,7 +628,12 @@ export default function SupersetDetail() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {sessionId && <FloatingSessionTimer sessionId={sessionId} />}
-      <UniversalTimer hideTrigger />
+      <UniversalTimer
+        ref={timerRef}
+        hideTrigger
+        rpeTargets={rpeTargets}
+        onRpe={(rpe, round, targetId) => validateExoFromTimer(round - 1, Number(targetId), rpe)}
+      />
 
       <CelebrationOverlay
         show={showCelebration}
@@ -874,36 +962,12 @@ export default function SupersetDetail() {
           );
         })()}
 
-        {/* ── Superset normal — Exercise names summary ─────────────────── */}
+        {/* ── Superset normal — En-tête consignes (une seule fois) ───────── */}
         {!isAmrap && (
           <Card className="border-2 border-primary/30">
             <CardContent className="p-3 sm:p-4">
-              <div className="space-y-2">
-                {exercises.map((ex, idx) => (
-                  <div key={ex.id} className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center h-6 w-6 rounded-full text-sm font-extrabold shrink-0" style={{ backgroundColor: `${["#e8c466","#8b5cf6","#06b6d4","#ec4899"][idx % 4]}22`, color: ["#e8c466","#8b5cf6","#06b6d4","#ec4899"][idx % 4] }}>{idx + 1}</span>
-                      <span className="font-medium uppercase">{ex.exercice}</span>
-                      {videoUrls[ex.exercice] && (
-                        <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-xl" onClick={(e) => e.stopPropagation()}>
-                          🎥
-                        </a>
-                      )}
-                    </div>
-                    {(ex as any).commentaire && (
-                      <div className="ml-7 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                        <span className="text-base">📝</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-semibold text-primary mb-0.5">Notes du coach</p>
-                          <p className="text-xs leading-relaxed whitespace-pre-wrap break-words">{(ex as any).commentaire}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Separator className="my-3" />
-              <div className="flex items-center justify-between">
+              {/* Progression en haut */}
+              <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-semibold">Progression — {completedRounds}/{totalRounds} série{totalRounds > 1 ? "s" : ""}</p>
                 {completedCount > 0 && (
                   <Button variant="ghost" size="sm" onClick={() => setSeriesCollapsed(!seriesCollapsed)} className="h-7 px-2">
@@ -911,6 +975,56 @@ export default function SupersetDetail() {
                   </Button>
                 )}
               </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden mb-3">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${totalRounds ? (completedRounds / totalRounds) * 100 : 0}%` }} />
+              </div>
+
+              <Separator className="mb-3" />
+
+              {/* Liste des exercices — noms uniquement, les consignes détaillées sont dans les séries */}
+              <div className="space-y-2">
+                {exercises.map((ex, idx) => {
+                  const col = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4];
+                  return (
+                    <div key={ex.id}>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center justify-center h-6 w-6 rounded-full text-sm font-extrabold shrink-0" style={{ backgroundColor: `${col}22`, color: col }}>{idx + 1}</span>
+                        <span className="font-semibold text-sm uppercase">{ex.exercice}</span>
+                        {videoUrls[ex.exercice] && (
+                          <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-base" onClick={(e) => e.stopPropagation()}>🎥</a>
+                        )}
+                      </div>
+                      {idx < exercises.length - 1 && (
+                        <div className="flex items-center gap-1.5 ml-8 mt-1 text-[11px] font-medium text-primary">
+                          <Zap className="h-3 w-3" /> Enchaîné — pas de repos
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Récup de fin de série */}
+              {(() => {
+                const lastEx = exercises[exercises.length - 1];
+                const endRecup = allSeriesData[exercises.length - 1]?.[0]?.recuperation || (lastEx as any)?.recuperation;
+                return endRecup ? (
+                  <div className="flex items-center gap-1.5 mt-3 pt-3 border-t text-xs text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" /> Récup en fin de série : {endRecup}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Tous les exos en durée → Tabata superset qui enchaîne les deux + récup + RPE */}
+              {!allValidated && allDuration() && (
+                <Button
+                  onClick={launchSupersetTabata}
+                  className="w-full mt-3 h-11 bg-green-600 hover:bg-green-700 gap-2"
+                >
+                  <Timer className="h-4 w-4" />
+                  Lancer le Tabata superset
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -962,8 +1076,7 @@ export default function SupersetDetail() {
         {!isAmrap && !seriesCollapsed && (!allValidated || editMode) && (
           <div className="space-y-4">
             {Array.from({ length: totalRounds }, (_, i) => i)
-              // Les séries (rounds) validées descendent sous celles encore à faire,
-              // comme pour les exercices simples
+              // Les séries faites passent en bas pour laisser la place à celle à faire
               .sort((a, b) => {
                 const aC = exercises.every((_, e) => serieValidations[getValidationIndex(a, e)]?.validated);
                 const bC = exercises.every((_, e) => serieValidations[getValidationIndex(b, e)]?.validated);
@@ -986,14 +1099,48 @@ export default function SupersetDetail() {
                 if (roundIdx > doneRounds) return null; // hide future rounds
               }
 
+              // Focus série en cours : 1re série non terminée
+              const firstIncomplete = (() => {
+                for (let r = 0; r < totalRounds; r++) {
+                  if (!exercises.every((_, e) => serieValidations[getValidationIndex(r, e)]?.validated)) return r;
+                }
+                return totalRounds;
+              })();
+
+              // Série terminée → résumé compact (replié). Clic = rouvrir pour modifier.
+              if (!isAmrap && !editMode && roundComplete) {
+                const rpes = roundValidations.map(v => v?.rpe).filter(x => x != null).join(" · ");
+                return (
+                  <button
+                    key={roundIdx}
+                    onClick={() => setEditMode(true)}
+                    className="w-full flex items-center justify-between rounded-xl border border-green-500/30 bg-green-500/[0.04] px-4 py-2.5 text-left active:scale-[0.99] transition-transform"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-bold"><Check className="h-4 w-4 text-green-600" /> Série {roundIdx + 1}</span>
+                    <span className="text-xs text-muted-foreground">RPE ressenti <span className="font-semibold text-green-600">{rpes || "-"}</span></span>
+                  </button>
+                );
+              }
+              // Série à venir (après celle en cours) → grisée
+              if (!isAmrap && !editMode && roundIdx > firstIncomplete) {
+                return (
+                  <div key={roundIdx} className="flex items-center justify-between rounded-xl border border-dashed border-border/50 px-4 py-2.5 opacity-60">
+                    <span className="text-sm font-semibold text-muted-foreground">Série {roundIdx + 1}</span>
+                    <span className="text-xs text-muted-foreground">à venir</span>
+                  </div>
+                );
+              }
+
               return (
-                <Card key={roundIdx} className={`border-2 transition-all ${roundComplete ? "border-green-500/30 bg-green-500/5" : "border-primary/20"}`}>
+                <Card key={roundIdx} className={`border-2 transition-all ${roundComplete ? "border-green-500/30 bg-green-500/5" : "border-primary bg-primary/[0.03]"}`}>
                   <CardContent className="p-3 sm:p-4">
                     <div className="flex items-center gap-2 mb-3">
-                      <Badge variant={roundComplete ? "default" : "outline"} className={roundComplete ? "bg-green-600" : ""}>
+                      <Badge variant={roundComplete ? "default" : "outline"} className={roundComplete ? "bg-green-600" : "border-primary/40 text-primary"}>
                         {isAmrap ? `Tour ${roundIdx + 1}` : `Série ${roundIdx + 1}`}
                       </Badge>
-                      {roundComplete && <Check className="h-4 w-4 text-green-600" />}
+                      {roundComplete ? <Check className="h-4 w-4 text-green-600" /> : (!isAmrap && !editMode && roundIdx === firstIncomplete && (
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-primary/15 text-primary">en cours</span>
+                      ))}
                     </div>
 
                     <div className="space-y-2">
@@ -1065,6 +1212,16 @@ export default function SupersetDetail() {
                                 )}
                               </div>
 
+                              {!isValidated && (ex as any).is_duration && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); launchExerciseTimer(ex, parseInt(String(dispReps)) || 0); }}
+                                  className="shrink-0 h-8 w-8 rounded-lg bg-green-600 text-white flex items-center justify-center active:scale-95 transition-transform"
+                                  aria-label="Lancer le minuteur"
+                                  title={ex.per_side ? "Minuteur par côté" : "Minuteur"}
+                                >
+                                  <Timer className="h-4 w-4" />
+                                </button>
+                              )}
                               {!isValidated ? (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleValidateSerie(roundIdx, exIdx); }}
