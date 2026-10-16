@@ -184,8 +184,10 @@ export default function SupersetDetail() {
   }));
 
   // ── Mode guidé pas-à-pas (superset) ──
-  const validateExoGuided = (roundIdx: number, exIdx: number, data: { reps?: string; charge?: string }) => {
+  const guidedCommentsRef = useRef<Record<string, string>>({});
+  const validateExoGuided = (roundIdx: number, exIdx: number, data: { reps?: string; charge?: string; comment?: string }) => {
     if (roundIdx < 0 || roundIdx >= totalRounds || exIdx < 0 || exIdx >= exercises.length) return;
+    if (data.comment) guidedCommentsRef.current[`${exIdx}:${roundIdx}`] = data.comment;
     setSerieValidations((prev) => {
       const vIdx = getValidationIndex(roundIdx, exIdx);
       if (!prev[vIdx]) return prev;
@@ -240,8 +242,21 @@ export default function SupersetDetail() {
   };
   const startGuided = () => {
     if (!exercises.length || totalRounds <= 0) return;
+    guidedCommentsRef.current = {};
     setGuidedSteps(buildSupersetGuidedSteps());
     setGuidedOpen(true);
+  };
+  // En fin de guidé : agrège les commentaires par série pour CHAQUE exo (sportif_comment, vu par le coach).
+  const finishGuided = async () => {
+    const comments = guidedCommentsRef.current;
+    if (!Object.values(comments).some((c) => c && c.trim())) return;
+    for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
+      const ex: any = exercises[exIdx];
+      const hasAny = Array.from({ length: totalRounds }, (_, r) => comments[`${exIdx}:${r}`]).some((c) => c && c.trim());
+      if (!hasAny || !ex?.id) continue;
+      const lines = Array.from({ length: totalRounds }, (_, r) => `- Série ${r + 1} : ${comments[`${exIdx}:${r}`]?.trim() || "pas de commentaire"}`).join("\n");
+      await supabase.from("session_exercises").update({ sportif_comment: lines }).eq("id", ex.id);
+    }
   };
 
   const recoveryTimerId = `superset-recovery-${supersetId}`;
@@ -699,7 +714,7 @@ export default function SupersetDetail() {
         onRpe={(rpe, round, targetId) => validateExoFromTimer(round - 1, Number(targetId), rpe)}
       />
 
-      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} />}
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={finishGuided} />}
 
       <CelebrationOverlay
         show={showCelebration}

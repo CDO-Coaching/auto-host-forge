@@ -665,9 +665,11 @@ export default function ExerciceDetail() {
   };
 
   // ── Mode guidé pas-à-pas ──
+  const guidedCommentsRef = useRef<Record<number, string>>({});
   // Valide une série depuis le mode guidé (reps/charge réalisées, RPE ajouté après en récup).
-  const validateSerieGuided = (index: number, data: { reps?: string; charge?: string }) => {
+  const validateSerieGuided = (index: number, data: { reps?: string; charge?: string; comment?: string }) => {
     if (index < 0) return;
+    if (data.comment) guidedCommentsRef.current[index] = data.comment;
     setSerieValidations((prev) => {
       if (index >= prev.length || !prev[index]) return prev;
       const nv = [...prev];
@@ -744,8 +746,17 @@ export default function ExerciceDetail() {
   const startGuided = () => {
     const sData = getSeriesData();
     if (!sData.length) return;
+    guidedCommentsRef.current = {};
     setGuidedSteps(buildGuidedSteps(sData));
     setGuidedOpen(true);
+  };
+  // En fin de guidé : agrège les commentaires par série dans sportif_comment (vu par le coach).
+  const finishGuided = async () => {
+    const n = getSeriesData().length;
+    const comments = guidedCommentsRef.current;
+    if (!Object.values(comments).some((c) => c && c.trim()) || !exerciceId) return;
+    const lines = Array.from({ length: n }, (_, i) => `- Série ${i + 1} : ${comments[i]?.trim() || "pas de commentaire"}`).join("\n");
+    await supabase.from("session_exercises").update({ sportif_comment: lines }).eq("id", exerciceId);
   };
 
   const startTimer = () => {
@@ -1007,7 +1018,7 @@ export default function ExerciceDetail() {
         );
       })()} onRpe={(rpe, round) => validateSerieFromTimer(round - 1, rpe)} />
 
-      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} />}
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={finishGuided} />}
 
       {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
       <AnimatePresence>
