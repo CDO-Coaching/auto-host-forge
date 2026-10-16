@@ -90,6 +90,7 @@ export default function ExerciceDetail() {
   const [guidedOpen, setGuidedOpen] = useState(false);
   const [serieComments, setSerieComments] = useState<Record<number, string>>({});
   const [guidedComment, setGuidedComment] = useState("");
+  const [expandedSerie, setExpandedSerie] = useState<Record<number, boolean>>({});
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -1015,6 +1016,20 @@ export default function ExerciceDetail() {
   }
 
   const seriesData = getSeriesData();
+
+  // Commentaire par série : live (mode guidé) ou reparsé depuis sportif_comment agrégé
+  const parsedSportifComments: Record<number, string> = (() => {
+    const map: Record<number, string> = {};
+    const raw = (exercise as any)?.sportif_comment;
+    if (typeof raw === "string") {
+      raw.split("\n").forEach((line: string) => {
+        const m = line.match(/^-\s*Série\s*(\d+)\s*:\s*(.*)$/i);
+        if (m) { const c = m[2].trim(); if (c && c.toLowerCase() !== "pas de commentaire") map[parseInt(m[1]) - 1] = c; }
+      });
+    }
+    return map;
+  })();
+  const getSerieComment = (idx: number) => serieComments[idx] || parsedSportifComments[idx] || "";
   const allSeriesValidated = serieValidations.length > 0 && serieValidations.every(s => s.validated);
 
   // Toutes les séries ont-elles les mêmes consignes ? (pour simplifier l'affichage)
@@ -1672,9 +1687,13 @@ export default function ExerciceDetail() {
                     const reps = v?.actual_reps || serie.reps;
                     const charge = v?.actual_charge || serie.charge;
                     const chargeChanged = v?.actual_charge && String(v.actual_charge) !== (serie.charge ?? "").trim();
+                    const sComment = getSerieComment(idx);
                     return (
                       <div key={idx} className="space-y-1">
-                      <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
+                      <div
+                        className={`flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5 ${sComment ? "cursor-pointer active:bg-muted/40" : ""}`}
+                        onClick={sComment ? () => setExpandedSerie((p) => ({ ...p, [idx]: !p[idx] })) : undefined}
+                      >
                         <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0 text-[13px]">
                           <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
@@ -1700,7 +1719,9 @@ export default function ExerciceDetail() {
                           );
                         })()}
                       </div>
-                      {serieComments[idx] && <p className="text-[11px] italic text-primary px-1">📝 Toi : {serieComments[idx]}</p>}
+                      {sComment && (expandedSerie[idx]
+                        ? <p className="text-[11px] italic text-primary px-1 whitespace-pre-line break-words">📝 Toi : {sComment}</p>
+                        : <p className="text-[11px] text-muted-foreground px-1">💬 Appuie sur la série pour voir ton commentaire</p>)}
                       </div>
                     );
                   })}
