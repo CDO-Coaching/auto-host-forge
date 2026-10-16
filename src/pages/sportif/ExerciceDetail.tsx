@@ -19,6 +19,7 @@ import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { MuscleBodyView } from "@/components/MuscleBodySelector";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
+import { GuidedOverlay, type GuidedStep } from "@/components/GuidedOverlay";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { useWakeLock } from "@/hooks/useWakeLock";
 import { SendVideoDialog } from "@/components/SendVideoDialog";
@@ -85,6 +86,8 @@ export default function ExerciceDetail() {
   const [muscles, setMuscles] = useState<{ principal: string | null; secondary: string[] }>({ principal: null, secondary: [] });
   const [musclesOpen, setMusclesOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
+  const [guidedOpen, setGuidedOpen] = useState(false);
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -661,6 +664,90 @@ export default function ExerciceDetail() {
     toast({ title: `Série ${index + 1} validée`, description: `RPE ressenti : ${rpe}` });
   };
 
+  // ── Mode guidé pas-à-pas ──
+  // Valide une série depuis le mode guidé (reps/charge réalisées, RPE ajouté après en récup).
+  const validateSerieGuided = (index: number, data: { reps?: string; charge?: string }) => {
+    if (index < 0) return;
+    setSerieValidations((prev) => {
+      if (index >= prev.length || !prev[index]) return prev;
+      const nv = [...prev];
+      nv[index] = {
+        ...nv[index],
+        validated: true,
+        actual_reps: data.reps?.trim() || nv[index].actual_reps || null,
+        actual_charge: data.charge?.trim() || nv[index].actual_charge || null,
+      };
+      setCompletedSets(nv.filter((s) => s.validated).length);
+      const allNow = nv.every((s) => s.validated);
+      if (allNow && nv.length > 0) {
+        const avg = Math.round(nv.reduce((s, v) => s + (v.rpe || 0), 0) / nv.length);
+        setComputedAvgRpe(avg.toString());
+        setDialogOpen(true);
+      }
+      return nv;
+    });
+  };
+  // Ajoute/actualise le RPE d'une série (pendant la récup guidée).
+  const setSerieRpeGuided = (index: number, rpe: number) => {
+    setSerieValidations((prev) => {
+      if (index < 0 || index >= prev.length || !prev[index]) return prev;
+      const nv = [...prev];
+      nv[index] = { ...nv[index], validated: true, rpe };
+      const allNow = nv.every((s) => s.validated);
+      if (allNow && nv.length > 0) {
+        const avg = Math.round(nv.reduce((s, v) => s + (v.rpe || 0), 0) / nv.length);
+        setComputedAvgRpe(avg.toString());
+      }
+      return nv;
+    });
+  };
+  // « Pas fait » → marque l'exercice non effectué (remonté au coach) et ferme le guidé.
+  const skipExerciseGuided = async () => {
+    setGuidedOpen(false);
+    const { error } = await supabase.from("session_exercises").update({ skipped: true }).eq("id", exerciceId);
+    if (error) { toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
+    toast({ title: "Noté", description: "Le coach verra que cet exercice n'a pas été fait" });
+  };
+  // Construit les étapes du mode guidé à partir des séries.
+  const buildGuidedSteps = (sData: any[]): GuidedStep[] => {
+    const steps: GuidedStep[] = [];
+    const n = sData.length;
+    const exName = exercise?.exercice || "Exercice";
+    const isDur = exercise?.is_duration === true;
+    sData.forEach((sd, i) => {
+      const chargeRaw = (sd.charge || exercise?.charge || "").toString().trim();
+      const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
+      const isPct = /%/.test(chargeRaw);
+      const dur = isDur ? (parseInt(String(sd.reps || exercise?.reps)) || 0) : 0;
+      steps.push({
+        id: `w${i}`, type: "work", exName, exNumber: 1, exColor: "#e8c466",
+        serieLabel: `Série ${i + 1} / ${n}`,
+        isDuration: isDur, seconds: dur,
+        targetReps: isDur ? undefined : String(sd.reps || exercise?.reps || ""),
+        targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
+        chargeNeedsInput,
+        isDistance: exercise?.is_distance === true,
+        perSide: exercise?.per_side === true,
+        phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: "#52b788",
+        onDone: (d) => validateSerieGuided(i, d),
+        onSkip: () => skipExerciseGuided(),
+      });
+      const recupSec = parseRecuperationTime(sd.recuperation || exercise?.recuperation || "");
+      steps.push({
+        id: `r${i}`, type: "recup", seconds: i < n - 1 ? recupSec : 0,
+        nextLabel: i < n - 1 ? `Série ${i + 2}` : "Fin de l'exercice",
+        onRpe: (rpe) => setSerieRpeGuided(i, rpe),
+      });
+    });
+    return steps;
+  };
+  const startGuided = () => {
+    const sData = getSeriesData();
+    if (!sData.length) return;
+    setGuidedSteps(buildGuidedSteps(sData));
+    setGuidedOpen(true);
+  };
+
   const startTimer = () => {
     if (!isTimerRunning && timeRemaining > 0) {
       const now = Date.now();
@@ -919,6 +1006,8 @@ export default function ExerciceDetail() {
           </div>
         );
       })()} onRpe={(rpe, round) => validateSerieFromTimer(round - 1, rpe)} />
+
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} />}
 
       {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
       <AnimatePresence>
@@ -1320,6 +1409,13 @@ export default function ExerciceDetail() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Lancer en mode guidé pas-à-pas */}
+        {seriesData.length > 0 && !allSeriesValidated && !isEmomRecovery && (
+          <Button onClick={startGuided} className="w-full h-12 mb-1 gap-2 bg-primary text-primary-foreground font-bold">
+            <Play className="h-5 w-5" /> Lancer en mode guidé
+          </Button>
         )}
 
         {/* Séries — tableau interactif avec bouton valider */}

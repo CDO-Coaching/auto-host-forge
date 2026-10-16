@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft, Plus, Minus } from "lucide-react";
+import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft, Plus, Minus, Play } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import { TempoExplanationDialog } from "@/components/TempoExplanationDialog";
 import { RPEExplanationDialog } from "@/components/RPEExplanationDialog";
 import { UniversalTimer, UniversalTimerRef } from "@/components/UniversalTimer";
 import type { TimerStep } from "@/hooks/useUniversalTimer";
+import { GuidedOverlay, type GuidedStep } from "@/components/GuidedOverlay";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { calculate1RM, parseWeight, parseReps, shouldRecordMax } from "@/lib/maxCalculations";
 import { useRecoveryTimer } from "@/hooks/useRecoveryTimer";
@@ -99,6 +100,8 @@ export default function SupersetDetail() {
   } = useRecoveryTimer();
 
   const timerRef = useRef<UniversalTimerRef>(null);
+  const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
+  const [guidedOpen, setGuidedOpen] = useState(false);
 
   // Lance le minuteur pour UN exercice en durée dans le superset (1 série).
   // En « par côté » : côté 1 → pause → côté 2. Sinon simple compte à rebours.
@@ -179,6 +182,67 @@ export default function SupersetDetail() {
     label: ex.exercice,
     color: ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4],
   }));
+
+  // ── Mode guidé pas-à-pas (superset) ──
+  const validateExoGuided = (roundIdx: number, exIdx: number, data: { reps?: string; charge?: string }) => {
+    if (roundIdx < 0 || roundIdx >= totalRounds || exIdx < 0 || exIdx >= exercises.length) return;
+    setSerieValidations((prev) => {
+      const vIdx = getValidationIndex(roundIdx, exIdx);
+      if (!prev[vIdx]) return prev;
+      const nv = [...prev];
+      nv[vIdx] = { ...nv[vIdx], validated: true, actual_reps: data.reps?.trim() || nv[vIdx].actual_reps || null, actual_charge: data.charge?.trim() || nv[vIdx].actual_charge || null };
+      if (nv.every((s) => s.validated) && nv.length > 0) setDialogOpen(true);
+      return nv;
+    });
+  };
+  const skipExoGuided = async (exIdx: number) => {
+    const ex: any = exercises[exIdx];
+    if (!ex?.id) return;
+    const { error } = await supabase.from("session_exercises").update({ skipped: true }).eq("id", ex.id);
+    if (error) { toast({ title: "Erreur", description: "Action impossible", variant: "destructive" }); return; }
+    toast({ title: "Noté", description: `Le coach verra que « ${ex.exercice} » n'a pas été fait` });
+  };
+  const buildSupersetGuidedSteps = (): GuidedStep[] => {
+    const steps: GuidedStep[] = [];
+    const colors = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"];
+    const lastEx: any = exercises[exercises.length - 1];
+    const endRecup = parseSecs(getSeriesDataForExercise(lastEx)[0]?.recuperation || lastEx?.recuperation) || 0;
+    for (let r = 0; r < totalRounds; r++) {
+      exercises.forEach((ex: any, exIdx: number) => {
+        const sd = getSeriesDataForExercise(ex)[r] || getSeriesDataForExercise(ex)[0] || {};
+        const isDur = ex.is_duration === true;
+        const chargeRaw = (sd.charge || ex.charge || "").toString().trim();
+        const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
+        const isPct = /%/.test(chargeRaw);
+        const dur = isDur ? (parseInt(String(sd.reps || ex.reps)) || 0) : 0;
+        steps.push({
+          id: `w${r}-${exIdx}`, type: "work", exName: ex.exercice, exNumber: exIdx + 1, exColor: colors[exIdx % 4],
+          serieLabel: `Série ${r + 1} / ${totalRounds}`,
+          isDuration: isDur, seconds: dur,
+          targetReps: isDur ? undefined : String(sd.reps || ex.reps || ""),
+          targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
+          chargeNeedsInput,
+          isDistance: ex.is_distance === true, perSide: ex.per_side === true,
+          phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: colors[exIdx % 4],
+          nextLabel: exIdx < exercises.length - 1 ? `${exercises[exIdx + 1]?.exercice}` : undefined,
+          onDone: (d) => validateExoGuided(r, exIdx, d),
+          onSkip: () => skipExoGuided(exIdx),
+        });
+      });
+      steps.push({
+        id: `r${r}`, type: "recup", seconds: r < totalRounds - 1 ? endRecup : 0,
+        nextLabel: r < totalRounds - 1 ? `Série ${r + 2}` : "Fin du superset",
+        rpeTargets,
+        onRpe: (rpe, targetId) => validateExoFromTimer(r, Number(targetId), rpe),
+      });
+    }
+    return steps;
+  };
+  const startGuided = () => {
+    if (!exercises.length || totalRounds <= 0) return;
+    setGuidedSteps(buildSupersetGuidedSteps());
+    setGuidedOpen(true);
+  };
 
   const recoveryTimerId = `superset-recovery-${supersetId}`;
   const recoveryTime = timers[recoveryTimerId] || 0;
@@ -635,6 +699,8 @@ export default function SupersetDetail() {
         onRpe={(rpe, round, targetId) => validateExoFromTimer(round - 1, Number(targetId), rpe)}
       />
 
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} />}
+
       <CelebrationOverlay
         show={showCelebration}
         message="Superset terminé !"
@@ -1015,14 +1081,22 @@ export default function SupersetDetail() {
                 ) : null;
               })()}
 
+              {/* Mode guidé pas-à-pas (enchaîne les deux exos, saisie RPE/charge/reps) */}
+              {!allValidated && (
+                <Button onClick={startGuided} className="w-full mt-3 h-11 bg-primary text-primary-foreground font-bold gap-2">
+                  <Play className="h-4 w-4" /> Lancer en mode guidé
+                </Button>
+              )}
+
               {/* Tous les exos en durée → Tabata superset qui enchaîne les deux + récup + RPE */}
               {!allValidated && allDuration() && (
                 <Button
                   onClick={launchSupersetTabata}
-                  className="w-full mt-3 h-11 bg-green-600 hover:bg-green-700 gap-2"
+                  variant="outline"
+                  className="w-full mt-2 h-11 gap-2"
                 >
                   <Timer className="h-4 w-4" />
-                  Lancer le Tabata superset
+                  Lancer le Tabata (chrono)
                 </Button>
               )}
             </CardContent>
