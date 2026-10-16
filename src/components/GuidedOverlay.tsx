@@ -189,11 +189,21 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                   <span className="uppercase">{step.exName}</span>
                 </div>
               )}
-              {/* Consigne demandée par le coach */}
-              {(step.refCharge || step.refRpe || step.refTempo) && (
-                <div className="flex items-center justify-center gap-1.5 flex-wrap mt-3">
+              {/* Consigne demandée par le coach — RPE en priorité */}
+              {step.refRpe && (() => {
+                const v = parseInt(step.refRpe) || 0;
+                const c = RPE_COLOR(v);
+                const word = v <= 3 ? "Facile" : v <= 5 ? "Modéré" : v <= 6 ? "Soutenu" : v <= 8 ? "Difficile" : "Maximal";
+                return (
+                  <div className="mt-3 inline-flex flex-col items-center rounded-2xl px-5 py-2" style={{ background: `${c}1f`, border: `1px solid ${c}55` }}>
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground leading-none">Effort à viser</span>
+                    <span className="text-xl font-extrabold leading-tight" style={{ color: c, ...sora }}>RPE {v} · {word}</span>
+                  </div>
+                );
+              })()}
+              {(step.refCharge || step.refTempo) && (
+                <div className="flex items-center justify-center gap-1.5 flex-wrap mt-2">
                   {step.refCharge && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md bg-white/10">Charge {step.refCharge}</span>}
-                  {step.refRpe && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md bg-[#f59e0b]/15 text-[#f59e0b]">RPE {step.refRpe} demandé</span>}
                   {step.refTempo && <span className="text-[12px] font-semibold px-2 py-0.5 rounded-md bg-[#9c7bd6]/20 text-[#b79ae6] font-mono">Tempo {step.refTempo}</span>}
                 </div>
               )}
