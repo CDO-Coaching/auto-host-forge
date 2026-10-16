@@ -24,6 +24,7 @@ interface ExerciseFeedbackDialogProps {
   exerciseType?: "cardio" | "renfo" | "recup";
   isRpeRequired?: boolean;
   defaultRpe?: string;
+  defaultComment?: string;
 }
 
 export function ExerciseFeedbackDialog({
@@ -35,6 +36,7 @@ export function ExerciseFeedbackDialog({
   exerciseType = "renfo",
   isRpeRequired = false,
   defaultRpe,
+  defaultComment,
 }: ExerciseFeedbackDialogProps) {
   const [rpe, setRpe] = useState(defaultRpe || "");
   const [comment, setComment] = useState("");
@@ -47,6 +49,11 @@ export function ExerciseFeedbackDialog({
       setRpe(defaultRpe);
     }
   }, [defaultRpe, open]);
+
+  // Préremplir le commentaire (ex. commentaires par série du mode guidé) à l'ouverture
+  useEffect(() => {
+    if (open && defaultComment) setComment(defaultComment);
+  }, [open, defaultComment]);
 
   const handleValidate = async () => {
     const rpeValue = rpe.trim();

@@ -89,6 +89,7 @@ export default function ExerciceDetail() {
   const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
   const [guidedOpen, setGuidedOpen] = useState(false);
   const [serieComments, setSerieComments] = useState<Record<number, string>>({});
+  const [guidedComment, setGuidedComment] = useState("");
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -774,6 +775,7 @@ export default function ExerciceDetail() {
     if (!sData.length) return;
     guidedCommentsRef.current = {};
     setSerieComments({});
+    setGuidedComment("");
     setGuidedSteps(buildGuidedSteps(sData));
     setGuidedOpen(true);
   };
@@ -783,6 +785,7 @@ export default function ExerciceDetail() {
     const comments = guidedCommentsRef.current;
     if (!Object.values(comments).some((c) => c && c.trim()) || !exerciceId) return;
     const lines = Array.from({ length: n }, (_, i) => `- Série ${i + 1} : ${comments[i]?.trim() || "pas de commentaire"}`).join("\n");
+    setGuidedComment(lines); // préremplit le bilan de fin
     await supabase.from("session_exercises").update({ sportif_comment: lines }).eq("id", exerciceId);
   };
   // Ouvre le bilan de fin APRÈS la fermeture du mode guidé (évite que le dialog bloque les RPE).
@@ -1137,6 +1140,7 @@ export default function ExerciceDetail() {
         exerciseType="renfo"
         isRpeRequired={!allSeriesValidated}
         defaultRpe={computedAvgRpe}
+        defaultComment={guidedComment}
       />
 
       <SendVideoDialog

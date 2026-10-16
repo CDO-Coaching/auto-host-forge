@@ -103,6 +103,7 @@ export default function SupersetDetail() {
   const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
   const [guidedOpen, setGuidedOpen] = useState(false);
   const [serieComments, setSerieComments] = useState<Record<number, string>>({});
+  const [guidedComment, setGuidedComment] = useState("");
 
   // Lance le minuteur pour UN exercice en durée dans le superset (1 série).
   // En « par côté » : côté 1 → pause → côté 2. Sinon simple compte à rebours.
@@ -280,6 +281,7 @@ export default function SupersetDetail() {
     if (!exercises.length || totalRounds <= 0) return;
     guidedCommentsRef.current = {};
     setSerieComments({});
+    setGuidedComment("");
     setGuidedSteps(buildSupersetGuidedSteps());
     setGuidedOpen(true);
   };
@@ -287,6 +289,8 @@ export default function SupersetDetail() {
   const finishGuided = async () => {
     const comments = guidedCommentsRef.current;
     if (!Object.values(comments).some((c) => c && c.trim())) return;
+    // Préremplit le bilan de fin avec un commentaire par série
+    setGuidedComment(Array.from({ length: totalRounds }, (_, r) => `- Série ${r + 1} : ${serieComments[r]?.trim() || comments[`0:${r}`]?.trim() || "pas de commentaire"}`).join("\n"));
     for (let exIdx = 0; exIdx < exercises.length; exIdx++) {
       const ex: any = exercises[exIdx];
       const hasAny = Array.from({ length: totalRounds }, (_, r) => comments[`${exIdx}:${r}`]).some((c) => c && c.trim());
@@ -807,6 +811,7 @@ export default function SupersetDetail() {
         exerciseType="renfo"
         isRpeRequired={!allValidated}
         defaultRpe={computedAvgRpe}
+        defaultComment={guidedComment}
       />
 
       {/* RPE Dialog for serie validation */}
