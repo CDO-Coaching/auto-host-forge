@@ -88,6 +88,7 @@ export default function ExerciceDetail() {
   const [loading, setLoading] = useState(true);
   const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [serieComments, setSerieComments] = useState<Record<number, string>>({});
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -679,12 +680,6 @@ export default function ExerciceDetail() {
         actual_charge: data.charge?.trim() || nv[index].actual_charge || null,
       };
       setCompletedSets(nv.filter((s) => s.validated).length);
-      const allNow = nv.every((s) => s.validated);
-      if (allNow && nv.length > 0) {
-        const avg = Math.round(nv.reduce((s, v) => s + (v.rpe || 0), 0) / nv.length);
-        setComputedAvgRpe(avg.toString());
-        setDialogOpen(true);
-      }
       return nv;
     });
   };
@@ -769,7 +764,7 @@ export default function ExerciceDetail() {
         nextLabel: i < n - 1 ? `Série ${i + 2}` : "Fin de l'exercice",
         nextPreview: i < n - 1 ? previewNext(sd, sData[i + 1]) : undefined,
         onRpe: (rpe) => setSerieRpeGuided(i, rpe),
-        onComment: (text) => { guidedCommentsRef.current[i] = text; },
+        onComment: (text) => { guidedCommentsRef.current[i] = text; setSerieComments((p) => ({ ...p, [i]: text })); },
       });
     });
     return steps;
@@ -778,6 +773,7 @@ export default function ExerciceDetail() {
     const sData = getSeriesData();
     if (!sData.length) return;
     guidedCommentsRef.current = {};
+    setSerieComments({});
     setGuidedSteps(buildGuidedSteps(sData));
     setGuidedOpen(true);
   };
@@ -788,6 +784,18 @@ export default function ExerciceDetail() {
     if (!Object.values(comments).some((c) => c && c.trim()) || !exerciceId) return;
     const lines = Array.from({ length: n }, (_, i) => `- Série ${i + 1} : ${comments[i]?.trim() || "pas de commentaire"}`).join("\n");
     await supabase.from("session_exercises").update({ sportif_comment: lines }).eq("id", exerciceId);
+  };
+  // Ouvre le bilan de fin APRÈS la fermeture du mode guidé (évite que le dialog bloque les RPE).
+  const afterGuided = async () => {
+    await finishGuided();
+    setSerieValidations((prev) => {
+      if (prev.length > 0 && prev.every((s) => s.validated)) {
+        const avg = Math.round(prev.reduce((s, v) => s + (v.rpe || 0), 0) / prev.length);
+        setComputedAvgRpe(avg.toString());
+        setDialogOpen(true);
+      }
+      return prev;
+    });
   };
 
   const startTimer = () => {
@@ -1049,7 +1057,7 @@ export default function ExerciceDetail() {
         );
       })()} onRpe={(rpe, round) => validateSerieFromTimer(round - 1, rpe)} />
 
-      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={finishGuided} />}
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={afterGuided} />}
 
       {/* Note du coach — post-it flottant à l'ouverture, glisser pour fermer (Option 5) */}
       <AnimatePresence>
@@ -1661,7 +1669,8 @@ export default function ExerciceDetail() {
                     const charge = v?.actual_charge || serie.charge;
                     const chargeChanged = v?.actual_charge && String(v.actual_charge) !== (serie.charge ?? "").trim();
                     return (
-                      <div key={idx} className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
+                      <div key={idx} className="space-y-1">
+                      <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
                         <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0 text-[13px]">
                           <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
@@ -1686,6 +1695,8 @@ export default function ExerciceDetail() {
                             </div>
                           );
                         })()}
+                      </div>
+                      {serieComments[idx] && <p className="text-[11px] italic text-primary px-1">📝 Toi : {serieComments[idx]}</p>}
                       </div>
                     );
                   })}

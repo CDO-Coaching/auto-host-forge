@@ -193,7 +193,6 @@ export default function SupersetDetail() {
       if (!prev[vIdx]) return prev;
       const nv = [...prev];
       nv[vIdx] = { ...nv[vIdx], validated: true, actual_reps: data.reps?.trim() || nv[vIdx].actual_reps || null, actual_charge: data.charge?.trim() || nv[vIdx].actual_charge || null };
-      if (nv.every((s) => s.validated) && nv.length > 0) setDialogOpen(true);
       return nv;
     });
   };
@@ -280,6 +279,7 @@ export default function SupersetDetail() {
   const startGuided = () => {
     if (!exercises.length || totalRounds <= 0) return;
     guidedCommentsRef.current = {};
+    setSerieComments({});
     setGuidedSteps(buildSupersetGuidedSteps());
     setGuidedOpen(true);
   };
@@ -294,6 +294,14 @@ export default function SupersetDetail() {
       const lines = Array.from({ length: totalRounds }, (_, r) => `- Série ${r + 1} : ${comments[`${exIdx}:${r}`]?.trim() || "pas de commentaire"}`).join("\n");
       await supabase.from("session_exercises").update({ sportif_comment: lines }).eq("id", ex.id);
     }
+  };
+  // Ouvre le bilan de fin APRÈS la fermeture du mode guidé.
+  const afterGuided = async () => {
+    await finishGuided();
+    setSerieValidations((prev) => {
+      if (prev.length > 0 && prev.every((s) => s.validated)) setDialogOpen(true);
+      return prev;
+    });
   };
 
   const recoveryTimerId = `superset-recovery-${supersetId}`;
@@ -751,7 +759,7 @@ export default function SupersetDetail() {
         onRpe={(rpe, round, targetId) => validateExoFromTimer(round - 1, Number(targetId), rpe)}
       />
 
-      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={finishGuided} />}
+      {guidedOpen && <GuidedOverlay steps={guidedSteps} onClose={() => setGuidedOpen(false)} onFinish={afterGuided} />}
 
       <CelebrationOverlay
         show={showCelebration}
@@ -1401,6 +1409,9 @@ export default function SupersetDetail() {
                         );
                       })}
                     </div>
+                    {serieComments[roundIdx] && (
+                      <p className="text-[11px] italic text-primary mt-2 px-1">📝 Toi : {serieComments[roundIdx]}</p>
+                    )}
                   </CardContent>
                 </Card>
               );
