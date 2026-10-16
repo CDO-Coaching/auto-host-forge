@@ -961,7 +961,15 @@ export default function SupersetDetail() {
         {/* Series rounds — hidden in AMRAP mode (counter replaces per-round cards) */}
         {!isAmrap && !seriesCollapsed && (!allValidated || editMode) && (
           <div className="space-y-4">
-            {Array.from({ length: totalRounds }, (_, roundIdx) => {
+            {Array.from({ length: totalRounds }, (_, i) => i)
+              // Les séries (rounds) validées descendent sous celles encore à faire,
+              // comme pour les exercices simples
+              .sort((a, b) => {
+                const aC = exercises.every((_, e) => serieValidations[getValidationIndex(a, e)]?.validated);
+                const bC = exercises.every((_, e) => serieValidations[getValidationIndex(b, e)]?.validated);
+                return Number(aC) - Number(bC) || a - b;
+              })
+              .map((roundIdx) => {
               const roundValidations = exercises.map((_, exIdx) => {
                 const vIdx = getValidationIndex(roundIdx, exIdx);
                 return serieValidations[vIdx];

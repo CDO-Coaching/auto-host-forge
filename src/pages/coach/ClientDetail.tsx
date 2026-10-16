@@ -3947,6 +3947,20 @@ export default function ClientDetail() {
       });
     };
 
+    // Helper: met la récup du premier exercice (celui enchaîné au suivant) à
+    // « aucune » par défaut lors de la création du lien. Le coach peut la
+    // rechanger ensuite.
+    const clearRecup = (exercises: Exercise[], id: number): Exercise[] =>
+      exercises.map((ex) => {
+        if (ex.id !== id) return ex;
+        const sd = getSerieDetailsArray(ex.serie_details);
+        return {
+          ...ex,
+          recuperation: "",
+          serie_details: sd.length ? sd.map((s: any) => ({ ...s, recuperation: "" })) : ex.serie_details,
+        };
+      });
+
     // Cas 1: Aucun des deux n'est dans un groupe - créer un nouveau groupe
     if (!currentExercise.super_set_group && !nextExercise.super_set_group) {
       const newGroupId = `group-${Date.now()}`;
@@ -3956,6 +3970,7 @@ export default function ClientDetail() {
         }
         return ex;
       });
+      updatedExercises = clearRecup(updatedExercises, exerciseId);
       updatedExercises = syncSerieDetails(updatedExercises, newGroupId);
       setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Super-set créé !");
@@ -3966,6 +3981,7 @@ export default function ClientDetail() {
         if (ex.id === nextExercise.id) return { ...ex, super_set_group: currentExercise.super_set_group };
         return ex;
       });
+      updatedExercises = clearRecup(updatedExercises, exerciseId);
       updatedExercises = syncSerieDetails(updatedExercises, currentExercise.super_set_group!);
       setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Exercice ajouté au super-set !");
@@ -3976,6 +3992,7 @@ export default function ClientDetail() {
         if (ex.id === exerciseId) return { ...ex, super_set_group: nextExercise.super_set_group };
         return ex;
       });
+      updatedExercises = clearRecup(updatedExercises, exerciseId);
       updatedExercises = syncSerieDetails(updatedExercises, nextExercise.super_set_group!);
       setSessionExercises({ ...sessionExercises, [sessionId]: updatedExercises });
       toast.success("Exercice ajouté au super-set !");
