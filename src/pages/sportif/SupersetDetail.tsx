@@ -1248,7 +1248,7 @@ export default function SupersetDetail() {
                   <button
                     key={roundIdx}
                     onClick={() => setEditMode(true)}
-                    className="w-full flex items-center justify-between rounded-xl border border-green-500/30 bg-green-500/[0.04] px-4 py-2.5 text-left active:scale-[0.99] transition-transform"
+                    className="w-full flex flex-wrap items-center justify-between gap-y-1 rounded-xl border border-green-500/30 bg-green-500/[0.04] px-4 py-2.5 text-left active:scale-[0.99] transition-transform"
                   >
                     <span className="flex items-center gap-2 text-sm font-bold"><Check className="h-4 w-4 text-green-600" /> Série {roundIdx + 1}</span>
                     <span className="text-xs text-muted-foreground">RPE ressenti <span className="font-semibold text-green-600">{rpes || "-"}</span></span>

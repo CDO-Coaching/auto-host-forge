@@ -1084,8 +1084,8 @@ function SessionCard({
                             </div>
                           )}
                           {(cardioExercise as any).sportif_comment && (
-                            <p className="text-xs text-muted-foreground italic border-t border-green-500/20 pt-2">
-                              "{(cardioExercise as any).sportif_comment}"
+                            <p className="text-xs text-muted-foreground italic border-t border-green-500/20 pt-2 whitespace-pre-line break-words">
+                              {(cardioExercise as any).sportif_comment}
                             </p>
                           )}
                         </div>

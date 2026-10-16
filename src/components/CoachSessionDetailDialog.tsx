@@ -495,7 +495,7 @@ export function CoachSessionDetailDialog({
         )}
 
         {(ex.sportif_comment || ex.commentaire) && (
-          <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2">
+          <div className="mt-2 text-sm text-muted-foreground italic border-l-2 border-primary/30 pl-2 whitespace-pre-line break-words">
             {ex.sportif_comment || ex.commentaire}
           </div>
         )}
