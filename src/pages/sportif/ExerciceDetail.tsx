@@ -739,16 +739,28 @@ export default function ExerciceDetail() {
         targetReps: isDur ? undefined : String(sd.reps || exercise?.reps || ""),
         targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
         chargeNeedsInput,
+        refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
+        refRpe: (sd.rpe || exercise?.rpe) ? String(sd.rpe || exercise?.rpe) : undefined,
+        refTempo: (sd.tempo || exercise?.tempo) ? String(sd.tempo || exercise?.tempo) : undefined,
         isDistance: exercise?.is_distance === true,
         perSide,
         onSkip: () => skipExerciseGuided(),
       };
+      const pushWork = (id: string, phaseLabel: string | undefined, withDone: boolean) => {
+        const chained = steps.length > 0 && steps[steps.length - 1].type === "work";
+        const firstWork = !steps.some((s) => s.type === "work");
+        steps.push({
+          ...base, id, type: "work", phaseLabel, phaseColor: "#52b788",
+          autoStart: chained, prepSeconds: firstWork ? 10 : 0,
+          onDone: withDone ? (d) => validateSerieGuided(i, d) : undefined,
+        });
+      };
       if (isDur && perSide) {
         // Deux côtés guidés, mais UNE seule validation (sur le côté 2) + UN seul RPE/commentaire
-        steps.push({ ...base, id: `w${i}a`, type: "work", phaseLabel: "🔥 Côté 1", phaseColor: "#52b788" });
-        steps.push({ ...base, id: `w${i}b`, type: "work", phaseLabel: "🔥 Côté 2", phaseColor: "#52b788", onDone: (d) => validateSerieGuided(i, d) });
+        pushWork(`w${i}a`, "🔥 Côté 1", false);
+        pushWork(`w${i}b`, "🔥 Côté 2", true);
       } else {
-        steps.push({ ...base, id: `w${i}`, type: "work", phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: "#52b788", onDone: (d) => validateSerieGuided(i, d) });
+        pushWork(`w${i}`, isDur ? "🔥 Vas-y" : undefined, true);
       }
       const recupSec = parseRecuperationTime(sd.recuperation || exercise?.recuperation || "");
       steps.push({

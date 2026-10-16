@@ -102,6 +102,7 @@ export default function SupersetDetail() {
   const timerRef = useRef<UniversalTimerRef>(null);
   const [guidedSteps, setGuidedSteps] = useState<GuidedStep[]>([]);
   const [guidedOpen, setGuidedOpen] = useState(false);
+  const [serieComments, setSerieComments] = useState<Record<number, string>>({});
 
   // Lance le minuteur pour UN exercice en durée dans le superset (1 série).
   // En « par côté » : côté 1 → pause → côté 2. Sinon simple compte à rebours.
@@ -242,14 +243,26 @@ export default function SupersetDetail() {
           targetReps: isDur ? undefined : String(sd.reps || ex.reps || ""),
           targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
           chargeNeedsInput,
+          refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
+          refRpe: (sd.rpe || ex.rpe) ? String(sd.rpe || ex.rpe) : undefined,
+          refTempo: (sd.tempo || ex.tempo) ? String(sd.tempo || ex.tempo) : undefined,
           isDistance: ex.is_distance === true, perSide,
           onSkip: () => skipExoGuided(exIdx),
         };
+        const pushWork = (id: string, phaseLabel: string | undefined, withDone: boolean) => {
+          const chained = steps.length > 0 && steps[steps.length - 1].type === "work";
+          const firstWork = !steps.some((s) => s.type === "work");
+          steps.push({
+            ...base, id, type: "work", phaseLabel, phaseColor: colors[exIdx % 4],
+            autoStart: chained, prepSeconds: firstWork ? 10 : 0,
+            onDone: withDone ? (d) => validateExoGuided(r, exIdx, d) : undefined,
+          });
+        };
         if (isDur && perSide) {
-          steps.push({ ...base, id: `w${r}-${exIdx}a`, type: "work", phaseLabel: "🔥 Côté 1", phaseColor: colors[exIdx % 4] });
-          steps.push({ ...base, id: `w${r}-${exIdx}b`, type: "work", phaseLabel: "🔥 Côté 2", phaseColor: colors[exIdx % 4], onDone: (d) => validateExoGuided(r, exIdx, d) });
+          pushWork(`w${r}-${exIdx}a`, "🔥 Côté 1", false);
+          pushWork(`w${r}-${exIdx}b`, "🔥 Côté 2", true);
         } else {
-          steps.push({ ...base, id: `w${r}-${exIdx}`, type: "work", phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: colors[exIdx % 4], onDone: (d) => validateExoGuided(r, exIdx, d) });
+          pushWork(`w${r}-${exIdx}`, isDur ? "🔥 Vas-y" : undefined, true);
         }
       });
       steps.push({
@@ -258,7 +271,7 @@ export default function SupersetDetail() {
         nextPreview: r < totalRounds - 1 ? previewRound(r) : undefined,
         rpeTargets,
         onRpe: (rpe, targetId) => validateExoFromTimer(r, Number(targetId), rpe),
-        onComment: (text) => { exercises.forEach((_, exIdx) => { guidedCommentsRef.current[`${exIdx}:${r}`] = text; }); },
+        onComment: (text) => { exercises.forEach((_, exIdx) => { guidedCommentsRef.current[`${exIdx}:${r}`] = text; }); setSerieComments((p) => ({ ...p, [r]: text })); },
       });
     }
     return steps;
@@ -1230,6 +1243,7 @@ export default function SupersetDetail() {
                   >
                     <span className="flex items-center gap-2 text-sm font-bold"><Check className="h-4 w-4 text-green-600" /> Série {roundIdx + 1}</span>
                     <span className="text-xs text-muted-foreground">RPE ressenti <span className="font-semibold text-green-600">{rpes || "-"}</span></span>
+                    {serieComments[roundIdx] && <span className="basis-full text-[11px] italic text-primary mt-1">📝 Toi : {serieComments[roundIdx]}</span>}
                   </button>
                 );
               }
