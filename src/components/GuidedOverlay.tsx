@@ -24,9 +24,10 @@ export interface GuidedStep {
   nextLabel?: string;
   rpeTargets?: { id: string; label: string; color?: string }[];
   // callbacks
-  onDone?: (data: { reps?: string; charge?: string; comment?: string }) => void;
+  onDone?: (data: { reps?: string; charge?: string }) => void;
   onSkip?: () => void;
   onRpe?: (rpe: number, targetId?: string) => void;
+  onComment?: (text: string) => void;
 }
 
 interface DoneRecap { exName?: string; reps?: string; charge?: string; comment?: string; isDistance?: boolean; isDuration?: boolean; serieLabel?: string; }
@@ -85,11 +86,11 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
   if (!step) return null;
 
   const doneWork = () => {
-    const payload = { reps: reps.trim() || undefined, charge: charge.trim() || undefined, comment: comment.trim() || undefined };
-    step.onDone?.(payload);
-    setLastDone({ exName: step.exName, reps: reps.trim(), charge: charge.trim(), comment: comment.trim(), isDistance: step.isDistance, isDuration: step.isDuration, serieLabel: step.serieLabel });
+    step.onDone?.({ reps: reps.trim() || undefined, charge: charge.trim() || undefined });
+    setLastDone({ exName: step.exName, reps: reps.trim(), charge: charge.trim(), isDistance: step.isDistance, isDuration: step.isDuration, serieLabel: step.serieLabel });
     goNext();
   };
+  const continueRecup = () => { if (step.onComment && comment.trim()) step.onComment(comment.trim()); goNext(); };
   const skipWork = () => { step.onSkip?.(); goNext(); };
   const pickRpe = (v: number, targetId?: string) => { step.onRpe?.(v, targetId); setRpeAck((p) => ({ ...p, [targetId ?? "_"]: v })); };
 
@@ -175,8 +176,6 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                 </label>
               </div>
             )}
-
-            {CommentField}
           </div>
         ) : (
           <div className="flex-1 flex flex-col gap-3">
@@ -229,6 +228,10 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                 })}
               </div>
             )}
+
+            {/* Commentaire de la série — en même temps que le RPE */}
+            {step.onComment && CommentField}
+
             <div className="flex-1" />
           </div>
         )}

@@ -185,9 +185,8 @@ export default function SupersetDetail() {
 
   // ── Mode guidé pas-à-pas (superset) ──
   const guidedCommentsRef = useRef<Record<string, string>>({});
-  const validateExoGuided = (roundIdx: number, exIdx: number, data: { reps?: string; charge?: string; comment?: string }) => {
+  const validateExoGuided = (roundIdx: number, exIdx: number, data: { reps?: string; charge?: string }) => {
     if (roundIdx < 0 || roundIdx >= totalRounds || exIdx < 0 || exIdx >= exercises.length) return;
-    if (data.comment) guidedCommentsRef.current[`${exIdx}:${roundIdx}`] = data.comment;
     setSerieValidations((prev) => {
       const vIdx = getValidationIndex(roundIdx, exIdx);
       if (!prev[vIdx]) return prev;
@@ -217,25 +216,30 @@ export default function SupersetDetail() {
         const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
         const isPct = /%/.test(chargeRaw);
         const dur = isDur ? (parseInt(String(sd.reps || ex.reps)) || 0) : 0;
-        steps.push({
-          id: `w${r}-${exIdx}`, type: "work", exName: ex.exercice, exNumber: exIdx + 1, exColor: colors[exIdx % 4],
+        const perSide = ex.per_side === true;
+        const base = {
+          exName: ex.exercice, exNumber: exIdx + 1, exColor: colors[exIdx % 4],
           serieLabel: `Série ${r + 1} / ${totalRounds}`,
           isDuration: isDur, seconds: dur,
           targetReps: isDur ? undefined : String(sd.reps || ex.reps || ""),
           targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
           chargeNeedsInput,
-          isDistance: ex.is_distance === true, perSide: ex.per_side === true,
-          phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: colors[exIdx % 4],
-          nextLabel: exIdx < exercises.length - 1 ? `${exercises[exIdx + 1]?.exercice}` : undefined,
-          onDone: (d) => validateExoGuided(r, exIdx, d),
+          isDistance: ex.is_distance === true, perSide,
           onSkip: () => skipExoGuided(exIdx),
-        });
+        };
+        if (isDur && perSide) {
+          steps.push({ ...base, id: `w${r}-${exIdx}a`, type: "work", phaseLabel: "🔥 Côté 1", phaseColor: colors[exIdx % 4] });
+          steps.push({ ...base, id: `w${r}-${exIdx}b`, type: "work", phaseLabel: "🔥 Côté 2", phaseColor: colors[exIdx % 4], onDone: (d) => validateExoGuided(r, exIdx, d) });
+        } else {
+          steps.push({ ...base, id: `w${r}-${exIdx}`, type: "work", phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: colors[exIdx % 4], onDone: (d) => validateExoGuided(r, exIdx, d) });
+        }
       });
       steps.push({
         id: `r${r}`, type: "recup", seconds: r < totalRounds - 1 ? endRecup : 0,
         nextLabel: r < totalRounds - 1 ? `Série ${r + 2}` : "Fin du superset",
         rpeTargets,
         onRpe: (rpe, targetId) => validateExoFromTimer(r, Number(targetId), rpe),
+        onComment: (text) => { exercises.forEach((_, exIdx) => { guidedCommentsRef.current[`${exIdx}:${r}`] = text; }); },
       });
     }
     return steps;

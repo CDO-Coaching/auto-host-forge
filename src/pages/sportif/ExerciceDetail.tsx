@@ -666,10 +666,9 @@ export default function ExerciceDetail() {
 
   // ── Mode guidé pas-à-pas ──
   const guidedCommentsRef = useRef<Record<number, string>>({});
-  // Valide une série depuis le mode guidé (reps/charge réalisées, RPE ajouté après en récup).
-  const validateSerieGuided = (index: number, data: { reps?: string; charge?: string; comment?: string }) => {
+  // Valide une série depuis le mode guidé (reps/charge réalisées, RPE/commentaire ajoutés après en récup).
+  const validateSerieGuided = (index: number, data: { reps?: string; charge?: string }) => {
     if (index < 0) return;
-    if (data.comment) guidedCommentsRef.current[index] = data.comment;
     setSerieValidations((prev) => {
       if (index >= prev.length || !prev[index]) return prev;
       const nv = [...prev];
@@ -721,24 +720,31 @@ export default function ExerciceDetail() {
       const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
       const isPct = /%/.test(chargeRaw);
       const dur = isDur ? (parseInt(String(sd.reps || exercise?.reps)) || 0) : 0;
-      steps.push({
-        id: `w${i}`, type: "work", exName, exNumber: 1, exColor: "#e8c466",
+      const perSide = exercise?.per_side === true;
+      const base = {
+        exName, exNumber: 1, exColor: "#e8c466" as string,
         serieLabel: `Série ${i + 1} / ${n}`,
         isDuration: isDur, seconds: dur,
         targetReps: isDur ? undefined : String(sd.reps || exercise?.reps || ""),
         targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
         chargeNeedsInput,
         isDistance: exercise?.is_distance === true,
-        perSide: exercise?.per_side === true,
-        phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: "#52b788",
-        onDone: (d) => validateSerieGuided(i, d),
+        perSide,
         onSkip: () => skipExerciseGuided(),
-      });
+      };
+      if (isDur && perSide) {
+        // Deux côtés guidés, mais UNE seule validation (sur le côté 2) + UN seul RPE/commentaire
+        steps.push({ ...base, id: `w${i}a`, type: "work", phaseLabel: "🔥 Côté 1", phaseColor: "#52b788" });
+        steps.push({ ...base, id: `w${i}b`, type: "work", phaseLabel: "🔥 Côté 2", phaseColor: "#52b788", onDone: (d) => validateSerieGuided(i, d) });
+      } else {
+        steps.push({ ...base, id: `w${i}`, type: "work", phaseLabel: isDur ? "🔥 Vas-y" : undefined, phaseColor: "#52b788", onDone: (d) => validateSerieGuided(i, d) });
+      }
       const recupSec = parseRecuperationTime(sd.recuperation || exercise?.recuperation || "");
       steps.push({
         id: `r${i}`, type: "recup", seconds: i < n - 1 ? recupSec : 0,
         nextLabel: i < n - 1 ? `Série ${i + 2}` : "Fin de l'exercice",
         onRpe: (rpe) => setSerieRpeGuided(i, rpe),
+        onComment: (text) => { guidedCommentsRef.current[i] = text; },
       });
     });
     return steps;
