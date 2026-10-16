@@ -90,7 +90,6 @@ export default function ExerciceDetail() {
   const [guidedOpen, setGuidedOpen] = useState(false);
   const [serieComments, setSerieComments] = useState<Record<number, string>>({});
   const [guidedComment, setGuidedComment] = useState("");
-  const [expandedSerie, setExpandedSerie] = useState<Record<number, boolean>>({});
   const [completedSets, setCompletedSets] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(0);
@@ -1690,10 +1689,7 @@ export default function ExerciceDetail() {
                     const sComment = getSerieComment(idx);
                     return (
                       <div key={idx} className="space-y-1">
-                      <div
-                        className={`flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5 ${sComment ? "cursor-pointer active:bg-muted/40" : ""}`}
-                        onClick={sComment ? () => setExpandedSerie((p) => ({ ...p, [idx]: !p[idx] })) : undefined}
-                      >
+                      <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
                         <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0 text-[13px]">
                           <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
@@ -1719,9 +1715,7 @@ export default function ExerciceDetail() {
                           );
                         })()}
                       </div>
-                      {sComment && (expandedSerie[idx]
-                        ? <p className="text-[11px] italic text-primary px-1 whitespace-pre-line break-words">📝 Toi : {sComment}</p>
-                        : <p className="text-[11px] text-muted-foreground px-1">💬 Appuie sur la série pour voir ton commentaire</p>)}
+                      {sComment && <p className="text-[11px] italic text-primary px-1 whitespace-pre-line break-words">📝 Toi : {sComment}</p>}
                       </div>
                     );
                   })}
