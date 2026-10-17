@@ -486,8 +486,12 @@ export default function Comptabilite() {
     updateEntry(id, "sessions_paid", payDialogEntry.sessions_done || 0);
     if (amount > 0) {
       const field = payMethod === "espèces" ? "amount_cash" : "amount_transfer";
-      const current = payMethod === "espèces" ? (payDialogEntry.amount_cash || 0) : (payDialogEntry.amount_transfer || 0);
-      updateEntry(id, field, current + amount);
+      // Remplace le montant du mois (évite de doubler si un montant existait déjà)
+      updateEntry(id, field, amount);
+      // Si on change de méthode, on remet l'autre montant à 0 pour ne pas cumuler deux fois
+      const otherField = payMethod === "espèces" ? "amount_transfer" : "amount_cash";
+      const otherCurrent = payMethod === "espèces" ? (payDialogEntry.amount_transfer || 0) : (payDialogEntry.amount_cash || 0);
+      if (otherCurrent > 0) updateEntry(id, otherField, 0);
     }
     setPayDialogEntry(null);
   };
