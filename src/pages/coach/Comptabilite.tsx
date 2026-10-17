@@ -1193,7 +1193,7 @@ export default function Comptabilite() {
                                   className="w-24 text-right"
                                 />
                               ) : (
-                                <span className="text-muted-foreground text-sm">-</span>
+                                <span className="text-muted-foreground text-sm">{entry.amount_cash > 0 ? `${entry.amount_cash.toFixed(2)} €` : "-"}</span>
                               )}
                             </TableCell>
                             <TableCell>
@@ -1207,7 +1207,7 @@ export default function Comptabilite() {
                                   className="w-24 text-right"
                                 />
                               ) : (
-                                <span className="text-muted-foreground text-sm">-</span>
+                                <span className="text-muted-foreground text-sm">{entry.amount_transfer > 0 ? `${entry.amount_transfer.toFixed(2)} €` : "-"}</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right font-medium">
@@ -1346,6 +1346,12 @@ export default function Comptabilite() {
                               />
                             </div>
                           )}
+                          {!(entry.payment_type === "espèces" || entry.payment_type === "mixte") && entry.amount_cash > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Montant espèces</span>
+                              <span className="font-medium text-muted-foreground">{entry.amount_cash.toFixed(2)} €</span>
+                            </div>
+                          )}
 
                           {(entry.payment_type === "virement" || entry.payment_type === "mixte") && (
                             <div className="space-y-1">
@@ -1358,6 +1364,12 @@ export default function Comptabilite() {
                                 onChange={(e) => updateEntry(entry.id, "amount_transfer", e.target.value === "" ? 0 : parseFloat(e.target.value))}
                                 className="h-9"
                               />
+                            </div>
+                          )}
+                          {!(entry.payment_type === "virement" || entry.payment_type === "mixte") && entry.amount_transfer > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Montant virement</span>
+                              <span className="font-medium text-muted-foreground">{entry.amount_transfer.toFixed(2)} €</span>
                             </div>
                           )}
 
