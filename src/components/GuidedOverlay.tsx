@@ -113,7 +113,13 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
 
   const doneWork = () => {
     if (step.chargeNeedsInput && !charge.trim()) { setErr("Indique la charge utilisée avant de continuer"); return; }
-    step.onDone?.({ reps: reps.trim() || undefined, charge: charge.trim() || undefined });
+    // N'enregistrer la valeur réalisée QUE si elle diffère du prévu (sinon le coach croit à une modif)
+    const repsChanged = reps.trim() !== (step.targetReps ?? "").trim();
+    const chargeChanged = charge.trim() !== (step.targetCharge ?? "").trim();
+    step.onDone?.({
+      reps: repsChanged ? (reps.trim() || undefined) : undefined,
+      charge: chargeChanged ? (charge.trim() || undefined) : undefined,
+    });
     setLastDone({ reps: reps.trim(), charge: charge.trim(), isDistance: step.isDistance, isDuration: step.isDuration });
     goNext();
   };
