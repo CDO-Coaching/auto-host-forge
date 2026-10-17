@@ -252,10 +252,10 @@ export default function SupersetDetail() {
         };
         const pushWork = (id: string, phaseLabel: string | undefined, withDone: boolean) => {
           const chained = steps.length > 0 && steps[steps.length - 1].type === "work";
-          const firstWork = !steps.some((s) => s.type === "work");
+          const firstDurWork = isDur && !steps.some((s) => s.type === "work" && s.isDuration);
           steps.push({
             ...base, id, type: "work", phaseLabel, phaseColor: colors[exIdx % 4],
-            autoStart: chained, prepSeconds: firstWork ? 10 : 0,
+            autoStart: chained, prepSeconds: firstDurWork ? 10 : 0,
             onDone: withDone ? (d) => validateExoGuided(r, exIdx, d) : undefined,
           });
         };
