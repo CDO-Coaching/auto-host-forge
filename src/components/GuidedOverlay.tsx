@@ -56,6 +56,8 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
   const [rpeAck, setRpeAck] = useState<Record<string, number>>({});
   const [lastDone, setLastDone] = useState<DoneRecap | null>(null);
   const [err, setErr] = useState("");
+  // Report de la dernière valeur saisie par exercice → préremplit les séries suivantes
+  const carryRef = useRef<Record<string, { charge: string; reps: string }>>({});
 
   const step = steps[idx];
   const total = steps.length;
@@ -70,8 +72,10 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
   // Initialisation à chaque étape
   useEffect(() => {
     if (!step) return;
-    setReps(step.targetReps ?? "");
-    setCharge(step.targetCharge ?? "");
+    // Préremplit avec le report (dernière saisie de cet exercice) si présent, sinon le prévu
+    const carry = carryRef.current[step.exName || "_"];
+    setReps(carry?.reps ?? step.targetReps ?? "");
+    setCharge(carry?.charge ?? step.targetCharge ?? "");
     setComment(""); setShowComment(false); setShowEdit(false); setErr("");
     setRpeAck({});
     if (isRecup) {
@@ -120,6 +124,10 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
       reps: repsChanged ? (reps.trim() || undefined) : undefined,
       charge: chargeChanged ? (charge.trim() || undefined) : undefined,
     });
+    // Report vers les séries suivantes du même exercice (garde la dernière saisie)
+    const key = step.exName || "_";
+    const prev = carryRef.current[key] || { charge: "", reps: "" };
+    carryRef.current[key] = { charge: charge.trim() || prev.charge, reps: reps.trim() || prev.reps };
     setLastDone({ reps: reps.trim(), charge: charge.trim(), isDistance: step.isDistance, isDuration: step.isDuration });
     goNext();
   };
@@ -136,6 +144,9 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
 
   const phaseColor = step.phaseColor || "#52b788";
   const bigPhase = mode === "prep" ? "👊 Prépare-toi" : mode === "idle" ? "Prêt ?" : mode === "stopped" ? "✅ Terminé" : (step.phaseLabel || "🔥 Vas-y");
+  const hasCarry = !!carryRef.current[step.exName || "_"];
+  const repsCarried = hasCarry && (reps || "").trim() !== (step.targetReps ?? "").trim() && !!reps.trim();
+  const chargeCarried = hasCarry && (charge || "").trim() !== (step.targetCharge ?? "").trim() && !!charge.trim();
 
   const ChargeInput = (
     <label className="bg-[#141414] border border-white/10 rounded-2xl p-3 block">
@@ -236,20 +247,21 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                 <>
                   <div className="text-[13px] text-muted-foreground mt-4 uppercase tracking-wide">À réaliser</div>
                   <div className="text-[64px] font-extrabold leading-none mt-1" style={sora}>
-                    {step.targetReps || "—"}<span className="text-2xl text-muted-foreground font-bold"> {step.isDistance ? "m" : "reps"}{step.perSide ? " /côté" : ""}</span>
+                    {reps || step.targetReps || "—"}<span className="text-2xl text-muted-foreground font-bold"> {step.isDistance ? "m" : "reps"}{step.perSide ? " /côté" : ""}</span>
                   </div>
+                  {repsCarried && <div className="text-[12px] text-[#f59e0b] font-semibold mt-1">↻ Ajusté d'après ta série précédente (prévu {step.targetReps})</div>}
                 </>
               )}
             </div>
 
-            {/* Champs : charge obligatoire toujours visible, sinon révélés par « Fait, mais modifié » */}
-            {(step.chargeNeedsInput || showEdit) && (
+            {/* Champs : visibles si charge obligatoire, report en cours, ou « Fait, mais modifié » */}
+            {(step.chargeNeedsInput || showEdit || repsCarried || chargeCarried) && (
               <div className="grid grid-cols-2 gap-3">
-                {ChargeInput}
-                {showEdit && RepsInput}
-                {!showEdit && !step.isDuration && RepsInput}
+                {(step.chargeNeedsInput || chargeCarried || showEdit || !!(step.targetCharge && step.targetCharge.trim())) && ChargeInput}
+                {(showEdit || repsCarried || !step.isDuration) && RepsInput}
               </div>
             )}
+            {chargeCarried && <p className="text-[12px] text-[#f59e0b] font-semibold text-center">↻ Charge ajustée d'après ta série précédente (prévu {step.targetCharge} kg)</p>}
 
             {err && <p className="text-[13px] text-[#e56464] font-medium text-center">{err}</p>}
           </div>
