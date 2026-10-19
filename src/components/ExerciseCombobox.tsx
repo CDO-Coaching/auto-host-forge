@@ -293,6 +293,11 @@ export function ExerciseCombobox({
                 );
               })()}
             </div>
+            <FilterRow title="Catégorie">
+              {CAT_FILTERS.map((c) => (
+                <MuscleChip key={c.value} label={c.label} active={fCats.includes(c.value)} onClick={() => toggleIn(fCats, c.value, setFCats)} />
+              ))}
+            </FilterRow>
             <FilterRow title="Matériel">
               {EQUIP_FILTERS.map((m) => (
                 <MuscleChip key={m} label={m} active={fEquip.includes(m)} onClick={() => toggleIn(fEquip, m, setFEquip)} />
