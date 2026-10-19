@@ -55,6 +55,23 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
   const [validateDlg, setValidateDlg] = useState<null | { m: Milestone; comment: string }>(null);
   const [confirmDelete, setConfirmDelete] = useState<null | { kind: "phase" | "ms"; id: string; label: string }>(null);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<Milestone[]>([]);
+
+  // Sous-objectifs proposés par l'athlète → approuver / refuser
+  const approvePending = async (m: Milestone) => {
+    setBusy(true);
+    const { error } = await supabase.from("objective_milestones").update({ approval_status: "approved" }).eq("id", m.id);
+    setBusy(false);
+    if (error) { toast.error("Validation impossible"); return; }
+    toast.success("Sous-objectif validé"); load();
+  };
+  const rejectPending = async (m: Milestone) => {
+    setBusy(true);
+    const { error } = await supabase.from("objective_milestones").update({ approval_status: "rejected" }).eq("id", m.id);
+    setBusy(false);
+    if (error) { toast.error("Refus impossible"); return; }
+    toast.success("Sous-objectif refusé"); load();
+  };
 
   const load = async () => {
     const [{ data: objRows }, { data: ms }, { data: mes }] = await Promise.all([
@@ -65,6 +82,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const o = objRows?.[0] || {};
     setObj(o);
     setMilestones((ms || []).filter((m: any) => m.approval_status !== "pending") as Milestone[]);
+    setPending((ms || []).filter((m: any) => m.approval_status === "pending") as Milestone[]);
     setPhases(((mes || []) as any[]).filter((m) => m.start_date).map((m) => ({ id: m.id, name: m.name, start_date: m.start_date, end_date: m.end_date, color: m.color, coach_note: m.coach_note, linked_milestone_id: m.linked_milestone_id ?? null, prepares_main_objective: m.prepares_main_objective ?? false })));
     setLoading(false);
     onObjectiveChange?.(!!o.main_objective, o.main_objective || null, o.main_objective_deadline || null);
@@ -265,6 +283,29 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
           </Button>
         )}
       </div>
+
+      {/* ── Sous-objectifs proposés par l'athlète — à valider ──────────────── */}
+      {pending.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/[0.06] p-4 space-y-2.5">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-amber-500">
+            🎯 {pending.length} sous-objectif{pending.length > 1 ? "s" : ""} proposé{pending.length > 1 ? "s" : ""} par l'athlète — à valider
+          </p>
+          {pending.map((m) => (
+            <div key={m.id} className="rounded-xl border border-border/60 bg-card/40 p-3">
+              <p className="font-semibold text-sm">{m.label}</p>
+              {m.target_date && <p className="text-xs text-muted-foreground mt-0.5">Échéance : {format(D(m.target_date), "d MMMM yyyy", { locale: fr })}</p>}
+              <div className="flex gap-2 mt-2">
+                <Button size="sm" className="flex-1 gap-1.5 bg-green-600 hover:bg-green-700" disabled={busy} onClick={() => approvePending(m)}>
+                  <Check className="h-4 w-4" /> Valider
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-red-500 border-red-500/40 hover:bg-red-500/10" disabled={busy} onClick={() => rejectPending(m)}>
+                  Refuser
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Actions ────────────────────────────────────────────────────────── */}
       <div className="flex gap-2">
