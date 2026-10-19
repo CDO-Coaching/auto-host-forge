@@ -63,14 +63,14 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
     const { error } = await supabase.from("objective_milestones").update({ approval_status: "approved" }).eq("id", m.id);
     setBusy(false);
     if (error) { toast.error("Validation impossible"); return; }
-    toast.success("Sous-objectif validé"); load();
+    toast.success("Sous-objectif validé"); window.dispatchEvent(new CustomEvent("pending-objectives-changed")); load();
   };
   const rejectPending = async (m: Milestone) => {
     setBusy(true);
     const { error } = await supabase.from("objective_milestones").update({ approval_status: "rejected" }).eq("id", m.id);
     setBusy(false);
     if (error) { toast.error("Refus impossible"); return; }
-    toast.success("Sous-objectif refusé"); load();
+    toast.success("Sous-objectif refusé"); window.dispatchEvent(new CustomEvent("pending-objectives-changed")); load();
   };
 
   const load = async () => {

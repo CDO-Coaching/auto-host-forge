@@ -21,6 +21,9 @@ export function CoachPendingObjectivesBanner() {
 
   useEffect(() => {
     load();
+    const onChange = () => load();
+    window.addEventListener("pending-objectives-changed", onChange);
+    return () => window.removeEventListener("pending-objectives-changed", onChange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
