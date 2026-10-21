@@ -228,6 +228,8 @@ export default function SupersetDetail() {
       return parts.length ? `Change : ${parts.join(" ; ")}` : "Série suivante identique";
     };
     for (let r = 0; r < totalRounds; r++) {
+      // Reprise : on saute les séries déjà entièrement validées (pas de retour à 0)
+      if (exercises.every((_, e) => serieValidations[getValidationIndex(r, e)]?.validated)) continue;
       exercises.forEach((ex: any, exIdx: number) => {
         const sd = getSeriesDataForExercise(ex)[r] || getSeriesDataForExercise(ex)[0] || {};
         const isDur = ex.is_duration === true;

@@ -723,6 +723,8 @@ export default function ExerciceDetail() {
       return ch.length ? `Change : ${ch.join(" · ")}` : "Série suivante identique";
     };
     sData.forEach((sd, i) => {
+      // Reprise : on saute les séries déjà validées (le guidé ne repart pas à 0)
+      if (serieValidations[i]?.validated) return;
       const chargeRaw = (sd.charge || exercise?.charge || "").toString().trim();
       const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
       const isPct = /%/.test(chargeRaw);
