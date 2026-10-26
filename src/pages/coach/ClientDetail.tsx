@@ -3761,17 +3761,17 @@ export default function ClientDetail() {
       const exercises = prev[sessionId] || [];
       const updated = exercises.map(ex => {
         if (ex.id !== exerciseId) return ex;
-        const details = [...(ex.serie_details || [])];
-        if (details[serieIndex]) {
-          const finalValue =
-            field === "charge"
-              ? resolvePercentCharge(value, ex.exercice)
-              : value;
-
-          const serieUpdate: Partial<SerieDetail> = { [field]: finalValue };
-
-          details[serieIndex] = { ...details[serieIndex], ...serieUpdate };
-        }
+        // Matérialise un détail par série (sinon l'édition d'une série isolée est ignorée
+        // quand serie_details n'est pas encore rempli)
+        const existing = getSerieDetailsArray(ex.serie_details);
+        const count = Math.max(existing.length, parseInt(ex.series || "0") || 0, serieIndex + 1);
+        const details: SerieDetail[] = Array.from({ length: count }, (_, i) =>
+          existing[i]
+            ? { ...existing[i] }
+            : { reps: ex.reps ?? "", charge: ex.charge ?? "", rpe: ex.rpe ?? "", tempo: ex.tempo ?? "", commentaire: "", recuperation: ex.recuperation ?? "" }
+        );
+        const finalValue = field === "charge" ? resolvePercentCharge(value, ex.exercice) : value;
+        details[serieIndex] = { ...details[serieIndex], [field]: finalValue };
         return { ...ex, serie_details: details };
       });
       return { ...prev, [sessionId]: updated };
