@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { normalizeText } from "@/lib/utils";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -306,7 +307,7 @@ export default function Messagerie() {
                   {(() => {
                     const filtered = clients.filter((c) => {
                       if (!broadcastSearch.trim()) return true;
-                      return `${c.first_name} ${c.last_name}`.toLowerCase().includes(broadcastSearch.toLowerCase().trim());
+                      return normalizeText(`${c.first_name} ${c.last_name}`).includes(normalizeText(broadcastSearch.trim()));
                     });
                     return filtered.every((c) => selectedBroadcastIds.has(c.id)) ? "Tout désélectionner" : "Tout sélectionner";
                   })()}
@@ -319,7 +320,7 @@ export default function Messagerie() {
                   {clients
                     .filter((c) => {
                       if (!broadcastSearch.trim()) return true;
-                      return `${c.first_name} ${c.last_name}`.toLowerCase().includes(broadcastSearch.toLowerCase().trim());
+                      return normalizeText(`${c.first_name} ${c.last_name}`).includes(normalizeText(broadcastSearch.trim()));
                     })
                     .sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
                     .map((client) => (
@@ -403,11 +404,11 @@ export default function Messagerie() {
                 {[...clients]
                   .filter((client) => {
                     if (!searchQuery.trim()) return true;
-                    const fullName = `${client.first_name} ${client.last_name}`.toLowerCase();
-                    const searchLower = searchQuery.toLowerCase().trim();
+                    const fullName = normalizeText(`${client.first_name} ${client.last_name}`);
+                    const searchLower = normalizeText(searchQuery.trim());
                     return fullName.includes(searchLower) || 
-                           client.first_name.toLowerCase().includes(searchLower) ||
-                           client.last_name.toLowerCase().includes(searchLower);
+                           normalizeText(client.first_name).includes(searchLower) ||
+                           normalizeText(client.last_name).includes(searchLower);
                   })
                   .sort((a, b) => {
                     const unreadA = unreadCounts[a.id] || 0;

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { normalizeText } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -724,14 +725,14 @@ export default function Comptabilite() {
   const filteredEntries = entries
     .filter(entry => {
       if (!searchQuery.trim()) return true;
-      const query = searchQuery.toLowerCase();
-      return entry.client_name.toLowerCase().includes(query);
+      const query = normalizeText(searchQuery);
+      return normalizeText(entry.client_name).includes(query);
     })
     .sort((a, b) => {
       if (!searchQuery.trim()) return 0;
-      const query = searchQuery.toLowerCase();
-      const aMatches = a.client_name.toLowerCase().includes(query);
-      const bMatches = b.client_name.toLowerCase().includes(query);
+      const query = normalizeText(searchQuery);
+      const aMatches = normalizeText(a.client_name).includes(query);
+      const bMatches = normalizeText(b.client_name).includes(query);
       if (aMatches && !bMatches) return -1;
       if (!aMatches && bMatches) return 1;
       return 0;

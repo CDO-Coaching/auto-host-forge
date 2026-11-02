@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { normalizeText } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -474,9 +475,9 @@ export default function CoachDashboard() {
 
   // ---------------- Vue mobile dédiée ----------------
   if (isMobile) {
-    const q = search.trim().toLowerCase();
+    const q = normalizeText(search.trim());
     const searchResults = q
-      ? allAthletes.filter(a => a.name.toLowerCase().includes(q) || a.email.toLowerCase().includes(q)).slice(0, 6)
+      ? allAthletes.filter(a => normalizeText(a.name).includes(q) || normalizeText(a.email).includes(q)).slice(0, 6)
       : [];
     const hasUnpaid = data.unpaid.length > 0;
     const totalUnpaid = data.unpaid.reduce((s, u) => s + u.count, 0);
