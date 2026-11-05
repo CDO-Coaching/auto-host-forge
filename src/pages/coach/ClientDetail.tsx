@@ -1899,7 +1899,8 @@ export default function ClientDetail() {
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
       setExpandedSessionId(nextSessionNumber);
-      if (window.matchMedia("(min-width: 640px)").matches) setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 80);
+      // Ouvre automatiquement le 1er exercice (mobile et desktop)
+      setTimeout(() => setAutoOpenExercise({ sessionId: nextSessionNumber, exerciseId: 1 }), 120);
     }
 
     if (type === "cardio") {
@@ -5083,6 +5084,8 @@ export default function ClientDetail() {
               copiedWeekFeedback={copiedWeekFeedback}
               hasFeedback={lastWeekData != null}
               onShowFeedback={() => setShowFeedbackSheet(true)}
+              autoOpenExercise={autoOpenExercise}
+              onAutoOpenConsumed={() => setAutoOpenExercise(null)}
             />
           </div>
 

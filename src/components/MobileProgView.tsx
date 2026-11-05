@@ -119,6 +119,8 @@ interface MobileProgViewProps {
   copiedWeekFeedback?: Record<string, ExerciseFeedback>;
   onShowFeedback?: () => void;
   hasFeedback?: boolean;
+  autoOpenExercise?: { sessionId: number; exerciseId: number } | null;
+  onAutoOpenConsumed?: () => void;
 }
 
 function getSerieDetailsArray(value: SerieDetail[] | string | undefined): SerieDetail[] {
@@ -210,7 +212,7 @@ function Stepper({ label, value, onChange, step = 1, min = 0, max, freeText = fa
 // ─── Éditeur inline exercice renfo (pas de Sheet imbriqué) ────────────────────
 
 function RenfoExerciseRow({
-  exercise, sessionId, isValidated, libraryExercises, feedback, onChange, onSerieDetailChange, onDelete,
+  exercise, sessionId, isValidated, libraryExercises, feedback, onChange, onSerieDetailChange, onDelete, autoOpen, onAutoOpened,
 }: {
   exercise: Exercise;
   sessionId: number;
@@ -220,8 +222,12 @@ function RenfoExerciseRow({
   onChange: (field: string, value: string) => void;
   onSerieDetailChange: (serieIndex: number, field: string, value: string) => void;
   onDelete: () => void;
+  autoOpen?: boolean;
+  onAutoOpened?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Ouvre automatiquement l'éditeur (ex. 1er exercice d'une séance créée)
+  useEffect(() => { if (autoOpen) { setExpanded(true); onAutoOpened?.(); } }, [autoOpen]);
   const [seriesOpen, setSeriesOpen] = useState(false); // détail des séries fermé par défaut
   // Glissé vers la gauche pour révéler "Supprimer"
   const REVEAL = 88;
@@ -570,7 +576,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange, onUnlock, isOpen, onOpenChange,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange, onUnlock, isOpen, onOpenChange, autoOpenExerciseId, onAutoOpenConsumed,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -592,6 +598,8 @@ function SessionCard({
   onUnlock?: () => void;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
+  autoOpenExerciseId?: number | null;
+  onAutoOpenConsumed?: () => void;
 }) {
   const open = !!isOpen;
   const setOpen = (o: boolean) => onOpenChange?.(o);
@@ -943,6 +951,8 @@ function SessionCard({
                       onChange={(field, value) => onExerciseChange(ex.id, field, value)}
                       onSerieDetailChange={(si, field, value) => onSerieDetailChange(ex.id, si, field, value)}
                       onDelete={() => onDeleteExercise(ex.id)}
+                      autoOpen={autoOpenExerciseId === ex.id}
+                      onAutoOpened={onAutoOpenConsumed}
                     />
                   );
 
@@ -1210,6 +1220,7 @@ export function MobileProgView({
   athleteVma,
   athleteFcMax = null, athleteFcRepos = null,
   copiedWeekFeedback, onShowFeedback, hasFeedback,
+  autoOpenExercise, onAutoOpenConsumed,
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
@@ -1415,6 +1426,8 @@ export function MobileProgView({
               onUnlock={onUnvalidate}
               isOpen={openId === session.id}
               onOpenChange={(o) => setOpenId(o ? session.id : null)}
+              autoOpenExerciseId={autoOpenExercise?.sessionId === session.id ? autoOpenExercise.exerciseId : null}
+              onAutoOpenConsumed={onAutoOpenConsumed}
             />
           ))
         )}
