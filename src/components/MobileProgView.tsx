@@ -431,21 +431,25 @@ function RenfoExerciseRow({
               ? existing
               : Array.from({ length: count }, () => ({ reps: "", charge: "", rpe: "", tempo: "", commentaire: "" }));
             return (
-              <div className="space-y-1.5">
+              <>
                 <button
                   type="button"
-                  onClick={() => setSeriesOpen((v) => !v)}
+                  onClick={() => setSeriesOpen(true)}
                   className="flex w-full items-center gap-2 py-1"
                 >
                   <div className="h-px flex-1 bg-border/60" />
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-primary uppercase tracking-wide">
-                    <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !seriesOpen && "-rotate-90")} />
-                    {seriesOpen ? "Masquer" : "Afficher"} les {count} séries
+                    <ChevronDown className="h-3.5 w-3.5 -rotate-90" />
+                    Afficher les {count} séries
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </button>
-                {seriesOpen && (
-                <div className="space-y-3">
+                <Dialog open={seriesOpen} onOpenChange={setSeriesOpen}>
+                  <DialogContent className="max-w-md w-[96vw] max-h-[88vh] overflow-y-auto rounded-2xl p-4 gap-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
+                    <DialogHeader className="text-left mb-3">
+                      <DialogTitle className="text-base pr-8 truncate">Séries — {exercise.exercice || "Exercice"}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
                   {details.map((serie, si) => (
                     <div key={si} className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2">
                       <p className="text-xs font-bold text-primary">Série {si + 1}</p>
@@ -512,9 +516,13 @@ function RenfoExerciseRow({
                       )}
                     </div>
                   ))}
-                </div>
-                )}
-              </div>
+                    </div>
+                    <Button onClick={() => setSeriesOpen(false)} className="mt-4 w-full h-12 rounded-xl text-base font-semibold">
+                      Valider
+                    </Button>
+                  </DialogContent>
+                </Dialog>
+              </>
             );
           })()}
 
