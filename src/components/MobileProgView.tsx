@@ -918,9 +918,11 @@ function SessionCard({
             <div className="flex items-center gap-2 pr-9">
               <SheetTitle className="text-base truncate">{session.name}</SheetTitle>
               <Badge variant="outline" className={cn("text-xs shrink-0", cfg.color)}>{cfg.emoji} {cfg.label}</Badge>
-              <Button onClick={() => setOpen(false)} size="sm" className="ml-auto mr-7 h-8 px-4 rounded-lg shrink-0">
-                Valider
-              </Button>
+              {session.session_type !== "renfo" && (
+                <Button onClick={() => setOpen(false)} size="sm" className="ml-auto mr-7 h-8 px-4 rounded-lg shrink-0">
+                  Valider
+                </Button>
+              )}
             </div>
             {isValidated && onUnlock && (
               <div className="mt-2 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
