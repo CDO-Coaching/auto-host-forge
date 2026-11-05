@@ -5095,7 +5095,7 @@ export default function ClientDetail() {
               copiedWeekFeedback={copiedWeekFeedback}
               hasFeedback={lastWeekData != null}
               onShowFeedback={() => setShowFeedbackSheet(true)}
-              autoOpenExercise={autoOpenExercise}
+              autoOpenExercise={isMobile ? autoOpenExercise : null}
               onAutoOpenConsumed={() => setAutoOpenExercise(null)}
             />
           </div>
@@ -5136,7 +5136,7 @@ export default function ClientDetail() {
               onExerciseDrop={handleExerciseDrop}
               collapsedSeriesExercises={collapsedSeriesExercises}
               setCollapsedSeriesExercises={setCollapsedSeriesExercises}
-              autoOpenExercise={autoOpenExercise}
+              autoOpenExercise={!isMobile ? autoOpenExercise : null}
               setAutoOpenExercise={setAutoOpenExercise}
               copiedWeekFeedback={copiedWeekFeedback}
               setCopiedWeekFeedback={setCopiedWeekFeedback}
