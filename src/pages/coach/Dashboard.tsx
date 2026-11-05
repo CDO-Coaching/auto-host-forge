@@ -14,6 +14,7 @@ import { format, startOfWeek, endOfWeek, parseISO, getISOWeek, getYear, subHours
 import { fr } from "date-fns/locale";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getWeekNumber, getWeekYear } from "@/lib/weekUtils";
+import { nearestAppointments } from "@/lib/coachAppointments";
 
 interface DashboardData {
   activeClients: number;
@@ -463,7 +464,6 @@ export default function CoachDashboard() {
 
   const hasUnvalidated = data.unvalidatedAthletes.length > 0;
   const hasFatigueAlerts = data.fatigueAlerts.length > 0;
-  const hasUpcoming = data.upcomingSessions.length > 0;
 
   if (loading) {
     return (
@@ -482,6 +482,8 @@ export default function CoachDashboard() {
     const hasUnpaid = data.unpaid.length > 0;
     const totalUnpaid = data.unpaid.reduce((s, u) => s + u.count, 0);
     const weekDone = data.recentActivities.filter(a => a.type === "session_completed");
+    const now = new Date();
+    const nextCoachings = nearestAppointments(data.upcomingSessions, now, 3);
 
     return (
       <div className="flex flex-col gap-2.5 h-[calc(100dvh-10.5rem)] min-h-[24rem] overflow-hidden">
@@ -514,6 +516,54 @@ export default function CoachDashboard() {
             </div>
           )}
         </div>
+
+        {/* Prochains coachings : les 3 RDV les plus proches (Google Calendar) */}
+        {nextCoachings.length > 0 && (
+          <div className="rounded-lg border border-border overflow-hidden shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20">
+              <Timer className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-sm font-semibold">Prochains coachings</span>
+            </div>
+            <div className="divide-y divide-border/50">
+              {nextCoachings.map(s => {
+                const start = s.startTime ? parseISO(s.startTime) : null;
+                const end = s.endTime ? parseISO(s.endTime) : null;
+                const isOngoing = !!(start && end && start <= now && end >= now);
+                const isPast = !!(end && end < now);
+                return (
+                  <button
+                    key={s.eventId}
+                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left active:bg-secondary/40 transition-colors"
+                    onClick={() => navigate(`/coach/client/${s.athleteId}`)}
+                  >
+                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium truncate ${isPast ? "text-muted-foreground" : "text-foreground"}`}>
+                        {s.athleteName}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">{s.eventTitle}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isOngoing ? (
+                        <Badge className="text-[10px] h-5 px-1.5 bg-green-500/20 text-green-500 border-green-500/40">En cours</Badge>
+                      ) : isPast ? (
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Passé</Badge>
+                      ) : null}
+                      {start && (
+                        <span className="text-xs font-medium text-foreground tabular-nums">
+                          {format(start, "HH:mm", { locale: fr })}
+                        </span>
+                      )}
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Prog à traiter : semaines à valider */}
         {!hasUnvalidated ? (
@@ -757,52 +807,6 @@ export default function CoachDashboard() {
             </Card>
           )}
         </div>
-      )}
-
-      {/* RDV coaching à venir (Google Calendar) */}
-      {hasUpcoming && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Timer className="h-4 w-4 text-primary" />
-              RDV coaching à venir
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {data.upcomingSessions.map(s => {
-              const startDate = s.startTime ? parseISO(s.startTime) : null;
-              const endDate = s.endTime ? parseISO(s.endTime) : null;
-              const isPast = endDate ? endDate < new Date() : false;
-              return (
-                <div
-                  key={s.eventId}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer hover:border-primary/50 transition-colors ${isPast ? "border-border opacity-60" : "border-border"}`}
-                  onClick={() => navigate(`/coach/client/${s.athleteId}`)}
-                >
-                  <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-foreground truncate">{s.athleteName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{s.eventTitle}</p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {startDate && (
-                      <Badge variant="outline" className="text-xs">
-                        {format(startDate, "HH:mm", { locale: fr })}
-                        {endDate && ` - ${format(endDate, "HH:mm", { locale: fr })}`}
-                      </Badge>
-                    )}
-                    {isPast && (
-                      <Badge variant="secondary" className="text-xs">Passé</Badge>
-                    )}
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
       )}
 
 

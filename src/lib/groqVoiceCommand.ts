@@ -62,7 +62,7 @@ export async function getExerciseLibrary(): Promise<LibraryExercise[]> {
 // ─── Appel Groq ──────────────────────────────────────────────────────────────
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const RECUP_VALUES_STR = RECUP_OPTIONS.map((o) => `"${o.value}"=${o.label}`).join(", ");
 

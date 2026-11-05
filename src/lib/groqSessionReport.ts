@@ -39,6 +39,47 @@ Phrases courtes, ton pro et chaleureux, pas de jargon inutile, format prêt à c
 - Si le coach donne peu d'informations, fais un compte-rendu COURT, proportionnel à ce qui a été dit.
 - N'invente rien : n'ajoute aucun élément (ressenti, douleur, charges...) qui n'a pas été mentionné. Si une rubrique n'a pas d'info, omets-la simplement.`;
 
+export const POLISH_NOTE_PROMPT = `Tu es un correcteur. On te donne une note de coaching dictée à la voix, donc sans ponctuation propre et parfois avec des hésitations.
+
+Ta tâche : renvoyer EXACTEMENT la même note, simplement rendue PROPRE et LISIBLE :
+- corrige la ponctuation, les majuscules, les fautes évidentes et les mots mal transcrits par la dictée ;
+- enlève les hésitations et répétitions inutiles ("euh", "voilà", "du coup" à répétition) ;
+- structure en phrases courtes ou en petites puces si c'est plus clair ;
+- garde la MÊME langue (français) et le MÊME sens.
+
+RÈGLES ABSOLUES :
+- N'ajoute AUCUNE information (pas de ressenti, charge, douleur, conseil inventé).
+- Ne transforme pas en compte-rendu, ne mets pas de titres de sections.
+- Si la note est déjà propre, renvoie-la quasiment telle quelle.
+- Réponds UNIQUEMENT avec la note corrigée, sans introduction ni commentaire.`;
+
+/**
+ * Nettoie/structure légèrement une note dictée (ponctuation, lisibilité) sans
+ * en changer le sens ni rien inventer. Renvoie le texte amélioré.
+ */
+export async function polishCoachNote(text: string): Promise<string> {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("Clé Groq manquante (VITE_GROQ_API_KEY)");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "openai/gpt-oss-120b",
+      messages: [
+        { role: "system", content: POLISH_NOTE_PROMPT },
+        { role: "user", content: text },
+      ],
+      temperature: 0.2,
+      max_tokens: 800,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Groq error ${res.status}`);
+  const json = await res.json();
+  return json.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
 export async function generateSessionReport(transcript: string): Promise<string> {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("Clé Groq manquante (VITE_GROQ_API_KEY)");
@@ -47,7 +88,7 @@ export async function generateSessionReport(transcript: string): Promise<string>
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [
         { role: "system", content: SESSION_REPORT_PROMPT },
         { role: "user", content: transcript },
