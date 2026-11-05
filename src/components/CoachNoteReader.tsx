@@ -132,7 +132,7 @@ export function CoachNoteReader({ athleteId, athleteName }: { athleteId: string;
       <button
         type="button"
         onClick={openReader}
-        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 rounded-full border border-primary/40 bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur transition-transform hover:scale-105 active:scale-95"
+        className="fixed z-40 left-4 bottom-[calc(10.5rem+env(safe-area-inset-bottom))] sm:left-auto sm:right-6 sm:bottom-6 flex items-center gap-2 rounded-full border border-primary/40 bg-card/95 px-4 py-2.5 shadow-lg backdrop-blur transition-transform hover:scale-105 active:scale-95"
         aria-label="Ouvrir les notes de coaching"
       >
         <span className="relative flex items-center justify-center">

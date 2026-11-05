@@ -554,7 +554,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange, onUnlock, forceOpen,
 }: {
   session: Session;
   exercises: Exercise[];
@@ -573,8 +573,12 @@ function SessionCard({
   onNoteChange?: (note: string) => void;
   onCopySession?: () => void;
   onDurationChange?: (minutes: number | null) => void;
+  onUnlock?: () => void;
+  forceOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(!!forceOpen);
+  // Ouvre automatiquement la séance qui vient d'être créée
+  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
 
@@ -868,6 +872,18 @@ function SessionCard({
               <SheetTitle className="text-base">{session.name}</SheetTitle>
               <Badge variant="outline" className={cn("text-xs", cfg.color)}>{cfg.emoji} {cfg.label}</Badge>
             </div>
+            {isValidated && onUnlock && (
+              <div className="mt-2 flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                <Lock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                <p className="text-[11px] text-amber-400 flex-1 text-left">Séance verrouillée</p>
+                <button
+                  onClick={onUnlock}
+                  className="text-xs font-semibold text-amber-400 border border-amber-400/50 rounded-lg px-2.5 py-1 active:bg-amber-400/20 transition-colors shrink-0"
+                >
+                  Modifier
+                </button>
+              </div>
+            )}
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto">
@@ -1183,6 +1199,24 @@ export function MobileProgView({
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
+  // Auto-ouverture de la séance qui vient d'être créée
+  const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  const prevIdsRef = useRef<Set<number>>(new Set());
+  const pendingCreateRef = useRef(false);
+  useEffect(() => {
+    const ids = sessions.map((s) => s.id);
+    if (pendingCreateRef.current) {
+      const added = ids.find((id) => !prevIdsRef.current.has(id));
+      if (added != null) { setJustCreatedId(added); pendingCreateRef.current = false; }
+    }
+    prevIdsRef.current = new Set(ids);
+  }, [sessions]);
+  useEffect(() => { setJustCreatedId(null); }, [selectedWeekToProgram.week, selectedWeekToProgram.year]);
+  const createSession = (type: "renfo" | "cardio" | "recup", sport?: "course" | "velo" | "natation") => {
+    pendingCreateRef.current = true;
+    onCreateSession(type, sport);
+  };
+
   const currentIndex = availableWeeks.findIndex(
     (w) => w.week === selectedWeekToProgram.week && w.year === selectedWeekToProgram.year,
   );
@@ -1344,14 +1378,20 @@ export function MobileProgView({
       {/* ── Liste des séances ───────────────────────────────────────────── */}
       <div className="space-y-3 flex-1 pb-48 sm:pb-4">
         {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-4 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center py-14 gap-4 text-muted-foreground">
             <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center">
               <Dumbbell className="h-8 w-8 opacity-40" />
             </div>
             <div className="text-center">
               <p className="font-medium">Aucune séance cette semaine</p>
-              <p className="text-sm opacity-70 mt-1">Crée ta première séance avec le bouton +</p>
+              <p className="text-sm opacity-70 mt-1">Crée ta première séance en un tap</p>
             </div>
+            {!isValidated && (
+              <Button onClick={() => setShowCreateSheet(true)} className="h-12 px-5 rounded-2xl gap-2">
+                <Plus className="h-5 w-5" />
+                Nouvelle séance
+              </Button>
+            )}
           </div>
         ) : (
           sessions.map((session) => (
@@ -1374,8 +1414,21 @@ export function MobileProgView({
               onNoteChange={onSessionNoteChange ? (note) => onSessionNoteChange(session.id, note) : undefined}
               onCopySession={onCopySession ? () => onCopySession(session.id) : undefined}
               onDurationChange={onSessionDurationChange ? (m) => onSessionDurationChange(session.id, m) : undefined}
+              onUnlock={onUnvalidate}
+              forceOpen={session.id === justCreatedId}
             />
           ))
+        )}
+
+        {/* Accès création toujours visible (jamais caché derrière un bouton flottant) */}
+        {!isValidated && sessions.length > 0 && (
+          <button
+            onClick={() => setShowCreateSheet(true)}
+            className="w-full h-12 rounded-2xl border-2 border-dashed border-primary/40 text-primary flex items-center justify-center gap-2 text-sm font-semibold active:bg-primary/10 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Nouvelle séance
+          </button>
         )}
       </div>
 
@@ -1440,7 +1493,7 @@ export function MobileProgView({
                       {sports.map((s) => (
                         <button
                           key={s.key}
-                          onClick={() => { onCreateSession("cardio", s.key); setShowCreateSheet(false); }}
+                          onClick={() => { createSession("cardio", s.key); setShowCreateSheet(false); }}
                           className="h-14 rounded-xl bg-background/60 border border-border/60 flex flex-col items-center justify-center gap-1 active:scale-[0.97] transition-transform"
                         >
                           <s.Icon className="h-4 w-4" />
@@ -1454,10 +1507,7 @@ export function MobileProgView({
               return (
                 <button
                   key={type}
-                  onClick={() => {
-                    onCreateSession(type);
-                    setShowCreateSheet(false);
-                  }}
+                  onClick={() => { createSession(type); setShowCreateSheet(false); }}
                   className={cn(
                     "w-full rounded-2xl border-2 flex items-center gap-3.5 p-3.5 active:scale-[0.98] transition-transform",
                     cfg.color,
