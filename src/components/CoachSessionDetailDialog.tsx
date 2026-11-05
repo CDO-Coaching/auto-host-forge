@@ -418,13 +418,14 @@ export function CoachSessionDetailDialog({
             {!isCardio && (
               <div className="text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-2">
                 {!ex.is_duration && ex.series && <span>{ex.series} séries</span>}
-                {!ex.is_duration && ex.reps && <span>× {ex.reps}{(ex as any).is_distance ? "m" : " reps"}</span>}
+                {!ex.is_duration && ex.reps && <span>× {ex.reps}{(ex as any).is_distance ? "m" : (ex as any).is_calories ? " kcal" : " reps"}</span>}
                 {ex.charge && <span>@ {ex.charge}</span>}
                 {ex.rpe && <span>RPE cible {ex.rpe}</span>}
                 {ex.tempo && <span>Tempo {ex.tempo}</span>}
                 {ex.recuperation && <span>Récup {ex.recuperation}</span>}
                 {ex.is_duration && <span className="italic">Durée libre</span>}
                 {(ex as any).is_distance && <span className="italic">Distance</span>}
+                {(ex as any).is_calories && <span className="italic">Calories</span>}
               </div>
             )}
           </div>

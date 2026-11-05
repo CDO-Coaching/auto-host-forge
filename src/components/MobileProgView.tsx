@@ -16,6 +16,7 @@ import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
 import { calculateCardioMetrics, formatCardioSessionDuration } from "@/lib/cardioCalculations";
 import { calculateSessionDuration, formatSessionDuration } from "@/lib/sessionDurationCalculator";
+import { unitModeOf, unitLabel, unitChip, unitPlaceholder, unitStep, unitSuffix, formatMeasure } from "@/lib/exerciseUnit";
 import { cn } from "@/lib/utils";
 import {
   ChevronLeft, ChevronRight, Plus, Dumbbell, Heart, Zap,
@@ -257,7 +258,7 @@ function RenfoExerciseRow({
 
   const summary = [
     exercise.series && `${exercise.series}×`,
-    exercise.reps && `${exercise.reps} reps`,
+    exercise.reps && formatMeasure(exercise.reps, unitModeOf(exercise)),
     exercise.charge && `${exercise.charge}kg`,
     exercise.rpe && `RPE ${exercise.rpe}`,
   ].filter(Boolean).join(" · ");
@@ -332,65 +333,56 @@ function RenfoExerciseRow({
 
           {/* Steppers 2 colonnes */}
           <div className="grid grid-cols-2 gap-3 rounded-2xl border border-border/40 bg-secondary/30 p-3">
-            {/* Reps / Durée / Distance avec toggle 3 modes (à gauche) */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                  {exercise.is_duration ? "Durée (sec)" : exercise.is_distance ? "Distance (m)" : "Reps"}
-                </label>
-                {!isValidated && (
-                  <div className="flex items-center gap-1">
-                    {/* Cycle between modes: reps → durée → distance → reps */}
-                    {(() => {
-                      const cycleMode = () => {
-                        if (!exercise.is_duration && !exercise.is_distance) {
-                          // reps → durée
-                          onChange("is_duration", "true");
-                          onChange("is_distance", "false");
-                        } else if (exercise.is_duration) {
-                          // durée → distance
-                          onChange("is_duration", "false");
-                          onChange("is_distance", "true");
-                        } else {
-                          // distance → reps
-                          onChange("is_duration", "false");
-                          onChange("is_distance", "false");
-                        }
-                      };
-                      const label = exercise.is_duration ? "⏱ durée" : exercise.is_distance ? "📏 distance" : "🔢 reps";
-                      const activeClass = (exercise.is_duration || exercise.is_distance)
-                        ? "bg-primary/20 text-primary border-primary/40"
-                        : "bg-secondary text-muted-foreground border-border/50";
-                      return (
-                        <button type="button" onClick={cycleMode}
-                          className={cn("text-[9px] font-bold rounded-full px-2 py-0.5 border transition-colors", activeClass)}>
-                          {label}
-                        </button>
-                      );
-                    })()}
+            {/* Reps / Durée / Distance / Calories — toggle 4 modes (à gauche) */}
+            {(() => {
+              const mode = unitModeOf(exercise);
+              const unitHint = mode === "duration" ? " (sec)" : mode === "distance" ? " (m)" : mode === "calories" ? " (kcal)" : "";
+              const step = unitStep(mode);
+              const setMode = (m: typeof mode) => {
+                onChange("is_duration", m === "duration" ? "true" : "false");
+                onChange("is_distance", m === "distance" ? "true" : "false");
+                onChange("is_calories", m === "calories" ? "true" : "false");
+              };
+              const cycleMode = () => {
+                const next = mode === "reps" ? "duration" : mode === "duration" ? "distance" : mode === "distance" ? "calories" : "reps";
+                setMode(next);
+              };
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      {unitLabel(mode)}{unitHint}
+                    </label>
+                    {!isValidated && (
+                      <button type="button" onClick={cycleMode}
+                        className={cn("text-[9px] font-bold rounded-full px-2 py-0.5 border transition-colors",
+                          mode !== "reps" ? "bg-primary/20 text-primary border-primary/40" : "bg-secondary text-muted-foreground border-border/50")}>
+                        {unitChip(mode)}
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <button type="button"
-                  className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; if (cur > 0) onChange("reps", String(cur - (exercise.is_duration ? 5 : exercise.is_distance ? 10 : 1))); }}
-                  disabled={isValidated}>−</button>
-                <Input
-                  type="text"
-                  value={exercise.reps}
-                  onChange={(e) => onChange("reps", e.target.value)}
-                  onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onChange("reps", parsed); } }}
-                  className="flex-1 h-11 text-center text-base font-semibold"
-                  placeholder={exercise.is_duration ? "sec ou 10min" : exercise.is_distance ? "m" : "10"}
-                  disabled={isValidated}
-                />
-                <button type="button"
-                  className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
-                  onClick={() => { const cur = parseFloat(exercise.reps) || 0; onChange("reps", String(cur + (exercise.is_duration ? 5 : exercise.is_distance ? 10 : 1))); }}
-                  disabled={isValidated}>+</button>
-              </div>
-            </div>
+                  <div className="flex items-center gap-2">
+                    <button type="button"
+                      className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+                      onClick={() => { const cur = parseFloat(exercise.reps) || 0; if (cur > 0) onChange("reps", String(cur - step)); }}
+                      disabled={isValidated}>−</button>
+                    <Input
+                      type="text"
+                      value={exercise.reps}
+                      onChange={(e) => onChange("reps", e.target.value)}
+                      onBlur={(e) => { if (mode === "duration") { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onChange("reps", parsed); } }}
+                      className="flex-1 h-11 text-center text-base font-semibold"
+                      placeholder={unitPlaceholder(mode)}
+                      disabled={isValidated}
+                    />
+                    <button type="button"
+                      className="h-11 w-11 rounded-xl border border-border bg-secondary flex items-center justify-center text-xl font-bold shrink-0 active:bg-muted"
+                      onClick={() => { const cur = parseFloat(exercise.reps) || 0; onChange("reps", String(cur + step)); }}
+                      disabled={isValidated}>+</button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Séries (à droite) */}
             <Stepper label="Séries" value={exercise.series} onChange={(v) => onChange("series", v)} step={1} min={1} />
@@ -461,7 +453,7 @@ function RenfoExerciseRow({
                       <p className="text-xs font-bold text-primary">Série {si + 1}</p>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Reps</label>
+                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">{unitLabel(unitModeOf(exercise))}</label>
                           <Input
                             type="text"
                             value={serie.reps || ""}
@@ -817,7 +809,9 @@ function SessionCard({
               {exercises.map((ex) => {
                 const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
                 const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
-                const sr = ex.series && ex.reps ? `${ex.series}×${ex.reps}` : ex.series || ex.reps || "";
+                const m = unitModeOf(ex);
+                const val = ex.reps ? (m === "reps" ? ex.reps : formatMeasure(ex.reps, m)) : "";
+                const sr = ex.series && val ? `${ex.series}×${val}` : ex.series || val || "";
                 const charge = (ex.charge || "").trim();
                 return (
                   <div key={ex.id} className={cn("text-[11px] text-muted-foreground flex items-center gap-1.5 rounded px-1 py-0.5", color?.bg)}>

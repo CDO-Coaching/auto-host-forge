@@ -218,7 +218,7 @@ export default function SupersetDetail() {
         const isDur = ex.is_duration === true;
         const ch: string[] = [];
         const cr = valOf(ex, cur, "reps"), nr = valOf(ex, nxt, "reps");
-        if (nr && cr !== nr) ch.push(`${isDur ? "durée" : ex.is_distance ? "distance" : "reps"} ${nr}${isDur ? "s" : ex.is_distance ? "m" : ""}`);
+        if (nr && cr !== nr) ch.push(`${isDur ? "durée" : ex.is_distance ? "distance" : (ex as any).is_calories ? "kcal" : "reps"} ${nr}${isDur ? "s" : ex.is_distance ? "m" : (ex as any).is_calories ? "kcal" : ""}`);
         const cc = valOf(ex, cur, "charge"), nc = valOf(ex, nxt, "charge");
         if (nc && cc !== nc) ch.push(`charge ${nc}${/^\d+(\.\d+)?$/.test(nc) ? " kg" : ""}`);
         const ct = valOf(ex, cur, "tempo"), nt = valOf(ex, nxt, "tempo");
@@ -960,7 +960,7 @@ export default function SupersetDetail() {
                     <div className="space-y-1.5">
                       {prescribedReps && !isRepsRequired && (
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">{(ex as any)?.is_duration ? "Durée" : (ex as any)?.is_distance ? "Distance (m)" : "Reps"} (prévu: {prescribedReps}{(ex as any)?.is_distance ? " m" : ""})</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{(ex as any)?.is_duration ? "Durée" : (ex as any)?.is_distance ? "Distance (m)" : (ex as any)?.is_calories ? "Calories (kcal)" : "Reps"} (prévu: {prescribedReps}{(ex as any)?.is_distance ? " m" : (ex as any)?.is_calories ? " kcal" : ""})</span>
                           <Input type="number" inputMode="numeric" value={rpeActualReps}
                             onChange={e => setRpeActualReps(e.target.value)}
                             placeholder={prescribedReps} className="h-7 text-sm flex-1 min-w-0" />
@@ -1044,7 +1044,7 @@ export default function SupersetDetail() {
                             <div className="flex flex-wrap gap-1 mt-1">
                               {reps && (
                                 <span className="text-[11px] bg-muted rounded px-1.5 py-0.5 font-medium">
-                                  {reps}{(ex as any).is_duration ? "s" : (ex as any).is_distance ? "m" : " reps"}
+                                  {reps}{(ex as any).is_duration ? "s" : (ex as any).is_distance ? "m" : (ex as any).is_calories ? " kcal" : " reps"}
                                 </span>
                               )}
                               {charge && charge !== "??" && (
@@ -1194,7 +1194,7 @@ export default function SupersetDetail() {
                         <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{exIdx + 1}</div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] font-bold uppercase truncate leading-tight" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{ex.exercice}</p>
-                          <p className="text-[13px] mt-0.5"><span className="font-bold">{reps}{(ex as any).is_distance ? " m" : " reps"}</span>{charge ? <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}</span> : null}</p>
+                          <p className="text-[13px] mt-0.5"><span className="font-bold">{reps}{(ex as any).is_distance ? " m" : (ex as any).is_calories ? " kcal" : " reps"}</span>{charge ? <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}</span> : null}</p>
                         </div>
                         <div className="shrink-0 flex items-center gap-3">
                           {asked && (
@@ -1324,8 +1324,8 @@ export default function SupersetDetail() {
                                 <div className="grid grid-cols-2 gap-1 [&>div]:px-2 [&>div]:py-0.5 [&>div]:rounded-md [&>div]:border [&>div]:border-border/70 [&>div]:bg-card/40">
                                   {dispReps && (
                                     <div className="flex flex-col leading-none">
-                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{ex.is_duration ? "Durée" : (ex as any).is_distance ? "Distance" : "Reps"}{ex.per_side ? " /côté" : ""}</span>
-                                      <span className="text-sm font-bold">{isValidated && validation?.actual_reps ? validation.actual_reps : dispReps}{(ex as any).is_distance ? " m" : ""}</span>
+                                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{ex.is_duration ? "Durée" : (ex as any).is_distance ? "Distance" : (ex as any).is_calories ? "Calories" : "Reps"}{ex.per_side ? " /côté" : ""}</span>
+                                      <span className="text-sm font-bold">{isValidated && validation?.actual_reps ? validation.actual_reps : dispReps}{(ex as any).is_distance ? " m" : (ex as any).is_calories ? " kcal" : ""}</span>
                                     </div>
                                   )}
                                   {dispCharge && (

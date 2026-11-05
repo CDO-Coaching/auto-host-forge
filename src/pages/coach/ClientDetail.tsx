@@ -161,6 +161,7 @@ interface Exercise {
   is_unilateral?: boolean;
   is_duration?: boolean;
   is_distance?: boolean;
+  is_calories?: boolean;
   request_video?: boolean;
   request_activity_link?: boolean;
   serie_details?: SerieDetail[];
@@ -984,6 +985,7 @@ export default function ClientDetail() {
               per_side: ex.per_side || false,
               is_duration: ex.is_duration || false,
               is_distance: ex.is_distance || false,
+              is_calories: ex.is_calories || false,
               serie_details: ex.serie_details || null,
               coach_note: ex.coach_note ?? null,
               sportif_rpe: ex.sportif_rpe || null,
@@ -1571,6 +1573,7 @@ export default function ClientDetail() {
               per_side: exercise.per_side || false,
               is_duration: exercise.is_duration || false,
               is_distance: exercise.is_distance || false,
+              is_calories: exercise.is_calories || false,
               request_video: exercise.request_video || false,
             request_activity_link: exercise.request_activity_link || false,
               request_activity_link: exercise.request_activity_link || false,
@@ -2303,6 +2306,7 @@ export default function ClientDetail() {
           is_unilateral: libEx?.unilateral || false,
           is_duration: false,
           is_distance: false,
+          is_calories: false,
           request_video: false,
           request_activity_link: false,
           serie_details: serieDetails,
@@ -2407,6 +2411,7 @@ export default function ClientDetail() {
         commentaire: ex.commentaire || "",
         is_duration: ex.is_duration || false,
               is_distance: ex.is_distance || false,
+              is_calories: ex.is_calories || false,
         per_side: ex.per_side || false,
         cardio_sport: ex.cardio_sport as any || undefined,
         cardio_content: ex.cardio_content ? JSON.stringify(ex.cardio_content) : "",
@@ -2537,6 +2542,7 @@ export default function ClientDetail() {
       commentaire: ex.commentaire || "",
       is_duration: ex.is_duration || false,
               is_distance: ex.is_distance || false,
+              is_calories: ex.is_calories || false,
       per_side: ex.per_side || false,
       is_unilateral: libraryExercises.find(e => e.name === ex.exercice)?.unilateral || false,
       serie_details: ex.serie_details ? (typeof ex.serie_details === "string" ? JSON.parse(ex.serie_details) : ex.serie_details) : undefined,
@@ -2783,6 +2789,7 @@ export default function ClientDetail() {
             per_side: exercise.per_side || false,
             is_duration: exercise.is_duration || false,
               is_distance: exercise.is_distance || false,
+              is_calories: exercise.is_calories || false,
             coach_note: exercise.coach_note ?? null,
             request_video: exercise.request_video || false,
             request_activity_link: exercise.request_activity_link || false,
@@ -2948,6 +2955,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   is_duration: ex.is_duration || false,
                   is_distance: ex.is_distance || false,
+              is_calories: ex.is_calories || false,
                   per_side: ex.per_side || false,
                   is_unilateral: ex.is_unilateral || false,
                   super_set_group: newSuperSetGroup,
@@ -3133,6 +3141,7 @@ export default function ClientDetail() {
                   cardio_pace: ex.cardio_pace || "",
                   is_duration: ex.is_duration || false,
                   is_distance: ex.is_distance || false,
+              is_calories: ex.is_calories || false,
                   per_side: ex.per_side || false,
                   is_unilateral: ex.is_unilateral || false,
                   super_set_group: newSuperSetGroup,
@@ -3614,7 +3623,7 @@ export default function ClientDetail() {
     clearManualDuration(sessionId);
     clearSessionRef(sessionId);
     // Normaliser les champs booléens passés comme string depuis le mobile
-    if ((field === "is_duration" || field === "is_distance" || field === "per_side") && typeof value === "string") {
+    if ((field === "is_duration" || field === "is_distance" || field === "is_calories" || field === "per_side") && typeof value === "string") {
       value = value === "true";
     }
 
@@ -3630,9 +3639,10 @@ export default function ClientDetail() {
       }
     }
 
-    // Mutual exclusivity: is_duration and is_distance cannot both be true
-    if (field === "is_duration" && value === true) extraUpdates.is_distance = false;
-    if (field === "is_distance" && value === true) extraUpdates.is_duration = false;
+    // Exclusivité mutuelle : is_duration / is_distance / is_calories
+    if (field === "is_duration" && value === true) { extraUpdates.is_distance = false; extraUpdates.is_calories = false; }
+    if (field === "is_distance" && value === true) { extraUpdates.is_duration = false; extraUpdates.is_calories = false; }
+    if (field === "is_calories" && value === true) { extraUpdates.is_duration = false; extraUpdates.is_distance = false; }
 
     // Auto-detect is_duration from reps value (time formats only — not distances)
     if (field === "reps" && typeof value === "string") {
@@ -3640,6 +3650,7 @@ export default function ClientDetail() {
       if (isTimeFormat) {
         extraUpdates.is_duration = true;
         extraUpdates.is_distance = false;
+        extraUpdates.is_calories = false;
       }
     }
 

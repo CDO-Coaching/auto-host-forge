@@ -26,6 +26,7 @@ import { SendVideoDialog } from "@/components/SendVideoDialog";
 import { ExerciseRPEHistoryChart } from "@/components/ExerciseRPEHistoryChart";
 import { BarChart3 } from "lucide-react";
 import { formatDurationSec } from "@/lib/formatDuration";
+import { unitModeOf, unitLabel } from "@/lib/exerciseUnit";
 import { SoundSystem } from "@/lib/soundSystem";
 import {
   Dialog,
@@ -715,7 +716,7 @@ export default function ExerciceDetail() {
     const previewNext = (cur: any, nxt: any) => {
       const ch: string[] = [];
       const cr = valOf(cur, "reps"), nr = valOf(nxt, "reps");
-      if (nr && cr !== nr) ch.push(`${isDur ? "durée" : exercise?.is_distance ? "distance" : "reps"} ${nr}${isDur ? "s" : exercise?.is_distance ? "m" : ""}`);
+      if (nr && cr !== nr) ch.push(`${isDur ? "durée" : exercise?.is_distance ? "distance" : (exercise as any)?.is_calories ? "kcal" : "reps"} ${nr}${isDur ? "s" : exercise?.is_distance ? "m" : (exercise as any)?.is_calories ? "kcal" : ""}`);
       const cc = valOf(cur, "charge"), nc = valOf(nxt, "charge");
       if (nc && cc !== nc) ch.push(`charge ${nc}${/^\d+(\.\d+)?$/.test(nc) ? " kg" : ""}`);
       const ct = valOf(cur, "tempo"), nt = valOf(nxt, "tempo");
@@ -1058,8 +1059,8 @@ export default function ExerciceDetail() {
         const eCharge = (r.charge || exercise?.charge || "").toString().trim();
         const eTempo = (r.tempo || exercise?.tempo || "").toString().trim();
         const eRpe = (r.rpe || exercise?.rpe) ? Number(r.rpe || exercise?.rpe) : null;
-        const repsLabel = exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance" : "Reps";
-        const repsDisplay = exercise?.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any)?.is_distance ? " m" : ""}`;
+        const repsLabel = unitLabel(unitModeOf(exercise));
+        const repsDisplay = exercise?.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any)?.is_distance ? " m" : (exercise as any)?.is_calories ? " kcal" : ""}`;
         const chargeNumeric = /^\d+(\.\d+)?$/.test(eCharge);
         const eRpeCol = eRpe == null ? null : rpeColorFor(eRpe);
         if (!eReps && !eCharge && !eTempo && eRpe == null) return null;
@@ -1284,8 +1285,8 @@ export default function ExerciceDetail() {
               const prescribedReps = currentSerie?.reps || exercise?.reps;
               const prescribedCharge = currentSerie?.charge || exercise?.charge;
               if ((!prescribedReps || isRepsRequired) && (!prescribedCharge || isChargeRequired)) return null;
-              const repsLabel = exercise?.is_duration ? "Durée" : (exercise as any)?.is_distance ? "Distance" : "Reps";
-              const repsUnit = (exercise as any)?.is_distance ? " m" : "";
+              const repsLabel = unitLabel(unitModeOf(exercise));
+              const repsUnit = (exercise as any)?.is_distance ? " m" : (exercise as any)?.is_calories ? " kcal" : "";
               // moins / plus déduit en direct de ce qui est saisi (pour la couleur du rappel)
               const aR = parseFloat(rpeActualReps), pR = parseFloat(String(prescribedReps));
               const aC = parseFloat(rpeActualCharge), pC = parseFloat(String(prescribedCharge));
@@ -1532,10 +1533,10 @@ export default function ExerciceDetail() {
               {/* ── Vue simplifiée : séries identiques ── */}
               {!seriesCollapsed && useSimplified && (() => {
                 const f = seriesData[0];
-                const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
+                const repsLabel = unitLabel(unitModeOf(exercise));
                 const sr = (f.reps ?? "").trim();
                 const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
-                const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : ""}`;
+                const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : (exercise as any).is_calories ? " kcal" : ""}`;
                 const sc = (f.charge ?? "").trim();
                 const chargeNeedsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
                 const chargeIsRange = /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
@@ -1623,8 +1624,8 @@ export default function ExerciceDetail() {
                 const eCharge = (r.charge || exercise.charge || "").toString().trim();
                 const eTempo = (r.tempo || exercise.tempo || "").toString().trim();
                 const eRpe = (r.rpe || exercise.rpe) ? Number(r.rpe || exercise.rpe) : null;
-                const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
-                const repsDisplay = exercise.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any).is_distance ? " m" : ""}`;
+                const repsLabel = unitLabel(unitModeOf(exercise));
+                const repsDisplay = exercise.is_duration ? formatDurationSec(eReps) : `${eReps}${(exercise as any).is_distance ? " m" : (exercise as any).is_calories ? " kcal" : ""}`;
                 const chargeNumeric = /^\d+(\.\d+)?$/.test(eCharge);
                 const eRpeCol = eRpe == null ? null : rpeColorFor(eRpe);
                 const eReserve = eRpe == null ? null : rpeReserve(eRpe);
@@ -1694,7 +1695,7 @@ export default function ExerciceDetail() {
                       <div className="flex items-center gap-3 rounded-xl border border-border/70 bg-card/40 px-3 py-2.5">
                         <div className="h-7 w-7 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-xs shrink-0">{idx + 1}</div>
                         <div className="flex-1 min-w-0 text-[13px]">
-                          <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}</span>
+                          <span className="font-bold">{exercise.is_duration ? formatDurationSec(String(reps)) : reps}{exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : (exercise as any).is_calories ? " kcal" : " reps"}</span>
                           {charge && <span className="text-muted-foreground"> · {charge}{/^\d+(\.\d+)?$/.test(String(charge)) ? " kg" : ""}{chargeChanged ? " (modifié)" : ""}</span>}
                         </div>
                         {(() => {
@@ -1736,8 +1737,8 @@ export default function ExerciceDetail() {
 
                     const sr = (serie.reps ?? "").trim();
                     const isRepsRange = /^\d+\s*-\s*\d+$/.test(sr);
-                    const repsLabel = exercise.is_duration ? "Durée" : (exercise as any).is_distance ? "Distance" : "Reps";
-                    const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : ""}`;
+                    const repsLabel = unitLabel(unitModeOf(exercise));
+                    const repsDisplay = exercise.is_duration ? formatDurationSec(sr) : `${sr}${(exercise as any).is_distance ? " m" : (exercise as any).is_calories ? " kcal" : ""}`;
 
                     const sc = (serie.charge ?? "").trim();
                     const chargeNeedsInput = sc === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(sc);
@@ -1808,7 +1809,7 @@ export default function ExerciceDetail() {
                           {sr && (
                             <StatBlock
                               label={`${repsLabel}${exercise.per_side ? " /côté" : ""}`}
-                              value={isValidated && validation?.actual_reps ? `${validation.actual_reps}${exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : " reps"}` : (isRepsRange ? repsDisplay + " reps" : repsDisplay)}
+                              value={isValidated && validation?.actual_reps ? `${validation.actual_reps}${exercise.is_duration ? "" : (exercise as any).is_distance ? " m" : (exercise as any).is_calories ? " kcal" : " reps"}` : (isRepsRange ? repsDisplay + " reps" : repsDisplay)}
                               className={isValidated && validation?.actual_reps ? "text-green-600" : isRepsRange ? "text-blue-600" : "text-foreground"}
                             />
                           )}
