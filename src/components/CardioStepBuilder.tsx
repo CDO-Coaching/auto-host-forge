@@ -163,11 +163,14 @@ export function CardioStepBuilder({
   useEffect(() => {
     if (scrollToStepId == null) return;
     const id = scrollToStepId;
-    const t = setTimeout(() => {
-      document.querySelector(`[data-cardio-step="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 60);
+    // Deux frames pour laisser le DOM de la nouvelle étape se peindre
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        document.querySelector(`[data-cardio-step="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
     setScrollToStepId(null);
-    return () => clearTimeout(t);
+    return () => cancelAnimationFrame(raf1);
   }, [scrollToStepId]);
 
   // Calcule l'allure en min/km à partir du pourcentage de VMA
