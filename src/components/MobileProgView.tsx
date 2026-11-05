@@ -574,12 +574,11 @@ function SessionCard({
   onCopySession?: () => void;
   onDurationChange?: (minutes: number | null) => void;
   onUnlock?: () => void;
-  forceOpen?: boolean;
-  onForceOpened?: () => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(!!forceOpen);
-  // Ouvre automatiquement la séance créée ou choisie via l'accès rapide
-  useEffect(() => { if (forceOpen) { setOpen(true); onForceOpened?.(); } }, [forceOpen]);
+  const open = !!isOpen;
+  const setOpen = (o: boolean) => onOpenChange?.(o);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
 
@@ -777,38 +776,36 @@ function SessionCard({
           </a>
         )}
 
-        {/* Preview des 2 premiers exercices (renfo) */}
+        {/* Aperçu : TOUS les exercices (nom · séries×reps · charge) */}
         {session.session_type === "renfo" && exercises.length > 0 && (() => {
           const allGroups = [...new Set(exercises.filter(e => e.super_set_group).map(e => e.super_set_group as string))];
           const hasSupersets = allGroups.length > 0;
           return (
-            <div className="mt-3 space-y-1">
+            <div className="mt-3 space-y-0.5">
               {hasSupersets && (
-                <div className="flex items-center gap-1 mb-1.5">
+                <div className="flex items-center gap-1 mb-1">
                   <Link2 className="h-3 w-3 text-orange-400" />
                   <span className="text-[10px] text-orange-400 font-medium">
                     {allGroups.length} superset{allGroups.length > 1 ? "s" : ""}
                   </span>
                 </div>
               )}
-              {exercises.slice(0, 2).map((ex) => {
+              {exercises.map((ex) => {
                 const colorIdx = ex.super_set_group ? getSupersetColorIndex(ex.super_set_group, allGroups) : -1;
                 const color = colorIdx >= 0 ? SUPERSET_COLORS[colorIdx] : null;
+                const sr = ex.series && ex.reps ? `${ex.series}×${ex.reps}` : ex.series || ex.reps || "";
+                const charge = (ex.charge || "").trim();
                 return (
-                  <div key={ex.id} className={cn("text-xs text-muted-foreground flex items-center gap-1.5 rounded px-1", color?.bg)}>
+                  <div key={ex.id} className={cn("text-[11px] text-muted-foreground flex items-center gap-1.5 rounded px-1 py-0.5", color?.bg)}>
                     {color
                       ? <Link2 className={cn("h-2.5 w-2.5 shrink-0", color.text)} />
                       : <div className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />}
-                    <span className="truncate">{ex.exercice || "—"}</span>
-                    {ex.series && ex.reps && (
-                      <span className="shrink-0 opacity-60">{ex.series}×{ex.reps}</span>
-                    )}
+                    <span className="truncate flex-1 text-foreground/80">{ex.exercice || "—"}</span>
+                    {sr && <span className="shrink-0 tabular-nums">{sr}</span>}
+                    {charge && <span className="shrink-0 text-primary/80 font-medium">{charge}</span>}
                   </div>
                 );
               })}
-              {exercises.length > 2 && (
-                <p className="text-xs text-muted-foreground/50">+{exercises.length - 2} autre{exercises.length - 2 > 1 ? "s" : ""}…</p>
-              )}
             </div>
           );
         })()}
@@ -1200,8 +1197,8 @@ export function MobileProgView({
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
-  // Auto-ouverture de la séance qui vient d'être créée / ouverte via accès rapide
-  const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  // Séance actuellement ouverte dans l'éditeur (contrôlée par le parent) :
+  // accès rapide (puce) ou ouverture auto d'une séance qui vient d'être créée.
   const [openId, setOpenId] = useState<number | null>(null);
   const prevIdsRef = useRef<Set<number>>(new Set());
   const pendingCreateRef = useRef(false);
@@ -1209,11 +1206,11 @@ export function MobileProgView({
     const ids = sessions.map((s) => s.id);
     if (pendingCreateRef.current) {
       const added = ids.find((id) => !prevIdsRef.current.has(id));
-      if (added != null) { setJustCreatedId(added); pendingCreateRef.current = false; }
+      if (added != null) { setOpenId(added); pendingCreateRef.current = false; }
     }
     prevIdsRef.current = new Set(ids);
   }, [sessions]);
-  useEffect(() => { setJustCreatedId(null); }, [selectedWeekToProgram.week, selectedWeekToProgram.year]);
+  useEffect(() => { setOpenId(null); }, [selectedWeekToProgram.week, selectedWeekToProgram.year]);
   const createSession = (type: "renfo" | "cardio" | "recup", sport?: "course" | "velo" | "natation") => {
     pendingCreateRef.current = true;
     onCreateSession(type, sport);
@@ -1325,17 +1322,6 @@ export function MobileProgView({
         </div>
       )}
 
-      {/* ── Retours athlète (semaine copiée) ─────────────────────────── */}
-      {hasFeedback && onShowFeedback && (
-        <button
-          onClick={onShowFeedback}
-          className="w-full mb-2 h-9 rounded-xl border border-primary/40 bg-primary/10 flex items-center justify-center gap-1.5 text-xs text-primary active:bg-primary/20 transition-colors"
-        >
-          <MessageSquare className="h-3.5 w-3.5" />
-          Voir les retours de l'athlète
-        </button>
-      )}
-
       {/* ── Copier une semaine précédente ───────────────────────────────── */}
       {!isValidated && hasPreviousWeeks && (
         <div className="flex gap-2 mb-3">
@@ -1411,8 +1397,8 @@ export function MobileProgView({
               onCopySession={onCopySession ? () => onCopySession(session.id) : undefined}
               onDurationChange={onSessionDurationChange ? (m) => onSessionDurationChange(session.id, m) : undefined}
               onUnlock={onUnvalidate}
-              forceOpen={session.id === justCreatedId || session.id === openId}
-              onForceOpened={() => { setJustCreatedId(null); setOpenId(null); }}
+              isOpen={openId === session.id}
+              onOpenChange={(o) => setOpenId(o ? session.id : null)}
             />
           ))
         )}
