@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExerciseCombobox } from "@/components/ExerciseCombobox";
 import { CardioStepBuilder, CardioData } from "@/components/CardioStepBuilder";
-import { parseDurationInput } from "@/lib/formatDuration";
+import { parseDurationInput, formatDurationSec } from "@/lib/formatDuration";
 import { HeartRateZonesBar } from "@/components/HeartRateZonesBar";
 import { RECUP_OPTIONS } from "@/lib/groqVoiceCommand";
 import { formatWeekRange } from "@/lib/weekUtils";
@@ -849,6 +849,35 @@ function SessionCard({
                   ? `${cardioData.steps.length} étape${cardioData.steps.length > 1 ? "s" : ""}`
                   : "Tap pour configurer"}
               </p>
+              {/* Rappel du contenu de la séance (étapes) */}
+              {cardioData.steps.length > 0 && (() => {
+                const mvLabel: Record<string, string> = { course: "Course", marche: "Marche", velo: "Vélo", natation: "Natation", repos: "Repos" };
+                const fmt = (s: any) => {
+                  const mv = mvLabel[s.movement_type] || s.movement_type || "";
+                  const measure = s.effort_type === "distance"
+                    ? (s.distance != null ? `${s.distance}${s.distance_unit === "km" ? " km" : " m"}` : "")
+                    : (s.duration != null ? formatDurationSec(String(s.duration)) : "");
+                  const intensity = s.vma_percentage ? `${s.vma_percentage}% VMA`
+                    : s.ftp_percentage ? `${s.ftp_percentage}% FTP`
+                    : s.rpe ? `RPE ${s.rpe}`
+                    : s.target_heart_rate ? `${s.target_heart_rate} bpm` : "";
+                  return [mv, measure, intensity].filter(Boolean).join(" · ");
+                };
+                const shown = cardioData.steps.slice(0, 5);
+                return (
+                  <div className="space-y-0.5">
+                    {shown.map((s: any, i: number) => (
+                      <div key={s.id ?? i} className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                        <span className="h-1 w-1 rounded-full bg-muted-foreground/40 shrink-0" />
+                        <span className="truncate">{fmt(s) || "—"}</span>
+                      </div>
+                    ))}
+                    {cardioData.steps.length > 5 && (
+                      <p className="text-[11px] text-muted-foreground/50 pl-2.5">+{cardioData.steps.length - 5} autre{cardioData.steps.length - 5 > 1 ? "s" : ""}…</p>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Commentaire coach */}
               {cardioExercise?.commentaire && (
                 <p className={`text-xs italic truncate ${rpe !== null ? rpeColor + "/80" : "text-muted-foreground/70"}`}>
@@ -1320,29 +1349,6 @@ export function MobileProgView({
           </div>
         )}
       </div>
-
-      {/* ── Accès rapide : toutes les séances d'un tap ──────────────── */}
-      {sessions.length > 0 && (
-        <div className="mb-3 flex flex-wrap gap-2">
-          {sessions.map((s) => {
-            const cfg = SESSION_TYPE_CONFIG[s.session_type];
-            return (
-              <button
-                key={s.id}
-                onClick={() => setOpenId(s.id)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium active:scale-95 transition-all",
-                  cfg.color,
-                )}
-              >
-                <span className="leading-none">{cfg.emoji}</span>
-                <span className="truncate max-w-[9rem]">{s.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
 
       {/* ── Coller une séance copiée (depuis un autre athlète) ───────────── */}
       {!isValidated && clipboardSessionName && onPasteSession && (
