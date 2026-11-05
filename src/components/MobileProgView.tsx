@@ -1343,29 +1343,6 @@ export function MobileProgView({
         </div>
       )}
 
-      {/* ── Copier une semaine précédente ───────────────────────────────── */}
-      {!isValidated && hasPreviousWeeks && (
-        <div className="flex gap-2 mb-3">
-          {onCopyPreviousWeek && (
-            <button
-              onClick={onCopyPreviousWeek}
-              className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs text-muted-foreground active:bg-muted transition-colors"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Copier précédente
-            </button>
-          )}
-          {onOpenCopyDialog && (
-            <button
-              onClick={onOpenCopyDialog}
-              className="flex-1 h-9 rounded-xl border border-border flex items-center justify-center gap-1.5 text-xs text-muted-foreground active:bg-muted transition-colors"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              Autre semaine
-            </button>
-          )}
-        </div>
-      )}
 
       {/* ── Coller une séance copiée (depuis un autre athlète) ───────────── */}
       {!isValidated && clipboardSessionName && onPasteSession && (

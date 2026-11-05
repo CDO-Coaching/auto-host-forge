@@ -1636,7 +1636,7 @@ export default function ExerciceDetail() {
                       <div className="flex items-baseline gap-2 flex-wrap rounded-lg px-2.5 py-1.5" style={{ backgroundColor: `${eRpeCol}1f`, boxShadow: `inset 3px 0 0 ${eRpeCol}` }}>
                         <span className="text-base font-extrabold leading-none" style={{ color: eRpeCol!, fontFamily: "'Sora', system-ui, sans-serif" }}>{rpeWord(eRpe)}</span>
                         <span className="text-[11px] font-bold" style={{ color: eRpeCol! }}>RPE {eRpe}</span>
-                        {(eReserve != null || eRpe === 6) && (
+                        {unitModeOf(exercise) === "reps" && (eReserve != null || eRpe === 6) && (
                           <span className="text-[11px] text-foreground/70">
                             {eReserve != null ? (eReserve === 0 ? "· jusqu'à l'échec" : `· ${eReserve} rep${eReserve > 1 ? "s" : ""} en réserve`) : "· encore 4–5 reps possibles"}
                           </span>
@@ -1796,7 +1796,7 @@ export default function ExerciceDetail() {
                               {rpeWord(demanded)}
                             </span>
                             <span className="text-[11px] font-bold" style={{ color: demandedColor! }}>RPE {demanded}</span>
-                            {(demandedReserve != null || demanded === 6) && (
+                            {unitModeOf(exercise) === "reps" && (demandedReserve != null || demanded === 6) && (
                               <span className="text-[11px] text-foreground/70">
                                 {demandedReserve != null
                                   ? (demandedReserve === 0 ? "· jusqu'à l'échec" : `· ${demandedReserve} rep${demandedReserve > 1 ? "s" : ""} en réserve`)
