@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CoachNoteReader } from "@/components/CoachNoteReader";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
@@ -314,6 +315,35 @@ export default function ClientDetail() {
   const [dismissedNoteId, setDismissedNoteId] = useState<string | null>(null);
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState("programmation");
+  const isMobile = useIsMobile();
+  // Navigation par glissement (swipe) entre onglets sur mobile
+  const TAB_ORDER = ["resume", "programmation", "efforts", "max", "suivi", "poids", "objectifs", "vue", "mental", "profil"];
+  const swipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onTabsTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+    const target = e.target as HTMLElement;
+    // Ne pas intercepter sur la barre d'onglets, les zones scrollables horizontalement, graphiques et champs
+    if (target.closest('[role="tablist"], .overflow-x-auto, .recharts-wrapper, input, textarea, select, [data-no-swipe]')) {
+      swipeRef.current = null;
+      return;
+    }
+    const t = e.touches[0];
+    swipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  };
+  const onTabsTouchEnd = (e: React.TouchEvent) => {
+    const s = swipeRef.current;
+    swipeRef.current = null;
+    if (!s) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - s.x;
+    const dy = t.clientY - s.y;
+    if (Date.now() - s.t > 600) return;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    const i = TAB_ORDER.indexOf(activeTab);
+    if (i === -1) return;
+    const next = dx < 0 ? Math.min(TAB_ORDER.length - 1, i + 1) : Math.max(0, i - 1);
+    if (next !== i) setActiveTab(TAB_ORDER[next]);
+  };
   const [chargeSuggestions, setChargeSuggestions] = useState<{ [sessionId: string]: { [exerciseId: string]: string } }>({});
   const [serieChargeSuggestions, setSerieChargeSuggestions] = useState<{ [key: string]: string }>({});
   const [athleteMaxes, setAthleteMaxes] = useState<Record<string, number>>({});
@@ -4237,10 +4267,6 @@ export default function ClientDetail() {
           </h1>
           <p className="text-[11px] sm:text-xs text-muted-foreground truncate">{athlete.email}</p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0" title={athlete.payment_enabled ? "Paiement activé" : "Paiement désactivé"}>
-          <CreditCard className={`h-4 w-4 ${athlete.payment_enabled ? "text-green-500" : "text-muted-foreground"}`} />
-          <Switch checked={athlete.payment_enabled || false} onCheckedChange={handleTogglePaymentEnabled} className="scale-90" />
-        </div>
       </div>
 
       {/* Ancien bandeau d'infos (monotonie, blessure, objectifs, date…) — masqué pour épurer l'en-tête */}
@@ -4360,18 +4386,6 @@ export default function ClientDetail() {
           </div>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          {/* Toggle paiement Stripe */}
-          <div 
-            className="flex items-center gap-1.5"
-            title={athlete.payment_enabled ? "Paiement activé" : "Paiement désactivé"}
-          >
-            <CreditCard className={`h-3.5 w-3.5 ${athlete.payment_enabled ? "text-green-500" : "text-muted-foreground"}`} />
-            <Switch
-              checked={athlete.payment_enabled || false}
-              onCheckedChange={handleTogglePaymentEnabled}
-              className="scale-75"
-            />
-          </div>
           <div className="text-[10px] sm:text-xs text-muted-foreground text-right">
             {athlete.gender && (
               <p>{athlete.gender === "female" ? "F" : athlete.gender === "male" ? "H" : "A"}</p>
@@ -4382,8 +4396,14 @@ export default function ClientDetail() {
       </div>
 
 
-      {/* Tabs avec indicateur de scroll */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      {/* Tabs avec indicateur de scroll + navigation par glissement (mobile) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        onTouchStart={onTabsTouchStart}
+        onTouchEnd={onTabsTouchEnd}
+        className={`w-full ${isMobile ? "[&_[role=tabpanel][data-state=active]]:animate-in [&_[role=tabpanel][data-state=active]]:fade-in-50 [&_[role=tabpanel][data-state=active]]:slide-in-from-right-3 [&_[role=tabpanel][data-state=active]]:duration-200" : ""}`}
+      >
         <div className="relative">
           <div className="overflow-x-auto -mx-1 sm:-mx-2 px-1 sm:px-2 pb-1 sm:pb-2 scrollbar-hide">
             <TabsList className="inline-flex w-max min-w-full sm:w-auto h-8 sm:h-10">
@@ -4397,7 +4417,6 @@ export default function ClientDetail() {
               <TabsTrigger value="vue" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Vue d'ensemble</TabsTrigger>
               <TabsTrigger value="mental" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Mental</TabsTrigger>
               <TabsTrigger value="profil" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Profil</TabsTrigger>
-              <TabsTrigger value="paiements" className="text-[10px] sm:text-sm px-1.5 sm:px-3 h-7 sm:h-9">Paiements</TabsTrigger>
             </TabsList>
           </div>
           {/* Indicateur de scroll */}
@@ -5014,7 +5033,11 @@ export default function ClientDetail() {
           {/* Alerte de fatigue retirée (non consultée) */}
 
           {/* ── Bandeau de contexte : microcycle en cours · objectif · prochain sous-objectif ── */}
-          {athleteId && <ProgContextHeader athleteId={athleteId} onGoToOverview={() => setActiveTab("vue")} />}
+          {athleteId && (
+            <div className="hidden sm:block">
+              <ProgContextHeader athleteId={athleteId} onGoToOverview={() => setActiveTab("vue")} />
+            </div>
+          )}
 
 
           {/* ── Disponibilités déclarées par l'athlète pour la semaine affichée ── */}
@@ -5650,15 +5673,6 @@ export default function ClientDetail() {
           />
         </TabsContent>
 
-        <TabsContent value="paiements" className="space-y-4">
-          <CoachSubscriptionManager
-            athleteId={athleteId!}
-            athleteName={`${athlete?.first_name || ""} ${athlete?.last_name || ""}`}
-            paymentEnabled={athlete?.payment_enabled || false}
-            onPaymentEnabledChange={handleTogglePaymentEnabled}
-          />
-          <CoachAthleteSubscriptionOverview athleteId={athleteId!} />
-        </TabsContent>
       </Tabs>
 
       {/* Dialog pour adapter les exercices de la méthodologie après copie */}

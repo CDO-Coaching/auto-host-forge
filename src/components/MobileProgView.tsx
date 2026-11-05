@@ -575,10 +575,11 @@ function SessionCard({
   onDurationChange?: (minutes: number | null) => void;
   onUnlock?: () => void;
   forceOpen?: boolean;
+  onForceOpened?: () => void;
 }) {
   const [open, setOpen] = useState(!!forceOpen);
-  // Ouvre automatiquement la séance qui vient d'être créée
-  useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
+  // Ouvre automatiquement la séance créée ou choisie via l'accès rapide
+  useEffect(() => { if (forceOpen) { setOpen(true); onForceOpened?.(); } }, [forceOpen]);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const cfg = SESSION_TYPE_CONFIG[session.session_type];
 
@@ -1199,8 +1200,9 @@ export function MobileProgView({
 }: MobileProgViewProps) {
   const [showCreateSheet, setShowCreateSheet] = useState(false);
 
-  // Auto-ouverture de la séance qui vient d'être créée
+  // Auto-ouverture de la séance qui vient d'être créée / ouverte via accès rapide
   const [justCreatedId, setJustCreatedId] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<number | null>(null);
   const prevIdsRef = useRef<Set<number>>(new Set());
   const pendingCreateRef = useRef(false);
   useEffect(() => {
@@ -1301,31 +1303,25 @@ export function MobileProgView({
         )}
       </div>
 
-      {/* ── Autorisation sportif : ajouter des exercices ────────────── */}
-      {onToggleAllowAddExercises && (
-        <label className="flex items-center gap-3 mb-3 px-3.5 py-3 rounded-xl border border-border/60 bg-card/40 cursor-pointer active:bg-card/70 transition-colors">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary shrink-0">
-            <UserPlus className="h-4 w-4" />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="block text-sm font-medium text-foreground">Ajout d'exercices par le sportif</span>
-            <span className="block text-[11px] text-muted-foreground">L'athlète peut compléter la séance lui-même</span>
-          </span>
-          <Switch checked={!!allowAddExercises} onCheckedChange={(v) => onToggleAllowAddExercises(!!v)} />
-        </label>
-      )}
-
-      {/* ── Bannière semaine verrouillée ────────────────────────────── */}
-      {isValidated && onUnvalidate && (
-        <div className="flex items-center gap-2 mb-3 px-3 py-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10">
-          <Lock className="h-4 w-4 text-amber-400 shrink-0" />
-          <p className="text-xs text-amber-400 flex-1">Semaine verrouillée</p>
-          <button
-            onClick={onUnvalidate}
-            className="text-xs font-semibold text-amber-400 border border-amber-400/50 rounded-lg px-2.5 py-1 active:bg-amber-400/20 transition-colors shrink-0"
-          >
-            Modifier
-          </button>
+      {/* ── Accès rapide : toutes les séances d'un tap ──────────────── */}
+      {sessions.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {sessions.map((s) => {
+            const cfg = SESSION_TYPE_CONFIG[s.session_type];
+            return (
+              <button
+                key={s.id}
+                onClick={() => setOpenId(s.id)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-medium active:scale-95 transition-all",
+                  cfg.color,
+                )}
+              >
+                <span className="leading-none">{cfg.emoji}</span>
+                <span className="truncate max-w-[9rem]">{s.name}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -1415,7 +1411,8 @@ export function MobileProgView({
               onCopySession={onCopySession ? () => onCopySession(session.id) : undefined}
               onDurationChange={onSessionDurationChange ? (m) => onSessionDurationChange(session.id, m) : undefined}
               onUnlock={onUnvalidate}
-              forceOpen={session.id === justCreatedId}
+              forceOpen={session.id === justCreatedId || session.id === openId}
+              onForceOpened={() => { setJustCreatedId(null); setOpenId(null); }}
             />
           ))
         )}

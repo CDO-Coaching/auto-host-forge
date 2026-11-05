@@ -26,7 +26,6 @@ export default function MonCompte() {
     { title: "Notifications", description: "Préférences d'alertes", url: "/sportif/notifications", icon: Bell },
     ...(paymentEnabled
       ? [
-          { title: "Mes paiements", url: "/sportif/paiement", icon: CreditCard } as HubTile,
           { title: "Mes factures", url: "/sportif/factures", icon: FileText } as HubTile,
         ]
       : []),

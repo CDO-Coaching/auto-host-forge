@@ -112,14 +112,6 @@ export default function DashboardCoach() {
                 stackOffset={stackIndex++}
               />
             )}
-            {paymentNotifications.length > 0 && (
-              <CoachAthletePaymentAlert
-                notifications={paymentNotifications}
-                onDismiss={dismissPaymentNotification}
-                onDismissAll={dismissAllPayments}
-                stackOffset={pauseReminders.length > 0 ? stackIndex++ : stackIndex++}
-              />
-            )}
             {pendingCancellations.length > 0 && (
               <CoachCancellationAlert
                 notifications={pendingCancellations}
