@@ -316,8 +316,13 @@ function RenfoExerciseRow({
       {/* Fenêtre d'édition de l'exercice */}
       <Dialog open={expanded} onOpenChange={setExpanded}>
         <DialogContent className="max-w-md w-[96vw] max-h-[90vh] overflow-y-auto rounded-2xl p-4 gap-0" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}>
-          <DialogHeader className="text-left mb-3">
-            <DialogTitle className="text-base pr-8 truncate">{exercise.exercice || "Exercice"}</DialogTitle>
+          <DialogHeader className="text-left mb-3 sticky -top-4 z-10 bg-background -mx-4 px-4 pt-1 pb-2 border-b border-border/40">
+            <div className="flex items-center gap-2 pr-9">
+              <DialogTitle className="text-base truncate flex-1">{exercise.exercice || "Exercice"}</DialogTitle>
+              <Button onClick={() => setExpanded(false)} size="sm" className="h-8 px-4 rounded-lg shrink-0">
+                Valider
+              </Button>
+            </div>
           </DialogHeader>
           <div className="space-y-4">
           {/* Nom */}
@@ -540,9 +545,6 @@ function RenfoExerciseRow({
               placeholder="Invisible au sportif, copiée avec la semaine…" className="h-11" />
           </div>
           </div>
-          <Button onClick={() => setExpanded(false)} className="mt-4 w-full h-12 rounded-xl text-base font-semibold">
-            Valider
-          </Button>
         </DialogContent>
       </Dialog>
     </div>
