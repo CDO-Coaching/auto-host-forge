@@ -1828,7 +1828,7 @@ export default function ClientDetail() {
     if (newSessionType === "renfo") {
       const blankExercise: Exercise = {
         id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
-        charge: "", rpe: "", tempo: "", commentaire: "",
+        charge: "", rpe: "7", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
       setExpandedSessionId(nextSessionNumber);
@@ -1895,7 +1895,7 @@ export default function ClientDetail() {
     if (type === "renfo") {
       const blankExercise: Exercise = {
         id: 1, exercice: "", recuperation: "1min30s", reps: "", series: "4",
-        charge: "", rpe: "", tempo: "", commentaire: "",
+        charge: "", rpe: "7", tempo: "", commentaire: "",
       };
       setSessionExercises((prev) => ({ ...prev, [nextSessionNumber]: [blankExercise] }));
       setExpandedSessionId(nextSessionNumber);
@@ -3510,7 +3510,7 @@ export default function ClientDetail() {
       reps: "",
       series: isCardio ? "1" : "4",
       charge: "",
-      rpe: "",
+      rpe: isCardio ? "" : "7",
       tempo: "",
       commentaire: "",
       cardio_sport: isCardio ? "course" : undefined,

@@ -423,8 +423,13 @@ function RenfoExerciseRow({
 
           {/* ── Séries individualisées ──────────────────────────── */}
           {(() => {
-            const details = getSerieDetailsArray(exercise.serie_details);
-            if (details.length < 2) return null;
+            const existing = getSerieDetailsArray(exercise.serie_details);
+            const count = existing.length >= 2 ? existing.length : (parseInt(exercise.series || "0", 10) || 0);
+            if (count < 2) return null;
+            // Si pas encore détaillées, on part du nombre de séries (les modifs les matérialisent)
+            const details = existing.length >= 2
+              ? existing
+              : Array.from({ length: count }, () => ({ reps: "", charge: "", rpe: "", tempo: "", commentaire: "" }));
             return (
               <div className="space-y-1.5">
                 <button
@@ -435,7 +440,7 @@ function RenfoExerciseRow({
                   <div className="h-px flex-1 bg-border/60" />
                   <span className="flex items-center gap-1 text-[10px] font-semibold text-primary uppercase tracking-wide">
                     <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", !seriesOpen && "-rotate-90")} />
-                    {seriesOpen ? "Masquer" : "Afficher"} les {details.length} séries
+                    {seriesOpen ? "Masquer" : "Afficher"} les {count} séries
                   </span>
                   <div className="h-px flex-1 bg-border/60" />
                 </button>
@@ -529,6 +534,9 @@ function RenfoExerciseRow({
               placeholder="Invisible au sportif, copiée avec la semaine…" className="h-11" />
           </div>
           </div>
+          <Button onClick={() => setExpanded(false)} className="mt-4 w-full h-12 rounded-xl text-base font-semibold">
+            Valider
+          </Button>
         </DialogContent>
       </Dialog>
     </div>
