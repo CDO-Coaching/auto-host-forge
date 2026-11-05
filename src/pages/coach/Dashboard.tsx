@@ -479,34 +479,37 @@ export default function CoachDashboard() {
     const searchResults = q
       ? allAthletes.filter(a => normalizeText(a.name).includes(q) || normalizeText(a.email).includes(q)).slice(0, 6)
       : [];
-    const hasUnpaid = data.unpaid.length > 0;
-    const totalUnpaid = data.unpaid.reduce((s, u) => s + u.count, 0);
     const weekDone = data.recentActivities.filter(a => a.type === "session_completed");
     const now = new Date();
     const nextCoachings = nearestAppointments(data.upcomingSessions, now, 3);
+    const weekPct = data.sessionsProgrammedThisWeek > 0
+      ? Math.min(100, Math.round((data.sessionsCompletedThisWeek / data.sessionsProgrammedThisWeek) * 100))
+      : 0;
+    const mInitials = (name: string) =>
+      (name || "").trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0)).join("").toUpperCase() || "?";
 
     return (
-      <div className="flex flex-col gap-2.5 h-[calc(100dvh-10.5rem)] min-h-[24rem] overflow-hidden">
+      <div className="space-y-3 pb-4">
         {/* Recherche athlète */}
-        <div className="relative shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher un athlète…"
-            className="pl-9 h-10"
+            className="pl-10 h-11 rounded-xl bg-card border-border"
           />
           {searchResults.length > 0 && (
-            <div className="absolute z-20 mt-1 w-full rounded-lg border border-border bg-popover shadow-lg overflow-hidden">
+            <div className="absolute z-20 mt-1.5 w-full rounded-xl border border-border bg-popover shadow-xl overflow-hidden">
               {searchResults.map(a => (
                 <button
                   key={a.id}
                   className="flex w-full items-center gap-3 p-3 text-left hover:bg-secondary/50 transition-colors"
                   onClick={() => { setSearch(""); navigate(`/coach/client/${a.id}`); }}
                 >
-                  <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
+                  <span className="h-8 w-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                    {mInitials(a.name || a.email)}
+                  </span>
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{a.name || a.email}</p>
                     {a.name && <p className="text-xs text-muted-foreground truncate">{a.email}</p>}
@@ -518,13 +521,17 @@ export default function CoachDashboard() {
         </div>
 
         {/* Prochains coachings : les 3 RDV les plus proches (Google Calendar) */}
-        {nextCoachings.length > 0 && (
-          <div className="rounded-lg border border-border overflow-hidden shrink-0">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20">
-              <Timer className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm font-semibold">Prochains coachings</span>
-            </div>
-            <div className="divide-y divide-border/50">
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <header className="flex items-center gap-2.5 px-4 py-3">
+            <span className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+              <Timer className="h-4 w-4 text-primary" />
+            </span>
+            <h2 className="text-sm font-semibold">Prochains coachings</h2>
+          </header>
+          {nextCoachings.length === 0 ? (
+            <p className="px-4 pb-4 -mt-1 text-sm text-muted-foreground">Aucun coaching à venir aujourd'hui.</p>
+          ) : (
+            <div className="border-t border-border/60 divide-y divide-border/50">
               {nextCoachings.map(s => {
                 const start = s.startTime ? parseISO(s.startTime) : null;
                 const end = s.endTime ? parseISO(s.endTime) : null;
@@ -533,26 +540,26 @@ export default function CoachDashboard() {
                 return (
                   <button
                     key={s.eventId}
-                    className="flex w-full items-center gap-2.5 px-3 py-2 text-left active:bg-secondary/40 transition-colors"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-left active:bg-secondary/40 transition-colors"
                     onClick={() => navigate(`/coach/client/${s.athleteId}`)}
                   >
-                    <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                      <User className="h-4 w-4 text-primary" />
-                    </div>
+                    <span className={`h-9 w-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 ${isOngoing ? "bg-green-500/20 text-green-500" : isPast ? "bg-secondary text-muted-foreground" : "bg-primary/15 text-primary"}`}>
+                      {mInitials(s.athleteName)}
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className={`text-sm font-medium truncate ${isPast ? "text-muted-foreground" : "text-foreground"}`}>
                         {s.athleteName}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{s.eventTitle}</p>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0">
                       {isOngoing ? (
                         <Badge className="text-[10px] h-5 px-1.5 bg-green-500/20 text-green-500 border-green-500/40">En cours</Badge>
                       ) : isPast ? (
                         <Badge variant="secondary" className="text-[10px] h-5 px-1.5">Passé</Badge>
                       ) : null}
                       {start && (
-                        <span className="text-xs font-medium text-foreground tabular-nums">
+                        <span className="text-sm font-semibold text-foreground tabular-nums">
                           {format(start, "HH:mm", { locale: fr })}
                         </span>
                       )}
@@ -562,37 +569,38 @@ export default function CoachDashboard() {
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </section>
 
-        {/* Prog à traiter : semaines à valider */}
+        {/* Progs à valider */}
         {!hasUnvalidated ? (
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/20 px-3 py-1.5 shrink-0">
+          <div className="flex items-center gap-2 rounded-2xl border border-green-500/20 bg-green-500/5 px-4 py-2.5">
             <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-            <span className="text-xs text-muted-foreground">Toutes les progs sont validées</span>
+            <span className="text-sm text-muted-foreground">Toutes les progs sont validées</span>
           </div>
         ) : (
-          <div className="rounded-lg border border-border overflow-hidden shrink-0 max-h-[38vh] flex flex-col">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20 shrink-0">
-              <ListChecks className="h-4 w-4 text-primary shrink-0" />
-              <span className="text-sm font-semibold">Progs à traiter</span>
+          <section className="rounded-2xl border border-border bg-card overflow-hidden">
+            <header className="flex items-center gap-2.5 px-4 py-3">
+              <span className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                <ListChecks className="h-4 w-4 text-primary" />
+              </span>
+              <h2 className="text-sm font-semibold">Progs à valider</h2>
               <Badge variant="secondary" className="ml-auto text-xs">{data.unvalidatedAthletes.length}</Badge>
-            </div>
-            <div className="overflow-y-auto divide-y divide-border/60">
+            </header>
+            <div className="border-t border-border/60 divide-y divide-border/50">
               {data.unvalidatedAthletes.map(a => (
                 <div
                   key={a.athleteId}
-                  className="flex items-center gap-2.5 px-3 py-2"
+                  className="flex items-center gap-3 px-4 py-2.5 active:bg-secondary/40 transition-colors"
                   onClick={() => navigate(`/coach/client/${a.athleteId}`)}
                 >
-                  <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <User className="h-3.5 w-3.5 text-primary" />
-                  </div>
+                  <span className="h-9 w-9 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                    {mInitials(`${a.firstName} ${a.lastName}`)}
+                  </span>
                   <p className="text-sm font-medium text-foreground truncate flex-1">{a.firstName} {a.lastName}</p>
                   <Button
                     size="sm"
-                    variant="outline"
-                    className="h-7 px-2 text-xs text-green-500 border-green-500/50 hover:bg-green-500/10 hover:text-green-400 shrink-0"
+                    className="h-8 px-3 text-xs bg-green-500/15 text-green-500 border border-green-500/40 hover:bg-green-500/25 shrink-0"
                     onClick={(e) => handleValidateWeek(a.athleteId, e)}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1" />
@@ -601,59 +609,33 @@ export default function CoachDashboard() {
                 </div>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
-        {/* Impayés : petite case dépliable */}
-        {hasUnpaid && (
-          <div className="rounded-lg border border-orange-400/30 bg-orange-500/5 overflow-hidden shrink-0 max-h-[30vh] flex flex-col">
-            <button
-              className="flex w-full items-center gap-2 px-3 py-2 text-left shrink-0"
-              onClick={() => setUnpaidOpen(o => !o)}
-            >
-              <Wallet className="h-4 w-4 text-orange-400 shrink-0" />
-              <span className="text-sm font-medium text-foreground">Impayés</span>
-              <Badge variant="outline" className="text-xs text-orange-400 border-orange-400/40">
-                {data.unpaid.length} client{data.unpaid.length > 1 ? "s" : ""} · {totalUnpaid} séance{totalUnpaid > 1 ? "s" : ""}
-              </Badge>
-              <ChevronRight className={`ml-auto h-4 w-4 text-muted-foreground transition-transform ${unpaidOpen ? "rotate-90" : ""}`} />
-            </button>
-            {unpaidOpen && (
-              <div className="border-t border-orange-400/20 divide-y divide-orange-400/10 overflow-y-auto">
-                {data.unpaid.map(u => (
-                  <div
-                    key={`pay-${u.athleteId}`}
-                    className="flex items-center justify-between gap-2 px-3 py-2"
-                    onClick={() => navigate(`/coach/comptabilite`)}
-                  >
-                    <p className="text-sm text-foreground truncate">{u.athleteName}</p>
-                    <span className="text-xs font-semibold text-orange-400 shrink-0">
-                      {u.count} séance{u.count > 1 ? "s" : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Cette semaine : qui a fait quoi (scroll interne) */}
-        <div className="rounded-lg border border-border overflow-hidden flex-1 min-h-0 flex flex-col">
-          <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/20 shrink-0">
-            <Dumbbell className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-sm font-semibold">Cette semaine</span>
-            <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-              {data.sessionsCompletedThisWeek}/{data.sessionsProgrammedThisWeek} séances
-            </span>
-          </div>
-          <div className="overflow-y-auto flex-1 divide-y divide-border/50">
+        {/* Avancement de la semaine */}
+        <section className="rounded-2xl border border-border bg-card overflow-hidden">
+          <header className="px-4 py-3 space-y-2.5">
+            <div className="flex items-center gap-2.5">
+              <span className="h-8 w-8 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
+                <Dumbbell className="h-4 w-4 text-primary" />
+              </span>
+              <h2 className="text-sm font-semibold">Avancement de la semaine</h2>
+              <span className="ml-auto text-sm font-semibold text-foreground tabular-nums">
+                {data.sessionsCompletedThisWeek}<span className="text-muted-foreground font-normal">/{data.sessionsProgrammedThisWeek}</span>
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-secondary overflow-hidden">
+              <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${weekPct}%` }} />
+            </div>
+          </header>
+          <div className="border-t border-border/60 divide-y divide-border/50">
             {weekDone.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">Aucune séance réalisée cette semaine</p>
             ) : (
               weekDone.map(a => (
                 <div
                   key={a.id}
-                  className="flex items-center gap-2.5 px-3 py-2 active:bg-secondary/40 transition-colors"
+                  className="flex items-center gap-3 px-4 py-2.5 active:bg-secondary/40 transition-colors"
                   onClick={() => {
                     if (a.athleteId) setSelectedSession({ id: a.id, athleteId: a.athleteId, athleteName: a.label, sessionType: a.sessionType || "renfo" });
                   }}
@@ -670,7 +652,7 @@ export default function CoachDashboard() {
               ))
             )}
           </div>
-        </div>
+        </section>
 
         <CoachSessionDetailDialog
           open={!!selectedSession}
