@@ -158,6 +158,17 @@ export function CardioStepBuilder({
     setBlocks(initialBlocks);
   }, [JSON.stringify(initialBlocks)]);
   const [draggedStepId, setDraggedStepId] = useState<number | null>(null);
+  // Scroll auto vers la dernière étape créée (centrée)
+  const [scrollToStepId, setScrollToStepId] = useState<number | null>(null);
+  useEffect(() => {
+    if (scrollToStepId == null) return;
+    const id = scrollToStepId;
+    const t = setTimeout(() => {
+      document.querySelector(`[data-cardio-step="${id}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    setScrollToStepId(null);
+    return () => clearTimeout(t);
+  }, [scrollToStepId]);
 
   // Calcule l'allure en min/km à partir du pourcentage de VMA
   const calculatePace = (vmaPercentage: number | undefined): string => {
@@ -179,8 +190,9 @@ export function CardioStepBuilder({
 
   const handleAddStep = () => {
     const defaultMovement = getDefaultMovementType();
+    const newId = steps.length > 0 ? Math.max(...steps.map(s => s.id)) + 1 : 1;
     const newStep: CardioStep = {
-      id: steps.length > 0 ? Math.max(...steps.map(s => s.id)) + 1 : 1,
+      id: newId,
       movement_type: defaultMovement,
       effort_type: "duration",
       duration: 600, // 10 minutes par défaut
@@ -188,6 +200,7 @@ export function CardioStepBuilder({
       target_heart_rate: "",
     };
     onChange({ steps: [...steps, newStep], blocks });
+    setScrollToStepId(newId);
   };
 
   const handleDeleteStep = (stepId: number) => {
@@ -392,6 +405,7 @@ export function CardioStepBuilder({
     return (
       <div
         key={step.id}
+        data-cardio-step={step.id}
         className={`flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-end px-3 sm:px-4 py-3 ${inBlock ? "bg-amber-500/5" : ""} ${borderClass} relative`}
         draggable={!disabled}
         onDragStart={() => handleStepDragStart(step.id)}
