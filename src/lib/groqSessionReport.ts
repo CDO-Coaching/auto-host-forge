@@ -80,6 +80,53 @@ export async function polishCoachNote(text: string): Promise<string> {
   return json.choices?.[0]?.message?.content?.trim() ?? "";
 }
 
+export const STRUCTURE_NOTE_PROMPT = `Tu es l'assistant d'un coach sportif. On te donne une note de séance dictée (en vrac, sans ponctuation propre).
+
+Ta tâche : la RÉORGANISER en un compte-rendu clair, lisible d'un coup d'œil quand le coach rouvre la prog de l'athlète.
+
+Utilise UNIQUEMENT ces sections, dans cet ordre, et SEULEMENT celles qui ont du contenu (omets les autres) :
+Séance faite
+Points clés
+Points de vigilance
+À faire la prochaine fois
+Consignes athlète
+
+FORMAT EXACT :
+- Chaque section = son titre seul sur une ligne (exactement comme ci-dessus, sans numéro ni symbole), suivi d'une ou plusieurs lignes de puces commençant par "- ".
+- Phrases courtes, claires. Corrige fautes et transcription approximative.
+
+RÈGLES ABSOLUES :
+- N'invente RIEN (aucune charge, douleur, ressenti ou consigne non dits). Si peu d'infos, fais court.
+- Reste en français, garde le sens exact.
+- Réponds UNIQUEMENT avec le compte-rendu (titres + puces), sans introduction ni commentaire.`;
+
+/**
+ * Reconstruit une note dictée en compte-rendu structuré (sections fixes),
+ * sans rien inventer. Renvoie le texte structuré (titres + puces "- ").
+ */
+export async function structureCoachNote(text: string): Promise<string> {
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+  if (!apiKey) throw new Error("Clé Groq manquante (VITE_GROQ_API_KEY)");
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "openai/gpt-oss-120b",
+      messages: [
+        { role: "system", content: STRUCTURE_NOTE_PROMPT },
+        { role: "user", content: text },
+      ],
+      temperature: 0.3,
+      max_tokens: 800,
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Groq error ${res.status}`);
+  const json = await res.json();
+  return json.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
 export async function generateSessionReport(transcript: string): Promise<string> {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("Clé Groq manquante (VITE_GROQ_API_KEY)");

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { StickyNote, Check, ChevronsUpDown, Loader2, Pencil, Plus, Sparkles } from "lucide-react";
-import { polishCoachNote } from "@/lib/groqSessionReport";
+import { polishCoachNote, structureCoachNote } from "@/lib/groqSessionReport";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -153,7 +153,19 @@ export function QuickCoachNote() {
     setSaving(true);
     const insertData: Record<string, unknown> = { coach_id: profile.id, content: note.trim() };
     insertData[isExternal ? "external_client_id" : "athlete_id"] = selectedClientId;
-    const { error } = await supabase.from("coach_notes").insert(insertData);
+    // Reconstruction au propre (compte-rendu structuré) — non bloquant si l'IA échoue
+    try {
+      const structured = await structureCoachNote(note.trim());
+      if (structured) insertData.structured_content = structured;
+    } catch (e) {
+      console.error("Structuration note échouée:", e);
+    }
+    let { error } = await supabase.from("coach_notes").insert(insertData);
+    // Repli si la colonne structured_content n'existe pas encore (migration non lancée)
+    if (error && insertData.structured_content) {
+      delete insertData.structured_content;
+      ({ error } = await supabase.from("coach_notes").insert(insertData));
+    }
     setSaving(false);
     if (error) { toast.error("Erreur lors de l'enregistrement"); return; }
     toast.success("Note enregistrée");

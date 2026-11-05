@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { VoiceNoteAI } from "@/components/VoiceNoteAI";
+import { structureCoachNote } from "@/lib/groqSessionReport";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Plus, StickyNote, Calendar, User, Check, ChevronsUpDown, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -184,11 +185,28 @@ export default function Notes() {
       insertData.athlete_id = selectedClientId;
     }
 
-    const { data, error } = await supabase
+    // Reconstruction au propre (compte-rendu structuré) — non bloquant si l'IA échoue
+    try {
+      const structured = await structureCoachNote(newNote.trim());
+      if (structured) insertData.structured_content = structured;
+    } catch (e) {
+      console.error("Structuration note échouée:", e);
+    }
+
+    let { data, error } = await supabase
       .from("coach_notes")
       .insert(insertData)
       .select("id, content, created_at")
       .single();
+    // Repli si la colonne structured_content n'existe pas encore (migration non lancée)
+    if (error && insertData.structured_content) {
+      delete insertData.structured_content;
+      ({ data, error } = await supabase
+        .from("coach_notes")
+        .insert(insertData)
+        .select("id, content, created_at")
+        .single());
+    }
 
     if (error) {
       toast.error("Erreur lors de l'ajout de la note");
