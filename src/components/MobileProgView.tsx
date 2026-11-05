@@ -554,7 +554,7 @@ function getSupersetColorIndex(group: string, allGroups: string[]): number {
 function SessionCard({
   session, exercises, isValidated, athleteVma, athleteFcMax = null, athleteFcRepos = null,
   libraryExercises, copiedWeekFeedback,
-  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange, onUnlock, forceOpen,
+  onDelete, onAddExercise, onDeleteExercise, onExerciseChange, onSerieDetailChange, onToggleSuperSet, onNoteChange, onCopySession, onDurationChange, onUnlock, isOpen, onOpenChange,
 }: {
   session: Session;
   exercises: Exercise[];
