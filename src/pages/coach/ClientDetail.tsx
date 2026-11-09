@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CoachNoteReader } from "@/components/CoachNoteReader";
+import { PrevWeekRecapDialog } from "@/components/PrevWeekRecapDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -4282,6 +4283,10 @@ export default function ClientDetail() {
       {/* Notes de coaching : pastille flottante + modale centrée (lecture au propre) */}
       {athleteId && (
         <CoachNoteReader athleteId={athleteId} athleteName={`${athlete.first_name} ${athlete.last_name}`.trim()} />
+      )}
+      {/* Bilan semaine précédente : fenêtre flottante le lundi (desktop) */}
+      {!isMobile && athleteId && (
+        <PrevWeekRecapDialog athleteId={athleteId} athleteName={`${athlete.first_name} ${athlete.last_name}`.trim()} />
       )}
       {/* Header : nom de l'athlète en évidence */}
       <div className="flex items-center gap-2 py-1">
