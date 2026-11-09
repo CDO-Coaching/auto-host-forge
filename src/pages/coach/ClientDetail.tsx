@@ -2597,9 +2597,24 @@ export default function ClientDetail() {
       }
     });
 
+    // Remapper les retours copiés (RPE sportif) sur les nouveaux IDs de séance
+    setCopiedWeekFeedback((prev) => {
+      const remapped: typeof prev = {};
+      Object.entries(prev).forEach(([key, val]) => {
+        const dash = key.indexOf("-");
+        if (dash < 0) return;
+        const oldId = parseInt(key.slice(0, dash), 10);
+        const rest = key.slice(dash + 1);
+        if (idMapping[oldId] !== undefined) {
+          remapped[`${idMapping[oldId]}-${rest}`] = val;
+        }
+      });
+      return remapped;
+    });
+
     setSessions(updatedSessions);
     setSessionExercises(updatedSessionExercises);
-    
+
     if (expandedSessionId === sessionId) {
       setExpandedSessionId(null);
     }
