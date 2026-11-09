@@ -1127,6 +1127,9 @@ export default function SupersetDetail() {
                           <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-base" onClick={(e) => e.stopPropagation()}>🎥</a>
                         )}
                       </div>
+                      {(ex as any).commentaire && (
+                        <p className="text-[11px] text-muted-foreground italic ml-8 mt-0.5 whitespace-pre-wrap break-words">📝 {(ex as any).commentaire}</p>
+                      )}
                       {idx < exercises.length - 1 && (
                         <div className="flex items-center gap-1.5 ml-8 mt-1 text-[11px] font-medium text-primary">
                           <Zap className="h-3 w-3" /> Enchaîné — pas de repos
