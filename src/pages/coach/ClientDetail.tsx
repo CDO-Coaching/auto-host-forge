@@ -5123,6 +5123,7 @@ export default function ClientDetail() {
           {/* ── Vue desktop (masquée < sm) ────────────────────────────── */}
           <div className="hidden sm:block">
             <DesktopProgView
+              athleteId={athleteId}
               sessions={sessions}
               setSessions={setSessions}
               sessionExercises={sessionExercises}

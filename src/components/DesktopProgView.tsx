@@ -35,6 +35,7 @@ import {
   Timer,
   StickyNote,
 } from "lucide-react";
+import { WeeksSinceButton } from "@/components/WeeksSinceButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -296,6 +297,7 @@ function DurationBadge({
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface DesktopProgViewProps {
+  athleteId?: string;
   // Data
   sessions: Session[];
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
@@ -443,6 +445,7 @@ export interface DesktopProgViewProps {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function DesktopProgView(props: DesktopProgViewProps) {
   const {
+    athleteId,
     sessions, setSessions, sessionExercises, setSessionExercises,
     selectedWeek, availableWeeks, isValidated, libraryExercises,
     expandedSessionId, setExpandedSessionId,
@@ -636,6 +639,8 @@ export function DesktopProgView(props: DesktopProgViewProps) {
         )}
 
         <div className="flex-1" />
+
+        {athleteId && <WeeksSinceButton athleteId={athleteId} />}
 
         {/* Copy previous */}
         {!isValidated && historicalWeeks.length > 0 && (
