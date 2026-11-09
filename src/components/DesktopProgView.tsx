@@ -2043,7 +2043,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     </TableRow>
 
                                     {/* Series individuelles */}
-                                    {(getSerieDetailsArray(exercise.serie_details).length > 1 || (parseInt(exercise.series || "0") > 1 && !!(getExerciseFeedback(selectedSession.id, exercise.exercice)?.serie_rpe_details?.length))) && (
+                                    {(parseAmrap(exercise.series) === null && (getSerieDetailsArray(exercise.serie_details).length > 1 || parseInt(exercise.series || "0") > 1)) && (
                                       <>
                                         <TableRow className="bg-muted/10 cursor-pointer hover:bg-muted/30" onClick={() => setCollapsedSeriesExercises((prev) => ({ ...prev, [exercise.id]: !(prev[exercise.id] ?? true) }))}>
                                           <TableCell colSpan={10} className="py-1 pl-10">
