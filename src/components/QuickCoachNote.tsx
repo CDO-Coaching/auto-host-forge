@@ -31,6 +31,9 @@ interface Client {
   isExternal?: boolean;
 }
 
+/** Retire les accents et met en minuscules : "Jérôme" → "jerome" (recherche tolérante). */
+const normalizeText = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
 /**
  * Bouton flottant présent sur toutes les pages coach (mobile) : enregistrer
  * rapidement une note de coaching rattachée à un client. À l'ouverture, la
@@ -49,39 +52,69 @@ export function QuickCoachNote() {
   const [saving, setSaving] = useState(false);
   const [polishing, setPolishing] = useState(false);
   const autoPickedRef = useRef(false);
+  const clientsLoadedRef = useRef(false);
   // Coachings du jour (puces de sélection rapide), avec indicateur "déjà noté"
   const [dayPending, setDayPending] = useState<{ id: string; name: string; noted: boolean }[]>([]);
 
   useEffect(() => {
-    if (!open || !profile?.id || clients.length > 0) return;
+    if (!open || !profile?.id) return;
+    const cacheKey = `coach-clients-${profile.id}`;
+
+    // 1) Hydrater immédiatement depuis le cache local — les prénoms s'affichent
+    //    même avec une mauvaise connexion en salle (ou totalement hors-ligne).
+    if (clients.length === 0) {
+      try {
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) setClients(parsed);
+        }
+      } catch { /* cache illisible, on ignore */ }
+    }
+
+    // 2) Rafraîchir depuis le réseau. En cas d'échec (réseau), on garde le cache.
+    if (clientsLoadedRef.current) return;
     const load = async () => {
-      const { data: rels } = await supabase
-        .from("coach_athlete_relationships")
-        .select("athlete_id")
-        .eq("coach_id", profile.id)
-        .eq("status", "approved");
+      try {
+        const { data: rels, error: relErr } = await supabase
+          .from("coach_athlete_relationships")
+          .select("athlete_id")
+          .eq("coach_id", profile.id)
+          .eq("status", "approved");
+        if (relErr) throw relErr;
 
-      let athletes: Client[] = [];
-      if (rels && rels.length > 0) {
-        const ids = rels.map((r) => r.athlete_id);
-        const { data: profiles } = await supabase
-          .from("user_profiles")
-          .select("id, first_name, last_name, email")
-          .in("id", ids);
-        athletes = (profiles || []).map((p) => ({ id: p.id, first_name: p.first_name || "", last_name: p.last_name || "", email: p.email, isExternal: false }));
+        let athletes: Client[] = [];
+        if (rels && rels.length > 0) {
+          const ids = rels.map((r) => r.athlete_id);
+          const { data: profiles, error: profErr } = await supabase
+            .from("user_profiles")
+            .select("id, first_name, last_name, email")
+            .in("id", ids);
+          if (profErr) throw profErr;
+          athletes = (profiles || []).map((p) => ({ id: p.id, first_name: p.first_name || "", last_name: p.last_name || "", email: p.email, isExternal: false }));
+        }
+
+        const { data: ext, error: extErr } = await supabase
+          .from("external_clients")
+          .select("id, first_name, last_name")
+          .eq("coach_id", profile.id)
+          .eq("is_active", true);
+        if (extErr) throw extErr;
+        const externals: Client[] = (ext || []).map((c) => ({ id: c.id, first_name: c.first_name, last_name: c.last_name, isExternal: true }));
+
+        const merged = [...athletes, ...externals].sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`));
+        if (merged.length > 0) {
+          clientsLoadedRef.current = true;
+          setClients(merged);
+          try { localStorage.setItem(cacheKey, JSON.stringify(merged)); } catch { /* quota, on ignore */ }
+        }
+      } catch (e) {
+        // Connexion mauvaise/absente : on conserve le cache déjà affiché, on réessaiera à la prochaine ouverture.
+        console.warn("[QuickCoachNote] chargement des clients échoué, cache local conservé", e);
       }
-
-      const { data: ext } = await supabase
-        .from("external_clients")
-        .select("id, first_name, last_name")
-        .eq("coach_id", profile.id)
-        .eq("is_active", true);
-      const externals: Client[] = (ext || []).map((c) => ({ id: c.id, first_name: c.first_name, last_name: c.last_name, isExternal: true }));
-
-      setClients([...athletes, ...externals].sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`)));
     };
     load();
-  }, [open, profile?.id, clients.length]);
+  }, [open, profile?.id]);
 
   // À l'ouverture, pré-sélectionner la dernière personne faite (dernier RDV
   // Google Calendar dont le début est passé). Ne remplace pas un choix manuel.
@@ -241,7 +274,7 @@ export function QuickCoachNote() {
                   <CommandEmpty>Aucun client trouvé.</CommandEmpty>
                   <CommandGroup heading="Athlètes">
                     {clients.filter((c) => !c.isExternal).map((c) => (
-                      <CommandItem key={c.id} value={`${c.last_name} ${c.first_name}`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(false); setComboOpen(false); }}>
+                      <CommandItem key={c.id} value={`${normalizeText(`${c.first_name} ${c.last_name}`)} ${normalizeText(`${c.last_name} ${c.first_name}`)} ${c.id}`} keywords={[normalizeText(c.first_name), normalizeText(c.last_name)]} onSelect={() => { setSelectedClientId(c.id); setIsExternal(false); setComboOpen(false); }}>
                         <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
                         {c.first_name} {c.last_name}
                       </CommandItem>
@@ -249,7 +282,7 @@ export function QuickCoachNote() {
                   </CommandGroup>
                   <CommandGroup heading="Clients externes">
                     {clients.filter((c) => c.isExternal).map((c) => (
-                      <CommandItem key={c.id} value={`${c.last_name} ${c.first_name} ext`} onSelect={() => { setSelectedClientId(c.id); setIsExternal(true); setComboOpen(false); }}>
+                      <CommandItem key={c.id} value={`${normalizeText(`${c.first_name} ${c.last_name}`)} ${normalizeText(`${c.last_name} ${c.first_name}`)} ext ${c.id}`} keywords={[normalizeText(c.first_name), normalizeText(c.last_name)]} onSelect={() => { setSelectedClientId(c.id); setIsExternal(true); setComboOpen(false); }}>
                         <Check className={cn("mr-2 h-4 w-4", selectedClientId === c.id ? "opacity-100" : "opacity-0")} />
                         {c.first_name} {c.last_name}
                       </CommandItem>
