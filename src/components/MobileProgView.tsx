@@ -34,6 +34,8 @@ interface Session {
   coach_note?: string | null;
   garmin_link?: string | null;
   manual_duration_minutes?: number | null;
+  athlete_session_rpe?: number | null;
+  athlete_session_comment?: string | null;
 }
 
 interface SerieDetail {
@@ -84,6 +86,7 @@ interface ExerciseFeedback {
   sportif_rpe?: string | null;
   sportif_comment?: string | null;
   skipped?: boolean;
+  serie_rpe_details?: { rpe: number | null; actual_reps?: string | null; actual_charge?: string | null; modification_type?: "failure" | "too_easy" | null }[] | null;
 }
 
 interface MobileProgViewProps {
@@ -297,8 +300,19 @@ function RenfoExerciseRow({
                 {feedback.skipped ? (
                   <span className="text-destructive font-medium">⚠️ Non fait</span>
                 ) : (
-                  <span className="text-muted-foreground">
-                    {feedback.sportif_rpe && <span>RPE réel: <b className="text-foreground">{feedback.sportif_rpe}</b> </span>}
+                  <span className="text-muted-foreground inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    {(() => {
+                      const details = feedback.serie_rpe_details || [];
+                      const hasFailure = details.some((d) => d.modification_type === "failure");
+                      const hasTooEasy = details.some((d) => d.modification_type === "too_easy");
+                      if (!hasFailure && !hasTooEasy) return null;
+                      return (
+                        <span className={cn("inline-flex items-center rounded px-1 font-semibold", hasFailure ? "bg-red-500/15 text-red-600" : "bg-blue-500/15 text-blue-600")}>
+                          {hasFailure ? "⬇ échec" : "⬆ ajusté"}
+                        </span>
+                      );
+                    })()}
+                    {feedback.sportif_rpe && <span>RPE réel: <b className="text-foreground">{feedback.sportif_rpe}</b></span>}
                     {feedback.sportif_comment && <span className="italic">"{feedback.sportif_comment}"</span>}
                   </span>
                 )}
@@ -937,6 +951,21 @@ function SessionCard({
               </div>
             )}
           </SheetHeader>
+
+          {(session.athlete_session_comment || session.athlete_session_rpe != null) && (
+            <div className="mx-5 mt-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 shrink-0">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary mb-0.5">
+                <MessageSquare className="h-3 w-3" />
+                Retour de l'athlète en fin de séance
+                {session.athlete_session_rpe != null && (
+                  <span className="ml-auto rounded bg-primary/15 px-1.5 py-0.5 text-primary">RPE {session.athlete_session_rpe}/10</span>
+                )}
+              </div>
+              {session.athlete_session_comment && (
+                <p className="text-xs text-foreground/80 italic whitespace-pre-wrap break-words">"{session.athlete_session_comment}"</p>
+              )}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto">
 

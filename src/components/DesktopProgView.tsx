@@ -214,6 +214,8 @@ interface Session {
   ref_strava_id?: number | null;
   ref_strava_url?: string | null;
   strava_id?: number | null;
+  athlete_session_rpe?: number | null;
+  athlete_session_comment?: string | null;
 }
 
 function getSerieDetailsArray(value: any): SerieDetail[] {
@@ -1320,6 +1322,22 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                   <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">Séance Strava (Garmin) de l'athlète — ouvrir</span>
                 </a>
+              )}
+
+              {/* Retour de fin de séance laissé par l'athlète (RPE global + commentaire) */}
+              {(selectedSession.athlete_session_comment || selectedSession.athlete_session_rpe != null) && (
+                <div className="px-4 py-2 border-b border-border/40 bg-primary/5">
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-primary mb-0.5">
+                    <MessageSquare className="h-3 w-3" />
+                    Retour de l'athlète en fin de séance
+                    {selectedSession.athlete_session_rpe != null && (
+                      <span className="ml-2 rounded bg-primary/15 px-1.5 py-0.5">RPE {selectedSession.athlete_session_rpe}/10</span>
+                    )}
+                  </div>
+                  {selectedSession.athlete_session_comment && (
+                    <p className="text-xs text-foreground/80 italic whitespace-pre-wrap break-words">"{selectedSession.athlete_session_comment}"</p>
+                  )}
+                </div>
               )}
 
               {/* Exercise content */}

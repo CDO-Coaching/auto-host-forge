@@ -133,6 +133,9 @@ interface Session {
   ref_strava_id?: number | null;
   ref_strava_url?: string | null;
   strava_id?: number | null; // activité Strava liée par l'athlète à cette séance
+  // Retour de fin de séance laissé par l'athlète (RPE global + commentaire), visible en prog même après copie
+  athlete_session_rpe?: number | null;
+  athlete_session_comment?: string | null;
 }
 
 interface SerieDetail {
@@ -962,6 +965,8 @@ export default function ClientDetail() {
           garmin_link: (s as any).garmin_link ?? null,
           manual_duration_minutes: (s as any).manual_duration_minutes ?? null,
           strava_id: (s as any).linked_strava_activity_id ?? null,
+          athlete_session_rpe: (s as any).session_rpe ?? null,
+          athlete_session_comment: (s as any).session_comment ?? null,
         };
       });
 
@@ -2920,6 +2925,8 @@ export default function ClientDetail() {
             ref_actual_duration: (session as any).duration_minutes ?? null,
             ref_strava_id: type === "cardio" ? ((session as any).linked_strava_activity_id ?? null) : null,
             ref_strava_url: type === "cardio" ? ((session as any).garmin_link ?? null) : null,
+            athlete_session_rpe: (session as any).session_rpe ?? null,
+            athlete_session_comment: (session as any).session_comment ?? null,
           };
         });
 
@@ -3112,6 +3119,8 @@ export default function ClientDetail() {
             ref_actual_duration: (session as any).duration_minutes ?? null,
             ref_strava_id: type === "cardio" ? ((session as any).linked_strava_activity_id ?? null) : null,
             ref_strava_url: type === "cardio" ? ((session as any).garmin_link ?? null) : null,
+            athlete_session_rpe: (session as any).session_rpe ?? null,
+            athlete_session_comment: (session as any).session_comment ?? null,
           };
         });
 
