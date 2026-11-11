@@ -268,7 +268,16 @@ export function QuickCoachNote() {
                 </Button>
               )}
 
-              <CommandDialog open={comboOpen} onOpenChange={setComboOpen}>
+              <CommandDialog
+                open={comboOpen}
+                onOpenChange={setComboOpen}
+                filter={(value, search, keywords) => {
+                  const q = normalizeText(search);
+                  if (!q) return 1;
+                  const hay = `${normalizeText(value)} ${(keywords || []).map(normalizeText).join(" ")}`;
+                  return hay.includes(q) ? 1 : 0;
+                }}
+              >
                 <CommandInput placeholder="Rechercher un client..." />
                 <CommandList>
                   <CommandEmpty>Aucun client trouvé.</CommandEmpty>
