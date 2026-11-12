@@ -73,6 +73,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
     }
   }
   const mesoColor = curMeso ? (curMeso.color || COLORS[Math.max(0, mesos.findIndex((m) => m.id === curMeso.id)) % COLORS.length]) : "#e8c466";
+  const mesoEnd = curMeso ? (curMeso.end_date ? D(curMeso.end_date) : addDays(D(curMeso.start_date), 27)) : null;
   const nextMs = milestones.filter((m) => weeksUntil(m.target_date) >= 0).sort((a, b) => D(a.target_date).getTime() - D(b.target_date).getTime())[0] || null;
   const objWeeks = deadline ? weeksUntil(deadline) : null;
 
@@ -81,7 +82,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
   const microKey = curMicro ? `${curMicro.name}|${format(curMicro.start, "yyyy-MM-dd")}` : "none";
   const tgtKey = nextMs ? `ms:${nextMs.label}|${nextMs.target_date}` : (objName && deadline ? `obj:${deadline}` : "none");
   const signature = `${microKey}##${tgtKey}`;
-  const hasReason = curMicro != null || nextMs != null || (!!objName && !!deadline);
+  const hasReason = curMicro != null || curMeso != null || nextMs != null || (!!objName && !!deadline);
   const ackKey = `prog_ctx_ack_${athleteId}`;
   useEffect(() => {
     if (!loaded || !hasReason) return;
@@ -112,11 +113,16 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
             <div className="mt-4 space-y-2.5">
               {/* Microcycle en cours */}
               <div className="rounded-xl border p-3" style={{ borderColor: `${mesoColor}55`, background: `${mesoColor}12` }}>
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"><Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> Microcycle en cours</div>
+                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"><Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> {curMicro ? "Microcycle en cours" : curMeso ? "Mésocycle en cours" : "Microcycle en cours"}</div>
                 {curMicro ? (
                   <>
                     <p className="text-base font-black mt-0.5" style={SORA}>{curMicro.name}</p>
                     {curMeso && <p className="text-[11px] text-muted-foreground">{curMeso.name} · jusqu'au {format(curMicro.end, "d MMM", { locale: fr })}</p>}
+                  </>
+                ) : curMeso ? (
+                  <>
+                    <p className="text-base font-black mt-0.5" style={SORA}>{curMeso.name}</p>
+                    {mesoEnd && <p className="text-[11px] text-muted-foreground">Mésocycle · jusqu'au {format(mesoEnd, "d MMM", { locale: fr })}</p>}
                   </>
                 ) : (
                   <p className="text-sm text-amber-500 font-medium mt-0.5">⚠️ Aucun microcycle sur la période — à programmer dans Vue d'ensemble.</p>
@@ -157,8 +163,8 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
         </div>
       ), document.body)}
 
-      {/* Rappel : aucun microcycle ne couvre la période en cours */}
-      {!curMicro && (
+      {/* Rappel : aucun micro NI méso ne couvre la période en cours */}
+      {!curMicro && !curMeso && (
         <button type="button" onClick={onGoToOverview}
           className="w-full flex items-center gap-2.5 rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2.5 text-left hover:bg-amber-500/15 transition-colors">
           <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
@@ -171,10 +177,10 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
       )}
 
     <div className="flex gap-2 flex-wrap">
-      {/* Tuile 1 — Microcycle en cours */}
-      <Tile tone={curMicro ? mesoColor : undefined}>
+      {/* Tuile 1 — Microcycle en cours (repli sur le mésocycle si aucun micro) */}
+      <Tile tone={curMicro || curMeso ? mesoColor : undefined}>
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          <Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> Microcycle
+          <Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> {curMicro ? "Microcycle" : curMeso ? "Mésocycle" : "Microcycle"}
         </div>
         {curMicro ? (
           <>
@@ -182,6 +188,14 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
             <div className="flex items-center gap-2 mt-0.5">
               {curMeso && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ color: mesoColor, background: `${mesoColor}22` }}>{curMeso.name}</span>}
               <span className="text-[10px] font-bold text-primary inline-flex items-center gap-0.5"><CalendarClock className="h-3 w-3" /> {fmtLeft(Math.max(0, differenceInCalendarDays(curMicro.end, today)))}</span>
+            </div>
+          </>
+        ) : curMeso ? (
+          <>
+            <p className="text-base font-black leading-tight mt-0.5 truncate" style={SORA}>{curMeso.name}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ color: mesoColor, background: `${mesoColor}22` }}>Mésocycle</span>
+              {mesoEnd && <span className="text-[10px] font-bold text-primary inline-flex items-center gap-0.5"><CalendarClock className="h-3 w-3" /> {fmtLeft(Math.max(0, differenceInCalendarDays(mesoEnd, today)))}</span>}
             </div>
           </>
         ) : (
