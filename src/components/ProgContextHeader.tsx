@@ -219,7 +219,23 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
         )}
       </Tile>
 
-      {/* Tuile 2 — Objectif principal */}
+      {/* Tuile 2 — Prochain sous-objectif */}
+      <Tile tone="#5aa9e6">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          <Flag className="h-3.5 w-3.5" style={{ color: "#5aa9e6" }} /> Prochain sous-objectif
+        </div>
+        {nextMs ? (
+          <>
+            <p className="text-base font-black leading-tight mt-0.5 truncate" style={SORA}>{nextMs.label}</p>
+            <span className={cn("text-[11px] font-bold inline-flex items-center gap-1 mt-0.5", weeksUntil(nextMs.target_date) <= 1 ? "text-orange-400" : "text-foreground")}>
+              <CalendarClock className="h-3 w-3" /> {weeksUntil(nextMs.target_date) === 0 ? "cette semaine !" : `dans ${weeksUntil(nextMs.target_date)} sem.`}
+              <span className="text-muted-foreground font-normal">· {format(D(nextMs.target_date), "d MMM", { locale: fr })}</span>
+            </span>
+          </>
+        ) : <p className="text-sm text-muted-foreground italic mt-1">Aucun sous-objectif à venir</p>}
+      </Tile>
+
+      {/* Tuile 3 — Objectif principal */}
       <Tile tone="#e8c466">
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
           <Target className="h-3.5 w-3.5 text-primary" /> Objectif
@@ -234,22 +250,6 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
             )}
           </>
         ) : <p className="text-sm text-muted-foreground italic mt-1">Aucun objectif défini</p>}
-      </Tile>
-
-      {/* Tuile 3 — Prochain sous-objectif */}
-      <Tile tone="#5aa9e6">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          <Flag className="h-3.5 w-3.5" style={{ color: "#5aa9e6" }} /> Prochain sous-objectif
-        </div>
-        {nextMs ? (
-          <>
-            <p className="text-base font-black leading-tight mt-0.5 truncate" style={SORA}>{nextMs.label}</p>
-            <span className={cn("text-[11px] font-bold inline-flex items-center gap-1 mt-0.5", weeksUntil(nextMs.target_date) <= 1 ? "text-orange-400" : "text-foreground")}>
-              <CalendarClock className="h-3 w-3" /> {weeksUntil(nextMs.target_date) === 0 ? "cette semaine !" : `dans ${weeksUntil(nextMs.target_date)} sem.`}
-              <span className="text-muted-foreground font-normal">· {format(D(nextMs.target_date), "d MMM", { locale: fr })}</span>
-            </span>
-          </>
-        ) : <p className="text-sm text-muted-foreground italic mt-1">Aucun sous-objectif à venir</p>}
       </Tile>
     </div>
     </div>
