@@ -11,6 +11,7 @@ import { ExerciseFeedbackDialog } from "@/components/ExerciseFeedbackDialog";
 import { CardioFeedbackDialog } from "@/components/CardioFeedbackDialog";
 import { SessionCompletionDialog } from "@/components/SessionCompletionDialog";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
+import { SessionGuidedPlayer } from "@/components/SessionGuidedPlayer";
 import { FloatingSessionTimer } from "@/components/FloatingSessionTimer";
 import { AthleteFatigueAlert } from "@/components/AthleteFatigueAlert";
 import { NewRequestDialog } from "@/components/NewRequestDialog";
@@ -54,6 +55,8 @@ export default function SeanceDetail() {
   const [session, setSession] = useState<any>(null);
   const [requestOpen, setRequestOpen] = useState(false);
   const [exercises, setExercises] = useState<any[]>([]);
+  const [rawExercises, setRawExercises] = useState<any[]>([]);
+  const [guidedSessionOpen, setGuidedSessionOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
   const [sessionDuration, setSessionDuration] = useState<number>(0);
@@ -447,6 +450,7 @@ export default function SeanceDetail() {
     });
 
     setExercises(sorted);
+    setRawExercises([...exData].sort((a: any, b: any) => (a.exercise_order ?? 0) - (b.exercise_order ?? 0)));
     setLoading(false);
   };
 
@@ -1132,6 +1136,24 @@ export default function SeanceDetail() {
           relatedSessionId={sessionId}
           contextLabel={`Séance : ${session.name}`}
         />
+
+        {/* Séance guidée (renfo) — enchaîne tous les exercices */}
+        {!isCardioSession && !isRecupMobilitySession && !allCompleted &&
+          rawExercises.filter((e: any) => (e?.exercice || "").trim() && !e?.cardio_sport).length > 0 && (
+          <Button
+            onClick={() => { if (!isSessionActive) startSession(); setGuidedSessionOpen(true); }}
+            className="w-full h-12 gap-2 bg-primary text-primary-foreground font-bold"
+          >
+            <Play className="h-5 w-5" /> Démarrer la séance guidée
+          </Button>
+        )}
+        {guidedSessionOpen && (
+          <SessionGuidedPlayer
+            exercises={rawExercises}
+            onClose={() => { setGuidedSessionOpen(false); loadSessionDetail(); }}
+            onFinish={() => { setGuidedSessionOpen(false); loadSessionDetail(); setCompletionDialogOpen(true); }}
+          />
+        )}
 
         {/* Séance marquée non faite par l'athlète */}
         {(session as any)?.skipped && (

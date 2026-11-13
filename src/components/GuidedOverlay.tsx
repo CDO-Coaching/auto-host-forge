@@ -22,6 +22,7 @@ export interface GuidedStep {
   refCharge?: string;  // charge demandée (consigne) pour affichage
   refRpe?: string;     // RPE demandé
   refTempo?: string;   // tempo demandé
+  description?: string; // consigne d'exécution (bibliothèque) affichée sur la 1re série
   videoUrl?: string;   // lien vidéo de démonstration si dispo
   phaseLabel?: string;
   phaseColor?: string;
@@ -208,6 +209,9 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                   )}
                   <h2 className="text-2xl sm:text-3xl font-extrabold uppercase leading-tight tracking-tight" style={{ color: step.exColor || "#e8c466", ...sora }}>{step.exName}</h2>
                 </div>
+              )}
+              {step.description && (
+                <p className="mt-2 text-[13px] leading-snug text-white/70 max-w-md mx-auto whitespace-pre-line">{step.description}</p>
               )}
               {/* Consigne demandée par le coach — RPE en priorité */}
               {step.refRpe && (() => {

@@ -1482,12 +1482,7 @@ export default function ExerciceDetail() {
           </Card>
         )}
 
-        {/* Lancer en mode guidé pas-à-pas */}
-        {seriesData.length > 0 && !allSeriesValidated && !isEmomRecovery && (
-          <Button onClick={startGuided} className="w-full h-12 mb-1 gap-2 bg-primary text-primary-foreground font-bold">
-            <Play className="h-5 w-5" /> Lancer en mode guidé
-          </Button>
-        )}
+        {/* Mode guidé déplacé au niveau de la séance (bouton « Démarrer la séance guidée »). */}
 
         {/* Séries — tableau interactif avec bouton valider */}
         {seriesData.length > 0 && (
