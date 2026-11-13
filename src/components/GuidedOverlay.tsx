@@ -33,9 +33,12 @@ export interface GuidedStep {
   nextLabel?: string;
   nextPreview?: string;
   rpeTargets?: { id: string; label: string; color?: string }[];
+  exId?: string;        // id de l'exercice d'origine (pour reporter tout l'exo)
+  compact?: boolean;    // masque l'en-tête (numéro + nom) — transitions entre séries
   // callbacks
   onDone?: (data: { reps?: string; charge?: string }) => void;
   onSkip?: () => void;
+  onDefer?: () => void; // reporter cet exercice (toutes ses séries) en fin de séance
   onRpe?: (rpe: number, targetId?: string) => void;
   onComment?: (text: string) => void;
 }
@@ -93,7 +96,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
       setMode("stopped");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx]);
+  }, [idx, step?.id]);
 
   // Décompte (prep → run → stop). Ne passe jamais à l'étape suivante tout seul.
   useEffect(() => {
@@ -213,7 +216,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
         {step.type === "work" ? (
           <div className="flex-1 flex flex-col justify-center gap-5">
             <div className="text-center">
-              {step.exName && (
+              {step.exName && !step.compact && (
                 <div className="flex flex-col items-center gap-2">
                   {step.exNumber != null && (
                     <span className="h-6 w-6 rounded-full flex items-center justify-center text-[12px] font-extrabold" style={{ background: step.exColor || "#e8c466", color: "#1a1a1a" }}>{step.exNumber}</span>
@@ -293,6 +296,18 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               )}
             </div>
 
+            {/* Revoir la démo pendant la récup (n'interrompt pas le chrono) */}
+            {step.videoUrl && (
+              <div className="text-center">
+                <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-bold"
+                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}
+                >
+                  <Video className="h-4 w-4" /> Revoir la démo
+                </ExerciseVideoDialog>
+              </div>
+            )}
+
             {lastDone && (lastDone.reps || lastDone.charge) && (
               <div className="rounded-2xl border border-green-500/30 bg-green-500/[0.05] p-3">
                 <div className="flex items-center gap-2 text-[13px] font-bold text-green-500"><Check className="h-4 w-4" /> Série validée</div>
@@ -367,6 +382,12 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                     </button>
                   )}
                 </>
+              )}
+              {step.onDefer && (
+                <button onClick={() => step.onDefer?.()} className="w-full h-12 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2"
+                  style={{ border: "1px solid #e8974a55", background: "rgba(232,151,74,0.08)", color: "#e8974a", ...sora }}>
+                  <ChevronRight className="h-[18px] w-[18px]" /> Machine prise — faire cet exo plus tard
+                </button>
               )}
               {step.onSkip && (
                 <button onClick={skipWork} className="w-full h-12 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2"

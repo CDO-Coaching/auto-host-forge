@@ -61,6 +61,16 @@ export function SessionGuidedPlayer({
   const [libByName, setLibByName] = useState<Record<string, { video_url?: string; description?: string }>>({});
   const [ready, setReady] = useState(false);
   const resultsRef = useRef<Record<string, SerieResult[]>>({});
+  const [orderedSteps, setOrderedSteps] = useState<GuidedStep[]>([]);
+
+  // Reporter un exercice (toutes ses séries) en fin de séance.
+  const deferExercise = (exId: string) => {
+    setOrderedSteps((prev) => {
+      const block = prev.filter((s) => s.exId === exId);
+      const rest = prev.filter((s) => s.exId !== exId);
+      return [...rest, ...block];
+    });
+  };
 
   // Charge vidéos + descriptions depuis la bibliothèque (par nom).
   useEffect(() => {
@@ -127,9 +137,9 @@ export function SessionGuidedPlayer({
         const lastOfSession = exIdx === list.length - 1 && i === n - 1;
         const lastOfExercise = i === n - 1;
         const nextLabel = lastOfSession
-          ? "Fin de la séance"
+          ? "Bravo, séance terminée 🎉"
           : lastOfExercise
-            ? `Exercice suivant : ${list[exIdx + 1]?.exercice || ""}`
+            ? `Bravo ! 👏 Exercice suivant : ${list[exIdx + 1]?.exercice || ""}`
             : `Série ${i + 2}`;
 
         const base: Partial<GuidedStep> = {
@@ -157,7 +167,7 @@ export function SessionGuidedPlayer({
             const isExerciseStart = firstSerieOfExercise && isFirstSide;
             out.push({
               ...(base as GuidedStep),
-              id, type: "work", isDuration: true, seconds: dur,
+              id, exId: ex.id, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined,
               refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel, phaseColor: "#52b788",
@@ -165,6 +175,10 @@ export function SessionGuidedPlayer({
               autoStart: !isExerciseStart,
               autoAdvance: true,
               prepSeconds: isExerciseStart ? 10 : 3,
+              // En-tête masqué entre les séries auto (nom affiché seulement au départ).
+              compact: !isExerciseStart,
+              // Reporter tout l'exercice en fin de séance (uniquement 1re série).
+              onDefer: isExerciseStart ? () => deferExercise(ex.id) : undefined,
               // Sur l'écran de départ : structure de l'exercice + consigne biblio.
               description: isExerciseStart
                 ? [structure, lib.description].filter(Boolean).join("\n\n")
@@ -180,16 +194,18 @@ export function SessionGuidedPlayer({
           if (lastOfExercise) {
             // Fin de l'exercice : on note le RPE + commentaire (pas d'auto-avance).
             out.push({
-              id: `r${exIdx}_${i}`, type: "recup", seconds: 0, nextLabel,
+              id: `r${exIdx}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel,
+              videoUrl: lib.video_url || undefined,
               onRpe: (rpe) => setResult(ex.id, i, { rpe }),
               onComment: (text) => setResult(ex.id, i, { comment: text }),
             });
           } else {
             // Repos auto entre séries (EMOM : la minute inclut le repos → 0).
             out.push({
-              id: `r${exIdx}_${i}`, type: "recup",
+              id: `r${exIdx}_${i}`, exId: ex.id, type: "recup",
               seconds: isEmom ? 0 : recupSeconds(sd.recuperation),
               nextLabel, autoAdvance: true,
+              videoUrl: lib.video_url || undefined,
             });
           }
           return;
@@ -209,14 +225,16 @@ export function SessionGuidedPlayer({
         const prev = out[out.length - 1];
         out.push({
           ...(workBase as GuidedStep),
-          id: `w${exIdx}_${i}`, type: "work", phaseColor: "#52b788",
+          id: `w${exIdx}_${i}`, exId: ex.id, type: "work", phaseColor: "#52b788",
           autoStart: !!prev && prev.type === "work",
           prepSeconds: 0,
+          onDefer: firstSerieOfExercise ? () => deferExercise(ex.id) : undefined,
           onDone: (d) => setResult(ex.id, i, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
         });
         const recSec = lastOfSession ? 0 : lastOfExercise ? (recupSeconds(sd.recuperation) || 30) : recupSeconds(sd.recuperation);
         out.push({
-          id: `r${exIdx}_${i}`, type: "recup", seconds: recSec, nextLabel,
+          id: `r${exIdx}_${i}`, exId: ex.id, type: "recup", seconds: recSec, nextLabel,
+          videoUrl: lib.video_url || undefined,
           onRpe: (rpe) => setResult(ex.id, i, { rpe }),
           onComment: (text) => setResult(ex.id, i, { comment: text }),
         });
@@ -226,11 +244,14 @@ export function SessionGuidedPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, exercises, libByName]);
 
-  if (!ready || steps.length === 0) return null;
+  // Initialise l'ordre jouable (modifiable ensuite par « reporter l'exercice »).
+  useEffect(() => { setOrderedSteps(steps); }, [steps]);
+
+  if (!ready || orderedSteps.length === 0) return null;
 
   return (
     <GuidedOverlay
-      steps={steps}
+      steps={orderedSteps}
       onClose={onClose}
       onFinish={() => { onFinish?.(); }}
     />
