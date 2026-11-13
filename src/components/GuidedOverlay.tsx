@@ -27,6 +27,7 @@ export interface GuidedStep {
   phaseLabel?: string;
   phaseColor?: string;
   autoStart?: boolean;   // l'effort démarre seul (enchaînement) au lieu d'attendre « Je suis prêt »
+  autoAdvance?: boolean; // passe automatiquement à l'étape suivante quand le chrono se termine
   prepSeconds?: number;  // décompte de préparation avant l'effort (10s au 1er tour)
   // recup
   nextLabel?: string;
@@ -107,6 +108,16 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
       });
     }, 1000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, idx]);
+
+  // Auto-enchaînement : quand le chrono se termine sur une étape marquée autoAdvance
+  // (et qui n'attend pas de RPE), on passe seul à l'étape suivante.
+  useEffect(() => {
+    if (mode !== "stopped") return;
+    if (!step?.autoAdvance || step?.onRpe) return;
+    const t = setTimeout(() => { goNext(); }, 700);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, idx]);
 

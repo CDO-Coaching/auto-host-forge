@@ -1137,16 +1137,6 @@ export default function SeanceDetail() {
           contextLabel={`Séance : ${session.name}`}
         />
 
-        {/* Séance guidée (renfo) — enchaîne tous les exercices */}
-        {!isCardioSession && !isRecupMobilitySession && !allCompleted &&
-          rawExercises.filter((e: any) => (e?.exercice || "").trim() && !e?.cardio_sport).length > 0 && (
-          <Button
-            onClick={() => { if (!isSessionActive) startSession(); setGuidedSessionOpen(true); }}
-            className="w-full h-12 gap-2 bg-primary text-primary-foreground font-bold"
-          >
-            <Play className="h-5 w-5" /> Démarrer la séance guidée
-          </Button>
-        )}
         {guidedSessionOpen && (
           <SessionGuidedPlayer
             exercises={rawExercises}
@@ -1194,12 +1184,21 @@ export default function SeanceDetail() {
         {/* Masquer les boutons pour les séances cardio pures */}
         {!allCompleted && !isCardioSession ? (
           !isSessionActive ? (
-            <div className="rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 flex items-center gap-3">
-              <Play className="h-5 w-5 text-primary shrink-0" />
-              <p className="text-sm font-medium leading-snug">
-                Touche un exercice pour <span className="text-primary font-semibold">démarrer la séance</span>.
-              </p>
-            </div>
+            !isRecupMobilitySession && rawExercises.filter((e: any) => (e?.exercice || "").trim() && !e?.cardio_sport).length > 0 ? (
+              <Button
+                onClick={() => { if (!isSessionActive) startSession(); setGuidedSessionOpen(true); }}
+                className="w-full h-12 gap-2 bg-primary text-primary-foreground font-bold"
+              >
+                <Play className="h-5 w-5" /> Tester le nouveau mode de séance
+              </Button>
+            ) : (
+              <div className="rounded-xl border border-primary/30 bg-primary/[0.07] px-4 py-3 flex items-center gap-3">
+                <Play className="h-5 w-5 text-primary shrink-0" />
+                <p className="text-sm font-medium leading-snug">
+                  Touche un exercice pour <span className="text-primary font-semibold">démarrer la séance</span>.
+                </p>
+              </div>
+            )
           ) : (
             <div className="rounded-xl border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-3">
               <ArrowLeft className="h-4 w-4 text-muted-foreground shrink-0 rotate-[-90deg]" />
