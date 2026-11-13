@@ -87,12 +87,17 @@ export function SessionGuidedPlayer({
 
   const persist = async (exId: string) => {
     const arr = resultsRef.current[exId] || [];
-    const details = arr.map((s) => ({
-      rpe: s?.rpe ?? null,
-      actual_reps: s?.actual_reps ?? null,
-      actual_charge: s?.actual_charge ?? null,
-      modification_type: null,
-    }));
+    // Tableau dense sans trous (sinon JSON écrit des `null` qui plantent la vue coach).
+    const details: any[] = [];
+    for (let i = 0; i < arr.length; i++) {
+      const s = arr[i] || {};
+      details.push({
+        rpe: s.rpe ?? null,
+        actual_reps: s.actual_reps ?? null,
+        actual_charge: s.actual_charge ?? null,
+        modification_type: null,
+      });
+    }
     const rpes = arr.filter((s) => s && s.rpe != null).map((s) => s!.rpe as number);
     const avg = rpes.length ? Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length) : null;
     const comments = arr.map((s, i) => (s?.comment?.trim() ? `- Série ${i + 1} : ${s.comment.trim()}` : null)).filter(Boolean);

@@ -4120,7 +4120,12 @@ export default function ClientDetail() {
   // Helper pour obtenir le feedback de la semaine copiée
   const getExerciseFeedback = (sessionId: number, exerciceName: string) => {
     const feedbackKey = `${sessionId}-${exerciceName}`;
-    return copiedWeekFeedback[feedbackKey] || null;
+    const fb = copiedWeekFeedback[feedbackKey] || null;
+    if (fb && Array.isArray((fb as any).serie_rpe_details)) {
+      // Assainit les éventuelles entrées nulles (séries non renseignées).
+      return { ...fb, serie_rpe_details: (fb as any).serie_rpe_details.map((d: any) => d || {}) } as any;
+    }
+    return fb;
   };
 
   // Composant pour afficher le feedback

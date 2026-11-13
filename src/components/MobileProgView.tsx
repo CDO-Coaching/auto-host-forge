@@ -302,7 +302,7 @@ function RenfoExerciseRow({
                 ) : (
                   <span className="text-muted-foreground inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                     {(() => {
-                      const details = feedback.serie_rpe_details || [];
+                      const details = (feedback.serie_rpe_details || []).filter(Boolean);
                       const hasFailure = details.some((d) => d.modification_type === "failure");
                       const hasTooEasy = details.some((d) => d.modification_type === "too_easy");
                       if (!hasFailure && !hasTooEasy) return null;
