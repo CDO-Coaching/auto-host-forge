@@ -653,15 +653,18 @@ export default function SeanceDetail() {
       }
     }
 
-    // RPE global = moyenne des RPE des exercices réellement faits (hors passés)
+    // RPE global = moyenne des RPE des exercices réellement faits (hors passés).
+    // Lu FRAIS depuis la DB (l'état local peut être périmé juste après le mode guidé).
     const rpeVals: number[] = [];
-    exercises.forEach((item: any) => {
-      if (item.isSuperset) {
-        (item.exercises || []).forEach((ex: any) => { if (ex.sportif_rpe != null && !ex.skipped) rpeVals.push(Number(ex.sportif_rpe)); });
-      } else if (item.sportif_rpe != null && !item.skipped) {
-        rpeVals.push(Number(item.sportif_rpe));
-      }
-    });
+    try {
+      const { data: freshEx } = await supabase
+        .from("session_exercises")
+        .select("sportif_rpe, skipped")
+        .eq("session_id", sessionId);
+      (freshEx || []).forEach((ex: any) => {
+        if (ex.sportif_rpe != null && !ex.skipped) rpeVals.push(Number(ex.sportif_rpe));
+      });
+    } catch { /* ignore */ }
     const avgRpe = rpeVals.length > 0
       ? Math.round(rpeVals.reduce((a, b) => a + b, 0) / rpeVals.length)
       : (data.rpe || null);
