@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Check, Play, Pause, ChevronRight, MessageSquarePlus, Pencil, Video } from "lucide-react";
+import { ExerciseVideoDialog } from "@/components/ExerciseVideoDialog";
 
 export interface GuidedStep {
   id: string;
@@ -227,11 +228,12 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
                 </div>
               )}
               {step.videoUrl && (
-                <a href={step.videoUrl} target="_blank" rel="noopener noreferrer"
+                <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
                   className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-[13px] font-bold"
-                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}>
+                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}
+                >
                   <Video className="h-4 w-4" /> Revoir la démo
-                </a>
+                </ExerciseVideoDialog>
               )}
               {step.isDuration ? (
                 <div className="mt-5 bg-[#141414] rounded-3xl p-7" style={{ border: `2px solid ${(mode === "prep" ? "#f59e0b" : phaseColor)}55` }}>

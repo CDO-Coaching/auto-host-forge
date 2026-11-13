@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ExerciseVideoDialog } from "@/components/ExerciseVideoDialog";
 
 const SS_RPE_WORDS: Record<number, string> = { 1: "Repos", 2: "Très facile", 3: "Facile", 4: "Confortable", 5: "Modéré", 6: "Soutenu", 7: "Difficile", 8: "Intense", 9: "Extrême", 10: "Maximal" };
 const ssRpeWord = (v: number) => SS_RPE_WORDS[Math.round(v)] || `${v}`;
@@ -1037,7 +1038,7 @@ export default function SupersetDetail() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-semibold text-sm uppercase">{ex.exercice}</span>
                               {videoUrls[ex.exercice] && (
-                                <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-base" onClick={(e) => e.stopPropagation()}>🎥</a>
+                                <ExerciseVideoDialog url={videoUrls[ex.exercice]} title={ex.exercice} className="text-base">🎥</ExerciseVideoDialog>
                               )}
                             </div>
                             {/* Détails en pills */}
@@ -1124,7 +1125,7 @@ export default function SupersetDetail() {
                         <span className="flex items-center justify-center h-6 w-6 rounded-full text-sm font-extrabold shrink-0" style={{ backgroundColor: `${col}22`, color: col }}>{idx + 1}</span>
                         <span className="font-semibold text-sm uppercase">{ex.exercice}</span>
                         {videoUrls[ex.exercice] && (
-                          <a href={videoUrls[ex.exercice]} target="_blank" rel="noopener noreferrer" className="text-base" onClick={(e) => e.stopPropagation()}>🎥</a>
+                          <ExerciseVideoDialog url={videoUrls[ex.exercice]} title={ex.exercice} className="text-base">🎥</ExerciseVideoDialog>
                         )}
                       </div>
                       {(ex as any).commentaire && (

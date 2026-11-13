@@ -28,6 +28,7 @@ import { BarChart3 } from "lucide-react";
 import { formatDurationSec } from "@/lib/formatDuration";
 import { unitModeOf, unitLabel } from "@/lib/exerciseUnit";
 import { SoundSystem } from "@/lib/soundSystem";
+import { ExerciseVideoDialog } from "@/components/ExerciseVideoDialog";
 import {
   Dialog,
   DialogContent,
@@ -1396,13 +1397,12 @@ export default function ExerciceDetail() {
           )}
         </div>
 
-        {/* Vidéo de démonstration — mise en avant */}
+        {/* Vidéo de démonstration — mise en avant (lecture dans l'app) */}
         {videoUrl && (
-          <a
-            href={videoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-3 rounded-xl border-2 border-primary/50 bg-primary/10 px-4 py-3 active:scale-[0.99] transition-transform"
+          <ExerciseVideoDialog
+            url={videoUrl}
+            title={exercise?.exercice}
+            className="w-full flex items-center gap-3 rounded-xl border-2 border-primary/50 bg-primary/10 px-4 py-3 active:scale-[0.99] transition-transform text-left"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
               <Play className="h-5 w-5" />
@@ -1411,7 +1411,7 @@ export default function ExerciceDetail() {
               <p className="text-sm font-bold text-primary leading-tight">Vidéo dispo — regarder la démo</p>
               <p className="text-[11px] text-muted-foreground leading-tight">Comment bien faire le mouvement</p>
             </div>
-          </a>
+          </ExerciseVideoDialog>
         )}
 
         {/* Dialog : muscles sollicités sur la silhouette */}
