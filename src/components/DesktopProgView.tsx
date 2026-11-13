@@ -1608,6 +1608,21 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                     <Checkbox checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
                                     par côté
                                   </label>
+                                  <div className="flex items-center gap-1 ml-1">
+                                    <span className="text-xs text-muted-foreground">séries</span>
+                                    <button type="button" disabled={isValidated}
+                                      className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                      onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(Math.max(1, cur - 1))); }}>−</button>
+                                    <Input
+                                      value={exercise.series || "1"}
+                                      onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value.replace(/[^0-9]/g, "") || "1")}
+                                      className="w-10 text-center px-1"
+                                      disabled={isValidated}
+                                    />
+                                    <button type="button" disabled={isValidated}
+                                      className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                      onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(cur + 1)); }}>+</button>
+                                  </div>
                                 </div>
                               </TableCell>
                               <TableCell>
