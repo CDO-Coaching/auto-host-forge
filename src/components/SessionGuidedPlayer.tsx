@@ -18,7 +18,7 @@ function recupSeconds(raw: string | null | undefined): number {
   return tot;
 }
 
-type Serie = { reps: string; charge: string; rpe: string; tempo: string; recuperation: string };
+type Serie = { reps: string; charge: string; rpe: string; tempo: string; recuperation: string; commentaire: string };
 
 function seriesOf(ex: any): Serie[] {
   let details: any[] = [];
@@ -37,6 +37,7 @@ function seriesOf(ex: any): Serie[] {
       rpe: (d.rpe || ex?.rpe || "").toString(),
       tempo: (d.tempo || ex?.tempo || "").toString(),
       recuperation: (d.recuperation || ex?.recuperation || "").toString(),
+      commentaire: (d.commentaire || ex?.commentaire || "").toString(),
     });
   }
   return out;
@@ -63,11 +64,12 @@ export function SessionGuidedPlayer({
   const resultsRef = useRef<Record<string, SerieResult[]>>({});
   const [orderedSteps, setOrderedSteps] = useState<GuidedStep[]>([]);
 
-  // Reporter un exercice (toutes ses séries) en fin de séance.
-  const deferExercise = (exId: string) => {
+  // Reporter un (ou plusieurs, pour un superset) exercice(s) en fin de séance.
+  const deferExercises = (exIds: string[]) => {
+    const set = new Set(exIds);
     setOrderedSteps((prev) => {
-      const block = prev.filter((s) => s.exId === exId);
-      const rest = prev.filter((s) => s.exId !== exId);
+      const block = prev.filter((s) => s.exId && set.has(s.exId));
+      const rest = prev.filter((s) => !(s.exId && set.has(s.exId)));
       return [...rest, ...block];
     });
   };
@@ -114,131 +116,190 @@ export function SessionGuidedPlayer({
     if (!ready) return [];
     const out: GuidedStep[] = [];
     const list = (exercises || []).filter((ex) => (ex?.exercice || "").trim().length > 0 && !ex?.cardio_sport);
-    list.forEach((ex, exIdx) => {
+
+    const libOf = (ex: any) => libByName[(ex?.exercice || "").trim().toLowerCase()] || {};
+    const colorOf = (n: number) => EX_COLORS[((n % EX_COLORS.length) + EX_COLORS.length) % EX_COLORS.length];
+    const emomOf = (ex: any, sData: Serie[]) => String(ex?.recuperation || "").trim().toLowerCase() === "emom"
+      || sData.some((s) => String(s.recuperation || "").trim().toLowerCase() === "emom");
+    const chargeInfo = (raw: string) => {
+      const chargeRaw = String(raw || "").trim();
+      const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
+      const isPct = /%/.test(chargeRaw);
+      return {
+        chargeNeedsInput,
+        targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
+        refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
+      };
+    };
+    const coachNoteOf = (ex: any, sd: Serie) => (sd?.commentaire || ex?.commentaire || "").trim();
+
+    // ── Exercice simple ───────────────────────────────────────────────────────
+    const pushExercise = (ex: any, number: number, congrats: string) => {
       const sData = seriesOf(ex);
       const isDur = ex?.is_duration === true;
       const perSide = ex?.per_side === true;
       const n = sData.length;
-      const key = (ex?.exercice || "").trim().toLowerCase();
-      const lib = libByName[key] || {};
-      const color = EX_COLORS[exIdx % EX_COLORS.length];
-
-      const isEmom = String(ex?.recuperation || "").trim().toLowerCase() === "emom"
-        || sData.some((s) => String(s.recuperation || "").trim().toLowerCase() === "emom");
-      // Auto-enchaînement : exos en temps de travail (durée) ou en EMOM.
+      const lib = libOf(ex);
+      const color = colorOf(number - 1);
+      const isEmom = emomOf(ex, sData);
       const autoChain = isDur || isEmom;
 
       sData.forEach((sd, i) => {
-        const chargeRaw = String(sd.charge || "").trim();
-        const chargeNeedsInput = chargeRaw === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(chargeRaw);
-        const isPct = /%/.test(chargeRaw);
         const dur = isEmom ? 60 : (isDur ? (parseInt(String(sd.reps), 10) || 0) : 0);
-        const firstSerieOfExercise = i === 0;
-        const lastOfSession = exIdx === list.length - 1 && i === n - 1;
-        const lastOfExercise = i === n - 1;
-        const nextLabel = lastOfSession
-          ? "Bravo, séance terminée 🎉"
-          : lastOfExercise
-            ? `Bravo ! 👏 Exercice suivant : ${list[exIdx + 1]?.exercice || ""}`
-            : `Série ${i + 2}`;
-
+        const firstSerie = i === 0;
+        const lastSerie = i === n - 1;
+        const nextLabel = lastSerie ? congrats : `Série ${i + 2}`;
+        const coachNote = coachNoteOf(ex, sd);
         const base: Partial<GuidedStep> = {
-          exName: ex.exercice,
-          exNumber: exIdx + 1,
-          exColor: color,
+          exName: ex.exercice, exNumber: number, exColor: color,
           serieLabel: `Série ${i + 1} / ${n}`,
           videoUrl: lib.video_url || undefined,
-          isDistance: ex?.is_distance === true,
-          perSide,
-          description: i === 0 ? (lib.description || undefined) : undefined,
+          isDistance: ex?.is_distance === true, perSide, exId: ex.id,
         };
 
         if (autoChain) {
-          // ── Exercice auto-enchaîné (durée / EMOM / intervalles) ────────────
           const restSec = recupSeconds(sd.recuperation);
-          // Résumé de la structure, affiché sur l'écran de départ de l'exercice.
           const structure = isEmom
             ? `${sd.reps || "?"} reps chaque minute × ${n}`
-            : (restSec > 0
-              ? `${dur} s d'effort / ${restSec} s de récup × ${n}`
-              : `${dur} s × ${n}`);
-          const workPhase = isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y";
+            : (restSec > 0 ? `${dur} s d'effort / ${restSec} s de récup × ${n}` : `${dur} s × ${n}`);
+          const startDesc = [structure, coachNote, lib.description].filter(Boolean).join("\n\n");
           const pushAutoWork = (id: string, phaseLabel: string, isFirstSide: boolean) => {
-            const isExerciseStart = firstSerieOfExercise && isFirstSide;
+            const isStart = firstSerie && isFirstSide;
             out.push({
-              ...(base as GuidedStep),
-              id, exId: ex.id, type: "work", isDuration: true, seconds: dur,
-              refRpe: sd.rpe ? String(sd.rpe) : undefined,
-              refTempo: sd.tempo ? String(sd.tempo) : undefined,
+              ...(base as GuidedStep), id, type: "work", isDuration: true, seconds: dur,
+              refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel, phaseColor: "#52b788",
-              // La 1re série attend que l'athlète lance ; les suivantes s'enchaînent.
-              autoStart: !isExerciseStart,
-              autoAdvance: true,
-              prepSeconds: isExerciseStart ? 10 : 3,
-              // En-tête masqué entre les séries auto (nom affiché seulement au départ).
-              compact: !isExerciseStart,
-              // Reporter tout l'exercice en fin de séance (uniquement 1re série).
-              onDefer: isExerciseStart ? () => deferExercise(ex.id) : undefined,
-              // Sur l'écran de départ : structure de l'exercice + consigne biblio.
-              description: isExerciseStart
-                ? [structure, lib.description].filter(Boolean).join("\n\n")
-                : undefined,
+              autoStart: !isStart, autoAdvance: true, prepSeconds: isStart ? 10 : 3, compact: !isStart,
+              onDefer: isStart ? () => deferExercises([ex.id]) : undefined,
+              description: isStart ? startDesc : undefined,
             });
           };
           if (isDur && perSide) {
-            pushAutoWork(`w${exIdx}_${i}a`, "🔥 Côté 1", true);
-            pushAutoWork(`w${exIdx}_${i}b`, "🔥 Côté 2", false);
+            pushAutoWork(`w_${ex.id}_${i}a`, "🔥 Côté 1", true);
+            pushAutoWork(`w_${ex.id}_${i}b`, "🔥 Côté 2", false);
           } else {
-            pushAutoWork(`w${exIdx}_${i}`, workPhase, true);
+            pushAutoWork(`w_${ex.id}_${i}`, isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y", true);
           }
-          if (lastOfExercise) {
-            // Fin de l'exercice : on note le RPE + commentaire (pas d'auto-avance).
-            out.push({
-              id: `r${exIdx}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel,
-              videoUrl: lib.video_url || undefined,
-              onRpe: (rpe) => setResult(ex.id, i, { rpe }),
-              onComment: (text) => setResult(ex.id, i, { comment: text }),
-            });
-          } else {
-            // Repos auto entre séries (EMOM : la minute inclut le repos → 0).
-            out.push({
-              id: `r${exIdx}_${i}`, exId: ex.id, type: "recup",
-              seconds: isEmom ? 0 : recupSeconds(sd.recuperation),
-              nextLabel, autoAdvance: true,
-              videoUrl: lib.video_url || undefined,
-            });
-          }
+          out.push(lastSerie
+            ? { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel, videoUrl: lib.video_url || undefined, onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }) }
+            : { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: isEmom ? 0 : restSec, nextLabel, autoAdvance: true, videoUrl: lib.video_url || undefined });
           return;
         }
 
-        // ── Exercice classique (reps/charge) : validation + RPE par série ─────
-        const workBase: Partial<GuidedStep> = {
-          ...base,
-          isDuration: false,
-          targetReps: String(sd.reps || ""),
-          targetCharge: chargeNeedsInput || isPct ? "" : chargeRaw,
-          chargeNeedsInput,
-          refCharge: chargeNeedsInput ? "à définir" : (chargeRaw ? `${chargeRaw}${/^\d+(\.\d+)?$/.test(chargeRaw) ? " kg" : ""}` : undefined),
-          refRpe: sd.rpe ? String(sd.rpe) : undefined,
-          refTempo: sd.tempo ? String(sd.tempo) : undefined,
-        };
+        // reps / charge classiques
+        const ci = chargeInfo(sd.charge);
+        const startDesc = [coachNote, lib.description].filter(Boolean).join("\n\n") || undefined;
         const prev = out[out.length - 1];
         out.push({
-          ...(workBase as GuidedStep),
-          id: `w${exIdx}_${i}`, exId: ex.id, type: "work", phaseColor: "#52b788",
-          autoStart: !!prev && prev.type === "work",
-          prepSeconds: 0,
-          onDefer: firstSerieOfExercise ? () => deferExercise(ex.id) : undefined,
+          ...(base as GuidedStep), id: `w_${ex.id}_${i}`, type: "work", isDuration: false,
+          targetReps: String(sd.reps || ""), targetCharge: ci.targetCharge, chargeNeedsInput: ci.chargeNeedsInput,
+          refCharge: ci.refCharge, refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
+          phaseColor: "#52b788", autoStart: !!prev && prev.type === "work",
+          description: firstSerie ? startDesc : undefined,
+          onDefer: firstSerie ? () => deferExercises([ex.id]) : undefined,
           onDone: (d) => setResult(ex.id, i, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
         });
-        const recSec = lastOfSession ? 0 : lastOfExercise ? (recupSeconds(sd.recuperation) || 30) : recupSeconds(sd.recuperation);
         out.push({
-          id: `r${exIdx}_${i}`, exId: ex.id, type: "recup", seconds: recSec, nextLabel,
+          id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: lastSerie ? 0 : recupSeconds(sd.recuperation), nextLabel,
           videoUrl: lib.video_url || undefined,
-          onRpe: (rpe) => setResult(ex.id, i, { rpe }),
-          onComment: (text) => setResult(ex.id, i, { comment: text }),
+          onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }),
         });
       });
+    };
+
+    // ── Superset : alternance des exercices à chaque tour ─────────────────────
+    const pushSuperset = (exs: any[], startNumber: number, congrats: string) => {
+      const metas = exs.map((ex, k) => {
+        const sData = seriesOf(ex);
+        return { ex, sData, isDur: ex?.is_duration === true, isEmom: emomOf(ex, sData), lib: libOf(ex), color: colorOf(startNumber - 1 + k), number: startNumber + k };
+      });
+      const rounds = Math.max(1, ...metas.map((m) => m.sData.length));
+      const groupIds = exs.map((e) => e.id);
+
+      for (let r = 0; r < rounds; r++) {
+        const lastRound = r === rounds - 1;
+        metas.forEach((m, k) => {
+          const sd = m.sData[r];
+          if (!sd) return;
+          const isTimed = m.isDur || m.isEmom;
+          const dur = m.isEmom ? 60 : (m.isDur ? (parseInt(String(sd.reps), 10) || 0) : 0);
+          const first = r === 0 && k === 0;
+          const coachNote = coachNoteOf(m.ex, sd);
+          const desc = first
+            ? [`Superset · ${rounds} tour${rounds > 1 ? "s" : ""}`, coachNote, m.lib.description].filter(Boolean).join("\n\n")
+            : (r === 0 ? ([coachNote, m.lib.description].filter(Boolean).join("\n\n") || undefined) : undefined);
+          const base: Partial<GuidedStep> = {
+            exName: m.ex.exercice, exNumber: m.number, exColor: m.color,
+            serieLabel: `Tour ${r + 1} / ${rounds}`, videoUrl: m.lib.video_url || undefined,
+            isDistance: m.ex?.is_distance === true, perSide: m.ex?.per_side === true, exId: m.ex.id, description: desc,
+          };
+          const prev = out[out.length - 1];
+          if (isTimed) {
+            out.push({
+              ...(base as GuidedStep), id: `w_${m.ex.id}_${r}`, type: "work", isDuration: true, seconds: dur,
+              refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
+              phaseLabel: m.isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y",
+              phaseColor: "#52b788", autoStart: !first, autoAdvance: true, prepSeconds: first ? 10 : 3,
+              onDefer: first ? () => deferExercises(groupIds) : undefined,
+            });
+          } else {
+            const ci = chargeInfo(sd.charge);
+            out.push({
+              ...(base as GuidedStep), id: `w_${m.ex.id}_${r}`, type: "work", isDuration: false,
+              targetReps: String(sd.reps || ""), targetCharge: ci.targetCharge, chargeNeedsInput: ci.chargeNeedsInput,
+              refCharge: ci.refCharge, refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
+              phaseColor: "#52b788", autoStart: !!prev && prev.type === "work",
+              onDefer: first ? () => deferExercises(groupIds) : undefined,
+              onDone: (d) => setResult(m.ex.id, r, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
+            });
+          }
+        });
+
+        if (!lastRound) {
+          const recSec = recupSeconds(metas[0].sData[r]?.recuperation || "") || 60;
+          out.push({
+            id: `rr_${exs[0].id}_${r}`, exId: exs[0].id, type: "recup", seconds: recSec,
+            nextLabel: `Tour ${r + 2} / ${rounds}`, autoAdvance: metas.every((m) => m.isDur || m.isEmom),
+          });
+        } else {
+          // Fin du superset : RPE + commentaire pour chaque exercice.
+          metas.forEach((m, k) => {
+            const lastIdx = Math.max(0, m.sData.length - 1);
+            const isLast = k === metas.length - 1;
+            out.push({
+              id: `rpe_${m.ex.id}`, exId: m.ex.id, type: "recup", seconds: 0,
+              exName: m.ex.exercice, exColor: m.color, videoUrl: m.lib.video_url || undefined,
+              nextLabel: isLast ? congrats : `RPE : ${metas[k + 1].ex.exercice}`,
+              onRpe: (rpe) => setResult(m.ex.id, lastIdx, { rpe }),
+              onComment: (t) => setResult(m.ex.id, lastIdx, { comment: t }),
+            });
+          });
+        }
+      }
+    };
+
+    // ── Découpage en blocs (exercice simple / superset) ───────────────────────
+    const blocks: Array<{ type: "single"; ex: any } | { type: "superset"; exs: any[] }> = [];
+    let i = 0;
+    while (i < list.length) {
+      const ex = list[i];
+      if (ex?.super_set_group) {
+        const g = [ex]; let j = i + 1;
+        while (j < list.length && list[j]?.super_set_group === ex.super_set_group) { g.push(list[j]); j++; }
+        blocks.push(g.length > 1 ? { type: "superset", exs: g } : { type: "single", ex: g[0] });
+        i = j;
+      } else { blocks.push({ type: "single", ex }); i++; }
+    }
+
+    let number = 0;
+    blocks.forEach((block, bIdx) => {
+      const last = bIdx === blocks.length - 1;
+      const nextName = last ? "" : (blocks[bIdx + 1].type === "single"
+        ? (blocks[bIdx + 1] as any).ex.exercice
+        : (blocks[bIdx + 1] as any).exs.map((e: any) => e.exercice).join(" + "));
+      const congrats = last ? "Bravo, séance terminée 🎉" : `Bravo ! 👏 Ensuite : ${nextName}`;
+      if (block.type === "single") { number += 1; pushExercise(block.ex, number, congrats); }
+      else { pushSuperset(block.exs, number + 1, congrats); number += block.exs.length; }
     });
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps

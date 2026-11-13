@@ -50,7 +50,7 @@ export function ExerciseVideoDialog({ url, title, children, className, style, fa
         {children}
       </button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="p-0 overflow-hidden max-w-md w-[94vw]">
+        <DialogContent className="p-0 overflow-hidden max-w-md w-[94vw] z-[320]">
           <div className="aspect-[9/16] w-full bg-black">
             <iframe
               className="w-full h-full"
