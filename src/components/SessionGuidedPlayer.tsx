@@ -166,8 +166,10 @@ export function SessionGuidedPlayer({
           const restSec = recupSeconds(sd.recuperation);
           const structure = isEmom
             ? `${sd.reps || "?"} reps chaque minute × ${n}`
-            : (restSec > 0 ? `${dur} s d'effort / ${restSec} s de récup × ${n}` : `${dur} s × ${n}`);
-          const startDesc = [structure, coachNote, lib.description].filter(Boolean).join("\n\n");
+            : (perSide
+              ? `${dur} s par côté (2 côtés) / ${restSec} s de récup × ${n}`
+              : (restSec > 0 ? `${dur} s d'effort / ${restSec} s de récup × ${n}` : `${dur} s × ${n}`));
+          const startDesc = [structure, lib.description].filter(Boolean).join("\n\n");
           const pushAutoWork = (id: string, phaseLabel: string, isFirstSide: boolean) => {
             const isStart = firstSerie && isFirstSide;
             out.push({
@@ -177,35 +179,38 @@ export function SessionGuidedPlayer({
               autoStart: !isStart, autoAdvance: true, prepSeconds: isStart ? 10 : 3, compact: !isStart,
               onDefer: isStart ? () => deferExercises([ex.id]) : undefined,
               description: isStart ? startDesc : undefined,
+              coachNote: isStart ? (coachNote || undefined) : undefined,
             });
           };
-          if (isDur && perSide) {
+          if (perSide) {
+            // Unilatéral : côté 1 puis côté 2 (chacun la durée), enchaînés, puis récup.
             pushAutoWork(`w_${ex.id}_${i}a`, "🔥 Côté 1", true);
             pushAutoWork(`w_${ex.id}_${i}b`, "🔥 Côté 2", false);
           } else {
             pushAutoWork(`w_${ex.id}_${i}`, isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y", true);
           }
           out.push(lastSerie
-            ? { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel, videoUrl: lib.video_url || undefined, onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }) }
+            ? { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel, refRpe: sd.rpe ? String(sd.rpe) : undefined, videoUrl: lib.video_url || undefined, onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }) }
             : { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: isEmom ? 0 : restSec, nextLabel, autoAdvance: true, videoUrl: lib.video_url || undefined });
           return;
         }
 
         // reps / charge classiques
         const ci = chargeInfo(sd.charge);
-        const startDesc = [coachNote, lib.description].filter(Boolean).join("\n\n") || undefined;
         const prev = out[out.length - 1];
         out.push({
           ...(base as GuidedStep), id: `w_${ex.id}_${i}`, type: "work", isDuration: false,
           targetReps: String(sd.reps || ""), targetCharge: ci.targetCharge, chargeNeedsInput: ci.chargeNeedsInput,
           refCharge: ci.refCharge, refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
           phaseColor: "#52b788", autoStart: !!prev && prev.type === "work",
-          description: firstSerie ? startDesc : undefined,
+          description: firstSerie ? (lib.description || undefined) : undefined,
+          coachNote: firstSerie ? (coachNote || undefined) : undefined,
           onDefer: firstSerie ? () => deferExercises([ex.id]) : undefined,
           onDone: (d) => setResult(ex.id, i, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
         });
         out.push({
           id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: lastSerie ? 0 : recupSeconds(sd.recuperation), nextLabel,
+          refRpe: lastSerie && sd.rpe ? String(sd.rpe) : undefined,
           videoUrl: lib.video_url || undefined,
           onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }),
         });
@@ -220,6 +225,24 @@ export function SessionGuidedPlayer({
       });
       const rounds = Math.max(1, ...metas.map((m) => m.sData.length));
       const groupIds = exs.map((e) => e.id);
+      const titleColor = metas[0].color;
+
+      // Écran d'intro du superset : liste des exercices + structure.
+      const introLines = metas.map((m, k) => {
+        const f = m.sData[0] || ({} as Serie);
+        const kind = (m.isDur || m.isEmom)
+          ? (m.isEmom ? `${f.reps || "?"} reps/min` : `${parseInt(String(f.reps), 10) || 0} s`)
+          : `${f.reps || "?"} reps`;
+        const ch = f.charge ? ` · ${f.charge}${/^\d+(\.\d+)?$/.test(String(f.charge).trim()) ? " kg" : ""}` : "";
+        return `${k + 1}. ${m.ex.exercice} — ${kind}${ch}`;
+      });
+      out.push({
+        id: `intro_${exs[0].id}`, type: "intro", exId: exs[0].id, exColor: titleColor,
+        introTitle: `Superset · ${rounds} tour${rounds > 1 ? "s" : ""}`,
+        exName: metas.map((m) => m.ex.exercice).join(" + "),
+        description: `À faire en alternance, ${rounds} tour${rounds > 1 ? "s" : ""} :\n${introLines.join("\n")}`,
+        onDefer: () => deferExercises(groupIds),
+      });
 
       for (let r = 0; r < rounds; r++) {
         const lastRound = r === rounds - 1;
@@ -228,15 +251,13 @@ export function SessionGuidedPlayer({
           if (!sd) return;
           const isTimed = m.isDur || m.isEmom;
           const dur = m.isEmom ? 60 : (m.isDur ? (parseInt(String(sd.reps), 10) || 0) : 0);
-          const first = r === 0 && k === 0;
-          const coachNote = coachNoteOf(m.ex, sd);
-          const desc = first
-            ? [`Superset · ${rounds} tour${rounds > 1 ? "s" : ""}`, coachNote, m.lib.description].filter(Boolean).join("\n\n")
-            : (r === 0 ? ([coachNote, m.lib.description].filter(Boolean).join("\n\n") || undefined) : undefined);
+          const coachNote = r === 0 ? coachNoteOf(m.ex, sd) : "";
+          const desc = r === 0 ? (m.lib.description || undefined) : undefined;
           const base: Partial<GuidedStep> = {
             exName: m.ex.exercice, exNumber: m.number, exColor: m.color,
             serieLabel: `Tour ${r + 1} / ${rounds}`, videoUrl: m.lib.video_url || undefined,
-            isDistance: m.ex?.is_distance === true, perSide: m.ex?.per_side === true, exId: m.ex.id, description: desc,
+            isDistance: m.ex?.is_distance === true, perSide: m.ex?.per_side === true, exId: m.ex.id,
+            description: desc, coachNote: coachNote || undefined,
           };
           const prev = out[out.length - 1];
           if (isTimed) {
@@ -244,8 +265,7 @@ export function SessionGuidedPlayer({
               ...(base as GuidedStep), id: `w_${m.ex.id}_${r}`, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel: m.isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y",
-              phaseColor: "#52b788", autoStart: !first, autoAdvance: true, prepSeconds: first ? 10 : 3,
-              onDefer: first ? () => deferExercises(groupIds) : undefined,
+              phaseColor: "#52b788", autoStart: true, autoAdvance: true, prepSeconds: (r === 0 && k === 0) ? 5 : 3,
             });
           } else {
             const ci = chargeInfo(sd.charge);
@@ -254,7 +274,6 @@ export function SessionGuidedPlayer({
               targetReps: String(sd.reps || ""), targetCharge: ci.targetCharge, chargeNeedsInput: ci.chargeNeedsInput,
               refCharge: ci.refCharge, refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseColor: "#52b788", autoStart: !!prev && prev.type === "work",
-              onDefer: first ? () => deferExercises(groupIds) : undefined,
               onDone: (d) => setResult(m.ex.id, r, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
             });
           }
@@ -271,9 +290,11 @@ export function SessionGuidedPlayer({
           metas.forEach((m, k) => {
             const lastIdx = Math.max(0, m.sData.length - 1);
             const isLast = k === metas.length - 1;
+            const lastSd = m.sData[lastIdx] || ({} as Serie);
             out.push({
               id: `rpe_${m.ex.id}`, exId: m.ex.id, type: "recup", seconds: 0,
               exName: m.ex.exercice, exColor: m.color, videoUrl: m.lib.video_url || undefined,
+              refRpe: lastSd.rpe ? String(lastSd.rpe) : undefined,
               nextLabel: isLast ? congrats : `RPE : ${metas[k + 1].ex.exercice}`,
               onRpe: (rpe) => setResult(m.ex.id, lastIdx, { rpe }),
               onComment: (t) => setResult(m.ex.id, lastIdx, { comment: t }),

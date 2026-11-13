@@ -5,7 +5,7 @@ import { ExerciseVideoDialog } from "@/components/ExerciseVideoDialog";
 
 export interface GuidedStep {
   id: string;
-  type: "work" | "recup";
+  type: "work" | "recup" | "intro";
   stepLabel?: string;
   serieLabel?: string;
   exName?: string;
@@ -35,6 +35,8 @@ export interface GuidedStep {
   rpeTargets?: { id: string; label: string; color?: string }[];
   exId?: string;        // id de l'exercice d'origine (pour reporter tout l'exo)
   compact?: boolean;    // masque l'en-tête (numéro + nom) — transitions entre séries
+  coachNote?: string;   // commentaire du coach, mis en évidence
+  introTitle?: string;  // titre d'un écran d'intro (ex: superset)
   // callbacks
   onDone?: (data: { reps?: string; charge?: string }) => void;
   onSkip?: () => void;
@@ -213,9 +215,40 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
           </div>
         </div>
 
-        {step.type === "work" ? (
+        {step.type === "intro" ? (
+          <div className="flex-1 flex flex-col justify-center gap-4 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-[13px] font-bold uppercase tracking-wide" style={{ color: step.exColor || "#5aa9e6" }}>{step.introTitle || "Superset"}</span>
+              {step.exName && <h2 className="text-2xl font-extrabold uppercase leading-tight" style={{ color: step.exColor || "#5aa9e6", ...sora }}>{step.exName}</h2>}
+            </div>
+            {step.coachNote && (
+              <div className="mx-auto max-w-md w-full rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.12)" }}>
+                <span className="text-base leading-none">📝</span>
+                <p className="text-[14px] text-[#e8c466] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
+              </div>
+            )}
+            {step.description && (
+              <div className="mx-auto max-w-md w-full rounded-2xl bg-white/[0.04] border border-white/10 px-4 py-3 text-left">
+                <p className="text-[14px] leading-relaxed text-white/85 whitespace-pre-line">{step.description}</p>
+              </div>
+            )}
+            {step.videoUrl && (
+              <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-bold mx-auto"
+                style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}>
+                <Video className="h-4 w-4" /> Revoir la démo
+              </ExerciseVideoDialog>
+            )}
+          </div>
+        ) : step.type === "work" ? (
           <div className="flex-1 flex flex-col justify-center gap-5">
             <div className="text-center">
+              {step.coachNote && !step.compact && (
+                <div className="mb-3 mx-auto max-w-md rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.12)" }}>
+                  <span className="text-base leading-none">📝</span>
+                  <p className="text-[14px] text-[#e8c466] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
+                </div>
+              )}
               {step.exName && !step.compact && (
                 <div className="flex flex-col items-center gap-2">
                   {step.exNumber != null && (
@@ -318,6 +351,12 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               </div>
             )}
 
+            {step.onRpe && step.exName && (
+              <div className="text-center -mb-1">
+                <h3 className="text-lg font-extrabold uppercase" style={{ color: step.exColor || "#e8c466", ...sora }}>{step.exName}</h3>
+                {step.refRpe && <p className="text-[12px] text-muted-foreground">Effort visé : RPE {step.refRpe}</p>}
+              </div>
+            )}
             {step.onRpe && (
               <div className="bg-[#141414] border border-white/10 rounded-2xl p-4 space-y-3">
                 <div className="flex items-baseline justify-between">
@@ -358,7 +397,19 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
 
         {/* Actions */}
         <div className="space-y-2 pb-1">
-          {step.type === "work" ? (
+          {step.type === "intro" ? (
+            <>
+              <button onClick={goNext} className="w-full h-16 rounded-2xl border-0 bg-[#52b788] text-[#06281c] text-xl font-extrabold flex items-center justify-center gap-2.5" style={sora}>
+                <Play className="h-6 w-6" strokeWidth={2.6} /> Commencer
+              </button>
+              {step.onDefer && (
+                <button onClick={() => step.onDefer?.()} className="w-full h-12 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2"
+                  style={{ border: "1px solid #e8974a55", background: "rgba(232,151,74,0.08)", color: "#e8974a", ...sora }}>
+                  <ChevronRight className="h-[18px] w-[18px]" /> Machine prise — faire plus tard
+                </button>
+              )}
+            </>
+          ) : step.type === "work" ? (
             <>
               {isWorkDur && mode === "idle" ? (
                 <button onClick={beginEffort} className="w-full h-16 rounded-2xl border-0 bg-[#52b788] text-[#06281c] text-xl font-extrabold flex items-center justify-center gap-2.5" style={sora}>
