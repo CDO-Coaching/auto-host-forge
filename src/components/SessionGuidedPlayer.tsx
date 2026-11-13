@@ -144,17 +144,31 @@ export function SessionGuidedPlayer({
         };
 
         if (autoChain) {
-          // ── Exercice auto-enchaîné (durée / EMOM) ──────────────────────────
+          // ── Exercice auto-enchaîné (durée / EMOM / intervalles) ────────────
+          const restSec = recupSeconds(sd.recuperation);
+          // Résumé de la structure, affiché sur l'écran de départ de l'exercice.
+          const structure = isEmom
+            ? `${sd.reps || "?"} reps chaque minute × ${n}`
+            : (restSec > 0
+              ? `${dur} s d'effort / ${restSec} s de récup × ${n}`
+              : `${dur} s × ${n}`);
           const workPhase = isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y";
           const pushAutoWork = (id: string, phaseLabel: string, isFirstSide: boolean) => {
+            const isExerciseStart = firstSerieOfExercise && isFirstSide;
             out.push({
               ...(base as GuidedStep),
               id, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined,
               refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel, phaseColor: "#52b788",
-              autoStart: true, autoAdvance: true,
-              prepSeconds: firstSerieOfExercise && isFirstSide ? 10 : 3,
+              // La 1re série attend que l'athlète lance ; les suivantes s'enchaînent.
+              autoStart: !isExerciseStart,
+              autoAdvance: true,
+              prepSeconds: isExerciseStart ? 10 : 3,
+              // Sur l'écran de départ : structure de l'exercice + consigne biblio.
+              description: isExerciseStart
+                ? [structure, lib.description].filter(Boolean).join("\n\n")
+                : undefined,
             });
           };
           if (isDur && perSide) {
