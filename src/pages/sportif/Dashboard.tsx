@@ -461,18 +461,8 @@ export default function SportifDashboard() {
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} subtitle={welcomeSubtitle} />
 
-      {/* Ordre adaptatif : si une séance est en cours / à valider, elle passe en premier */}
-      {urgent ? (
-        <>
-          {semaineCard}
-          {progressionCard}
-        </>
-      ) : (
-        <>
-          {progressionCard}
-          {semaineCard}
-        </>
-      )}
+      {semaineCard}
+      {progressionCard}
 
       {/* Rappel doux : ressenti du jour non rempli */}
       {!fatigue.hasToday && (
