@@ -361,6 +361,11 @@ export default function SportifDashboard() {
 
   const recoveryPercentForBanner = fatigue.avgScore !== null ? getRecoveryPercent(fatigue.avgScore) : null;
 
+  const welcomeSubtitle =
+    weeklyInfo.total > 0
+      ? `${weeklyInfo.total} séance${weeklyInfo.total > 1 ? "s" : ""} cette semaine — c'est parti.`
+      : "Prêt pour cette semaine ?";
+
   // Séance à mettre en avant : en cours d'abord, sinon la prochaine
   const primary = weeklyInfo.inProgress ?? weeklyInfo.nextSession;
   const urgent = !!weeklyInfo.inProgress || !!weeklyInfo.nextSession?.overdue;
@@ -436,16 +441,25 @@ export default function SportifDashboard() {
     </Card>
   );
 
+  const sectionHeader = (
+    <p className="text-[11px] font-bold uppercase tracking-[.1em] text-muted-foreground px-1 pt-1">
+      Plan d'entraînement
+    </p>
+  );
+
   // Carte méso en cours + jalons + objectif
   const progressionCard = user?.id ? (
-    <CurrentMesoCard athleteId={user.id} />
+    <>
+      {sectionHeader}
+      <CurrentMesoCard athleteId={user.id} />
+    </>
   ) : null;
 
   return (
     <div className="space-y-4 pb-20 sm:pb-4">
       <AthleteSfmsRequestBanner />
 
-      <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} />
+      <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} subtitle={welcomeSubtitle} />
 
       {/* Ordre adaptatif : si une séance est en cours / à valider, elle passe en premier */}
       {urgent ? (
