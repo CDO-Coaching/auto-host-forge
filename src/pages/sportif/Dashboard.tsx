@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ProgObjectiveBanner } from "@/components/ProgObjectiveBanner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +25,7 @@ import {
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
 import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
+import { CurrentMesoCard } from "@/components/sportif/CurrentMesoCard";
 
 interface SessionRef { name: string; type: string; id: string; weekId: string; overdue: boolean; scheduledLabel: string; estimatedDuration: string | null }
 interface WeeklySessionInfo {
@@ -436,11 +436,9 @@ export default function SportifDashboard() {
     </Card>
   );
 
-  // Carte objectif / progression
+  // Carte méso en cours + jalons + objectif
   const progressionCard = user?.id ? (
-    <div onClick={() => navigate("/sportif/objectifs")} className="cursor-pointer active:opacity-80 transition-opacity">
-      <ProgObjectiveBanner athleteId={user.id} heading="Ma progression" variant="clean" />
-    </div>
+    <CurrentMesoCard athleteId={user.id} />
   ) : null;
 
   return (
