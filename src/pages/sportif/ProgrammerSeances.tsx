@@ -342,7 +342,7 @@ export default function ProgrammerSeances() {
       if (/(natation|nage)/.test(n)) return { emoji: "🏊", accent: "#22b8cf" };
       return { emoji: "🏃", accent: "#3b82f6" };
     }
-    return { emoji: "🏋️", accent: "#e8c466" };
+    return { emoji: "🏋️", accent: "#c9944a" };
   };
 
   const SessionRow = ({ title, subtitle, accent, emoji, onAgenda }: { title: string; subtitle: string; accent: string; emoji: string; onAgenda: () => void }) => (

@@ -561,7 +561,7 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
         }
       }
       const end = quickPhaseWeeks ? addDays(addWeeks(start, quickPhaseWeeks), -1) : null;
-      const palette = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+      const palette = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
       const { error } = await supabase.from("mesocycles").insert({
         athlete_id: athleteId, coach_id: user.id, macrocycle_id: null,
         name: quickPhaseName.trim(), phase_type: "custom", color: palette[ordered.length % palette.length],
@@ -1275,7 +1275,7 @@ export function CoachObjectivesView({ athleteId, athleteName, onObjectiveChange 
             {(() => {
               const start = new Date(); start.setHours(0, 0, 0, 0);
               const dl = objective.main_objective_deadline ? new Date(objective.main_objective_deadline) : null;
-              const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+              const COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
               const phasesTL = mesocycles
                 .filter((m) => !m.macrocycle_id)
                 .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GuidedOverlay, type GuidedStep } from "@/components/GuidedOverlay";
 
-const EX_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const EX_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 /** Parse "90s" / "1min30" / "0s" / "90" → secondes. */
 function recupSeconds(raw: string | null | undefined): number {

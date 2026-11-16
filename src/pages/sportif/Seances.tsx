@@ -451,7 +451,7 @@ export default function Seances() {
                     ? (resolvedSport === "velo" ? { emoji: "🚴", accent: "#06b6d4" }
                       : resolvedSport === "natation" ? { emoji: "🏊", accent: "#22b8cf" }
                       : { emoji: "🏃", accent: "#3b82f6" })
-                    : { emoji: "🏋️", accent: "#e8c466" };
+                    : { emoji: "🏋️", accent: "#c9944a" };
                 const accent = completed ? "#22c55e" : meta.accent;
 
                 const containerCls = completed
@@ -603,7 +603,7 @@ export default function Seances() {
                     const csMeta = cs.cardio_type === "velo" ? { emoji: "🚴", accent: "#06b6d4" }
                       : cs.cardio_type === "natation" ? { emoji: "🏊", accent: "#06b6d4" }
                       : cs.cardio_type === "course" ? { emoji: "🏃", accent: "#3b82f6" }
-                      : { emoji: "✨", accent: "#e8c466" };
+                      : { emoji: "✨", accent: "#c9944a" };
                     const csAccent = isPlanned ? csMeta.accent : "#22c55e";
                     return (
                       <div

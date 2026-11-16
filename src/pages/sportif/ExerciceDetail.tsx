@@ -733,7 +733,7 @@ export default function ExerciceDetail() {
       const dur = isDur ? (parseInt(String(sd.reps || exercise?.reps)) || 0) : 0;
       const perSide = exercise?.per_side === true;
       const base = {
-        exName, exNumber: 1, exColor: "#e8c466" as string,
+        exName, exNumber: 1, exColor: "#c9944a" as string,
         serieLabel: `Série ${i + 1} / ${n}`,
         isDuration: isDur, seconds: dur,
         targetReps: isDur ? undefined : String(sd.reps || exercise?.reps || ""),
@@ -1127,10 +1127,10 @@ export default function ExerciceDetail() {
           type="button"
           onClick={() => setShowTimerOverlay(true)}
           className="fixed left-3 right-3 sm:left-auto sm:right-4 sm:w-64 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-[70] rounded-2xl border shadow-lg flex items-center gap-3 px-4 py-3"
-          style={{ background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(8px)', borderColor: 'rgba(232,196,102,0.5)' }}
+          style={{ background: 'rgba(20,20,20,0.96)', backdropFilter: 'blur(8px)', borderColor: 'rgba(201,148,74,0.5)' }}
           aria-label="Rouvrir le chrono de récupération"
         >
-          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#e8c466' }}>⏱ Récup</span>
+          <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: '#c9944a' }}>⏱ Récup</span>
           <span className="font-mono font-black tabular-nums text-2xl leading-none text-white ml-auto">
             {`${Math.floor(timeRemaining / 60)}:${String(timeRemaining % 60).padStart(2, "0")}`}
           </span>
@@ -1313,7 +1313,7 @@ export default function ExerciceDetail() {
                   ) : (
                     <div className="space-y-2 rounded-xl bg-muted/40 p-2.5">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] font-semibold" style={{ color: isLess ? "#f97316" : isMore ? "#e8c466" : undefined }}>
+                        <p className="text-[11px] font-semibold" style={{ color: isLess ? "#f97316" : isMore ? "#c9944a" : undefined }}>
                           {isLess ? "⬇️ Tu as fait moins" : isMore ? "💪 Tu as fait plus !" : "Ce que tu as réellement fait"}
                         </p>
                         <button type="button" onClick={() => { setReportActual(false); setRpeActualReps(""); setRpeActualCharge(""); }}

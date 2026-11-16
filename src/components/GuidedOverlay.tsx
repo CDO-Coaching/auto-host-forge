@@ -48,7 +48,7 @@ export interface GuidedStep {
 interface DoneRecap { reps?: string; charge?: string; isDistance?: boolean; isDuration?: boolean; }
 type Mode = "idle" | "prep" | "run" | "paused" | "stopped";
 
-const RPE_COLOR = (v: number) => (v <= 3 ? "#52b788" : v <= 6 ? "#e8c466" : v <= 8 ? "#f59e0b" : "#e56464");
+const RPE_COLOR = (v: number) => (v <= 3 ? "#52b788" : v <= 6 ? "#c9944a" : v <= 8 ? "#f59e0b" : "#e56464");
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60).toString().padStart(2, "0")}:${Math.floor(Math.max(0, s) % 60).toString().padStart(2, "0")}`;
 const sora = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 
@@ -171,7 +171,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
       <div className="text-[11px] text-muted-foreground uppercase">Charge réalisée{step.chargeNeedsInput ? " (obligatoire)" : ""}</div>
       <div className="flex items-baseline gap-1.5 mt-1">
         <input value={charge} onChange={(e) => { setCharge(e.target.value); setErr(""); }} inputMode="decimal"
-          className={`w-24 bg-transparent border-0 border-b-2 outline-none text-2xl font-extrabold ${step.chargeNeedsInput && !charge ? "border-[#f59e0b] text-[#f59e0b]" : "border-[#e8c466]"}`} style={sora}
+          className={`w-24 bg-transparent border-0 border-b-2 outline-none text-2xl font-extrabold ${step.chargeNeedsInput && !charge ? "border-[#f59e0b] text-[#f59e0b]" : "border-[#c9944a]"}`} style={sora}
           placeholder={step.chargeNeedsInput ? "?" : ""} />
         <span className="text-sm text-muted-foreground font-bold">kg</span>
       </div>
@@ -201,7 +201,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
       style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))", paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
       <div className="px-4 flex flex-col gap-4 flex-1 overflow-y-auto max-w-lg mx-auto w-full">
         <div className="flex items-center justify-between pt-1">
-          <span className="text-[13px] font-bold uppercase tracking-wide text-[#e8c466]">Séance guidée</span>
+          <span className="text-[13px] font-bold uppercase tracking-wide text-[#c9944a]">Séance guidée</span>
           <button onClick={onClose} aria-label="Quitter le mode guidé" className="p-1 text-muted-foreground"><X className="h-6 w-6" /></button>
         </div>
 
@@ -211,7 +211,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
             {step.serieLabel && <span>{step.serieLabel}</span>}
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <div className="h-full bg-[#e8c466] rounded-full transition-all" style={{ width: `${((idx + 1) / total) * 100}%` }} />
+            <div className="h-full bg-[#c9944a] rounded-full transition-all" style={{ width: `${((idx + 1) / total) * 100}%` }} />
           </div>
         </div>
 
@@ -222,9 +222,9 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               {step.exName && <h2 className="text-2xl font-extrabold uppercase leading-tight" style={{ color: step.exColor || "#5aa9e6", ...sora }}>{step.exName}</h2>}
             </div>
             {step.coachNote && (
-              <div className="mx-auto max-w-md w-full rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.12)" }}>
+              <div className="mx-auto max-w-md w-full rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #c9944a55", background: "rgba(201,148,74,0.12)" }}>
                 <span className="text-base leading-none">📝</span>
-                <p className="text-[14px] text-[#e8c466] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
+                <p className="text-[14px] text-[#c9944a] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
               </div>
             )}
             {step.description && (
@@ -235,7 +235,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
             {step.videoUrl && (
               <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-bold mx-auto"
-                style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}>
+                style={{ border: "1px solid #c9944a55", background: "rgba(201,148,74,0.1)", color: "#c9944a", ...sora }}>
                 <Video className="h-4 w-4" /> Revoir la démo
               </ExerciseVideoDialog>
             )}
@@ -244,17 +244,17 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
           <div className="flex-1 flex flex-col justify-center gap-5">
             <div className="text-center">
               {step.coachNote && !step.compact && (
-                <div className="mb-3 mx-auto max-w-md rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.12)" }}>
+                <div className="mb-3 mx-auto max-w-md rounded-xl px-3.5 py-2.5 text-left flex items-start gap-2" style={{ border: "1px solid #c9944a55", background: "rgba(201,148,74,0.12)" }}>
                   <span className="text-base leading-none">📝</span>
-                  <p className="text-[14px] text-[#e8c466] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
+                  <p className="text-[14px] text-[#c9944a] font-semibold leading-snug whitespace-pre-line">{step.coachNote}</p>
                 </div>
               )}
               {step.exName && !step.compact && (
                 <div className="flex flex-col items-center gap-2">
                   {step.exNumber != null && (
-                    <span className="h-6 w-6 rounded-full flex items-center justify-center text-[12px] font-extrabold" style={{ background: step.exColor || "#e8c466", color: "#1a1a1a" }}>{step.exNumber}</span>
+                    <span className="h-6 w-6 rounded-full flex items-center justify-center text-[12px] font-extrabold" style={{ background: step.exColor || "#c9944a", color: "#1a1a1a" }}>{step.exNumber}</span>
                   )}
-                  <h2 className="text-2xl sm:text-3xl font-extrabold uppercase leading-tight tracking-tight" style={{ color: step.exColor || "#e8c466", ...sora }}>{step.exName}</h2>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold uppercase leading-tight tracking-tight" style={{ color: step.exColor || "#c9944a", ...sora }}>{step.exName}</h2>
                 </div>
               )}
               {step.description && (
@@ -281,7 +281,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               {step.videoUrl && (
                 <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
                   className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-[13px] font-bold"
-                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}
+                  style={{ border: "1px solid #c9944a55", background: "rgba(201,148,74,0.1)", color: "#c9944a", ...sora }}
                 >
                   <Video className="h-4 w-4" /> Revoir la démo
                 </ExerciseVideoDialog>
@@ -334,7 +334,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
               <div className="text-center">
                 <ExerciseVideoDialog url={step.videoUrl} title={step.exName}
                   className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[13px] font-bold"
-                  style={{ border: "1px solid #e8c46655", background: "rgba(232,196,102,0.1)", color: "#e8c466", ...sora }}
+                  style={{ border: "1px solid #c9944a55", background: "rgba(201,148,74,0.1)", color: "#c9944a", ...sora }}
                 >
                   <Video className="h-4 w-4" /> Revoir la démo
                 </ExerciseVideoDialog>
@@ -353,7 +353,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
 
             {step.onRpe && step.exName && (
               <div className="text-center -mb-1">
-                <h3 className="text-lg font-extrabold uppercase" style={{ color: step.exColor || "#e8c466", ...sora }}>{step.exName}</h3>
+                <h3 className="text-lg font-extrabold uppercase" style={{ color: step.exColor || "#c9944a", ...sora }}>{step.exName}</h3>
                 {step.refRpe && <p className="text-[12px] text-muted-foreground">Effort visé : RPE {step.refRpe}</p>}
               </div>
             )}
@@ -449,7 +449,7 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
             </>
           ) : (
             <button onClick={continueRecup} className="w-full h-16 rounded-2xl border-0 text-lg font-extrabold flex items-center justify-center gap-2"
-              style={{ background: rpeComplete ? "#e8c466" : "#3a3a2a", color: rpeComplete ? "#1a1a1a" : "#8a8a7a", ...sora }}>
+              style={{ background: rpeComplete ? "#c9944a" : "#3a3a2a", color: rpeComplete ? "#1a1a1a" : "#8a8a7a", ...sora }}>
               Continuer <ChevronRight className="h-5 w-5" strokeWidth={2.4} />
             </button>
           )}

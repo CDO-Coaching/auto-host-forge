@@ -384,7 +384,7 @@ export default function SportifDashboard() {
           <span className="text-[20px] font-extrabold text-primary" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>{progressPercent}%</span>
         </div>
         <div className="h-[9px] rounded-md bg-[#232228] overflow-hidden">
-          <div className="h-full rounded-md bg-[linear-gradient(90deg,#d8ad4a,#f2d488)]" style={{ width: `${progressPercent}%` }} />
+          <div className="h-full rounded-md bg-[linear-gradient(90deg,#a8743a,#dab06a)]" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
@@ -415,7 +415,7 @@ export default function SportifDashboard() {
           </div>
           <button
             onClick={() => goToSession(primary)}
-            className="w-full h-[52px] rounded-2xl text-[15px] font-extrabold text-[#1a1608] flex items-center justify-center gap-2 bg-[linear-gradient(180deg,#eccb6c,#d8ad4a)] shadow-[0_8px_22px_-8px_#e8c46688] active:scale-[0.99] transition-transform"
+            className="w-full h-[52px] rounded-2xl text-[15px] font-extrabold text-[#1a0e05] flex items-center justify-center gap-2 bg-[linear-gradient(180deg,#d4a656,#a8743a)] shadow-[0_8px_22px_-8px_#c9944a88] active:scale-[0.99] transition-transform"
             style={{ fontFamily: "'Sora', system-ui, sans-serif" }}
           >
             <Play className="h-[18px] w-[18px] fill-[#1a1608]" />

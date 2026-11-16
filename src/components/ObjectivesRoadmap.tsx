@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
-const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const PHASE_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note: string | null; linked_milestone_id: string | null; prepares_main_objective?: boolean | null; }
 interface Milestone { id: string; label: string; target_date: string | null; completed: boolean; completed_at: string | null; notes: string | null; approval_status: string | null; is_objective?: boolean | null; }
@@ -367,7 +367,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
               {palmares.map((m) => (
                 <div key={m.id} className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] p-3">
                   <div className="flex items-center gap-2">
-                    <span className="h-6 w-6 rounded-full grid place-items-center text-white shrink-0" style={{ background: m.is_objective ? "#e8c466" : "#10b981" }}>
+                    <span className="h-6 w-6 rounded-full grid place-items-center text-white shrink-0" style={{ background: m.is_objective ? "#c9944a" : "#10b981" }}>
                       {m.is_objective ? "🎯" : <Check className="h-3.5 w-3.5" />}
                     </span>
                     <span className="font-semibold text-sm">{m.label}</span>
@@ -428,7 +428,7 @@ export function ObjectivesRoadmap({ athleteId, athleteName, onObjectiveChange }:
 
 // ── Lignes de frise ───────────────────────────────────────────────────────────
 function PhaseRow({ p, status, linkedLabel, onEdit, onDelete }: { p: Phase; status: "past" | "current" | "future"; linkedLabel?: string | null; onEdit: () => void; onDelete: () => void }) {
-  const col = p.color || "#e8c466";
+  const col = p.color || "#c9944a";
   const range = `${format(D(p.start_date), "d MMM", { locale: fr })}${p.end_date ? ` → ${format(D(p.end_date), "d MMM yyyy", { locale: fr })}` : " → en cours"}`;
   return (
     <div className={cn("rounded-xl border-l-4 border p-3", status === "current" ? "border-primary/40 bg-primary/[0.05]" : status === "past" ? "border-border/50 bg-muted/10 opacity-70" : "border-border/60 bg-card/40")} style={{ borderLeftColor: col }}>

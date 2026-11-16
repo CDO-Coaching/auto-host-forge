@@ -131,7 +131,7 @@ export function CurrentMesoCard({ athleteId }: { athleteId: string }) {
     return d > 0 ? `${w} sem. ${d} j` : `${w} sem.`;
   };
 
-  const color = meso?.color || "#e8c466";
+  const color = meso?.color || "#c9944a";
   const comment = meso?.coach_note || meso?.description;
   const isUpcoming = meso ? D(meso.start_date) > today : false;
   const daysToEnd = meso?.end_date ? daysLeft(meso.end_date) : null;

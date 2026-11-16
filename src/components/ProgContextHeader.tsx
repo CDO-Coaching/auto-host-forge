@@ -7,7 +7,7 @@ import { Target, Flag, Layers, CalendarClock, AlertTriangle } from "lucide-react
 import { cn } from "@/lib/utils";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
-const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 const D = (s: string) => new Date(/[T ]/.test(s) ? s : s + "T00:00:00");
 
 interface Meso { id: string; name: string; start_date: string; end_date: string | null; color: string | null; description?: string | null; coach_note?: string | null; }
@@ -78,7 +78,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
     .sort((a, b) => D(a.start_date).getTime() - D(b.start_date).getTime())[0] || null;
   const displayMeso = curMeso || nextMeso;
   const mesoUpcoming = !curMeso && !!nextMeso;
-  const mesoColor = displayMeso ? (displayMeso.color || COLORS[Math.max(0, mesos.findIndex((m) => m.id === displayMeso.id)) % COLORS.length]) : "#e8c466";
+  const mesoColor = displayMeso ? (displayMeso.color || COLORS[Math.max(0, mesos.findIndex((m) => m.id === displayMeso.id)) % COLORS.length]) : "#c9944a";
   const mesoEnd = displayMeso ? (displayMeso.end_date ? D(displayMeso.end_date) : addDays(D(displayMeso.start_date), 27)) : null;
   const mesoComment = displayMeso ? (displayMeso.description || displayMeso.coach_note || null) : null;
   const nextMs = milestones.filter((m) => weeksUntil(m.target_date) >= 0).sort((a, b) => D(a.target_date).getTime() - D(b.target_date).getTime())[0] || null;
@@ -236,7 +236,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
       </Tile>
 
       {/* Tuile 3 — Objectif principal */}
-      <Tile tone="#e8c466">
+      <Tile tone="#c9944a">
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
           <Target className="h-3.5 w-3.5 text-primary" /> Objectif
         </div>

@@ -141,7 +141,7 @@ export default function SupersetDetail() {
 
   // Lance un Tabata « superset » : enchaîne les exos (+ côtés) puis la récup, répété sur les séries.
   const launchSupersetTabata = () => {
-    const colors = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"];
+    const colors = ["#c9944a", "#8b5cf6", "#06b6d4", "#ec4899"];
     const steps: TimerStep[] = [];
     exercises.forEach((ex: any, idx: number) => {
       const sd = getSeriesDataForExercise(ex)[0] || {};
@@ -183,7 +183,7 @@ export default function SupersetDetail() {
   const rpeTargets = exercises.map((ex: any, idx: number) => ({
     id: String(idx),
     label: ex.exercice,
-    color: ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4],
+    color: ["#c9944a", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4],
   }));
 
   // ── Mode guidé pas-à-pas (superset) ──
@@ -207,7 +207,7 @@ export default function SupersetDetail() {
   };
   const buildSupersetGuidedSteps = (): GuidedStep[] => {
     const steps: GuidedStep[] = [];
-    const colors = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"];
+    const colors = ["#c9944a", "#8b5cf6", "#06b6d4", "#ec4899"];
     const lastEx: any = exercises[exercises.length - 1];
     const endRecup = parseSecs(getSeriesDataForExercise(lastEx)[0]?.recuperation || lastEx?.recuperation) || 0;
     const valOf = (ex: any, sd: any, f: string) => (sd?.[f] ?? ex?.[f] ?? "").toString().trim();
@@ -1118,7 +1118,7 @@ export default function SupersetDetail() {
               {/* Liste des exercices — noms uniquement, les consignes détaillées sont dans les séries */}
               <div className="space-y-2">
                 {exercises.map((ex, idx) => {
-                  const col = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4];
+                  const col = ["#c9944a", "#8b5cf6", "#06b6d4", "#ec4899"][idx % 4];
                   return (
                     <div key={ex.id}>
                       <div className="flex items-center gap-2">
@@ -1307,7 +1307,7 @@ export default function SupersetDetail() {
                         const rpeRealized = isValidated ? validation?.rpe : null;
                         const rColor = rpeRealized == null ? null : rpeRealized < 5 ? "#22c55e" : rpeRealized <= 6 ? "#eab308" : rpeRealized <= 8 ? "#f97316" : "#ef4444";
                         // Couleur propre à chaque exercice du superset (pour repérer 1 et 2 sur chaque ligne)
-                        const exColor = ["#e8c466", "#8b5cf6", "#06b6d4", "#ec4899"][exIdx % 4];
+                        const exColor = ["#c9944a", "#8b5cf6", "#06b6d4", "#ec4899"][exIdx % 4];
                         return (
                           <div key={`${roundIdx}-${exIdx}`}>
                             {/* Exercise row — même format que les exos simples */}

@@ -215,7 +215,7 @@ export default function SuiviSalaire() {
 
   // Arborescence : catégories × périodes
   const CATS: { key: string; label: string; emoji: string; color: string; pick: (p: PeriodAgg) => number; hint: string }[] = [
-    { key: "general", label: "Total général", emoji: "📊", color: "#e8c466", pick: (p) => p.general, hint: "cash + virement" },
+    { key: "general", label: "Total général", emoji: "📊", color: "#c9944a", pick: (p) => p.general, hint: "cash + virement" },
     { key: "net", label: "Résultat net", emoji: "✅", color: "#9c7bd6", pick: (p) => p.net, hint: "après URSSAF + loyer" },
     { key: "cash", label: "Cash", emoji: "💶", color: "#5fbf82", pick: (p) => p.cash, hint: "espèces reçues (brut)" },
     { key: "virement", label: "Virement", emoji: "🏦", color: "#5aa9e6", pick: (p) => p.transfer, hint: "net (×0,76)" },

@@ -19,7 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 const SORA = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
-const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const PHASE_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 interface Phase { id: string; name: string; start_date: string; end_date: string | null; color: string | null; coach_note?: string | null; }
 interface Week { id: string; week_number: number; year: number; monday: Date; }
@@ -30,7 +30,7 @@ const weekMonday = (year: number, wn: number) => startOfISOWeek(setISOWeek(setIS
 
 const sessColor = (t: string | null): string => {
   const x = (t || "").toLowerCase();
-  if (x === "renfo") return "#e8c466";
+  if (x === "renfo") return "#c9944a";
   if (x === "course" || x === "velo" || x === "natation" || x === "cardio" || x === "triathlon") return "#5aa9e6";
   if (x === "recup" || x === "récup" || x === "recuperation") return "#5fbf82";
   return "#9c7bd6";
@@ -161,7 +161,7 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
       if (macroDlg.id) {
         await supabase.from("macrocycles").update(payload).eq("id", macroDlg.id);
       } else {
-        const { data: created } = await supabase.from("macrocycles").insert({ ...payload, athlete_id: athleteId, coach_id: user?.id, color: "#c79a3a" }).select("id").single();
+        const { data: created } = await supabase.from("macrocycles").insert({ ...payload, athlete_id: athleteId, coach_id: user?.id, color: "#a8743a" }).select("id").single();
         // Si on était en mode « ?? » (phases orphelines), on les rattache au nouveau macro
         if (orphanMode && created?.id) {
           await supabase.from("mesocycles").update({ macrocycle_id: created.id }).eq("athlete_id", athleteId).is("macrocycle_id", null);
@@ -421,12 +421,12 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
           <path key={`b${i}`} d={l.d} fill="none" stroke={l.color} strokeOpacity={0.5} strokeWidth={1.5} />
         ))}
         {links.filter((l) => l.cur).map((l, i) => (
-          <path key={`c${i}`} d={l.d} fill="none" stroke="#e8c466" strokeWidth={2.5} strokeLinecap="round" style={{ filter: "drop-shadow(0 0 3px rgba(232,196,102,0.6))" }} />
+          <path key={`c${i}`} d={l.d} fill="none" stroke="#c9944a" strokeWidth={2.5} strokeLinecap="round" style={{ filter: "drop-shadow(0 0 3px rgba(201,148,74,0.6))" }} />
         ))}
       </svg>
 
       {/* ── MACROCYCLE (cliquable : créer / éditer) ──────────────────────── */}
-      <button data-node="macro" type="button" onClick={openMacro} className="group w-full rounded-2xl p-5 text-center text-black shadow-lg relative z-10 active:scale-[0.998] transition-transform" style={{ background: "linear-gradient(90deg,#c79a3a,#e8c466)" }}>
+      <button data-node="macro" type="button" onClick={openMacro} className="group w-full rounded-2xl p-5 text-center text-black shadow-lg relative z-10 active:scale-[0.998] transition-transform" style={{ background: "linear-gradient(90deg,#a8743a,#c9944a)" }}>
         <span className="absolute top-3 right-3 opacity-50 group-hover:opacity-100 transition-opacity">
           <Pencil className="h-4 w-4" />
         </span>
@@ -518,7 +518,7 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                     <button key={mc.id} data-micro={mc.id} data-parent={phase.id} data-cur={mcCur ? "1" : "0"} type="button" onClick={() => openEditMicro(mc)}
                       title={`${mc.name}${mc.coach_note ? `\n\n${mc.coach_note}` : ""}`}
                       className={cn("rounded-md border px-1 py-1.5 text-center hover:border-primary/60 min-w-0 flex flex-col justify-center", mcCur && "ring-2 ring-primary")}
-                      style={{ flex: `0 0 ${(mw / Math.max(1, durWeeks)) * 100}%`, borderColor: mcCur ? "#e8c466" : `${col}66`, background: mcCur ? `${col}26` : `${col}14` }}>
+                      style={{ flex: `0 0 ${(mw / Math.max(1, durWeeks)) * 100}%`, borderColor: mcCur ? "#c9944a" : `${col}66`, background: mcCur ? `${col}26` : `${col}14` }}>
                       <p className="text-[10px] font-bold leading-tight truncate" style={SORA}>{mc.name}</p>
                       <p className="text-[8px] text-muted-foreground">{mw} sem.{mc.coach_note ? " 📝" : ""}</p>
                     </button>
@@ -570,7 +570,7 @@ export function CycleTreeView({ athleteId }: { athleteId: string }) {
                           <PopoverTrigger asChild>
                             <button type="button" title="Objectif / sous-objectif cette semaine"
                               className="absolute -top-1.5 left-1/2 -translate-x-1/2 h-2.5 w-2.5 rounded-full border border-background shadow"
-                              style={{ background: hits.some((h) => h.isObjective) ? "#e8c466" : "#5aa9e6" }} />
+                              style={{ background: hits.some((h) => h.isObjective) ? "#c9944a" : "#5aa9e6" }} />
                           </PopoverTrigger>
                           <PopoverContent className="w-auto max-w-[220px] p-2" align="center">
                             <div className="space-y-1">
@@ -933,7 +933,7 @@ function ArchivedMacroTree({ macro, athleteId }: { macro: Macro; athleteId: stri
         {links.map((l, i) => <path key={i} d={l.d} fill="none" stroke={l.color} strokeOpacity={0.5} strokeWidth={1.5} />)}
       </svg>
       {/* Macro */}
-      <div data-node="macro" className="relative z-10 w-full rounded-2xl p-4 text-center text-black shadow-lg" style={{ background: "linear-gradient(90deg,#c79a3a,#e8c466)" }}>
+      <div data-node="macro" className="relative z-10 w-full rounded-2xl p-4 text-center text-black shadow-lg" style={{ background: "linear-gradient(90deg,#a8743a,#c9944a)" }}>
         <p className="text-[11px] font-bold uppercase tracking-[0.25em] opacity-70">Macrocycle</p>
         <h2 className="text-xl font-black leading-tight" style={SORA}>{macro.name}</h2>
         <p className="text-sm font-semibold mt-0.5">

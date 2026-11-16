@@ -23,7 +23,7 @@ interface Milestone {
   approval_status?: string | null;
 }
 
-const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 /**
  * Bannière inline en haut de l'onglet Prog : objectif principal + timeline
@@ -328,7 +328,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
         const microDaysLeft = currentMicro?.end_date ? daysLeftIn(currentMicro.end_date) : null;
         const mesoDaysLeft = currentMesoForMicro?.end_date ? daysLeftIn(currentMesoForMicro.end_date) : null;
         const macroDaysLeft = macroEnd ? daysLeftIn(macroEnd) : null;
-        const mesoCol = currentMesoForMicro ? (currentMesoForMicro.color || COLORS[Math.max(0, phases.findIndex((p) => p.id === currentMesoForMicro.id)) % COLORS.length]) : "#e8c466";
+        const mesoCol = currentMesoForMicro ? (currentMesoForMicro.color || COLORS[Math.max(0, phases.findIndex((p) => p.id === currentMesoForMicro.id)) % COLORS.length]) : "#c9944a";
 
         return (
         <div className="space-y-2">
@@ -446,7 +446,7 @@ export function ProgObjectiveBanner({ athleteId, heading, variant = "phases", on
       <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => { setPromptComment(""); dismissMsPrompt(duePrompt.m.id); }}>
       <div onClick={(e) => e.stopPropagation()} className="relative w-[380px] max-w-[calc(100vw-2rem)] rounded-3xl border border-primary/40 bg-card shadow-2xl p-6 animate-in zoom-in-95 fade-in overflow-hidden">
         {/* halo doré en fond */}
-        <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(232,196,102,0.35), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full blur-3xl" style={{ background: "radial-gradient(circle, rgba(201,148,74,0.35), transparent 70%)" }} />
         <button type="button" onClick={() => { setPromptComment(""); dismissMsPrompt(duePrompt.m.id); }} className="absolute top-3 right-3 h-8 w-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted z-10" aria-label="Plus tard">
           <X className="h-4 w-4" />
         </button>

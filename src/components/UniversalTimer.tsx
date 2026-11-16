@@ -111,7 +111,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
   const tabataPhaseColor = isSequence
     ? stepColor
     : (timerPhase === 'work' ? '#22c55e' : timerPhase === 'change' ? '#f59e0b' : '#3b82f6');
-  const phaseColor = isCountingDown ? '#f59e0b' : (isTabata ? tabataPhaseColor : '#e8c466');
+  const phaseColor = isCountingDown ? '#f59e0b' : (isTabata ? tabataPhaseColor : '#c9944a');
   const tabataLabel = isSequence
     ? (stepLabel || (timerPhase === 'rest' ? '💤 Récup' : '🔥 Travail'))
     : timerPhase === 'change'
@@ -136,7 +136,7 @@ export const UniversalTimer = forwardRef<UniversalTimerRef, UniversalTimerProps>
     setRpeAck((prev) => ({ ...prev, [`${currentRound}:${targetId ?? '_'}`]: v }));
   };
   useEffect(() => { setRpeAck({}); }, [currentRound]);
-  const RPE_COLORS = (v: number) => v <= 3 ? '#52b788' : v <= 6 ? '#e8c466' : v <= 8 ? '#f59e0b' : '#e56464';
+  const RPE_COLORS = (v: number) => v <= 3 ? '#52b788' : v <= 6 ? '#c9944a' : v <= 8 ? '#f59e0b' : '#e56464';
   const rpeRows = (rpeTargets && rpeTargets.length > 0) ? rpeTargets : [{ id: '_', label: '', color: undefined as string | undefined }];
 
   return (

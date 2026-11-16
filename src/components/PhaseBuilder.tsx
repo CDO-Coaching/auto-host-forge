@@ -20,7 +20,7 @@ export interface BuilderPhase {
   color?: string | null;
 }
 
-const PHASE_COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const PHASE_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 const phaseWeeks = (p: BuilderPhase): number | null =>
   p.end_date ? Math.max(1, Math.round((differenceInCalendarDays(new Date(p.end_date), new Date(p.start_date)) + 1) / 7)) : null;

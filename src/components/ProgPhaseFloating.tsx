@@ -22,7 +22,7 @@ interface Milestone {
   approval_status?: string | null;
 }
 
-const COLORS = ["#e8c466", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
+const COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
 /**
  * Panneau flottant affiché dans l'onglet Prog : timeline + phase actuelle
