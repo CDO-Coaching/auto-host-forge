@@ -299,7 +299,7 @@ export function SessionCompletionDialog({
             </Label>
             <Input
               id="session-garmin"
-              type="url"
+              type="text"
               inputMode="url"
               placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
               value={garminLink}

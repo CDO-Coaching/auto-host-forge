@@ -582,7 +582,7 @@ export function CustomSessionDialog({ onSessionCreated, editSession, onClose, va
               </Label>
               <Input
                 id="strava-link"
-                type="url"
+                type="text"
                 inputMode="url"
                 placeholder="Colle ici le lien de ta séance Strava (ou Garmin)"
                 value={stravaLink}

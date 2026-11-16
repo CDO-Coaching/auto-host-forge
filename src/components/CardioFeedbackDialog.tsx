@@ -222,7 +222,7 @@ export function CardioFeedbackDialog({
                   <Label htmlFor="garmin" className="text-[13px] font-semibold">Colle le lien ici</Label>
                   <Input
                     id="garmin"
-                    type="url"
+                    type="text"
                     inputMode="url"
                     value={garminLink}
                     onChange={(e) => setGarminLink(e.target.value)}
