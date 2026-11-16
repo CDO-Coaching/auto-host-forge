@@ -857,7 +857,7 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                         ? "border-primary bg-primary/8 shadow-sm"
                         : "border-border/50 bg-card/40 hover:border-primary/40 hover:bg-muted/30"
                     }`}
-                    onClick={() => { setExpandedSessionId(isSelected ? null : session.id); setSelectedCustomSessionId(null); }}
+                    onClick={() => { setSelectedCustomSessionId(null); setExpandedSessionId(selectedCustomSessionId ? session.id : (isSelected ? null : session.id)); }}
                     draggable={!isValidated}
                     onDragStart={() => onSessionDragStart(session.id)}
                     onDragOver={(e) => onSessionDragOver(e, session.id)}
