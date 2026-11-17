@@ -25,6 +25,7 @@ import {
   Heart,
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
+import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
 import { CurrentMesoCard } from "@/components/sportif/CurrentMesoCard";
 
@@ -59,12 +60,14 @@ export default function SportifDashboard() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   })();
   const [fatigueDoneToday, setFatigueDoneToday] = useState(false);
-  useEffect(() => {
+  const [fatigueDialogOpen, setFatigueDialogOpen] = useState(false);
+  const refreshFatigueDone = useCallback(() => {
     if (!user) return;
     try {
       setFatigueDoneToday(localStorage.getItem(`cdo_fatigue_done:${user.id}:${todayKey}`) === "1");
     } catch { /* ignore */ }
   }, [user, todayKey]);
+  useEffect(() => { refreshFatigueDone(); }, [refreshFatigueDone]);
 
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null, inProgress: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
@@ -479,7 +482,7 @@ export default function SportifDashboard() {
         </div>
         <div className="flex flex-col gap-1.5 shrink-0 pt-1">
           <button
-            onClick={() => navigate("/sportif/fatigue")}
+            onClick={() => setFatigueDialogOpen(true)}
             className={`flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[11px] font-semibold transition-colors ${
               fatigueDoneToday
                 ? "border-border bg-card/50 text-muted-foreground"
@@ -522,6 +525,12 @@ export default function SportifDashboard() {
         </button>
       </div>
 
+      <DailyFatigueDialog
+        open={fatigueDialogOpen}
+        onClose={() => { setFatigueDialogOpen(false); refreshFatigueDone(); loadFatigue(); }}
+        includeInjuryQuestions={false}
+        isFemale={profile?.gender === "female"}
+      />
     </div>
   );
 }
