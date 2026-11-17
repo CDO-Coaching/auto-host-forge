@@ -9,8 +9,6 @@ import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { ChatBubble } from "@/components/ChatBubble";
 import { useAuth } from "@/contexts/AuthContext";
-import { useDailyFatigueCheck } from "@/hooks/useDailyFatigueCheck";
-import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
 import { useWeeklyWeightReminder } from "@/hooks/useWeeklyWeightReminder";
 import { WeightReminderDialog } from "@/components/WeightReminderDialog";
 import Seances from "./sportif/Seances";
@@ -19,6 +17,7 @@ import RecupDetail from "./sportif/RecupDetail";
 import SupersetDetail from "./sportif/SupersetDetail";
 import ExerciceDetail from "./sportif/ExerciceDetail";
 import Fatigue from "./sportif/Fatigue";
+import Douleur from "./sportif/Douleur";
 import QuestionnaireSurentrainement from "./sportif/QuestionnaireSurentrainement";
 import Maxes from "./sportif/Maxes";
 import Poids from "./sportif/Poids";
@@ -46,7 +45,6 @@ export default function DashboardSportif() {
   const navigate = useNavigate();
   const { profile, loading: profileLoading } = useUserProfile();
   const { session, loading: authLoading } = useAuth();
-  const { shouldShowDialog, isChecking, handleClose } = useDailyFatigueCheck();
   const { shouldShowReminder: shouldShowWeightReminder, isChecking: isCheckingWeight, handleDismiss: handleWeightDismiss } = useWeeklyWeightReminder();
 
   useEffect(() => {
@@ -125,6 +123,7 @@ export default function DashboardSportif() {
                 <Route path="/superset/:sessionId/:supersetId" element={<SupersetDetail />} />
                 <Route path="/exercice/:exerciceId" element={<ExerciceDetail />} />
                 <Route path="/fatigue" element={<Fatigue />} />
+                <Route path="/douleur" element={<Douleur />} />
                 <Route path="/questionnaire-surentrainement" element={<QuestionnaireSurentrainement />} />
                 <Route path="/maxes" element={<Maxes />} />
                 <Route path="/poids" element={<Poids />} />
@@ -146,14 +145,8 @@ export default function DashboardSportif() {
         </div>
         <ChatBubble />
       </div>
-      <DailyFatigueDialog 
-        open={shouldShowDialog && !isChecking} 
-        onClose={handleClose}
-        includeInjuryQuestions={true}
-        isFemale={profile?.gender === 'female'}
-      />
       <WeightReminderDialog
-        open={shouldShowWeightReminder && !isCheckingWeight && !shouldShowDialog}
+        open={shouldShowWeightReminder && !isCheckingWeight}
         onDismiss={handleWeightDismiss}
       />
       <AvailabilityGate />

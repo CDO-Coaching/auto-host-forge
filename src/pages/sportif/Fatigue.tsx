@@ -644,10 +644,10 @@ export default function Fatigue() {
 
         {profile?.id && <AthleteSfmsResults athleteId={profile.id} />}
 
-        <DailyFatigueDialog 
-          open={showDialog} 
+        <DailyFatigueDialog
+          open={showDialog}
           onClose={handleDialogClose}
-          includeInjuryQuestions={true}
+          includeInjuryQuestions={false}
           isFemale={profile?.gender === 'female'}
         />
 

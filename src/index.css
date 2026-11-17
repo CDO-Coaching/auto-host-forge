@@ -217,3 +217,10 @@ All colors MUST be HSL.
     background-repeat: no-repeat;
   }
 }
+
+/* Clignotement du rappel de ressenti du jour (dashboard sportif) */
+@keyframes cdo-blink {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+  50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28); }
+}
+.animate-cdo-blink { animation: cdo-blink 1.15s ease-in-out infinite; }

@@ -22,6 +22,7 @@ import {
   Smile,
   Frown,
   Meh,
+  Heart,
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
 import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
@@ -52,6 +53,18 @@ export default function SportifDashboard() {
   const { profile } = useUserProfile();
   const navigate = useNavigate();
   const firstName = profile?.first_name || "Champion";
+
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const [fatigueDoneToday, setFatigueDoneToday] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    try {
+      setFatigueDoneToday(localStorage.getItem(`cdo_fatigue_done:${user.id}:${todayKey}`) === "1");
+    } catch { /* ignore */ }
+  }, [user, todayKey]);
 
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null, inProgress: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
@@ -461,20 +474,31 @@ export default function SportifDashboard() {
 
       <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} subtitle={welcomeSubtitle} />
 
-      {semaineCard}
-      {progressionCard}
-
-      {/* Rappel doux : ressenti du jour non rempli */}
-      {!fatigue.hasToday && (
+      {/* Deux pastilles compactes : ressenti du jour + signaler une douleur */}
+      <div className="flex gap-2">
         <button
           onClick={() => navigate("/sportif/fatigue")}
-          className="w-full flex items-center gap-2 rounded-xl border border-orange-500/30 bg-orange-500/5 px-3 py-2.5 text-sm active:bg-orange-500/10 transition-colors"
+          className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full border text-[12px] font-semibold transition-colors ${
+            fatigueDoneToday
+              ? "border-border bg-card/50 text-muted-foreground"
+              : "animate-cdo-blink border-orange-500/50 bg-orange-500/10 text-orange-500"
+          }`}
         >
-          <Activity className="h-4 w-4 text-orange-500 shrink-0" />
-          <span className="font-medium">Comment tu te sens aujourd'hui ?</span>
-          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+          <Activity className="h-3.5 w-3.5 shrink-0" />
+          {fatigueDoneToday ? "Ressenti ✓" : "Mon ressenti"}
         </button>
-      )}
+        <button
+          onClick={() => navigate("/sportif/douleur")}
+          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full border text-[12px] font-semibold transition-colors"
+          style={{ borderColor: "rgba(239,90,60,0.45)", background: "rgba(239,90,60,0.1)", color: "#ff9a80" }}
+        >
+          <Heart className="h-3.5 w-3.5 shrink-0" />
+          Une douleur
+        </button>
+      </div>
+
+      {semaineCard}
+      {progressionCard}
 
       {/* Accès : Programmer mis en avant (accent doré), Mes séances discret */}
       <div className="grid grid-cols-2 gap-2.5">

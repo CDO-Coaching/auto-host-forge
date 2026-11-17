@@ -381,11 +381,34 @@ export function DailyFatigueDialog({ open, onClose, includeInjuryQuestions = fal
         insertData.injury_location = finalInjuryLocation;
       }
 
-      const { error } = await supabase
+      // Si une ligne existe déjà pour ce jour (ex. une douleur signalée via la
+      // page dédiée), on la met à jour au lieu d'insérer un doublon.
+      const { data: existingRow } = await supabase
         .from("daily_fatigue_log")
-        .insert(insertData);
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("date", dateToSave)
+        .maybeSingle();
 
-      if (error) throw error;
+      if (existingRow) {
+        const { user_id, date, ...updatableFields } = insertData;
+        const { error } = await supabase
+          .from("daily_fatigue_log")
+          .update(updatableFields)
+          .eq("id", existingRow.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("daily_fatigue_log")
+          .insert(insertData);
+        if (error) throw error;
+      }
+
+      // Marqueur local : le questionnaire de FATIGUE a bien été répondu ce jour.
+      // Sert au rappel clignotant du dashboard (indépendant d'une douleur signalée).
+      try {
+        localStorage.setItem(`cdo_fatigue_done:${user.id}:${dateToSave}`, "1");
+      } catch { /* ignore */ }
 
       const isToday = dateToSave === toLocalDateKey(new Date());
       toast({
