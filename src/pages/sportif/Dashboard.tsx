@@ -472,29 +472,32 @@ export default function SportifDashboard() {
     <div className="space-y-4 pb-20 sm:pb-4">
       <AthleteSfmsRequestBanner />
 
-      <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} subtitle={welcomeSubtitle} />
-
-      {/* Deux pastilles compactes : ressenti du jour + signaler une douleur */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => navigate("/sportif/fatigue")}
-          className={`flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full border text-[12px] font-semibold transition-colors ${
-            fatigueDoneToday
-              ? "border-border bg-card/50 text-muted-foreground"
-              : "animate-cdo-blink border-orange-500/50 bg-orange-500/10 text-orange-500"
-          }`}
-        >
-          <Activity className="h-3.5 w-3.5 shrink-0" />
-          {fatigueDoneToday ? "Ressenti ✓" : "Mon ressenti"}
-        </button>
-        <button
-          onClick={() => navigate("/sportif/douleur")}
-          className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full border text-[12px] font-semibold transition-colors"
-          style={{ borderColor: "rgba(239,90,60,0.45)", background: "rgba(239,90,60,0.1)", color: "#ff9a80" }}
-        >
-          <Heart className="h-3.5 w-3.5 shrink-0" />
-          Une douleur
-        </button>
+      {/* Bandeau « Salut » + deux petites pastilles empilées à sa droite */}
+      <div className="flex items-start gap-2">
+        <div className="flex-1 min-w-0">
+          <WelcomeBanner firstName={firstName} recoveryPercent={recoveryPercentForBanner} subtitle={welcomeSubtitle} />
+        </div>
+        <div className="flex flex-col gap-1.5 shrink-0 pt-1">
+          <button
+            onClick={() => navigate("/sportif/fatigue")}
+            className={`flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[11px] font-semibold transition-colors ${
+              fatigueDoneToday
+                ? "border-border bg-card/50 text-muted-foreground"
+                : "animate-cdo-blink border-orange-500/50 bg-orange-500/10 text-orange-500"
+            }`}
+          >
+            <Activity className="h-3.5 w-3.5 shrink-0" />
+            {fatigueDoneToday ? "Ressenti ✓" : "Ressenti"}
+          </button>
+          <button
+            onClick={() => navigate("/sportif/douleur")}
+            className="flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-[11px] font-semibold transition-colors"
+            style={{ borderColor: "rgba(239,90,60,0.45)", background: "rgba(239,90,60,0.1)", color: "#ff9a80" }}
+          >
+            <Heart className="h-3.5 w-3.5 shrink-0" />
+            Douleur
+          </button>
+        </div>
       </div>
 
       {semaineCard}
