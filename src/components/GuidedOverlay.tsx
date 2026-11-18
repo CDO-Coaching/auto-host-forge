@@ -52,8 +52,17 @@ const RPE_COLOR = (v: number) => (v <= 3 ? "#52b788" : v <= 6 ? "#c9944a" : v <=
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60).toString().padStart(2, "0")}:${Math.floor(Math.max(0, s) % 60).toString().padStart(2, "0")}`;
 const sora = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 
-export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChange }: { steps: GuidedStep[]; onClose: () => void; onFinish?: () => void; initialIdx?: number; onStepChange?: (idx: number) => void }) {
+export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChange, baseElapsed }: { steps: GuidedStep[]; onClose: () => void; onFinish?: () => void; initialIdx?: number; onStepChange?: (idx: number) => void; baseElapsed?: number }) {
   const [idx, setIdx] = useState(initialIdx ?? 0);
+  // Chrono de séance : démarre au lancement (reprend la durée déjà écoulée si fournie).
+  const [elapsed, setElapsed] = useState(baseElapsed ?? 0);
+  useEffect(() => {
+    const t0 = Date.now();
+    const base = baseElapsed ?? 0;
+    const i = setInterval(() => setElapsed(base + Math.floor((Date.now() - t0) / 1000)), 1000);
+    return () => clearInterval(i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [remaining, setRemaining] = useState(0);
   const [mode, setMode] = useState<Mode>("idle");
   const [reps, setReps] = useState("");
@@ -205,12 +214,15 @@ export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChan
       <div className="px-4 flex flex-col gap-4 flex-1 overflow-y-auto max-w-lg mx-auto w-full">
         <div className="flex items-center justify-between pt-1">
           <span className="text-[13px] font-bold uppercase tracking-wide text-[#c9944a]">Séance guidée</span>
-          <button onClick={onClose} aria-label="Quitter le mode guidé" className="p-1 text-muted-foreground"><X className="h-6 w-6" /></button>
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] font-bold tabular-nums text-muted-foreground">⏱ {fmt(elapsed)}</span>
+            <button onClick={onClose} aria-label="Quitter le mode guidé" className="p-1 text-muted-foreground"><X className="h-6 w-6" /></button>
+          </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1.5 text-[12px] text-muted-foreground">
-            <span>{step.stepLabel ?? `Étape ${idx + 1} / ${total}`}</span>
+            <span className="font-semibold text-[#c9944a]">{Math.round(((idx + 1) / total) * 100)}% complété</span>
             {step.serieLabel && <span>{step.serieLabel}</span>}
           </div>
           <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">

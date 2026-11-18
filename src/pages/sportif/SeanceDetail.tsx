@@ -1144,6 +1144,7 @@ export default function SeanceDetail() {
           <SessionGuidedPlayer
             exercises={rawExercises}
             sessionId={sessionId}
+            baseElapsed={sessionDuration}
             onClose={() => { setGuidedSessionOpen(false); loadSessionDetail(); }}
             onFinish={() => { setGuidedSessionOpen(false); loadSessionDetail(); setCompletionDialogOpen(true); }}
           />

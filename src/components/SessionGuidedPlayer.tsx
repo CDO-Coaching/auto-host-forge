@@ -55,11 +55,13 @@ export function SessionGuidedPlayer({
   onClose,
   onFinish,
   sessionId,
+  baseElapsed,
 }: {
   exercises: any[]; // lignes session_exercises brutes, ordonnées (hors cardio)
   onClose: () => void;
   onFinish?: () => void;
   sessionId?: string;
+  baseElapsed?: number;
 }) {
   const [libByName, setLibByName] = useState<Record<string, { video_url?: string; description?: string }>>({});
   const [ready, setReady] = useState(false);
@@ -376,6 +378,7 @@ export function SessionGuidedPlayer({
       steps={orderedSteps}
       initialIdx={initialIdx}
       onStepChange={saveProgress}
+      baseElapsed={baseElapsed}
       onClose={onClose}
       onFinish={() => { clearProgress(); onFinish?.(); }}
     />
