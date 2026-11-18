@@ -1152,13 +1152,6 @@ export default function SupersetDetail() {
                 ) : null;
               })()}
 
-              {/* Mode guidé pas-à-pas (enchaîne les deux exos, saisie RPE/charge/reps) */}
-              {!allValidated && (
-                <Button onClick={startGuided} className="w-full mt-3 h-11 bg-primary text-primary-foreground font-bold gap-2">
-                  <Play className="h-4 w-4" /> Lancer en mode guidé
-                </Button>
-              )}
-
               {/* Tous les exos en durée → Tabata superset qui enchaîne les deux + récup + RPE */}
               {!allValidated && allDuration() && (
                 <Button

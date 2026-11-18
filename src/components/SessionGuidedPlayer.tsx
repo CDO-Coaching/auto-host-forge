@@ -54,15 +54,31 @@ export function SessionGuidedPlayer({
   exercises,
   onClose,
   onFinish,
+  sessionId,
 }: {
   exercises: any[]; // lignes session_exercises brutes, ordonnées (hors cardio)
   onClose: () => void;
   onFinish?: () => void;
+  sessionId?: string;
 }) {
   const [libByName, setLibByName] = useState<Record<string, { video_url?: string; description?: string }>>({});
   const [ready, setReady] = useState(false);
   const resultsRef = useRef<Record<string, SerieResult[]>>({});
   const [orderedSteps, setOrderedSteps] = useState<GuidedStep[]>([]);
+  const [initialIdx, setInitialIdx] = useState(0);
+  const orderedRef = useRef<GuidedStep[]>([]);
+  const restoredRef = useRef(false);
+  const storageKey = sessionId ? `cdo_guided_progress:${sessionId}` : null;
+
+  useEffect(() => { orderedRef.current = orderedSteps; }, [orderedSteps]);
+
+  const saveProgress = (idx: number) => {
+    if (!storageKey) return;
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ order: orderedRef.current.map((s) => s.id), idx }));
+    } catch { /* ignore */ }
+  };
+  const clearProgress = () => { if (storageKey) { try { localStorage.removeItem(storageKey); } catch { /* ignore */ } } };
 
   // Reporter un (ou plusieurs, pour un superset) exercice(s) en fin de séance.
   const deferExercises = (exIds: string[]) => {
@@ -253,6 +269,7 @@ export function SessionGuidedPlayer({
           const dur = m.isEmom ? 60 : (m.isDur ? (parseInt(String(sd.reps), 10) || 0) : 0);
           const coachNote = r === 0 ? coachNoteOf(m.ex, sd) : "";
           const desc = r === 0 ? (m.lib.description || undefined) : undefined;
+          const isLastExOfRound = k === metas.length - 1;
           const base: Partial<GuidedStep> = {
             exName: m.ex.exercice, exNumber: m.number, exColor: m.color,
             serieLabel: `Tour ${r + 1} / ${rounds}`, videoUrl: m.lib.video_url || undefined,
@@ -265,7 +282,7 @@ export function SessionGuidedPlayer({
               ...(base as GuidedStep), id: `w_${m.ex.id}_${r}`, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel: m.isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y",
-              phaseColor: "#52b788", autoStart: true, autoAdvance: true, prepSeconds: (r === 0 && k === 0) ? 5 : 3,
+              phaseColor: "#52b788", autoStart: true, autoAdvance: false, prepSeconds: (r === 0 && k === 0) ? 5 : 3,
             });
           } else {
             const ci = chargeInfo(sd.charge);
@@ -277,30 +294,28 @@ export function SessionGuidedPlayer({
               onDone: (d) => setResult(m.ex.id, r, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
             });
           }
-        });
 
-        if (!lastRound) {
-          const recSec = recupSeconds(metas[0].sData[r]?.recuperation || "") || 60;
+          // RPE + commentaire pour CETTE série de CET exercice (demandé à chaque série).
+          // Le repos inter-tour est porté par l'étape RPE du dernier exo du tour.
+          const restSec = (isLastExOfRound && !lastRound)
+            ? (recupSeconds(metas[0].sData[r]?.recuperation || "") || 60)
+            : 0;
+          const nextLbl = (lastRound && isLastExOfRound)
+            ? congrats
+            : isLastExOfRound
+              ? `Tour ${r + 2} / ${rounds}`
+              : `Au suivant : ${metas[k + 1].ex.exercice}`;
           out.push({
-            id: `rr_${exs[0].id}_${r}`, exId: exs[0].id, type: "recup", seconds: recSec,
-            nextLabel: `Tour ${r + 2} / ${rounds}`, autoAdvance: metas.every((m) => m.isDur || m.isEmom),
+            id: `rpe_${m.ex.id}_${r}`, exId: m.ex.id, type: "recup", seconds: restSec,
+            exName: m.ex.exercice, exColor: m.color, exNumber: m.number,
+            serieLabel: `Tour ${r + 1} / ${rounds}`,
+            videoUrl: m.lib.video_url || undefined,
+            refRpe: sd.rpe ? String(sd.rpe) : undefined,
+            nextLabel: nextLbl,
+            onRpe: (rpe) => setResult(m.ex.id, r, { rpe }),
+            onComment: (t) => setResult(m.ex.id, r, { comment: t }),
           });
-        } else {
-          // Fin du superset : RPE + commentaire pour chaque exercice.
-          metas.forEach((m, k) => {
-            const lastIdx = Math.max(0, m.sData.length - 1);
-            const isLast = k === metas.length - 1;
-            const lastSd = m.sData[lastIdx] || ({} as Serie);
-            out.push({
-              id: `rpe_${m.ex.id}`, exId: m.ex.id, type: "recup", seconds: 0,
-              exName: m.ex.exercice, exColor: m.color, videoUrl: m.lib.video_url || undefined,
-              refRpe: lastSd.rpe ? String(lastSd.rpe) : undefined,
-              nextLabel: isLast ? congrats : `RPE : ${metas[k + 1].ex.exercice}`,
-              onRpe: (rpe) => setResult(m.ex.id, lastIdx, { rpe }),
-              onComment: (t) => setResult(m.ex.id, lastIdx, { comment: t }),
-            });
-          });
-        }
+        });
       }
     };
 
@@ -331,16 +346,38 @@ export function SessionGuidedPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, exercises, libByName]);
 
-  // Initialise l'ordre jouable (modifiable ensuite par « reporter l'exercice »).
-  useEffect(() => { setOrderedSteps(steps); }, [steps]);
+  // Initialise l'ordre jouable (modifiable ensuite par « reporter l'exercice »),
+  // en restaurant la progression sauvegardée si elle correspond à cette séance.
+  useEffect(() => {
+    if (!steps.length || restoredRef.current) return;
+    restoredRef.current = true;
+    let order = steps;
+    let idx0 = 0;
+    if (storageKey) {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null");
+        if (saved && Array.isArray(saved.order) && saved.order.length === steps.length) {
+          const byId = new Map(steps.map((s) => [s.id, s]));
+          if (saved.order.every((id: string) => byId.has(id))) {
+            order = saved.order.map((id: string) => byId.get(id)!);
+            idx0 = Math.min(Math.max(0, saved.idx || 0), order.length - 1);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    setOrderedSteps(order);
+    setInitialIdx(idx0);
+  }, [steps, storageKey]);
 
   if (!ready || orderedSteps.length === 0) return null;
 
   return (
     <GuidedOverlay
       steps={orderedSteps}
+      initialIdx={initialIdx}
+      onStepChange={saveProgress}
       onClose={onClose}
-      onFinish={() => { onFinish?.(); }}
+      onFinish={() => { clearProgress(); onFinish?.(); }}
     />
   );
 }

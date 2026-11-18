@@ -1143,6 +1143,7 @@ export default function SeanceDetail() {
         {guidedSessionOpen && (
           <SessionGuidedPlayer
             exercises={rawExercises}
+            sessionId={sessionId}
             onClose={() => { setGuidedSessionOpen(false); loadSessionDetail(); }}
             onFinish={() => { setGuidedSessionOpen(false); loadSessionDetail(); setCompletionDialogOpen(true); }}
           />
@@ -1191,7 +1192,8 @@ export default function SeanceDetail() {
             onClick={() => { if (!isSessionActive) startSession(); setGuidedSessionOpen(true); }}
             className="w-full h-12 gap-2 bg-primary text-primary-foreground font-bold"
           >
-            <Play className="h-5 w-5" /> Tester le nouveau mode de séance
+            <Play className="h-5 w-5" />
+            {(() => { try { return localStorage.getItem(`cdo_guided_progress:${sessionId}`) ? "Reprendre la séance guidée" : "Lancer la séance guidée"; } catch { return "Lancer la séance guidée"; } })()}
           </Button>
         )}
 

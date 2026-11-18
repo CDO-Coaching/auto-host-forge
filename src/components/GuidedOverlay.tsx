@@ -52,8 +52,8 @@ const RPE_COLOR = (v: number) => (v <= 3 ? "#52b788" : v <= 6 ? "#c9944a" : v <=
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60).toString().padStart(2, "0")}:${Math.floor(Math.max(0, s) % 60).toString().padStart(2, "0")}`;
 const sora = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 
-export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[]; onClose: () => void; onFinish?: () => void }) {
-  const [idx, setIdx] = useState(0);
+export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChange }: { steps: GuidedStep[]; onClose: () => void; onFinish?: () => void; initialIdx?: number; onStepChange?: (idx: number) => void }) {
+  const [idx, setIdx] = useState(initialIdx ?? 0);
   const [remaining, setRemaining] = useState(0);
   const [mode, setMode] = useState<Mode>("idle");
   const [reps, setReps] = useState("");
@@ -69,6 +69,9 @@ export function GuidedOverlay({ steps, onClose, onFinish }: { steps: GuidedStep[
 
   const step = steps[idx];
   const total = steps.length;
+
+  // Sauvegarde la progression (pour reprendre là où on s'est arrêté).
+  useEffect(() => { onStepChange?.(idx); }, [idx, onStepChange]);
   const isWorkDur = step?.type === "work" && step?.isDuration === true;
   const isRecup = step?.type === "recup";
 
