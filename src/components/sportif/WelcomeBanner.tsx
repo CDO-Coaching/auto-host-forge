@@ -29,7 +29,7 @@ export function WelcomeBanner({ firstName, recoveryPercent, subtitle }: Props) {
 
     const [fatigueRes, sessionsRes, customRes] = await Promise.all([
       (supabase as any).from("daily_fatigue_log").select("date").eq("user_id", user.id).gte("date", sinceISO),
-      (supabase as any).from("training_sessions").select("completed_at").eq("athlete_id", user.id).not("completed_at", "is", null).gte("completed_at", since.toISOString()),
+      (supabase as any).from("training_sessions").select("completed_at, training_weeks!inner(athlete_id)").eq("training_weeks.athlete_id", user.id).not("completed_at", "is", null).gte("completed_at", since.toISOString()),
       (supabase as any).from("custom_sessions").select("completed_at").eq("user_id", user.id).gte("completed_at", since.toISOString()),
     ]);
 
