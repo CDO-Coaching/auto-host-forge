@@ -82,7 +82,11 @@ type Step = {
   seconds: number; // par côté/série si minuté
   repsLabel: string; // si non minuté
   segments: Segment[];
+  circuitLabel?: string; // ex. "Circuit · Tour 2/3"
+  chainNext?: boolean;   // enchaîner automatiquement vers l'étape suivante (circuit)
 };
+
+type OutlineItem = { key: string; name: string; sub: string; circuit: boolean; rounds?: number; members?: number };
 
 // ── Sons & voix ──────────────────────────────────────────────────────────────
 function useChime() {
@@ -140,7 +144,9 @@ export default function RecupDetail() {
 
   const [session, setSession] = useState<any>(null);
   const [steps, setSteps] = useState<Step[]>([]);
+  const [outline, setOutline] = useState<OutlineItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const chainPendingRef = useRef(false);
 
   const [phase, setPhase] = useState<"intro" | "playing">("intro");
   const [stepIdx, setStepIdx] = useState(0);
@@ -190,54 +196,117 @@ export default function RecupDetail() {
       });
     }
 
-    const built: Step[] = raw
-      .filter((e) => (e.exercice || "").trim().length > 0)
-      .map((e) => {
-        const lib = (e.exercise_library_id && libById.get(e.exercise_library_id))
-          || libByName.get((e.exercice || "").trim().toLowerCase())
-          || {};
-        const unilateral = !!(e.per_side || lib.unilateral);
-        const series = Math.max(1, parseInt(e.series, 10) || 1);
-        const isTimed = !!e.is_duration;
-        const seconds = isTimed ? parseSeconds(e.reps) : 0;
-        const equipment = String(lib.equipment || "")
-          .split(",").map((x: string) => x.trim()).filter(Boolean);
-        const consignes = String(lib.description || "").trim();
-        const coachNote = String(e.commentaire || "").trim();
+    const named = raw.filter((e) => (e.exercice || "").trim().length > 0);
 
-        const segments: Segment[] = [];
-        if (isTimed && seconds > 0) {
-          for (let s = 1; s <= series; s++) {
-            if (unilateral) {
-              segments.push({ label: "Côté 1", seconds, announceAfter: "Change de côté", switchSeconds: SIDE_SWITCH_SECONDS });
-              segments.push({ label: "Côté 2", seconds, announceAfter: s < series ? "Série suivante" : null, switchSeconds: SERIES_REST_SECONDS });
+    // Infos de base d'un exercice (enrichies depuis la bibliothèque)
+    const baseOf = (e: any) => {
+      const lib = (e.exercise_library_id && libById.get(e.exercise_library_id))
+        || libByName.get((e.exercice || "").trim().toLowerCase())
+        || {};
+      return {
+        lib,
+        unilateral: !!(e.per_side || lib.unilateral),
+        series: Math.max(1, parseInt(e.series, 10) || 1),
+        isTimed: !!e.is_duration,
+        seconds: e.is_duration ? parseSeconds(e.reps) : 0,
+        equipment: String(lib.equipment || "").split(",").map((x: string) => x.trim()).filter(Boolean),
+        consignes: String(lib.description || "").trim(),
+        coachNote: String(e.commentaire || "").trim(),
+        videoId: youtubeId(lib.video_url),
+      };
+    };
+
+    // Construit un Step. `rounds`=null → exercice normal (toutes les séries dans
+    // les segments). Sinon → une seule passe (un tour de circuit).
+    const makeStep = (e: any, opts: { circuitLabel?: string; chainNext?: boolean; singleRound?: boolean } = {}): Step => {
+      const b = baseOf(e);
+      const segs: Segment[] = [];
+      if (b.isTimed && b.seconds > 0) {
+        if (opts.singleRound) {
+          if (b.unilateral) {
+            segs.push({ label: "Côté 1", seconds: b.seconds, announceAfter: "Change de côté", switchSeconds: SIDE_SWITCH_SECONDS });
+            segs.push({ label: "Côté 2", seconds: b.seconds, announceAfter: null, switchSeconds: SERIES_REST_SECONDS });
+          } else {
+            segs.push({ label: "", seconds: b.seconds, announceAfter: null, switchSeconds: SERIES_REST_SECONDS });
+          }
+        } else {
+          for (let s = 1; s <= b.series; s++) {
+            if (b.unilateral) {
+              segs.push({ label: "Côté 1", seconds: b.seconds, announceAfter: "Change de côté", switchSeconds: SIDE_SWITCH_SECONDS });
+              segs.push({ label: "Côté 2", seconds: b.seconds, announceAfter: s < b.series ? "Série suivante" : null, switchSeconds: SERIES_REST_SECONDS });
             } else {
-              segments.push({ label: series > 1 ? `Série ${s}` : "", seconds, announceAfter: s < series ? "Série suivante" : null, switchSeconds: SERIES_REST_SECONDS });
+              segs.push({ label: b.series > 1 ? `Série ${s}` : "", seconds: b.seconds, announceAfter: s < b.series ? "Série suivante" : null, switchSeconds: SERIES_REST_SECONDS });
             }
           }
         }
+      }
+      const seriesForLabel = opts.singleRound ? 1 : b.series;
+      const repsLabel = !b.isTimed
+        ? `${seriesForLabel > 1 ? `${seriesForLabel} × ` : ""}${e.reps || "?"} reps${b.unilateral ? " / côté" : ""}`
+        : "";
+      return {
+        id: opts.circuitLabel ? `${e.id}-${opts.circuitLabel}` : e.id,
+        name: e.exercice,
+        consignes: b.consignes,
+        coachNote: b.coachNote,
+        videoId: b.videoId,
+        equipment: b.equipment,
+        unilateral: b.unilateral,
+        series: opts.singleRound ? 1 : b.series,
+        isTimed: b.isTimed,
+        seconds: b.seconds,
+        repsLabel,
+        segments: segs,
+        circuitLabel: opts.circuitLabel,
+        chainNext: opts.chainNext,
+      };
+    };
 
-        const repsLabel = !isTimed
-          ? `${series > 1 ? `${series} × ` : ""}${e.reps || "?"} reps${unilateral ? " / côté" : ""}`
-          : "";
-
-        return {
-          id: e.id,
+    const built: Step[] = [];
+    const outlineItems: OutlineItem[] = [];
+    let i = 0;
+    while (i < named.length) {
+      const e = named[i];
+      const grp = e.super_set_group;
+      if (grp) {
+        const members: any[] = [];
+        let j = i;
+        while (j < named.length && named[j].super_set_group === grp) { members.push(named[j]); j++; }
+        const rounds = Math.max(1, ...members.map((m) => parseInt(m.series, 10) || 1));
+        for (let r = 1; r <= rounds; r++) {
+          members.forEach((m, mi) => {
+            const isLast = r === rounds && mi === members.length - 1;
+            built.push(makeStep(m, {
+              circuitLabel: `Circuit · Tour ${r}/${rounds}`,
+              chainNext: !isLast,
+              singleRound: true,
+            }));
+          });
+        }
+        outlineItems.push({
+          key: `circ-${grp}`,
+          name: `Circuit (${members.length} exos)`,
+          sub: members.map((m) => m.exercice).join(" → "),
+          circuit: true,
+          rounds,
+          members: members.length,
+        });
+        i = j;
+      } else {
+        const step = makeStep(e, {});
+        built.push(step);
+        outlineItems.push({
+          key: String(e.id),
           name: e.exercice,
-          consignes,
-          coachNote,
-          videoId: youtubeId(lib.video_url),
-          equipment,
-          unilateral,
-          series,
-          isTimed,
-          seconds,
-          repsLabel,
-          segments,
-        };
-      });
+          sub: step.isTimed ? `${step.series > 1 ? `${step.series} × ` : ""}${formatClock(step.seconds)}${step.unilateral ? " / côté" : ""}` : step.repsLabel,
+          circuit: false,
+        });
+        i++;
+      }
+    }
 
     setSteps(built);
+    setOutline(outlineItems);
     setLoading(false);
   };
 
@@ -286,6 +355,13 @@ export default function RecupDetail() {
       setSwitchLabel(seg.announceAfter);
       setSwitching(true);
       setSwitchRemaining(seg.switchSeconds);
+    } else if (step.chainNext) {
+      // dernier segment d'une étape de circuit → on enchaîne vers la suivante
+      speak(`Exercice suivant. ${SERIES_REST_SECONDS} secondes.`);
+      setSwitchLabel("Exercice suivant");
+      chainPendingRef.current = true;
+      setSwitching(true);
+      setSwitchRemaining(SERIES_REST_SECONDS);
     } else {
       // dernier segment de l'étape
       setRunning(false);
@@ -295,6 +371,20 @@ export default function RecupDetail() {
 
   const finishSwitch = () => {
     setSwitching(false);
+    // Fin d'une transition d'enchaînement de circuit → passer à l'étape suivante
+    if (chainPendingRef.current) {
+      chainPendingRef.current = false;
+      const nextIdx = stepIdx + 1;
+      if (nextIdx >= steps.length) { setCompletionOpen(true); return; }
+      const nstep = steps[nextIdx];
+      setStepIdx(nextIdx);
+      setSegIdx(0);
+      setVideoOpen(false);
+      const sec = nstep?.segments[0]?.seconds ?? 0;
+      setRemaining(sec);
+      setRunning(!!nstep?.isTimed && sec > 0);
+      return;
+    }
     const step = steps[stepIdx];
     if (!step) return;
     const next = segIdx + 1;
@@ -402,10 +492,10 @@ export default function RecupDetail() {
           <div className="flex items-center gap-2 text-green-600"><CheckCircle2 className="h-5 w-5" /><span className="font-semibold">Séance terminée</span></div>
           <h1 className="text-2xl font-bold">{session.name}</h1>
           <div className="space-y-2">
-            {steps.map((s, i) => (
-              <div key={s.id} className="rounded-xl border border-border/50 p-3">
-                <p className="font-medium">{i + 1}. {s.name}</p>
-                <p className="text-sm text-muted-foreground">{s.isTimed ? `${s.series > 1 ? `${s.series} × ` : ""}${formatClock(s.seconds)}${s.unilateral ? " / côté" : ""}` : s.repsLabel}</p>
+            {outline.map((o, i) => (
+              <div key={o.key} className="rounded-xl border border-border/50 p-3">
+                <p className="font-medium">{i + 1}. {o.circuit ? `🔁 ${o.name}` : o.name}</p>
+                <p className="text-sm text-muted-foreground">{o.circuit ? `${o.rounds} tours · ${o.sub}` : o.sub}</p>
               </div>
             ))}
           </div>
@@ -442,7 +532,7 @@ export default function RecupDetail() {
             <div>
               <h1 className="text-2xl font-bold leading-tight">{session.name}</h1>
               <p className="text-muted-foreground text-sm mt-1 flex items-center gap-3">
-                <span>{steps.length} étape{steps.length > 1 ? "s" : ""}</span>
+                <span>{outline.length} étape{outline.length > 1 ? "s" : ""}</span>
                 <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatTotal(totalSeconds)}</span>
               </p>
             </div>
@@ -462,13 +552,14 @@ export default function RecupDetail() {
           </div>
 
           <div className="space-y-1.5">
-            {steps.map((s, i) => (
-              <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border/40 px-3 py-2.5">
+            {outline.map((o, i) => (
+              <div key={o.key} className={cn("flex items-center gap-3 rounded-xl border px-3 py-2.5", o.circuit ? "border-primary/40 bg-primary/5" : "border-border/40")}>
                 <span className="text-xs text-muted-foreground w-5 shrink-0">{i + 1}</span>
-                <span className="flex-1 text-sm font-medium truncate">{s.name}</span>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {s.isTimed ? `${s.series > 1 ? `${s.series}× ` : ""}${formatClock(s.seconds)}${s.unilateral ? "/côté" : ""}` : s.repsLabel}
-                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{o.circuit ? `🔁 ${o.name}` : o.name}</p>
+                  {o.circuit && <p className="text-xs text-muted-foreground truncate">{o.rounds} tours · {o.sub}</p>}
+                </div>
+                {!o.circuit && <span className="text-xs text-muted-foreground shrink-0">{o.sub}</span>}
               </div>
             ))}
           </div>
@@ -507,6 +598,11 @@ export default function RecupDetail() {
 
       {/* Contenu */}
       <div className="flex-1 overflow-y-auto px-6 flex flex-col items-center justify-center text-center">
+        {curStep?.circuitLabel && (
+          <span className="text-xs font-semibold uppercase tracking-wide text-primary bg-primary/10 border border-primary/30 rounded-full px-3 py-1 mb-2">
+            🔁 {curStep.circuitLabel}
+          </span>
+        )}
         <h2 className="text-3xl font-serif font-bold mb-2">{curStep?.name}</h2>
 
         {curStep?.unilateral && (

@@ -1570,74 +1570,122 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                             <TableRow>
                               <TableCell colSpan={4} className="text-center text-muted-foreground py-8">Aucun exercice ajouté.</TableCell>
                             </TableRow>
-                          ) : (sessionExercises[selectedSession.id] ?? []).map((exercise) => (
-                            <TableRow
-                              key={exercise.id}
-                              draggable={!isValidated}
-                              onDragStart={() => onExerciseDragStart(selectedSession.id, exercise.id)}
-                              onDragOver={onExerciseDragOver}
-                              onDrop={(e) => onExerciseDrop(e, selectedSession.id, exercise.id)}
-                            >
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {!isValidated && <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />}
-                                  <ExerciseCombobox
-                                    value={exercise.exercice}
-                                    onChange={(v) => onExerciseChange(selectedSession.id, exercise.id, "exercice", v)}
-                                    exercises={libraryExercises.filter((ex) => { const c = (ex.category || "").toLowerCase(); return c.includes("mobilit") || c.includes("souplesse"); })}
-                                    disabled={isValidated}
-                                    onExerciseCreated={onExerciseCreated}
-                                  />
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <Input
-                                    value={exercise.reps}
-                                    onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)}
-                                    onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onExerciseChange(selectedSession.id, exercise.id, "reps", parsed); } }}
-                                    placeholder={exercise.is_duration ? "sec ou 10min" : "ex: 12 reps"}
-                                    className="w-28"
-                                    disabled={isValidated}
-                                  />
-                                  <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                                    <Checkbox checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} />
-                                    secondes
-                                  </label>
-                                  <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                                    <Checkbox checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
-                                    par côté
-                                  </label>
-                                  <div className="flex items-center gap-1 ml-1">
-                                    <span className="text-xs text-muted-foreground">séries</span>
-                                    <button type="button" disabled={isValidated}
-                                      className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
-                                      onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(Math.max(1, cur - 1))); }}>−</button>
-                                    <Input
-                                      value={exercise.series || "1"}
-                                      onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value.replace(/[^0-9]/g, "") || "1")}
-                                      className="w-10 text-center px-1"
-                                      disabled={isValidated}
-                                    />
-                                    <button type="button" disabled={isValidated}
-                                      className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
-                                      onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(cur + 1)); }}>+</button>
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Input value={exercise.commentaire} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "commentaire", e.target.value)} placeholder="Notes..." disabled={isValidated} />
-                              </TableCell>
-                              <TableCell>
-                                {!isValidated && (
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                                    onClick={() => onDeleteExercise(selectedSession.id, exercise.id)}>
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          ) : (() => {
+                            const mobEx = sessionExercises[selectedSession.id] ?? [];
+                            const rows: React.ReactElement[] = [];
+                            mobEx.forEach((exercise, idx) => {
+                              const prev = idx > 0 ? mobEx[idx - 1] : null;
+                              const grouped = !!exercise.super_set_group;
+                              const groupStart = grouped && (!prev || prev.super_set_group !== exercise.super_set_group);
+                              // En-tête de circuit au début d'un groupe
+                              if (groupStart) {
+                                const members = mobEx.filter((e) => e.super_set_group === exercise.super_set_group);
+                                const rounds = Math.max(1, ...members.map((m) => parseInt(m.series, 10) || 1));
+                                rows.push(
+                                  <TableRow key={`circ-${exercise.super_set_group}`} className="bg-primary/10 border-l-4 border-l-primary hover:bg-primary/10">
+                                    <TableCell colSpan={4} className="py-1.5">
+                                      <Badge variant="default" className="mr-2">Circuit · {members.length} exercices</Badge>
+                                      <span className="text-xs text-muted-foreground">{rounds} tour{rounds > 1 ? "s" : ""} — exercices enchaînés</span>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
+                              rows.push(
+                                <TableRow
+                                  key={exercise.id}
+                                  draggable={!isValidated}
+                                  onDragStart={() => onExerciseDragStart(selectedSession.id, exercise.id)}
+                                  onDragOver={onExerciseDragOver}
+                                  onDrop={(e) => onExerciseDrop(e, selectedSession.id, exercise.id)}
+                                  className={grouped ? "border-l-4 border-l-primary/60" : ""}
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center gap-2">
+                                      {!isValidated && <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab" />}
+                                      <ExerciseCombobox
+                                        value={exercise.exercice}
+                                        onChange={(v) => onExerciseChange(selectedSession.id, exercise.id, "exercice", v)}
+                                        exercises={libraryExercises.filter((ex) => { const c = (ex.category || "").toLowerCase(); return c.includes("mobilit") || c.includes("souplesse"); })}
+                                        disabled={isValidated}
+                                        onExerciseCreated={onExerciseCreated}
+                                      />
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Input
+                                        value={exercise.reps}
+                                        onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "reps", e.target.value)}
+                                        onBlur={(e) => { if (exercise.is_duration) { const parsed = parseDurationInput(e.target.value); if (parsed !== e.target.value) onExerciseChange(selectedSession.id, exercise.id, "reps", parsed); } }}
+                                        placeholder={exercise.is_duration ? "sec ou 10min" : "ex: 12 reps"}
+                                        className="w-28"
+                                        disabled={isValidated}
+                                      />
+                                      <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                                        <Checkbox checked={exercise.is_duration || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "is_duration", c as boolean)} disabled={isValidated} />
+                                        secondes
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                                        <Checkbox checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
+                                        par côté
+                                      </label>
+                                      <div className="flex items-center gap-1 ml-1">
+                                        <span className="text-xs text-muted-foreground">{grouped ? "tours" : "séries"}</span>
+                                        <button type="button" disabled={isValidated}
+                                          className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                          onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(Math.max(1, cur - 1))); }}>−</button>
+                                        <Input
+                                          value={exercise.series || "1"}
+                                          onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value.replace(/[^0-9]/g, "") || "1")}
+                                          className="w-10 text-center px-1"
+                                          disabled={isValidated}
+                                        />
+                                        <button type="button" disabled={isValidated}
+                                          className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                          onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(cur + 1)); }}>+</button>
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input value={exercise.commentaire} onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "commentaire", e.target.value)} placeholder="Notes..." disabled={isValidated} />
+                                  </TableCell>
+                                  <TableCell>
+                                    {!isValidated && (
+                                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                                        onClick={() => onDeleteExercise(selectedSession.id, exercise.id)}>
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                              // Connecteur « lier en circuit » entre deux exercices
+                              const nxt = idx < mobEx.length - 1 ? mobEx[idx + 1] : null;
+                              if (!isValidated && nxt) {
+                                const linked = grouped && exercise.super_set_group === nxt.super_set_group;
+                                const bothDiff = grouped && !!nxt.super_set_group && exercise.super_set_group !== nxt.super_set_group;
+                                if (!bothDiff) {
+                                  rows.push(
+                                    <TableRow key={`mconn-${exercise.id}`} className="hover:bg-transparent border-0">
+                                      <TableCell colSpan={4} className="p-0">
+                                        <div className="flex items-center gap-2 px-4 py-0.5">
+                                          <div className="h-px flex-1 border-t border-dashed border-border/40" />
+                                          <Button variant="outline" size="sm"
+                                            className={`h-6 gap-1 rounded-full text-[11px] ${linked ? "border-primary/40 text-primary hover:bg-primary/10" : "text-muted-foreground"}`}
+                                            onClick={() => onToggleSuperSet(selectedSession.id, exercise.id)}
+                                            title={linked ? "Séparer ces deux exercices" : "Enchaîner en circuit avec l'exercice suivant"}>
+                                            {linked ? <><Unlink2 className="h-3 w-3" /> Séparer</> : <><Link2 className="h-3 w-3" /> Lier en circuit</>}
+                                          </Button>
+                                          <div className="h-px flex-1 border-t border-dashed border-border/40" />
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                }
+                              }
+                            });
+                            return rows;
+                          })()}
                         </TableBody>
                       </Table>
                     </div>
