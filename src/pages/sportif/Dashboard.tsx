@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { AthleteSfmsRequestBanner } from "@/components/AthleteSfmsRequestBanner";
 import { DailyFatigueDialog } from "@/components/DailyFatigueDialog";
+import { InjuryFollowUpDialog } from "@/components/InjuryFollowUpDialog";
 import { WelcomeBanner } from "@/components/sportif/WelcomeBanner";
 import { CurrentMesoCard } from "@/components/sportif/CurrentMesoCard";
 
@@ -68,6 +69,27 @@ export default function SportifDashboard() {
     } catch { /* ignore */ }
   }, [user, todayKey]);
   useEffect(() => { refreshFatigueDone(); }, [refreshFatigueDone]);
+
+  // Suivi de douleur : si une douleur active n'a pas été répondue aujourd'hui,
+  // on ouvre un rappel quotidien jusqu'à ce que l'athlète réponde « Plus rien ».
+  const [injuryFollowUp, setInjuryFollowUp] = useState<{ open: boolean; location: string | null; level: number }>({ open: false, location: null, level: 3 });
+  const checkInjuryFollowUp = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("daily_fatigue_log")
+      .select("date, has_injury, injury_level, injury_location")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    // Douleur active = dernière entrée avec douleur, et elle date d'avant aujourd'hui
+    if (data && data.has_injury === true && (data.injury_level ?? 0) > 0 && data.date < todayKey) {
+      setInjuryFollowUp({ open: true, location: data.injury_location ?? null, level: data.injury_level ?? 3 });
+    } else {
+      setInjuryFollowUp((p) => ({ ...p, open: false }));
+    }
+  }, [user, todayKey]);
+  useEffect(() => { checkInjuryFollowUp(); }, [checkInjuryFollowUp]);
 
   const [weeklyInfo, setWeeklyInfo] = useState<WeeklySessionInfo>({ total: 0, completed: 0, nextSession: null, inProgress: null });
   const [fatigue, setFatigue] = useState<FatigueInfo>({ avgScore: null, entryCount: 0, hasToday: false });
@@ -530,6 +552,13 @@ export default function SportifDashboard() {
         onClose={() => { setFatigueDialogOpen(false); refreshFatigueDone(); loadFatigue(); }}
         includeInjuryQuestions={false}
         isFemale={profile?.gender === "female"}
+      />
+
+      <InjuryFollowUpDialog
+        open={injuryFollowUp.open}
+        previousLocation={injuryFollowUp.location}
+        previousLevel={injuryFollowUp.level}
+        onClose={() => { setInjuryFollowUp((p) => ({ ...p, open: false })); checkInjuryFollowUp(); }}
       />
     </div>
   );

@@ -2,7 +2,7 @@
   "name": "CDO Coaching",
   "short_name": "CDO",
   "description": "Application de coaching sportif personnalisé",
-  "start_url": "/sportif/seances",
+  "start_url": "/sportif/dashboard",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
