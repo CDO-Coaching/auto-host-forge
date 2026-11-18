@@ -1230,27 +1230,82 @@ function SessionCard({
 
             {/* ─── Récup ─── */}
             {session.session_type === "recup" && (
-              <div className="px-4 py-4 space-y-4">
-                {exercises.map((ex) => (
-                  <div key={ex.id} className="space-y-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Activité</label>
-                      <Input value={ex.exercice} onChange={(e) => onExerciseChange(ex.id, "exercice", e.target.value)}
-                        placeholder="Ex: Étirements, Yoga…" className="h-11" disabled={isValidated} />
+              <div className="px-4 py-4 space-y-3">
+                {exercises.map((ex, idx) => {
+                  const prev = idx > 0 ? exercises[idx - 1] : null;
+                  const nxt = idx < exercises.length - 1 ? exercises[idx + 1] : null;
+                  const grouped = !!ex.super_set_group;
+                  const groupStart = grouped && (!prev || prev.super_set_group !== ex.super_set_group);
+                  const members = grouped ? exercises.filter((e) => e.super_set_group === ex.super_set_group) : [];
+                  const rounds = grouped ? Math.max(1, ...members.map((m) => parseInt(m.series, 10) || 1)) : 1;
+                  const setRounds = (v: number) => members.forEach((m) => onExerciseChange(m.id, "series", String(Math.max(1, v))));
+                  const linked = grouped && nxt && ex.super_set_group === nxt.super_set_group;
+                  const bothDiff = grouped && nxt && !!nxt.super_set_group && ex.super_set_group !== nxt.super_set_group;
+                  return (
+                    <div key={ex.id}>
+                      {groupStart && (
+                        <div className="flex items-center gap-2 flex-wrap rounded-t-xl border border-primary/40 bg-primary/10 px-3 py-2 mb-0">
+                          <Badge variant="default" className="text-[10px]">Circuit · {members.length} exos</Badge>
+                          <span className="text-[11px] text-muted-foreground">enchaînés</span>
+                          <div className="flex items-center gap-1 ml-auto">
+                            <span className="text-[11px] font-medium">Tours</span>
+                            <button type="button" disabled={isValidated} className="h-7 w-7 rounded-md border border-border bg-background flex items-center justify-center text-sm font-bold disabled:opacity-40" onClick={() => setRounds(rounds - 1)}>−</button>
+                            <span className="w-6 text-center font-bold tabular-nums text-sm">{rounds}</span>
+                            <button type="button" disabled={isValidated} className="h-7 w-7 rounded-md border border-border bg-background flex items-center justify-center text-sm font-bold disabled:opacity-40" onClick={() => setRounds(rounds + 1)}>+</button>
+                          </div>
+                        </div>
+                      )}
+                      <div className={cn("space-y-3 p-3 rounded-xl border", grouped ? "border-primary/40 border-l-4 border-l-primary bg-primary/5" : "border-border/50")}>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Exercice</label>
+                          <div className="flex items-center gap-1">
+                            <ExerciseCombobox
+                              value={ex.exercice}
+                              onChange={(v) => onExerciseChange(ex.id, "exercice", v)}
+                              exercises={libraryExercises.filter((l) => { const c = (l.category || "").toLowerCase(); return c.includes("mobilit") || c.includes("souplesse"); })}
+                              disabled={isValidated}
+                            />
+                            {!isValidated && (
+                              <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-destructive" onClick={() => onDeleteExercise(ex.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Input value={ex.reps} onChange={(e) => onExerciseChange(ex.id, "reps", e.target.value)}
+                            onBlur={(e) => { if ((ex as any).is_duration) { const p = parseDurationInput(e.target.value); if (p !== e.target.value) onExerciseChange(ex.id, "reps", p); } }}
+                            placeholder={(ex as any).is_duration ? "sec ou 10min" : "ex: 12 reps"} className="h-10 w-28" disabled={isValidated} />
+                          <label className="flex items-center gap-1 text-xs"><Checkbox checked={!!(ex as any).is_duration} onCheckedChange={(c) => onExerciseChange(ex.id, "is_duration", c === true ? "true" : "false")} disabled={isValidated} />sec</label>
+                          <label className="flex items-center gap-1 text-xs"><Checkbox checked={!!(ex as any).per_side} onCheckedChange={(c) => onExerciseChange(ex.id, "per_side", (c === true) as any)} disabled={isValidated} />par côté</label>
+                          {!grouped && (
+                            <div className="flex items-center gap-1 ml-auto">
+                              <span className="text-xs text-muted-foreground">séries</span>
+                              <button type="button" disabled={isValidated} className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40" onClick={() => { const c = parseInt(ex.series, 10) || 1; onExerciseChange(ex.id, "series", String(Math.max(1, c - 1))); }}>−</button>
+                              <span className="w-6 text-center font-bold tabular-nums text-sm">{ex.series || "1"}</span>
+                              <button type="button" disabled={isValidated} className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40" onClick={() => { const c = parseInt(ex.series, 10) || 1; onExerciseChange(ex.id, "series", String(c + 1)); }}>+</button>
+                            </div>
+                          )}
+                        </div>
+                        <Input value={ex.commentaire} onChange={(e) => onExerciseChange(ex.id, "commentaire", e.target.value)} placeholder="Notes…" className="h-10" disabled={isValidated} />
+                      </div>
+                      {!isValidated && nxt && !bothDiff && onToggleSuperSet && (
+                        <div className="flex items-center justify-center py-1">
+                          <button type="button" onClick={() => onToggleSuperSet(ex.id)}
+                            className={cn("flex items-center gap-1 rounded-full border px-3 h-7 text-[11px] font-medium", linked ? "border-primary/40 text-primary bg-primary/10" : "border-border text-muted-foreground")}>
+                            {linked ? <><Unlink className="h-3 w-3" /> Séparer</> : <><Link2 className="h-3 w-3" /> Lier en circuit</>}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Commentaire</label>
-                      <Input value={ex.commentaire} onChange={(e) => onExerciseChange(ex.id, "commentaire", e.target.value)}
-                        placeholder="Consignes…" className="h-11" disabled={isValidated} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* Footer : ajouter exercice (renfo uniquement) */}
-          {!isValidated && session.session_type === "renfo" && (
+          {/* Footer : ajouter exercice (renfo + mobilité) */}
+          {!isValidated && (session.session_type === "renfo" || session.session_type === "recup") && (
             <div className="px-5 py-4 border-t border-border/40 shrink-0 pb-[calc(1rem+env(safe-area-inset-bottom))]">
               <button
                 onClick={onAddExercise}

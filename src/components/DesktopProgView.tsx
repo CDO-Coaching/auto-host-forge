@@ -1581,11 +1581,27 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                               if (groupStart) {
                                 const members = mobEx.filter((e) => e.super_set_group === exercise.super_set_group);
                                 const rounds = Math.max(1, ...members.map((m) => parseInt(m.series, 10) || 1));
+                                const setRounds = (val: number) => {
+                                  const v = String(Math.max(1, val));
+                                  members.forEach((m) => onExerciseChange(selectedSession.id, m.id, "series", v));
+                                };
                                 rows.push(
                                   <TableRow key={`circ-${exercise.super_set_group}`} className="bg-primary/10 border-l-4 border-l-primary hover:bg-primary/10">
                                     <TableCell colSpan={4} className="py-1.5">
-                                      <Badge variant="default" className="mr-2">Circuit · {members.length} exercices</Badge>
-                                      <span className="text-xs text-muted-foreground">{rounds} tour{rounds > 1 ? "s" : ""} — exercices enchaînés</span>
+                                      <div className="flex items-center gap-3 flex-wrap">
+                                        <Badge variant="default">Circuit · {members.length} exercices</Badge>
+                                        <span className="text-xs text-muted-foreground">exercices enchaînés</span>
+                                        <div className="flex items-center gap-1 ml-auto">
+                                          <span className="text-xs font-medium">Nombre de tours</span>
+                                          <button type="button" disabled={isValidated}
+                                            className="h-7 w-7 rounded-md border border-border bg-background flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                            onClick={() => setRounds(rounds - 1)}>−</button>
+                                          <span className="w-8 text-center font-bold tabular-nums">{rounds}</span>
+                                          <button type="button" disabled={isValidated}
+                                            className="h-7 w-7 rounded-md border border-border bg-background flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                            onClick={() => setRounds(rounds + 1)}>+</button>
+                                        </div>
+                                      </div>
                                     </TableCell>
                                   </TableRow>
                                 );
@@ -1629,21 +1645,23 @@ export function DesktopProgView(props: DesktopProgViewProps) {
                                         <Checkbox checked={exercise.per_side || false} onCheckedChange={(c) => onExerciseChange(selectedSession.id, exercise.id, "per_side", c as boolean)} disabled={isValidated} />
                                         par côté
                                       </label>
-                                      <div className="flex items-center gap-1 ml-1">
-                                        <span className="text-xs text-muted-foreground">{grouped ? "tours" : "séries"}</span>
-                                        <button type="button" disabled={isValidated}
-                                          className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
-                                          onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(Math.max(1, cur - 1))); }}>−</button>
-                                        <Input
-                                          value={exercise.series || "1"}
-                                          onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value.replace(/[^0-9]/g, "") || "1")}
-                                          className="w-10 text-center px-1"
-                                          disabled={isValidated}
-                                        />
-                                        <button type="button" disabled={isValidated}
-                                          className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
-                                          onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(cur + 1)); }}>+</button>
-                                      </div>
+                                      {!grouped && (
+                                        <div className="flex items-center gap-1 ml-1">
+                                          <span className="text-xs text-muted-foreground">séries</span>
+                                          <button type="button" disabled={isValidated}
+                                            className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                            onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(Math.max(1, cur - 1))); }}>−</button>
+                                          <Input
+                                            value={exercise.series || "1"}
+                                            onChange={(e) => onExerciseChange(selectedSession.id, exercise.id, "series", e.target.value.replace(/[^0-9]/g, "") || "1")}
+                                            className="w-10 text-center px-1"
+                                            disabled={isValidated}
+                                          />
+                                          <button type="button" disabled={isValidated}
+                                            className="h-7 w-7 rounded-md border border-border bg-secondary flex items-center justify-center text-sm font-bold disabled:opacity-40 hover:bg-muted"
+                                            onClick={() => { const cur = parseInt(exercise.series, 10) || 1; onExerciseChange(selectedSession.id, exercise.id, "series", String(cur + 1)); }}>+</button>
+                                        </div>
+                                      )}
                                     </div>
                                   </TableCell>
                                   <TableCell>
