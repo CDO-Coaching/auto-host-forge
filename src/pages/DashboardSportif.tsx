@@ -47,6 +47,23 @@ export default function DashboardSportif() {
   const { session, loading: authLoading } = useAuth();
   const { shouldShowReminder: shouldShowWeightReminder, isChecking: isCheckingWeight, handleDismiss: handleWeightDismiss } = useWeeklyWeightReminder();
 
+  // Ouverture à froid de l'app (nouveau lancement, ou retour après que le
+  // navigateur/PWA a déchargé la page) → on atterrit sur le dashboard.
+  // Pendant la session, la navigation reste libre (sessionStorage persiste
+  // tant que l'onglet/PWA vit, et est vidé quand iOS décharge la page).
+  useEffect(() => {
+    try {
+      if (!sessionStorage.getItem("cdo_session_started")) {
+        sessionStorage.setItem("cdo_session_started", "1");
+        const path = window.location.pathname;
+        if (path.startsWith("/sportif") && !path.startsWith("/sportif/dashboard")) {
+          navigate("/sportif/dashboard", { replace: true });
+        }
+      }
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (authLoading || profileLoading) return;
 
