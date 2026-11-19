@@ -1255,11 +1255,11 @@ export default function SeanceDetail() {
                   >
                     <CardContent className="p-3 sm:p-4 h-full flex flex-col items-center justify-center text-center">
                       <div className="mb-1.5">
-                        <p className="text-2xl font-extrabold leading-none flex items-center justify-center gap-1.5 flex-wrap" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
+                        <div className="text-2xl font-extrabold leading-none flex items-center justify-center gap-1.5 flex-wrap" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
                           {isCompleted && <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />}
                           <span className={isCompleted ? "text-green-600" : "text-foreground"}>Exercice {exercises.indexOf(item) + 1}</span>
                           <Badge className={`text-[9px] px-1.5 py-0 h-4 ${isCompleted ? "bg-green-600 text-white" : "bg-orange-500 text-white"}`}>SUPERSET</Badge>
-                        </p>
+                        </div>
                       </div>
 
                       <p className="text-[13px] font-medium text-muted-foreground/90 mt-2 leading-snug break-words capitalize" style={{ fontFamily: "'Sora', system-ui, sans-serif" }}>
