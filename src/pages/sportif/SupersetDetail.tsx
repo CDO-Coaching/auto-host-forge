@@ -306,7 +306,7 @@ export default function SupersetDetail() {
   const afterGuided = async () => {
     await finishGuided();
     setSerieValidations((prev) => {
-      if (prev.length > 0 && prev.every((s) => s.validated)) setDialogOpen(true);
+      if (prev.length > 0 && prev.every((s) => s.validated)) openDialogWithChargeCheck(prev);
       return prev;
     });
   };
@@ -557,7 +557,7 @@ export default function SupersetDetail() {
     if (allNowValidated && newValidations.length > 0) {
       const avgRpe = Math.round(newValidations.reduce((sum, s) => sum + (s.rpe || 0), 0) / newValidations.length);
       setComputedAvgRpe(avgRpe.toString());
-      setDialogOpen(true);
+      openDialogWithChargeCheck(newValidations);
       return;
     }
 
@@ -597,6 +597,31 @@ export default function SupersetDetail() {
         setTimeout(() => setShowChainOverlay(false), 1500);
       }
     }
+  };
+
+  const chargeNeedsValue = (c: string) => {
+    const t = (c || "").trim();
+    return t === "??" || /^(\d+(?:[.,]\d+)?)\s*-\s*(\d+(?:[.,]\d+)?)$/.test(t);
+  };
+
+  const openDialogWithChargeCheck = (currentValidations?: typeof serieValidations) => {
+    const vals = currentValidations ?? serieValidations;
+    for (let r = 0; r < totalRounds; r++) {
+      for (let e = 0; e < exercises.length; e++) {
+        const seriesData = getSeriesDataForExercise(exercises[e]);
+        const prescribed = (seriesData[r]?.charge || exercises[e]?.charge || "").toString();
+        if (chargeNeedsValue(prescribed)) {
+          const vIdx = getValidationIndex(r, e);
+          const sv = vals[vIdx];
+          if (!sv?.validated) continue;
+          if (!sv?.actual_charge || !String(sv.actual_charge).trim()) {
+            toast({ title: "Charge manquante", description: `Indique la charge utilisée pour ${exercises[e].exercice} — série ${r + 1}`, variant: "destructive" });
+            return;
+          }
+        }
+      }
+    }
+    setDialogOpen(true);
   };
 
   const handleValidateFeedback = async (rpe: string, comment: string) => {
@@ -1448,7 +1473,7 @@ export default function SupersetDetail() {
           <Button
             size="lg"
             className="w-full text-base sm:text-lg py-6 bg-primary hover:bg-primary/90"
-            onClick={() => setDialogOpen(true)}
+            onClick={() => openDialogWithChargeCheck()}
           >
             Superset terminé 🎉
           </Button>
@@ -1464,7 +1489,7 @@ export default function SupersetDetail() {
               if (avgRpe.length > 0) {
                 setComputedAvgRpe(String(Math.round(avgRpe.reduce((a, b) => a + b, 0) / avgRpe.length)));
               }
-              setDialogOpen(true);
+              openDialogWithChargeCheck();
             }}
           >
             Terminer le superset
