@@ -1,6 +1,8 @@
 // Système sonore des minuteurs — palette douce et musicale (synthèse Web Audio).
 // Tonalités rondes (sine/triangle), attaques douces, fréquences modérées pour
 // rester agréables au casque. API publique inchangée (utilisée par useUniversalTimer).
+import { enableMixableAudioSession } from "@/lib/audioSession";
+
 export type SoundPreset = "gym" | "soft";
 
 export class SoundSystem {
@@ -10,6 +12,9 @@ export class SoundSystem {
 
   constructor(preset: SoundPreset = "gym") {
     this.preset = preset;
+    // Mélanger avec la musique de fond au lieu de la couper (iOS). À faire AVANT
+    // de créer l'AudioContext pour que la session soit déjà dans le bon mode.
+    enableMixableAudioSession();
     try {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
@@ -59,6 +64,9 @@ export class SoundSystem {
   }
 
   private resume() {
+    // Réaffirme le mode « mixable » : iOS peut réinitialiser la session audio
+    // après une interruption (appel, autre appli…).
+    enableMixableAudioSession();
     if (this.ctx && this.ctx.state === "suspended") {
       this.ctx.resume().catch(() => {});
     }

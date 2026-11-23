@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { enableMixableAudioSession } from "@/lib/audioSession";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -107,6 +108,7 @@ export default function Meditation() {
 
   // Initialize AudioContext
   useEffect(() => {
+    enableMixableAudioSession(); // ne pas couper la musique de fond (iOS)
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     return () => {
       if (audioContextRef.current) {

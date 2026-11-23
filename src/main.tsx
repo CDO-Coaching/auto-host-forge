@@ -2,6 +2,11 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { enableMixableAudioSession } from "@/lib/audioSession";
+
+// Dès le démarrage : les sons de l'app doivent se mélanger à la musique de fond
+// (Spotify, etc.) au lieu de la couper (iOS).
+enableMixableAudioSession();
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

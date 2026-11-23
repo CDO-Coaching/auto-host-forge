@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { enableMixableAudioSession } from "@/lib/audioSession";
 import { ArrowLeft, Play, Pause, ChevronLeft, ChevronRight, X, RotateCcw, Dumbbell, Clock, CheckCircle2, Youtube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
@@ -94,9 +95,12 @@ function useChime() {
   const ensure = () => {
     if (!ctxRef.current) {
       try {
+        enableMixableAudioSession(); // ne pas couper la musique de fond (iOS)
         const AC = (window.AudioContext || (window as any).webkitAudioContext);
         ctxRef.current = new AC();
       } catch { /* pas d'audio */ }
+    } else {
+      enableMixableAudioSession();
     }
     return ctxRef.current;
   };
