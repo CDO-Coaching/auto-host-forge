@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, Pin, CreditCard, UserX, MapPin } from "lucide-react";
+import { Clock, Check, X, User, ChevronRight, Search, Pause, Play, Plus, Trash2, Pin, CreditCard, UserX, MapPin, GripVertical } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
@@ -62,7 +62,9 @@ export default function MesClients() {
   const [externalClients, setExternalClients] = useState<ExternalClient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [progFilter, setProgFilter] = useState<"tous" | "todo">("tous");
+  const [progFilter, setProgFilter] = useState<"tous" | "todo" | "ok" | "ahead">("tous");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
   const [showAddExternalDialog, setShowAddExternalDialog] = useState(false);
   const [newExternalFirstName, setNewExternalFirstName] = useState("");
   const [newExternalLastName, setNewExternalLastName] = useState("");
@@ -600,25 +602,26 @@ export default function MesClients() {
     }
   };
 
-  // Trier les athlètes approuvés :
-  // 0. Prioritaires de la semaine en cours → tout en haut
-  // 1. Non validés (weeksAheadCount undefined ou < 0)
-  // 2. Juste validés (weeksAheadCount === 0)
-  // 3. Validés +1, +2… (tri croissant par weeksAheadCount)
-  // Au sein de chaque groupe, tri par display_order
+  // Tri des athlètes approuvés :
+  // 1. « À programmer » (weeksAheadCount undefined) → tout en haut
+  // 2. Validés → en dessous, du plus urgent (juste validé) au plus en avance
+  // Au sein du groupe « à programmer », l'ordre manuel (display_order, défini
+  // par glisser-déposer) prime, départagé par nom.
   const currentWeekKey = getCurrentWeekKey();
+  const groupOf = (r: AthleteRelationship) => (r.weeksAheadCount === undefined ? 0 : 1);
   const sortedApprovedAthletes = [...approvedAthletes].sort((a, b) => {
-    const aPriority = a.priority_week === currentWeekKey ? 0 : 1;
-    const bPriority = b.priority_week === currentWeekKey ? 0 : 1;
-    if (aPriority !== bPriority) return aPriority - bPriority;
-
-    const aWeeks = a.weeksAheadCount ?? -1;
-    const bWeeks = b.weeksAheadCount ?? -1;
-    const aGroup = aWeeks < 0 ? 0 : 1;
-    const bGroup = bWeeks < 0 ? 0 : 1;
-    if (aGroup !== bGroup) return aGroup - bGroup;
-    if (aGroup === 1 && aWeeks !== bWeeks) return aWeeks - bWeeks;
-    return (a.display_order ?? 0) - (b.display_order ?? 0);
+    const ga = groupOf(a);
+    const gb = groupOf(b);
+    if (ga !== gb) return ga - gb;
+    if (ga === 1 && a.weeksAheadCount !== b.weeksAheadCount) {
+      return (a.weeksAheadCount ?? 0) - (b.weeksAheadCount ?? 0);
+    }
+    const ao = a.display_order ?? Number.MAX_SAFE_INTEGER;
+    const bo = b.display_order ?? Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    const an = `${a.athlete?.last_name || ""} ${a.athlete?.first_name || ""}`.trim().toLowerCase();
+    const bn = `${b.athlete?.last_name || ""} ${b.athlete?.first_name || ""}`.trim().toLowerCase();
+    return an.localeCompare(bn);
   });
 
   const filteredPending = filterAthletes(pendingRequests);
@@ -631,12 +634,177 @@ export default function MesClients() {
     if (w === 0) return { kind: "ok" as const, label: "À jour", color: "#22c55e" };
     return { kind: "ahead" as const, label: `+${w} sem.`, color: "#06b6d4" };
   };
-  const todoCount = filteredApproved.filter((r) => r.weeksAheadCount === undefined).length;
-  const visibleApproved = progFilter === "todo"
-    ? filteredApproved.filter((r) => r.weeksAheadCount === undefined)
-    : filteredApproved;
+  const statusKind = (r: AthleteRelationship) =>
+    r.weeksAheadCount === undefined ? "todo" : r.weeksAheadCount === 0 ? "ok" : "ahead";
+  const kpiCounts = {
+    todo: filteredApproved.filter((r) => statusKind(r) === "todo").length,
+    ok: filteredApproved.filter((r) => statusKind(r) === "ok").length,
+    ahead: filteredApproved.filter((r) => statusKind(r) === "ahead").length,
+  };
+  const todoCount = kpiCounts.todo;
+  const visibleApproved =
+    progFilter === "tous" ? filteredApproved : filteredApproved.filter((r) => statusKind(r) === progFilter);
+  // Groupes pour l'affichage en deux sections (focus « à programmer » + suivi)
+  const todoAthletes = visibleApproved.filter((r) => statusKind(r) === "todo");
+  const suiviAthletes = visibleApproved.filter((r) => statusKind(r) !== "todo");
   const filteredPaused = filterAthletes(pausedAthletes);
   const filteredExternalClients = filterExternalClients(externalClients);
+
+  // Glisser-déposer pour réordonner : actif seulement dans la vue « Tous »
+  // sans recherche, là où la liste reflète directement l'ordre manuel.
+  const canReorder = progFilter === "tous" && !searchQuery.trim();
+
+  const reorderAthletes = async (fromId: string, toId: string) => {
+    if (!fromId || !toId || fromId === toId) return;
+    const ordered = [...sortedApprovedAthletes];
+    const from = ordered.findIndex((a) => a.id === fromId);
+    const to = ordered.findIndex((a) => a.id === toId);
+    if (from < 0 || to < 0) return;
+    // Réordonnancement seulement à l'intérieur d'un même groupe (à programmer / validés)
+    if (groupOf(ordered[from]) !== groupOf(ordered[to])) return;
+
+    const [moved] = ordered.splice(from, 1);
+    ordered.splice(to, 0, moved);
+    const withOrder = ordered.map((a, i) => ({ ...a, display_order: i }));
+
+    // Mise à jour locale immédiate
+    const orderById = new Map(withOrder.map((a) => [a.id, a.display_order]));
+    setApprovedAthletes((prev) =>
+      prev.map((a) => (orderById.has(a.id) ? { ...a, display_order: orderById.get(a.id)! } : a))
+    );
+
+    // Persiste uniquement les lignes dont la position a changé
+    const start = Math.min(from, to);
+    const end = Math.max(from, to);
+    const affected = withOrder.slice(start, end + 1);
+    const results = await Promise.all(
+      affected.map((a) =>
+        supabase
+          .from("coach_athlete_relationships")
+          .update({ display_order: a.display_order } as any)
+          .eq("id", a.id)
+      )
+    );
+    if (results.some((r) => r.error)) {
+      console.error("Error saving order:", results.find((r) => r.error)?.error);
+      toast.error("Erreur lors de l'enregistrement de l'ordre");
+      loadRelationships();
+    }
+  };
+
+  // Rendu d'une vignette athlète. `focus` = section « à programmer » (accent or,
+  // avatar coloré, bouton « Programmer » au survol, glisser-déposer activé).
+  const renderAthleteCard = (relationship: AthleteRelationship, focus: boolean) => {
+    const ps = progStatus(relationship);
+    const a = relationship.athlete;
+    const rowDraggable = canReorder && focus;
+    const isDragging = dragId === relationship.id;
+    const isOver = rowDraggable && overId === relationship.id && dragId !== relationship.id;
+    const initials =
+      `${(a.first_name || "").trim()[0] || ""}${(a.last_name || "").trim()[0] || ""}`.toUpperCase() || "?";
+    const hasContact =
+      relationship.client_address || relationship.client_phone || a?.address || a?.phone;
+    const isPriority = relationship.priority_week === currentWeekKey;
+    return (
+      <div
+        key={relationship.id}
+        draggable={rowDraggable}
+        onDragStart={rowDraggable ? (e) => { setDragId(relationship.id); e.dataTransfer.effectAllowed = "move"; } : undefined}
+        onDragOver={rowDraggable ? (e) => { e.preventDefault(); if (overId !== relationship.id) setOverId(relationship.id); } : undefined}
+        onDragLeave={rowDraggable ? () => setOverId((cur) => (cur === relationship.id ? null : cur)) : undefined}
+        onDrop={rowDraggable ? (e) => { e.preventDefault(); if (dragId) reorderAthletes(dragId, relationship.id); setDragId(null); setOverId(null); } : undefined}
+        onDragEnd={rowDraggable ? () => { setDragId(null); setOverId(null); } : undefined}
+        className={`group relative flex items-center gap-2.5 sm:gap-3 rounded-lg border bg-card px-2.5 py-2 sm:px-3 sm:py-2 cursor-pointer transition-colors hover:border-muted-foreground/40 ${focus ? "pl-3 sm:pl-3.5" : ""} ${isDragging ? "opacity-40" : ""} ${isOver ? "ring-2 ring-primary border-primary" : ""}`}
+        style={focus ? { borderColor: `${ps.color}59` } : undefined}
+        onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
+      >
+        {focus && (
+          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full" style={{ backgroundColor: ps.color }} />
+        )}
+        {rowDraggable && (
+          <div
+            className="hidden sm:flex items-center justify-center text-muted-foreground/40 group-hover:text-muted-foreground flex-shrink-0 -ml-1 cursor-grab active:cursor-grabbing"
+            title="Glisser pour prioriser"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
+        )}
+        <div
+          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center flex-shrink-0 font-semibold text-xs sm:text-sm"
+          style={{ backgroundColor: `${ps.color}22`, color: ps.color }}
+        >
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm leading-tight truncate">
+            {a.first_name} {a.last_name}
+          </p>
+          <p className="text-[11px] sm:text-xs text-muted-foreground truncate leading-tight">{a.email}</p>
+        </div>
+        <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+          {!focus && (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold whitespace-nowrap"
+              style={{ backgroundColor: `${ps.color}1f`, color: ps.color }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ps.color }} />
+              {ps.label}
+            </span>
+          )}
+          <div className="flex items-center gap-1 sm:gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            {focus && (
+              <Button
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); navigate(`/coach/client/${relationship.athlete_id}`); }}
+                className="hidden sm:inline-flex h-8 px-3 text-xs font-semibold"
+                style={{ backgroundColor: "#f0b429", color: "#1a1205" }}
+              >
+                <Plus className="h-3.5 w-3.5 mr-1" /> Programmer
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); togglePriority(relationship); }}
+              className={`h-7 w-7 p-0 ${isPriority ? "text-amber-400 hover:text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}
+              title={isPriority ? "Retirer la priorité cette semaine" : "Épingler en priorité cette semaine"}
+            >
+              <Pin className={`h-3.5 w-3.5 ${isPriority ? "fill-amber-400" : ""}`} />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                openContactDialog(
+                  "athlete",
+                  relationship.id,
+                  `${a.first_name || ""} ${a.last_name || ""}`.trim(),
+                  relationship.client_address,
+                  relationship.client_phone
+                );
+              }}
+              className={`h-7 w-7 p-0 ${hasContact ? "text-primary" : "text-muted-foreground"}`}
+              title="Adresse / Téléphone"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => { e.stopPropagation(); handlePauseClick(relationship); }}
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              title="Mettre en pause"
+            >
+              <Pause className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {!focus && <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />}
+        </div>
+      </div>
+    );
+  };
 
   console.log("MesClients state:", {
     pendingRequests: pendingRequests.length,
@@ -825,132 +993,82 @@ export default function MesClients() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-              {/* Filtre rapide : voir ce qu'il reste à programmer */}
-              <div className="flex gap-2 mb-3">
-                <button type="button" onClick={() => setProgFilter("tous")}
-                  className={`px-3 h-8 rounded-full text-xs font-semibold border transition-colors ${progFilter === "tous" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"}`}>
-                  Tous <span className="opacity-70">{filteredApproved.length}</span>
-                </button>
-                <button type="button" onClick={() => setProgFilter("todo")}
-                  className="px-3 h-8 rounded-full text-xs font-semibold border transition-colors inline-flex items-center gap-1.5"
-                  style={progFilter === "todo"
-                    ? { backgroundColor: "#f0b429", color: "#3a2f10", borderColor: "#f0b429" }
-                    : { borderColor: todoCount > 0 ? "#f0b42966" : "hsl(var(--border))", color: todoCount > 0 ? "#f0b429" : "hsl(var(--muted-foreground))" }}>
-                  À programmer {todoCount > 0 && <span>{todoCount}</span>}
-                </button>
+              {/* Indicateurs cliquables (filtrent la liste) */}
+              <div className="grid grid-cols-3 gap-2 mb-3 sm:mb-4">
+                {([
+                  { key: "todo", label: "À programmer", count: kpiCounts.todo, color: "#f0b429" },
+                  { key: "ok", label: "À jour", count: kpiCounts.ok, color: "#22c55e" },
+                  { key: "ahead", label: "En avance", count: kpiCounts.ahead, color: "#06b6d4" },
+                ] as const).map((k) => {
+                  const sel = progFilter === k.key;
+                  return (
+                    <button
+                      key={k.key}
+                      type="button"
+                      onClick={() => setProgFilter(sel ? "tous" : k.key)}
+                      className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 sm:py-2.5 transition-all ${sel ? "border-transparent" : "border-border hover:border-muted-foreground/40"}`}
+                      style={sel ? { boxShadow: `inset 0 0 0 1px ${k.color}`, backgroundColor: `${k.color}14` } : undefined}
+                    >
+                      <span className="flex items-center gap-1.5 text-[11px] sm:text-xs text-muted-foreground min-w-0">
+                        <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: k.color }} />
+                        <span className="truncate">{k.label}</span>
+                      </span>
+                      <span className="text-lg sm:text-xl font-bold leading-none" style={{ color: sel ? k.color : undefined }}>
+                        {k.count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {progFilter !== "tous" && (
+                <button
+                  type="button"
+                  onClick={() => setProgFilter("tous")}
+                  className="text-xs text-muted-foreground hover:text-foreground mb-3 inline-flex items-center gap-1"
+                >
+                  ← Tout afficher
+                </button>
+              )}
 
               {visibleApproved.length === 0 ? (
                 <p className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-                  {progFilter === "todo" ? "Tout est programmé 🎉" : searchQuery ? "Aucun athlète ne correspond à ta recherche" : "Tu n'as pas encore d'athlètes approuvés"}
+                  {searchQuery ? "Aucun athlète ne correspond à ta recherche" : progFilter === "todo" ? "Tout est programmé 🎉" : "Aucun athlète dans cette catégorie"}
                 </p>
               ) : (
-                <div className="space-y-2 sm:space-y-4">
-                  {visibleApproved.map((relationship) => {
-                     const ps = progStatus(relationship);
-                     return (
-                     <div
-                      key={relationship.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 sm:p-4 border rounded-lg hover:border-primary transition-colors gap-2 sm:gap-4 cursor-pointer"
-                      style={{ borderLeft: `4px solid ${ps.color}` }}
-                      onClick={() => navigate(`/coach/client/${relationship.athlete_id}`)}
-                    >
-                      <div className="flex items-center gap-2.5 sm:gap-4 flex-1">
-                        <div className="h-9 w-9 sm:h-12 sm:w-12 rounded-full bg-green-600/10 flex items-center justify-center flex-shrink-0">
-                          <User className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm sm:text-base truncate">
-                              {relationship.athlete.first_name} {relationship.athlete.last_name}
-                            </p>
-                            {/* Badges abonnement */}
-                            {subscriptionStatuses.get(relationship.athlete_id)?.hasNewPayment && (
-                              <Badge className="bg-green-500 text-[10px] h-4 px-1.5 flex-shrink-0" title="Paiement reçu">
-                                <CreditCard className="h-2.5 w-2.5 mr-0.5" />
-                                <span className="hidden sm:inline">Payé</span>
-                              </Badge>
-                            )}
-                            {subscriptionStatuses.get(relationship.athlete_id)?.hasCancelledRecently && (
-                              <Badge variant="destructive" className="text-[10px] h-4 px-1.5 flex-shrink-0" title="Désabonnement récent">
-                                <UserX className="h-2.5 w-2.5 mr-0.5" />
-                                <span className="hidden sm:inline">
-                                  Désabo
-                                  {subscriptionStatuses.get(relationship.athlete_id)?.cancelledExpiresAt && (
-                                    <> → {new Date(subscriptionStatuses.get(relationship.athlete_id)!.cancelledExpiresAt!).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })}</>
-                                  )}
-                                </span>
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs sm:text-sm text-muted-foreground truncate">
-                            {relationship.athlete.email}
-                          </p>
-                          {relationship.athlete.date_of_birth && (
-                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">
-                              Né(e) le {new Date(relationship.athlete.date_of_birth).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 justify-end">
-                        {/* Bouton priorité semaine */}
-                        {(() => {
-                          const isPriority = relationship.priority_week === currentWeekKey;
-                          return (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePriority(relationship);
-                              }}
-                              className={`h-6 w-6 p-0 transition-colors ${isPriority ? "text-amber-400 hover:text-amber-500" : "text-muted-foreground hover:text-amber-400"}`}
-                              title={isPriority ? "Retirer la priorité cette semaine" : "Épingler en priorité cette semaine"}
-                            >
-                              <Pin className={`h-3.5 w-3.5 ${isPriority ? "fill-amber-400" : ""}`} />
-                            </Button>
-                          );
-                        })()}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openContactDialog(
-                              "athlete",
-                              relationship.id,
-                              `${relationship.athlete.first_name || ""} ${relationship.athlete.last_name || ""}`.trim(),
-                              relationship.client_address,
-                              relationship.client_phone
-                            );
-                          }}
-                          className={`h-6 w-6 p-0 ${relationship.client_address || relationship.client_phone || relationship.athlete?.address || relationship.athlete?.phone ? "text-primary" : "text-muted-foreground"}`}
-                          title="Adresse / Téléphone"
-                        >
-                          <MapPin className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePauseClick(relationship);
-                          }}
-                          className="h-7 sm:h-8 text-xs px-2 sm:px-3"
-                        >
-                          <Pause className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
-                          <span className="hidden sm:inline">Pause</span>
-                        </Button>
-                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap"
-                          style={{ backgroundColor: `${ps.color}22`, color: ps.color }}>
-                          {ps.label}
+                <div className="space-y-4 sm:space-y-5">
+                  {todoAthletes.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <h3 className="text-sm font-semibold">À programmer</h3>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: "#f0b42926", color: "#f0b429" }}>
+                          {todoAthletes.length}
                         </span>
-                        <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground flex-shrink-0" />
+                        {canReorder && (
+                          <span className="ml-auto hidden sm:flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+                            <GripVertical className="h-3.5 w-3.5" /> glisse pour prioriser
+                          </span>
+                        )}
                       </div>
-                    </div>
-                    );
-                  })}
+                      <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-2 xl:grid-cols-3 sm:gap-2.5">
+                        {todoAthletes.map((relationship) => renderAthleteCard(relationship, true))}
+                      </div>
+                    </section>
+                  )}
+
+                  {suiviAthletes.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <h3 className="text-sm font-semibold">Suivi</h3>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          {suiviAthletes.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2 sm:space-y-0 sm:grid sm:grid-cols-2 xl:grid-cols-3 sm:gap-2.5">
+                        {suiviAthletes.map((relationship) => renderAthleteCard(relationship, false))}
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
             </CardContent>
