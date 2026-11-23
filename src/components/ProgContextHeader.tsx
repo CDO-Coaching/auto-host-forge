@@ -103,8 +103,14 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
 
   if (!loaded) return null;
 
-  const Tile = ({ children, tone }: { children: React.ReactNode; tone?: string }) => (
-    <div className="flex-1 min-w-[180px] rounded-xl border bg-card/60 px-3 py-2.5" style={{ borderColor: tone ? `${tone}44` : undefined }}>{children}</div>
+  const Tile = ({ children, tone, onClick, title }: { children: React.ReactNode; tone?: string; onClick?: () => void; title?: string }) => (
+    <div
+      className={cn("flex-1 min-w-[180px] rounded-xl border bg-card/60 px-3 py-2.5", onClick && "cursor-pointer hover:bg-card transition-colors")}
+      style={{ borderColor: tone ? `${tone}44` : undefined }}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      title={title}
+    >{children}</div>
   );
 
   return (
@@ -186,9 +192,10 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
 
     <div className="flex gap-2 flex-wrap">
       {/* Tuile 1 — Microcycle en cours (repli sur le mésocycle, en cours ou à venir) */}
-      <Tile tone={curMicro || displayMeso ? mesoColor : undefined}>
+      <Tile tone={curMicro || displayMeso ? mesoColor : undefined} onClick={hasReason ? () => setShowModal(true) : undefined} title={hasReason ? "Voir le point programmation" : undefined}>
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
           <Layers className="h-3.5 w-3.5" style={{ color: mesoColor }} /> {curMicro ? "Microcycle" : displayMeso ? "Mésocycle" : "Microcycle"}
+          {hasReason && <span className="ml-auto text-[9px] font-semibold text-primary/80 normal-case tracking-normal">🧭 Point</span>}
         </div>
         {curMicro ? (
           <>
@@ -213,7 +220,7 @@ export function ProgContextHeader({ athleteId, onGoToOverview }: { athleteId: st
             {mesoComment && <p className="text-[11px] text-foreground/70 italic mt-1 line-clamp-2" title={mesoComment}>{mesoComment}</p>}
           </>
         ) : (
-          <button type="button" onClick={onGoToOverview} className="mt-1 text-[12px] text-amber-500 font-medium inline-flex items-center gap-1 hover:underline">
+          <button type="button" onClick={(e) => { e.stopPropagation(); onGoToOverview?.(); }} className="mt-1 text-[12px] text-amber-500 font-medium inline-flex items-center gap-1 hover:underline">
             <AlertTriangle className="h-3.5 w-3.5" /> Aucun microcycle en cours · programmer
           </button>
         )}
