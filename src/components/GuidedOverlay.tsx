@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Check, Play, Pause, ChevronRight, MessageSquarePlus, Pencil, Video } from "lucide-react";
+import { usePortalContainer } from "@/hooks/usePortalContainer";
+import { X, Check, Play, Pause, ChevronRight, ChevronLeft, MessageSquarePlus, Pencil, Video } from "lucide-react";
 import { ExerciseVideoDialog } from "@/components/ExerciseVideoDialog";
 
 export interface GuidedStep {
@@ -37,9 +38,11 @@ export interface GuidedStep {
   compact?: boolean;    // masque l'en-tête (numéro + nom) — transitions entre séries
   coachNote?: string;   // commentaire du coach, mis en évidence
   introTitle?: string;  // titre d'un écran d'intro (ex: superset)
+  serieKey?: string;    // identifie les étapes d'une même série (effort + récup/RPE) pour le saut
   // callbacks
   onDone?: (data: { reps?: string; charge?: string }) => void;
   onSkip?: () => void;
+  onSkipSerie?: () => void; // marque CETTE série non faite et saute à la suivante
   onDefer?: () => void; // reporter cet exercice (toutes ses séries) en fin de séance
   onRpe?: (rpe: number, targetId?: string) => void;
   onComment?: (text: string) => void;
@@ -54,6 +57,8 @@ const sora = { fontFamily: "'Sora', system-ui, sans-serif" } as const;
 
 export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChange, baseElapsed }: { steps: GuidedStep[]; onClose: () => void; onFinish?: () => void; initialIdx?: number; onStepChange?: (idx: number) => void; baseElapsed?: number }) {
   const [idx, setIdx] = useState(initialIdx ?? 0);
+  // Conteneur de portail dédié (évite les crashs NotFoundError entre portails).
+  const portalEl = usePortalContainer("guided-overlay");
   // Chrono de séance : démarre au lancement (reprend la durée déjà écoulée si fournie).
   const [elapsed, setElapsed] = useState(baseElapsed ?? 0);
   useEffect(() => {
@@ -87,6 +92,17 @@ export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChan
   const goNext = () => {
     if (idx >= total - 1) { onFinish?.(); onClose(); return; }
     setIdx((i) => i + 1);
+  };
+  const goPrev = () => { setIdx((i) => Math.max(0, i - 1)); };
+  // « Série non faite » : enregistre le saut puis avance au-delà de toutes les
+  // étapes de la même série (effort(s) + récup/RPE), jusqu'à la série suivante.
+  const skipSerie = () => {
+    step.onSkipSerie?.();
+    const key = step.serieKey;
+    let j = idx + 1;
+    if (key) { while (j < total && steps[j]?.serieKey === key) j++; }
+    if (j >= total) { onFinish?.(); onClose(); return; }
+    setIdx(j);
   };
 
   // Initialisation à chaque étape
@@ -213,7 +229,14 @@ export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChan
       style={{ paddingTop: "calc(1rem + env(safe-area-inset-top))", paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}>
       <div className="px-4 flex flex-col gap-4 flex-1 overflow-y-auto max-w-lg mx-auto w-full">
         <div className="flex items-center justify-between pt-1">
-          <span className="text-[13px] font-bold uppercase tracking-wide text-[#c9944a]">Séance guidée</span>
+          <div className="flex items-center gap-1.5">
+            {idx > 0 && (
+              <button onClick={goPrev} aria-label="Étape précédente" className="p-1 -ml-1 text-muted-foreground active:scale-90 transition-transform">
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+            )}
+            <span className="text-[13px] font-bold uppercase tracking-wide text-[#c9944a]">Séance guidée</span>
+          </div>
           <div className="flex items-center gap-3">
             <span className="text-[13px] font-bold tabular-nums text-muted-foreground">⏱ {fmt(elapsed)}</span>
             <button onClick={onClose} aria-label="Quitter le mode guidé" className="p-1 text-muted-foreground"><X className="h-6 w-6" /></button>
@@ -455,6 +478,12 @@ export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChan
                   <ChevronRight className="h-[18px] w-[18px]" /> Machine prise — faire cet exo plus tard
                 </button>
               )}
+              {step.onSkipSerie && (
+                <button onClick={skipSerie} className="w-full h-11 rounded-xl text-[14px] font-semibold flex items-center justify-center gap-2 text-muted-foreground"
+                  style={{ border: "1px solid rgba(255,255,255,0.12)", background: "#161616", ...sora }}>
+                  <X className="h-[17px] w-[17px]" /> Je n'ai pas fait cette série
+                </button>
+              )}
               {step.onSkip && (
                 <button onClick={skipWork} className="w-full h-12 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2"
                   style={{ border: "1px solid #e5646455", background: "rgba(229,100,100,0.08)", color: "#e56464", ...sora }}>
@@ -471,6 +500,6 @@ export function GuidedOverlay({ steps, onClose, onFinish, initialIdx, onStepChan
         </div>
       </div>
     </div>,
-    document.body
+    portalEl ?? document.body
   );
 }

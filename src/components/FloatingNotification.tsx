@@ -2,6 +2,7 @@ import { ReactNode, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { usePortalContainer } from "@/hooks/usePortalContainer";
 
 interface FloatingNotificationProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function FloatingNotification({
   variant = "default",
   stackIndex = 0,
 }: FloatingNotificationProps) {
+  const portalEl = usePortalContainer("floating-notification");
   const [swipeX, setSwipeX] = useState(0);
   const [isDismissing, setIsDismissing] = useState(false);
   const touchStartX = useRef(0);
@@ -168,5 +170,5 @@ export function FloatingNotification({
   );
 
   if (typeof document === "undefined") return node;
-  return createPortal(node, document.body);
+  return createPortal(node, portalEl ?? document.body);
 }

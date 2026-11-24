@@ -4,17 +4,26 @@ import { GuidedOverlay, type GuidedStep } from "@/components/GuidedOverlay";
 
 const EX_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
-/** Parse "90s" / "1min30" / "0s" / "90" → secondes. */
+/** Parse "90s" / "1min30" / "1min30s" / "1'30" / "1:30" / "0s" / "90" → secondes. */
 function recupSeconds(raw: string | null | undefined): number {
   if (!raw) return 0;
   const t = String(raw).trim().toLowerCase();
   if (t === "emom" || t === "0s" || t === "0" || t === "") return 0;
+  // Format horloge « mm:ss » / « mm'ss » / « mm’ss" »
+  const clock = t.match(/^(\d+)\s*[:'’]\s*(\d{1,2})\s*["”]?$/);
+  if (clock) return parseInt(clock[1], 10) * 60 + parseInt(clock[2], 10);
   let tot = 0;
+  let matched = false;
   const m = t.match(/(\d+)\s*min/);
-  if (m) tot += parseInt(m[1], 10) * 60;
-  const s = t.match(/(\d+)\s*s/);
-  if (s) tot += parseInt(s[1], 10);
-  if (tot === 0) { const n = parseInt(t, 10); if (!isNaN(n)) tot = n; }
+  if (m) { tot += parseInt(m[1], 10) * 60; matched = true; }
+  const s = t.match(/(\d+)\s*s(?:ec)?/);
+  if (s) { tot += parseInt(s[1], 10); matched = true; }
+  // « 1min30 » : minutes trouvées, nombre restant sans unité = secondes
+  if (m && !s) {
+    const after = t.slice((m.index || 0) + m[0].length).match(/(\d+)/);
+    if (after) { tot += parseInt(after[1], 10); matched = true; }
+  }
+  if (!matched) { const n = parseInt(t, 10); if (!isNaN(n)) tot = n; }
   return tot;
 }
 
@@ -43,7 +52,7 @@ function seriesOf(ex: any): Serie[] {
   return out;
 }
 
-type SerieResult = { rpe?: number | null; actual_reps?: string | null; actual_charge?: string | null; comment?: string };
+type SerieResult = { rpe?: number | null; actual_reps?: string | null; actual_charge?: string | null; comment?: string; skipped?: boolean };
 
 /**
  * Lecteur guidé de séance complète (renfo) : enchaîne tous les exercices et
@@ -113,12 +122,16 @@ export function SessionGuidedPlayer({
         rpe: s.rpe ?? null,
         actual_reps: s.actual_reps ?? null,
         actual_charge: s.actual_charge ?? null,
-        modification_type: null,
+        skipped: s.skipped ?? false,
+        modification_type: s.skipped ? "skipped" : null,
       });
     }
     const rpes = arr.filter((s) => s && s.rpe != null).map((s) => s!.rpe as number);
     const avg = rpes.length ? Math.round(rpes.reduce((a, b) => a + b, 0) / rpes.length) : null;
-    const comments = arr.map((s, i) => (s?.comment?.trim() ? `- Série ${i + 1} : ${s.comment.trim()}` : null)).filter(Boolean);
+    const comments = arr.map((s, i) => {
+      if (s?.skipped) return `- Série ${i + 1} : non faite`;
+      return s?.comment?.trim() ? `- Série ${i + 1} : ${s.comment.trim()}` : null;
+    }).filter(Boolean);
     const update: any = {
       serie_rpe_details: details,
       sportif_rpe: avg,
@@ -178,6 +191,7 @@ export function SessionGuidedPlayer({
           serieLabel: `Série ${i + 1} / ${n}`,
           videoUrl: lib.video_url || undefined,
           isDistance: ex?.is_distance === true, perSide, exId: ex.id,
+          serieKey: `${ex.id}:${i}`, onSkipSerie: () => setResult(ex.id, i, { skipped: true }),
         };
 
         if (autoChain) {
@@ -208,8 +222,8 @@ export function SessionGuidedPlayer({
             pushAutoWork(`w_${ex.id}_${i}`, isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y", true);
           }
           out.push(lastSerie
-            ? { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: 0, nextLabel, refRpe: sd.rpe ? String(sd.rpe) : undefined, videoUrl: lib.video_url || undefined, onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }) }
-            : { id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: isEmom ? 0 : restSec, nextLabel, autoAdvance: true, videoUrl: lib.video_url || undefined });
+            ? { id: `r_${ex.id}_${i}`, exId: ex.id, serieKey: `${ex.id}:${i}`, type: "recup", seconds: 0, nextLabel, refRpe: sd.rpe ? String(sd.rpe) : undefined, videoUrl: lib.video_url || undefined, onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }) }
+            : { id: `r_${ex.id}_${i}`, exId: ex.id, serieKey: `${ex.id}:${i}`, type: "recup", seconds: isEmom ? 0 : restSec, nextLabel, autoAdvance: true, videoUrl: lib.video_url || undefined });
           return;
         }
 
@@ -227,7 +241,7 @@ export function SessionGuidedPlayer({
           onDone: (d) => setResult(ex.id, i, { actual_reps: d.reps ?? null, actual_charge: d.charge ?? null }),
         });
         out.push({
-          id: `r_${ex.id}_${i}`, exId: ex.id, type: "recup", seconds: lastSerie ? 0 : recupSeconds(sd.recuperation), nextLabel,
+          id: `r_${ex.id}_${i}`, exId: ex.id, serieKey: `${ex.id}:${i}`, type: "recup", seconds: lastSerie ? 0 : recupSeconds(sd.recuperation), nextLabel,
           refRpe: lastSerie && sd.rpe ? String(sd.rpe) : undefined,
           videoUrl: lib.video_url || undefined,
           onRpe: (rpe) => setResult(ex.id, i, { rpe }), onComment: (t) => setResult(ex.id, i, { comment: t }),
@@ -277,14 +291,32 @@ export function SessionGuidedPlayer({
             serieLabel: `Tour ${r + 1} / ${rounds}`, videoUrl: m.lib.video_url || undefined,
             isDistance: m.ex?.is_distance === true, perSide: m.ex?.per_side === true, exId: m.ex.id,
             description: desc, coachNote: coachNote || undefined,
+            serieKey: `${m.ex.id}:${r}`, onSkipSerie: () => setResult(m.ex.id, r, { skipped: true }),
           };
           const prev = out[out.length - 1];
-          if (isTimed) {
+          const perSide = m.ex?.per_side === true;
+          const firstTimed = r === 0 && k === 0;
+          if (isTimed && perSide && !m.isEmom) {
+            // Unilatéral en durée : côté 1 (auto-enchaîné sur) côté 2, puis RPE.
+            out.push({
+              ...(base as GuidedStep), id: `w_${m.ex.id}_${r}a`, type: "work", isDuration: true, seconds: dur,
+              refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
+              phaseLabel: "🔥 Côté 1", phaseColor: "#52b788",
+              autoStart: true, autoAdvance: true, prepSeconds: firstTimed ? 5 : 3,
+            });
+            out.push({
+              ...(base as GuidedStep), id: `w_${m.ex.id}_${r}b`, type: "work", isDuration: true, seconds: dur,
+              refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
+              phaseLabel: "🔥 Côté 2", phaseColor: "#52b788",
+              autoStart: true, autoAdvance: false, prepSeconds: 3, compact: true,
+              description: undefined, coachNote: undefined,
+            });
+          } else if (isTimed) {
             out.push({
               ...(base as GuidedStep), id: `w_${m.ex.id}_${r}`, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel: m.isEmom ? `🔥 ${sd.reps || "?"} reps` : "🔥 Vas-y",
-              phaseColor: "#52b788", autoStart: true, autoAdvance: false, prepSeconds: (r === 0 && k === 0) ? 5 : 3,
+              phaseColor: "#52b788", autoStart: true, autoAdvance: false, prepSeconds: firstTimed ? 5 : 3,
             });
           } else {
             const ci = chargeInfo(sd.charge);
@@ -308,7 +340,7 @@ export function SessionGuidedPlayer({
               ? `Tour ${r + 2} / ${rounds}`
               : `Au suivant : ${metas[k + 1].ex.exercice}`;
           out.push({
-            id: `rpe_${m.ex.id}_${r}`, exId: m.ex.id, type: "recup", seconds: restSec,
+            id: `rpe_${m.ex.id}_${r}`, exId: m.ex.id, serieKey: `${m.ex.id}:${r}`, type: "recup", seconds: restSec,
             exName: m.ex.exercice, exColor: m.color, exNumber: m.number,
             serieLabel: `Tour ${r + 1} / ${rounds}`,
             videoUrl: m.lib.video_url || undefined,

@@ -1,4 +1,4 @@
-import { Component, ReactNode } from "react";
+import { Component, Fragment, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 
@@ -11,6 +11,9 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  componentStack: string | null;
+  /** Incrémenté à chaque "Réessayer" pour forcer un remontage propre du sous-arbre. */
+  retryKey: number;
 }
 
 /**
@@ -21,20 +24,28 @@ interface State {
 export class PageErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, componentStack: null, retryKey: 0 };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: unknown) {
+  componentDidCatch(error: Error, info: { componentStack?: string }) {
     // Log so we can see this in the console / Sentry-like tooling
     console.error("[PageErrorBoundary] Render error:", error, info);
+    this.setState({ componentStack: info?.componentStack ?? null });
   }
 
   private handleRetry = () => {
-    this.setState({ hasError: false, error: null });
+    // Incrémente la clé pour remonter le sous-arbre à neuf (et pas juste
+    // re-rendre les mêmes instances qui relanceraient l'erreur aussitôt).
+    this.setState((s) => ({
+      hasError: false,
+      error: null,
+      componentStack: null,
+      retryKey: s.retryKey + 1,
+    }));
   };
 
   private handleBack = () => {
@@ -46,7 +57,9 @@ export class PageErrorBoundary extends Component<Props, State> {
   };
 
   render() {
-    if (!this.state.hasError) return this.props.children;
+    if (!this.state.hasError) {
+      return <Fragment key={this.state.retryKey}>{this.props.children}</Fragment>;
+    }
 
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
@@ -66,6 +79,11 @@ export class PageErrorBoundary extends Component<Props, State> {
             {this.state.error?.message && (
               <p className="text-xs text-muted-foreground/70 mt-2 break-words">
                 {this.state.error.message}
+              </p>
+            )}
+            {this.state.componentStack && (
+              <p className="text-[10px] text-muted-foreground/50 mt-1 break-words font-mono">
+                {this.state.componentStack.trim().split("\n")[0]?.trim()}
               </p>
             )}
           </div>
