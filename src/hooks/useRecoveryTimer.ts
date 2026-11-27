@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SoundSystem } from '@/lib/soundSystem';
+import { parseRecupSeconds } from '@/lib/parseRecup';
 
 interface TimerState {
   [key: string]: {
@@ -39,15 +40,7 @@ export function useRecoveryTimer() {
     };
   }, []);
 
-  const parseRecuperationTime = (timeStr: string): number => {
-    if (!timeStr) return 0;
-    let totalSeconds = 0;
-    const minMatch = timeStr.match(/(\d+)min/);
-    const secMatch = timeStr.match(/(\d+)s/);
-    if (minMatch) totalSeconds += parseInt(minMatch[1]) * 60;
-    if (secMatch) totalSeconds += parseInt(secMatch[1]);
-    return totalSeconds;
-  };
+  const parseRecuperationTime = (timeStr: string): number => parseRecupSeconds(timeStr);
 
   const updateTimer = useCallback((id: string) => {
     const state = stateRef.current[id];

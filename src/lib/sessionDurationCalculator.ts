@@ -12,6 +12,8 @@
  *  - Temps d'installation, transition et marge de réalité
  */
 
+import { parseRecupSeconds } from "@/lib/parseRecup";
+
 export interface Exercise {
   exercice: string;
   recuperation: string;
@@ -242,11 +244,7 @@ function parseRecuperationSeconds(recuperation: string): number {
   // Récup explicitement nulle
   if (/aucun|pas de|sans|^0$|^non$/.test(low.trim())) return 0;
 
-  let total = 0;
-  const minMatch = recuperation.match(/(\d+)\s*min/i);
-  if (minMatch) total += parseInt(minMatch[1], 10) * 60;
-  const secMatch = recuperation.match(/(\d+)\s*s(?:ec)?(?!\w)/i);
-  if (secMatch) total += parseInt(secMatch[1], 10);
+  let total = parseRecupSeconds(recuperation);
 
   if (total === 0) total = 60;
   return total + 8; // petite latence humaine (installation série suivante)

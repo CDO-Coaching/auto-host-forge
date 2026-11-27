@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { parseRecupSeconds } from "@/lib/parseRecup";
 import { Plus, Minus, Play, Pause, RotateCcw, Video, Zap, Weight, Repeat, Clock, Timer, ArrowLeft, MessageSquare, Check, ChevronDown, ChevronUp, PersonStanding, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -457,13 +458,7 @@ export default function ExerciceDetail() {
     setLoading(false);
   };
 
-  const parseRecuperationTime = (recup: string): number => {
-    const minMatch = recup.match(/(\d+)min/);
-    const secMatch = recup.match(/(\d+)s/);
-    const minutes = minMatch ? parseInt(minMatch[1]) : 0;
-    const seconds = secMatch ? parseInt(secMatch[1]) : 0;
-    return minutes * 60 + seconds;
-  };
+  const parseRecuperationTime = (recup: string): number => parseRecupSeconds(recup);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);

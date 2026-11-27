@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { parseRecupSeconds } from "@/lib/parseRecup";
 import { Timer, Video, Zap, Weight, Repeat, Clock, Check, ChevronDown, ChevronUp, ArrowLeft, Plus, Minus, Play } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -123,18 +124,8 @@ export default function SupersetDetail() {
     }
   };
 
-  // Parse une récup texte ("1min30s", "90s", "1min30") en secondes.
-  const parseSecs = (s?: string | null): number => {
-    if (!s) return 0;
-    const str = String(s).toLowerCase();
-    const mn = str.match(/(\d+)\s*min/);
-    const sc = str.match(/(\d+)\s*s/);
-    let total = 0;
-    if (mn) total += parseInt(mn[1]) * 60;
-    if (sc) total += parseInt(sc[1]);
-    if (!mn && !sc) { const n = parseInt(str); if (!isNaN(n)) total = n; }
-    return total;
-  };
+  // Parse une récup texte en secondes (source unique partagée).
+  const parseSecs = (s?: string | null): number => parseRecupSeconds(s);
 
   // Tous les exos du superset sont en durée → on peut lancer un Tabata qui enchaîne les deux.
   const allDuration = () => exercises.length > 0 && exercises.every((e: any) => e?.is_duration);

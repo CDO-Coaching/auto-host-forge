@@ -1,31 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { GuidedOverlay, type GuidedStep } from "@/components/GuidedOverlay";
+import { parseRecupSeconds } from "@/lib/parseRecup";
 
 const EX_COLORS = ["#c9944a", "#5aa9e6", "#9c7bd6", "#5fbf82", "#e8974a", "#e56464"];
 
-/** Parse "90s" / "1min30" / "1min30s" / "1'30" / "1:30" / "0s" / "90" → secondes. */
-function recupSeconds(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  const t = String(raw).trim().toLowerCase();
-  if (t === "emom" || t === "0s" || t === "0" || t === "") return 0;
-  // Format horloge « mm:ss » / « mm'ss » / « mm’ss" »
-  const clock = t.match(/^(\d+)\s*[:'’]\s*(\d{1,2})\s*["”]?$/);
-  if (clock) return parseInt(clock[1], 10) * 60 + parseInt(clock[2], 10);
-  let tot = 0;
-  let matched = false;
-  const m = t.match(/(\d+)\s*min/);
-  if (m) { tot += parseInt(m[1], 10) * 60; matched = true; }
-  const s = t.match(/(\d+)\s*s(?:ec)?/);
-  if (s) { tot += parseInt(s[1], 10); matched = true; }
-  // « 1min30 » : minutes trouvées, nombre restant sans unité = secondes
-  if (m && !s) {
-    const after = t.slice((m.index || 0) + m[0].length).match(/(\d+)/);
-    if (after) { tot += parseInt(after[1], 10); matched = true; }
-  }
-  if (!matched) { const n = parseInt(t, 10); if (!isNaN(n)) tot = n; }
-  return tot;
-}
+/** Récup → secondes (source unique partagée par tous les minuteurs). */
+const recupSeconds = parseRecupSeconds;
 
 type Serie = { reps: string; charge: string; rpe: string; tempo: string; recuperation: string; commentaire: string };
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { enableMixableAudioSession } from "@/lib/audioSession";
+import { parseRecupSeconds } from "@/lib/parseRecup";
 import { ArrowLeft, Play, Pause, ChevronLeft, ChevronRight, X, RotateCcw, Dumbbell, Clock, CheckCircle2, Youtube } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CelebrationOverlay } from "@/components/CelebrationOverlay";
@@ -27,24 +28,7 @@ const SIDE_SWITCH_SECONDS = 10;
 const SERIES_REST_SECONDS = 15;
 
 /** Parse un champ durée ("90", "90s", "1min30", "1:30", "10min") en secondes. */
-function parseSeconds(raw: string | null | undefined): number {
-  if (!raw) return 0;
-  const s = String(raw).trim().toLowerCase();
-  const colon = s.match(/^(\d+):(\d{1,2})$/);
-  if (colon) return parseInt(colon[1], 10) * 60 + parseInt(colon[2], 10);
-  let total = 0;
-  const min = s.match(/(\d+)\s*min/);
-  if (min) total += parseInt(min[1], 10) * 60;
-  const sec = s.match(/(\d+)\s*s(ec)?\b/);
-  if (sec) total += parseInt(sec[1], 10);
-  const minRemainder = s.match(/min\s*(\d+)/);
-  if (min && minRemainder) total += parseInt(minRemainder[1], 10);
-  if (total === 0) {
-    const n = parseInt(s, 10);
-    if (!isNaN(n)) total = n;
-  }
-  return total;
-}
+const parseSeconds = parseRecupSeconds;
 
 /** Extrait l'id YouTube d'une URL (shorts, watch, youtu.be, embed). */
 function youtubeId(url: string | null | undefined): string | null {
