@@ -185,11 +185,17 @@ export function SessionGuidedPlayer({
           const startDesc = [structure, lib.description].filter(Boolean).join("\n\n");
           const pushAutoWork = (id: string, phaseLabel: string, isFirstSide: boolean) => {
             const isStart = firstSerie && isFirstSide;
+            // Pré-décompte « prépare-toi » :
+            //  - 10 s au tout premier contact avec l'exo ;
+            //  - 5 s UNIQUEMENT entre côté 1 et côté 2 d'un unilatéral ;
+            //  - 0 s sinon (EMOM : on enchaîne minute sur minute ; série de durée
+            //    suivante : c'est la récup qui gère le repos, pas un pré-décompte).
+            const prep = isStart ? 10 : (!isFirstSide ? 5 : 0);
             out.push({
               ...(base as GuidedStep), id, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel, phaseColor: "#52b788",
-              autoStart: !isStart, autoAdvance: true, prepSeconds: isStart ? 10 : 3, compact: !isStart,
+              autoStart: !isStart, autoAdvance: true, prepSeconds: prep, compact: !isStart,
               onDefer: isStart ? () => deferExercises([ex.id]) : undefined,
               description: isStart ? startDesc : undefined,
               coachNote: isStart ? (coachNote || undefined) : undefined,
@@ -289,7 +295,7 @@ export function SessionGuidedPlayer({
               ...(base as GuidedStep), id: `w_${m.ex.id}_${r}b`, type: "work", isDuration: true, seconds: dur,
               refRpe: sd.rpe ? String(sd.rpe) : undefined, refTempo: sd.tempo ? String(sd.tempo) : undefined,
               phaseLabel: "🔥 Côté 2", phaseColor: "#52b788",
-              autoStart: true, autoAdvance: false, prepSeconds: 3, compact: true,
+              autoStart: true, autoAdvance: false, prepSeconds: 5, compact: true,
               description: undefined, coachNote: undefined,
             });
           } else if (isTimed) {
